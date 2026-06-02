@@ -51,6 +51,14 @@ const BASE_CSS = `
   .note-list a { display: block; padding: 14px 6px; font-size: 1.1rem; }
   .note-list a:hover { background: var(--soft); text-decoration: none; padding-left: 14px; transition: padding-left .12s ease; }
   .foot { margin-top: 3em; color: var(--muted); font-size: .85rem; text-align: center; }
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; }
+    .site-head h1 { font-size: 1.6rem; }
+    .grid { grid-template-columns: 1fr; gap: 12px; }
+    .card { padding: 16px 18px; }
+    .card-title { font-size: 1.1rem; }
+    .note-list a { padding: 16px 6px; }
+  }
 `
 
 const escapeHtml = (s) =>
@@ -131,10 +139,10 @@ const homePage = (subjects) => {
     .join('\n')
 
   return page({
-    title: '我的复习笔记',
+    title: 'UOW复习笔记',
     body: `<header class="site-head">
-  <h1>我的复习笔记</h1>
-  <p class="sub">UOW · 按科目整理</p>
+  <h1>UOW复习笔记</h1>
+  <p class="sub">按科目整理</p>
 </header>
 <nav class="grid">
 ${cards}

@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>第四章 · 模式分类 (Pattern Classification)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+</style>
+</head>
+<body>
+<h1 id="第四章--模式分类-pattern-classification">第四章 · 模式分类
+(Pattern Classification)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>说清<strong>分类 (classification)</strong>
+与回归的根本区别,并描述一个模式分类系统的标准流程(sensor → feature →
+classifier → decision);</li>
+<li>用"鱼的故事"解释特征选择、决策边界、维度灾难与 Occam's razor;</li>
+<li>推导并应用 <strong>Bayes 决策规则</strong>:区分 minimum error 与
+minimum risk,会用 likelihood ratio 和 loss matrix 做判断;</li>
+<li>解释<strong>判别函数 (discriminant functions)</strong> 的思路,理解
+linear machine、minimum-distance classifier 及其凸决策区域的局限;</li>
+<li>讲清<strong>核方法 (kernel methods)</strong>
+的核心思想——为什么不必知道映射
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
+也能在高维空间里算内积(kernel trick / Mercer);</li>
+<li>描述 <strong>SVM</strong> 如何通过最大化间隔来分类,理解 support
+vector、soft margin、以及如何用核把它推广到非线性。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>⚠️ <strong>来自课堂的考试提示(非常重要)</strong> —
+老师明确说过:本章(尤其是 kernel 和
+SVM)<strong>考试不会要求你推导或默写那些公式</strong>。但他会考你<strong>概念理解</strong>:"你知道
+kernelization
+是什么意思吗?你知道怎么用它把非线性问题变成线性问题吗?"——<strong>这才是重点</strong>。所以本章读的时候,公式要"看得懂、读得出来",但真正要钻透的是每个方法"在解决什么问题、凭什么思想解决"。(另:期末是
+3 小时<strong>手写闭卷</strong>,允许带<strong>一页 A4 手写 cheat
+sheet</strong>。)</p>
+</blockquote>
+<p>上一章我们学会了预测连续数值(回归)。本章转向另一大类监督学习任务:<strong>当输出不是一个数,而是一个"类别"时,怎么办?</strong>
+这就是分类。老师在课上反复强调一句要记进口袋里的话:</p>
+<blockquote>
+<p><strong>回归把输入映射到一个数值 (value);分类把输入映射到一个类别
+(category)。</strong></p>
+</blockquote>
+<p>这是分类与回归最根本的区别。其余一切——特征、模型、泛化——两者是相通的。事实上老师点破了一个统一视角:<strong>所有机器学习,本质上都是在学一个函数,把一个空间映射到另一个空间</strong>。回归学的是"特征空间
+→ 实数轴"的函数,分类学的是"特征空间 → 类别"的函数。记住这个"函数逼近
+(function approximation)"的视角,后面神经网络一章会再次回到它。</p>
+<hr />
+<h2 id="1-什么是模式识别一个分类系统长什么样">1.
+什么是模式识别:一个分类系统长什么样</h2>
+<h3 id="11-从人类的认知说起">1.1 从人类的认知说起</h3>
+<p>我们每天都在毫不费力地做分类:认出汽车、人、动物——尽管它们形态千差万别。我们是怎么做到的?<strong>靠提取特征
+(features)</strong>。哪怕信息不完整(只看到一个轮廓),我们也能凭特征贴上"标签
+(label)"。<strong>label
+就是名字</strong>,是我们在机器学习里给类别起的称呼。</p>
+<p><strong>模式识别 (pattern recognition)</strong>
+这门学问研究的就是:如何设计能识别、分类"事物"的机器。具体研究三件事:</p>
+<ol type="1">
+<li>研究描述事物的那些<strong>特征的统计规律</strong>;</li>
+<li>研究如何设计分类机器;</li>
+<li>研究如何<strong>度量分类系统的性能</strong>、并选出好的系统。</li>
+</ol>
+<h3 id="12-标准流程从原始信号到决策">1.2 标准流程:从原始信号到决策</h3>
+<p>一个模式分类系统有一条标准的流水线(slides 的 Figure 1):</p>
+<pre class="mermaid"><code>graph LR
+  P[&quot;待识别对象&lt;br/&gt;(Pattern)&quot;] --&gt; S[&quot;Sensor&lt;br/&gt;传感器&quot;]
+  S --&gt; R[&quot;Representation Pattern&lt;br/&gt;原始数据(如图像像素)&quot;]
+  R --&gt; F[&quot;Feature Selector/Extractor&lt;br/&gt;特征选择/提取&quot;]
+  F --&gt; FP[&quot;Feature Pattern&lt;br/&gt;少量关键变量&quot;]
+  FP --&gt; C[&quot;Classifier&lt;br/&gt;分类器&quot;]
+  C --&gt; D[&quot;Decision&lt;br/&gt;类别决策&quot;]</code></pre>
+<p>逐段理解这条流水线(老师特别强调了"两种 pattern"的区别):</p>
+<ul>
+<li><strong>Sensor(传感器)</strong>
+是任何"测量"手段——相机、麦克风、激光雷达,泛指一切获取数据的方式。它给出<strong>representation
+pattern(表示模式)</strong>,也就是<strong>原始数据</strong>(图像像素、股票价格、语音信号……)。</li>
+<li><strong>Feature selector/extractor</strong>
+通过某种变换,从原始数据里提炼出<strong>一小组变量</strong>,这就是
+<strong>feature pattern(特征模式)</strong>。</li>
+<li><strong>训练好的 classifier</strong>
+用这个特征模式做出关于输入的<strong>决策</strong>。</li>
+</ul>
+<p>这条 pattern
+可以是任何东西——图像像素、股市收盘价、语音录音、气象变量、房产数据、人的行为数据、甚至
+DNA 等生物数据。无论什么,我们最终都把它整理成一个
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+维向量</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>x</mi><mn>1</mn></msub></mtd><mtd columnalign="center" style="text-align: center"><msub><mi>x</mi><mn>2</mn></msub></mtd><mtd columnalign="center" style="text-align: center"><mi>⋯</mi></mtd><mtd columnalign="center" style="text-align: center"><msub><mi>x</mi><mi>p</mi></msub></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow><mi>t</mi></msup></mrow><annotation encoding="application/x-tex">x = \begin{bmatrix} x_1 &amp; x_2 &amp; \cdots &amp; x_p \end{bmatrix}^t</annotation></semantics></math></p>
+<p>其中上标
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>(或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>)表示<strong>转置
+(transpose)</strong>——老师风趣地说,这个小小的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+的意思就是"让这个向量站起来,别躺着"(列向量)。</p>
+<h3 id="13-类别标签与一个关键区分">1.3 类别、标签与一个关键区分</h3>
+<p>假设共有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>C</mi><annotation encoding="application/x-tex">C</annotation></semantics></math>
+个类别,记作
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>ω</mi><mi>C</mi></msub></mrow><annotation encoding="application/x-tex">\omega_1, \dots, \omega_C</annotation></semantics></math>。引入一个变量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+指示某个模式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+属于哪一类:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mtext mathvariant="normal">若 </mtext><mspace width="0.333em"></mspace></mrow><mi>z</mi><mo>=</mo><mi>i</mi><mo>,</mo><mspace width="0.222em"></mspace><mrow><mtext mathvariant="normal">则模式 </mtext><mspace width="0.333em"></mspace></mrow><mi>x</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 属于 </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>ω</mi><mi>i</mi></msub><mo>,</mo><mspace width="1.0em"></mspace><mi>i</mi><mo>∈</mo><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>C</mi><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\text{若 } z = i,\ \text{则模式 } x \text{ 属于 } \omega_i,\quad i \in \{1, \dots, C\}</annotation></semantics></math></p>
+<blockquote>
+<p><strong>🔑 例 (分类器 vs 回归器)</strong> —
+老师在课堂上反复追问这个区别,说"放进口袋、拉上拉链,别忘了":</p>
+<ul>
+<li><strong>回归器
+(regressor)</strong>:输出是<strong>数值</strong>——比如预测幸福感
+5.96。映射 = 特征空间 → 实数。</li>
+<li><strong>分类器
+(classifier)</strong>:输出是<strong>类别/标签</strong>——比如判断"这是
+salmon"还是"这是 bass"。映射 = 特征空间 → 类别。</li>
+</ul>
+<p>这个差异决定了后面用的损失、决策规则、评价指标都不同,是本章一切讨论的起点。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides,但老师在录音里点了)</strong> —
+从概率角度看,分类器要学的是一个<strong>条件概率 (conditional
+probability)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>Y</mi><mo stretchy="false" form="prefix">|</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(Y|X)</annotation></semantics></math>——"给定观测
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>,它属于类别
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>
+的概率"。记住这一点,因为 §3 的 Bayes
+决策正是围绕这个条件概率展开的。</p>
+</blockquote>
+<h3 id="14-分类器设计的核心要求">1.4 分类器设计的核心要求</h3>
+<p>给定一组<strong>已知类别</strong>的模式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">{</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>z</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\{(x_i, z_i)\}</annotation></semantics></math>,称为<strong>训练集/设计集
+(training / design
+set)</strong>,我们要设计一个对<strong>预期工作条件</strong>最优的分类器。设计时要牢记四条(slides
+列得很清楚):</p>
+<ol type="1">
+<li>给定的训练样本是<strong>有限的 (finite)</strong>;</li>
+<li>分类器模型<strong>不能太复杂</strong>(参数不能太多),否则会<strong>过拟合
+(over-fitting)</strong>;</li>
+<li>在设计集上取得最优表现<strong>并不重要</strong>;</li>
+<li><strong>取得最优的泛化性能 (generalization)
+才最重要</strong>——也就是在"真实工作条件所代表的、设计集所抽自的那个无限总体"上表现好。</li>
+</ol>
+<p>老师把第 4
+条拔到最高:<strong>一个能泛化的模型才是可部署的模型</strong>。只在自己电脑上、训练数据上好用的模型毫无价值;能在没见过的新数据上同样好用,才能拿出去用。这正是回归章
+§2.3"经验误差 vs 泛化误差"那对张力在分类里的再现。</p>
+<h3 id="15-三种学习范式">1.5 三种学习范式</h3>
+<pre class="mermaid"><code>graph TB
+  CLS[&quot;Classification&quot;] --&gt; SUP[&quot;Supervised(监督)&lt;br/&gt;有标签的训练样本(exemplars)&quot;]
+  CLS --&gt; UNS[&quot;Unsupervised(无监督)&lt;br/&gt;数据无标签,自己找分组(groups)&quot;]
+  CLS --&gt; SEMI[&quot;Semi-supervised(半监督)&lt;br/&gt;标签+无标签数据混合训练&quot;]</code></pre>
+<ul>
+<li><strong>监督分类
+(Supervised)</strong>:设计过程有一组带标签(类别)的数据样本,即训练数据。</li>
+<li><strong>无监督分类
+(Unsupervised)</strong>:数据<strong>没有标签</strong>,目标是在数据里<strong>找出分组
+(groups)</strong>、以及区分各组的特征。</li>
+<li><strong>半监督
+(Semi-supervised)</strong>:训练时<strong>同时</strong>用标注和未标注数据。</li>
+</ul>
+<p>本章聚焦监督分类。</p>
+<hr />
+<h2 id="2-特征工程的直觉一个关于鱼的故事">2.
+特征工程的直觉:一个关于鱼的故事</h2>
+<p>slides 和录音都花了大量篇幅讲一个经典例子(出自 Duda-Hart-Stork 的
+<em>Pattern
+Classification</em>,老师说"这是我们当年吃着长大的书")。这个故事把抽象的分类设计讲得活灵活现,务必吃透——它是后面所有方法的直觉来源。</p>
+<h3 id="21-问题给鱼分拣">2.1 问题:给鱼分拣</h3>
+<p>你为一家渔业公司设计自动分拣系统。公司要把
+<strong>salmon(三文鱼)</strong> 和 <strong>bass(鲈鱼)</strong>
+分开。这事有商业代价:salmon 比 bass 贵约 3 倍,<strong>把 salmon 错卖成
+bass(或反之)代价很高</strong>——顾客买到一半是别的鱼,会要求退款。人工分拣的工人会累、会犯困、会装错,所以需要机器学习。</p>
+<p>第一步做什么?老师反复强调:<strong>收集数据!Data is king。</strong>
+再好的 GPU,没有数据也建不了模型。所以你把一箱 salmon、一箱 bass
+拿回家,<strong>大量测量</strong>。为什么要量很多条而不是一条?因为你需要<strong>变化
+(variation / variance)</strong>——知道 salmon 的长度有哪些可能、bass
+的长度有哪些可能,也就是知道每个特征的<strong>概率分布</strong>。只测一条会过拟合到那一条鱼;量得多还能<strong>抵消测量误差</strong>。</p>
+<p>可选的特征(features of
+interest):<strong>length(长度)、width(宽度)、fins
+的数量和形状、嘴的位置、lightness(明暗/亮度)</strong>……</p>
+<h3 id="22-用一个特征长度以及决策边界">2.2
+用一个特征:长度,以及"决策边界"</h3>
+<p>先只用<strong>长度</strong>。把大量 salmon 和 bass
+的长度画成两个<strong>直方图
+(histogram)</strong>——其实就是两条长度的分布曲线。你会发现:大多数 salmon
+集中在某个长度,大多数 bass
+集中在另一个(通常更长),<strong>但两条分布有重叠</strong>——有些短的
+bass、有些长的 salmon。</p>
+<p>你在某个长度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>L</mi><mo>*</mo></msup><annotation encoding="application/x-tex">L^*</annotation></semantics></math>
+处画一条竖线作为<strong>决策阈值/决策边界 (decision
+boundary)</strong>:左边判为 salmon,右边判为
+bass。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>L</mi><mo>*</mo></msup><annotation encoding="application/x-tex">L^*</annotation></semantics></math>
+选在能让<strong>错误数最小</strong>的位置。</p>
+<pre class="mermaid"><code>graph LR
+  subgraph &quot;只用长度:两分布重叠&quot;
+    A[&quot;salmon 分布&quot;] -.重叠区.-&gt; O[&quot;重叠 = 不可避免的错误&quot;]
+    B[&quot;bass 分布&quot;] -.重叠区.-&gt; O
+  end</code></pre>
+<p><strong>关键洞见:那块重叠区域,就是分类错误的来源。</strong>
+无论阈值怎么放,落在重叠区的鱼总会有一部分被判错。光用长度,重叠太大,错误太多——顾客不满意。这个特征<strong>不够有区分力
+(discriminative)</strong>。</p>
+<h3 id="23-换个特征再合并走向二维特征空间">2.3
+换个特征、再合并:走向二维特征空间</h3>
+<p>于是改用 <strong>lightness(亮度)</strong>。同样画直方图、找阈值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>X</mi><mo>*</mo></msup><annotation encoding="application/x-tex">X^*</annotation></semantics></math>。这次两个分布的重叠<strong>小得多</strong>,错误也少得多——亮度比长度更有区分力。</p>
+<p>但还能更好:<strong>为什么不把两个特征合起来用?</strong>
+于是构造一个<strong>二维特征向量</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>x</mi><mn>1</mn></msub></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>x</mi><mn>2</mn></msub></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow><mspace width="1.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mtext mathvariant="normal">如 </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>x</mi><mn>1</mn></msub><mo>=</mo><mtext mathvariant="normal">lightness</mtext><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mtext mathvariant="normal">length</mtext><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x = \begin{bmatrix} x_1 \\ x_2 \end{bmatrix} \quad (\text{如 } x_1 = \text{lightness},\ x_2 = \text{length})</annotation></semantics></math></p>
+<p>现在每条鱼是二维平面上的一个点,salmon 和 bass
+形成两团点云。分类器要找的不再是一条竖线,而是平面上的一条<strong>决策边界</strong>把两团分开。如何找到"最好"的那条决策边界,<strong>正是分类器设计问题的核心</strong>。用两个特征后,训练误差可能降到只剩一两个点错分——比单特征好得多。</p>
+<pre class="mermaid"><code>graph TB
+  ONE[&quot;1 个特征(长度)&lt;br/&gt;重叠大,错误多&quot;] --&gt;|&quot;换更好的特征&quot;| TWO_A[&quot;1 个特征(亮度)&lt;br/&gt;重叠小,错误少&quot;]
+  TWO_A --&gt;|&quot;合并两个特征&quot;| TWO_D[&quot;2D 特征空间&lt;br/&gt;用决策边界分开两团点&quot;]</code></pre>
+<h3 id="24-特征不是越多越好维度灾难与-occams-razor">2.4
+特征不是越多越好:维度灾难与 Occam's Razor</h3>
+<p>既然两个特征比一个好,那十个、一百个岂不更好?<strong>错。</strong>
+这里有两个陷阱:</p>
+<p><strong>(1) 维度灾难 (curse of dimensionality)</strong> —
+特征太多时,要处理高维特征向量,数据在高维空间里变得极度稀疏,反而很难找到一条好的决策边界来漂亮地区分。"特征太多"这个问题就叫维度灾难。</p>
+<p><strong>(2) 过拟合 (overfitting)</strong> —
+模型太复杂(决策边界太曲折)会把训练数据"完美"分开,但对新模式分类很差——又是<strong>泛化问题</strong>。slides
+的 Figure 7 画的就是一条过分曲折、试图穿过每一个训练点的决策边界。</p>
+<p>那该怎么权衡?答案是一条古老的原则——<strong>Occam's
+Razor(奥卡姆剃刀)</strong>:</p>
+<blockquote>
+<p><strong>在多个competing(相互竞争)且都能拟合数据的模型中,选最简单的那个。</strong></p>
+</blockquote>
+<p>老师强调了一个常被误读的细节:<strong>不是"为了简单而简单",而是"在能拟合数据的前提下选最简单的"</strong>。如果模型
+A 简单且能拟合,模型 B 也能拟合但更复杂,选
+A;但简单到拟合不了数据的模型不在考虑之列。这条原则也是后面<strong>稀疏表示
+(sparse representation)</strong> 方法的思想根基(呼应回归章 Lasso
+的精神)。</p>
+<blockquote>
+<p><strong>🔑 小结这个故事教会我们的设计流程</strong>:(1)
+先收集大量、多样的数据;(2)
+思考什么特征能<strong>唯一地、有区分力地</strong>描述对象;(3)
+用尽量少的特征(Occam),通过特征的分布找决策边界;(4)
+用独立的测试数据检验泛化。这套思路对任何分类对象都适用——鱼只是个好记的例子,换成工业质检、医学诊断、语音同理。</p>
+</blockquote>
+<hr />
+<h2 id="3-贝叶斯决策理论用概率做最优决策">3.
+贝叶斯决策理论:用概率做最优决策</h2>
+<p>鱼的故事给了直觉,现在要把它<strong>数学化</strong>。如果我们能掌握每个类别的概率分布,就能做出<strong>最优</strong>的决策。这就是
+<strong>Bayesian decision
+theory</strong>——老师说它"无处不在,哪怕在最复杂的神经网络里也会冒出来",是经典方法里最该掌握的一块。</p>
+<p>它有两个版本:<strong>最小错误 (minimum error)</strong> 和
+<strong>最小风险 (minimum risk)</strong>。</p>
+<h3 id="31-bayes-决策规则最小错误">3.1 Bayes 决策规则:最小错误</h3>
+<p><strong>前提</strong>:我们<strong>完全掌握每个类别的概率密度函数</strong>。</p>
+<p><strong>先验概率 (a priori / prior probability)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>…</mi><mo>,</mo><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>C</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(\omega_1), \dots, P(\omega_C)</annotation></semantics></math>:在还没做任何测量之前,某个类别出现的概率。</p>
+<blockquote>
+<p><strong>🔑 例 (先验是什么)</strong> —
+老师用了两个比喻。一是钓鱼:"你去海里,闭着眼随手一抓,抓到 bass
+的概率是多少?"——某片海域 bass 多,先验就高。二是数班里人数:若班里有 10
+个女生、12 个男生(共 22 人),那么"随手点一个人是女生"的先验
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><mtext mathvariant="normal">female</mtext><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>10</mn><mi>/</mi><mn>22</mn></mrow><annotation encoding="application/x-tex">P(\text{female}) = 10/22</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><mtext mathvariant="normal">male</mtext><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>12</mn><mi>/</mi><mn>22</mn></mrow><annotation encoding="application/x-tex">P(\text{male}) = 12/22</annotation></semantics></math>。<strong>先验就是"在测量任何东西之前,事物的分布"。</strong></p>
+</blockquote>
+<p>现在我们用测量向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+分配到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>C</mi><annotation encoding="application/x-tex">C</annotation></semantics></math>
+个类别之一。<strong>后验概率 (a posteriori / posterior
+probability)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(\omega_j|x)</annotation></semantics></math>:观测到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+之后,它属于类别
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\omega_j</annotation></semantics></math>
+的概率(这正是 §1.3 说的那个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>Y</mi><mo stretchy="false" form="prefix">|</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(Y|X)</annotation></semantics></math>)。</p>
+<p><strong>Bayes 最小错误决策规则</strong>:把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+判给后验概率<strong>最高</strong>的那个类别:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>∈</mo><msub><mi>ω</mi><mi>j</mi></msub><mspace width="1.0em"></mspace><mtext mathvariant="normal">若</mtext><mspace width="1.0em"></mspace><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>&gt;</mo><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>k</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><mo>∀</mo><mi>k</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>C</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>k</mi><mo>≠</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">x \in \omega_j \quad \text{若} \quad P(\omega_j | x) &gt; P(\omega_k | x),\quad \forall k = 1, \dots, C,\ k \ne j</annotation></semantics></math></p>
+<p>这等于把测量空间划分成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>C</mi><annotation encoding="application/x-tex">C</annotation></semantics></math>
+个区域
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Ω</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>Ω</mi><mi>C</mi></msub></mrow><annotation encoding="application/x-tex">\Omega_1, \dots, \Omega_C</annotation></semantics></math>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>∈</mo><msub><mi>Ω</mi><mi>j</mi></msub><mo>⇒</mo><mi>x</mi></mrow><annotation encoding="application/x-tex">x \in \Omega_j \Rightarrow x</annotation></semantics></math>
+属于
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\omega_j</annotation></semantics></math>。</p>
+<p><strong>问题是后验
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(\omega_j|x)</annotation></semantics></math>
+不好直接得到。</strong> 这时 <strong>Bayes
+定理</strong>登场,把后验用我们更容易掌握的量表达出来——<strong>先验</strong>和<strong>类条件密度
+(class-conditional density)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x|\omega_i)</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></munderover><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(\omega_i | x) = \frac{p(x | \omega_i)\, P(\omega_i)}{p(x)}, \qquad p(x) = \sum_{j=1}^{C} p(x | \omega_j)\, P(\omega_j)</annotation></semantics></math></p>
+<p>分母
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x)</annotation></semantics></math>
+对所有类别都一样,它的作用只是<strong>归一化
+(normalization)</strong>(保证后验是合法概率,加起来为
+1),<strong>不影响比较大小</strong>。所以决策规则可以只看分子,用类条件密度写成:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>∈</mo><msub><mi>ω</mi><mi>j</mi></msub><mspace width="1.0em"></mspace><mtext mathvariant="normal">若</mtext><mspace width="1.0em"></mspace><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>&gt;</mo><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><mo>∀</mo><mi>k</mi><mo>≠</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">x \in \omega_j \quad \text{若} \quad p(x | \omega_j) P(\omega_j) &gt; p(x | \omega_k) P(\omega_k),\quad \forall k \ne j</annotation></semantics></math></p>
+<p>这就是 <strong>Bayes
+最小错误规则</strong>。直觉:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x|\omega_j)</annotation></semantics></math>
+是"如果是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\omega_j</annotation></semantics></math>
+类,出现这个测量值的可能性有多大"(比如 salmon
+的平均长度分布),<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(\omega_j)</annotation></semantics></math>
+是这个类本身有多常见,两者相乘,谁大就判给谁——这样做,<strong>犯的错误是最小的</strong>。</p>
+<pre class="mermaid"><code>graph LR
+  PRIOR[&quot;先验 P(ωⱼ)&lt;br/&gt;没测量前的分布&quot;] --&gt; BAYES[&quot;Bayes 定理&quot;]
+  COND[&quot;类条件密度 p(x|ωⱼ)&lt;br/&gt;该类下出现 x 的可能性&quot;] --&gt; BAYES
+  BAYES --&gt; POST[&quot;后验 P(ωⱼ|x)&quot;]
+  POST --&gt; RULE[&quot;判给后验最大的类&lt;br/&gt;= 最小错误&quot;]</code></pre>
+<h4 id="似然比-likelihood-ratio">似然比 (Likelihood Ratio)</h4>
+<p>在<strong>两类</strong>问题里,可以把最小错误规则写成更紧凑的<strong>似然比
+(likelihood ratio)</strong> 形式。把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+判为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\omega_1</annotation></semantics></math>
+当且仅当:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>r</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>&gt;</mo><mfrac><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac></mrow><annotation encoding="application/x-tex">L_r(x) = \frac{p(x | \omega_1)}{p(x | \omega_2)} &gt; \frac{P(\omega_2)}{P(\omega_1)}</annotation></semantics></math></p>
+<p>左边是两个类条件密度之比(似然比),右边是一个由先验决定的<strong>阈值</strong>。似然比超过阈值就判
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\omega_1</annotation></semantics></math>,否则判
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mn>2</mn></msub><annotation encoding="application/x-tex">\omega_2</annotation></semantics></math>。</p>
+<blockquote>
+<p><strong>🔑 例 (两个正态分布)</strong> — slides
+给了一个具体例子(老师说数据是编的,只为演示计算):</p>
+<ul>
+<li>类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\omega_1</annotation></semantics></math>
+是标准正态:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x|\omega_1) = N(x \mid 0, 1)</annotation></semantics></math>(均值
+0、方差 1 的简单钟形)。</li>
+<li>类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mn>2</mn></msub><annotation encoding="application/x-tex">\omega_2</annotation></semantics></math>
+是<strong>正态混合 (normal mixture / mixture of
+Gaussians)</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0.6</mn><mspace width="0.167em"></mspace><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mn>0.4</mn><mspace width="0.167em"></mspace><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mo>−</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x|\omega_2) = 0.6\, N(x\mid 1,1) + 0.4\, N(x\mid -1, 2)</annotation></semantics></math>。</li>
+</ul>
+<p>为什么用正态?因为它<strong>易处理
+(tractable)</strong>;而且<strong>多个正态加权叠加(混合高斯)可以拼出非常复杂的分布</strong>,所以表达能力并不弱。取
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">P(\omega_1) = P(\omega_2) = 0.5</annotation></semantics></math>,把似然比
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>r</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">L_r(x)</annotation></semantics></math>
+和阈值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">P(\omega_2)/P(\omega_1) = 1</annotation></semantics></math>
+一起画出来:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>r</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">L_r(x)</annotation></semantics></math>
+高于阈值的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+区域判为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\omega_1</annotation></semantics></math>,低于的判为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mn>2</mn></msub><annotation encoding="application/x-tex">\omega_2</annotation></semantics></math>。</p>
+</blockquote>
+<h3 id="32-bayes-决策规则最小风险">3.2 Bayes 决策规则:最小风险</h3>
+<p>最小错误规则把所有错误一视同仁。但现实中<strong>不同的错误代价不同</strong>——回到鱼:把
+bass 当 salmon
+卖(顾客花高价买到便宜鱼,会投诉退款)和反过来,损失不一样。<strong>Minimum
+risk(最小风险)</strong> 规则就是要最小化<strong>期望损失/风险 (expected
+loss / risk)</strong>。</p>
+<p>定义一个<strong>损失矩阵 (loss matrix)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Λ</mi><annotation encoding="application/x-tex">\Lambda</annotation></semantics></math>,其元素:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>λ</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mo>=</mo><mrow><mtext mathvariant="normal">把模式 </mtext><mspace width="0.333em"></mspace></mrow><mi>x</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 判给 </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>ω</mi><mi>i</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><mrow><mtext mathvariant="normal">而它实际属于 </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>ω</mi><mi>j</mi></msub><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 时的代价</mtext></mrow></mrow><annotation encoding="application/x-tex">\lambda_{ji} = \text{把模式 } x \text{ 判给 } \omega_i,\ \text{而它实际属于 } \omega_j \text{ 时的代价}</annotation></semantics></math></p>
+<p>(注意:<strong>对角线
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>λ</mi><mrow><mi>i</mi><mi>i</mi></mrow></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\lambda_{ii} = 0</annotation></semantics></math></strong>——判对了没有代价;非对角元素是各种错判的代价,可对称也可不对称。)</p>
+<p>把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+判给
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\omega_i</annotation></semantics></math>
+的<strong>条件风险 (conditional risk)</strong>
+是各种可能真实类别下代价的加权平均(权重是后验):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>l</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></munderover><msub><mi>λ</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mspace width="0.167em"></mspace><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">l_i(x) = \sum_{j=1}^{C} \lambda_{ji}\, P(\omega_j | x)</annotation></semantics></math></p>
+<p>在决策区域
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Ω</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\Omega_i</annotation></semantics></math>
+上的<strong>平均风险</strong>,以及对所有类求和得到的<strong>总体风险
+(overall risk)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mi>i</mi></msub><mo>=</mo><msub><mo>∫</mo><msub><mi>Ω</mi><mi>i</mi></msub></msub><msub><mi>l</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>d</mi><mi>x</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>r</mi><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></munderover><msub><mi>r</mi><mi>i</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></munderover><msub><mo>∫</mo><msub><mi>Ω</mi><mi>i</mi></msub></msub><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></munderover><msub><mi>λ</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>d</mi><mi>x</mi></mrow><annotation encoding="application/x-tex">r_i = \int_{\Omega_i} l_i(x)\, p(x)\, dx, \qquad r = \sum_{i=1}^{C} r_i = \sum_{i=1}^{C} \int_{\Omega_i} \sum_{j=1}^{C} \lambda_{ji} P(\omega_j|x) p(x)\, dx</annotation></semantics></math></p>
+<p><strong>最小风险规则</strong>:选择决策区域
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Ω</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\Omega_i</annotation></semantics></math>,使得当</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></munderover><msub><mi>λ</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>≤</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></munderover><msub><mi>λ</mi><mrow><mi>j</mi><mi>k</mi></mrow></msub><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><mo>∀</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">\sum_{j=1}^{C} \lambda_{ji} P(\omega_j | x) p(x) \le \sum_{j=1}^{C} \lambda_{jk} P(\omega_j | x) p(x),\quad \forall k</annotation></semantics></math></p>
+<p>时,把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+判给
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\omega_i</annotation></semantics></math>。达到的最小风险称为
+<strong>Bayes 风险 (Bayes risk)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>r</mi><mo>*</mo></msup><annotation encoding="application/x-tex">r^*</annotation></semantics></math>。一句话:<strong>对每个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>,算出判给各类的条件风险,选风险最小的那个类。</strong></p>
+<blockquote>
+<p><strong>🔑 例 (三类疾病诊断)</strong> —
+这是老师在录音里详细讲的例子。要判断病人是 healthy / mild disease /
+severe disease。损失矩阵的某些条目:</p>
+<ul>
+<li>判"healthy"而病人确实 healthy → 代价 0(判对);</li>
+<li>判"healthy"而病人其实是 severe disease →
+代价<strong>很大</strong>(误诊致命,保险可能找你索赔);</li>
+<li>判"mild"而病人 healthy → 代价 1(让人白买药);</li>
+<li>判"mild"而病人确实 mild → 代价 0……</li>
+</ul>
+<p>假设算出后验
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>1</mn></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0.4</mn></mrow><annotation encoding="application/x-tex">P(\omega_1|x)=0.4</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>2</mn></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0.3</mn></mrow><annotation encoding="application/x-tex">P(\omega_2|x)=0.3</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>3</mn></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0.3</mn></mrow><annotation encoding="application/x-tex">P(\omega_3|x)=0.3</annotation></semantics></math>,就把它们代入条件风险公式,分别算出"判
+healthy / 判 mild / 判
+severe"三种决策的风险,<strong>选风险最小的那个</strong>。这就是最小风险决策的完整流程。</p>
+</blockquote>
+<h4 id="特例零一损失--回到最小错误">特例:零一损失 → 回到最小错误</h4>
+<p>如果用<strong>零一损失矩阵 (zero-one
+loss)</strong>(也叫对称损失):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>λ</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mn>1</mn><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mi>i</mi><mo>≠</mo><mi>j</mi></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mn>0</mn><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mi>i</mi><mo>=</mo><mi>j</mi></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">\lambda_{ij} = \begin{cases} 1, &amp; i \ne j \\ 0, &amp; i = j \end{cases}</annotation></semantics></math></p>
+<p>也就是"判错代价都是 1,判对代价是
+0"。把它代入最小风险规则,经过化简会得到:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>≥</mo><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><mo>∀</mo><mi>k</mi><mspace width="1.0em"></mspace><mo>⇒</mo><mspace width="1.0em"></mspace><mi>x</mi><mo>∈</mo><msub><mi>ω</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">p(x|\omega_i) P(\omega_i) \ge p(x|\omega_k) P(\omega_k),\quad \forall k \quad \Rightarrow \quad x \in \omega_i</annotation></semantics></math></p>
+<p>这<strong>恰好就是 §3.1 的 Bayes 最小错误规则!</strong>
+换句话说,<strong>最小错误是最小风险在"所有错误代价相等"时的特例</strong>。此时条件风险有个漂亮的形式:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>l</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mrow><mi>j</mi><mo>≠</mo><mi>i</mi></mrow></munder><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>1</mn><mo>−</mo><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">l_i(x) = \sum_{j \ne i} P(\omega_j | x) = 1 - P(\omega_i | x)</annotation></semantics></math></p>
+<p>即"判给
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\omega_i</annotation></semantics></math>
+的风险 = 不是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\omega_i</annotation></semantics></math>
+的概率"——要让风险最小,就让
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(\omega_i|x)</annotation></semantics></math>
+最大,这与最小错误完全一致。</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th>minimum error</th>
+<th>minimum risk</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>最小化的目标</strong></td>
+<td>错误概率</td>
+<td>期望损失(风险)</td>
+</tr>
+<tr class="even">
+<td><strong>是否区分错误代价</strong></td>
+<td>否,所有错误一样</td>
+<td>是,用 loss matrix
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>λ</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><annotation encoding="application/x-tex">\lambda_{ji}</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td><strong>判据</strong></td>
+<td>后验
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(\omega_j|x)</annotation></semantics></math>
+最大</td>
+<td>条件风险
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>l</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">l_i(x)</annotation></semantics></math>
+最小</td>
+</tr>
+<tr class="even">
+<td><strong>关系</strong></td>
+<td>是 minimum risk 在 <strong>zero-one loss</strong> 下的特例</td>
+<td>更一般</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-判别函数不假设分布直接学边界">4.
+判别函数:不假设分布,直接学边界</h2>
+<p>Bayes
+决策很优雅,但有个硬伤:<strong>它要求知道先验和类条件密度</strong>,而这些在现实中往往拿不到,只能从数据估计。如果连分布的形式都不想假设,怎么办?</p>
+<p><strong>判别函数 (discriminant functions)</strong>
+给出另一条路:<strong>不对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x|\omega_i)</annotation></semantics></math>
+做任何假设,而是直接假设一个"判别函数"的形式,用它来分类。</strong>
+我们把讨论从"概率"搬到了"函数形式"上。</p>
+<h3 id="41-基本思想">4.1 基本思想</h3>
+<p>对一个两类问题,判别函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h(x)</annotation></semantics></math>
+满足:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>&gt;</mo><mi>k</mi><mo>⇒</mo><mi>x</mi><mo>∈</mo><msub><mi>ω</mi><mn>1</mn></msub><mo>,</mo><mspace width="2.0em"></mspace><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>&lt;</mo><mi>k</mi><mo>⇒</mo><mi>x</mi><mo>∈</mo><msub><mi>ω</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">h(x) &gt; k \Rightarrow x \in \omega_1, \qquad h(x) &lt; k \Rightarrow x \in \omega_2</annotation></semantics></math></p>
+<p>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+是某个常数阈值。)给定
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>,代入函数,看结果在阈值之上还是之下,做相应判断。</p>
+<p><strong>判别函数不唯一。</strong> 若
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f(\cdot)</annotation></semantics></math>
+是<strong>单调函数 (monotonic function)</strong>,则
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">g(x) = f(h(x))</annotation></semantics></math>
+给出<strong>相同</strong>的决策(阈值相应变成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mi>′</mi><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">k&#39; = f(k)</annotation></semantics></math>)。这给了我们操纵函数形式的自由度。</p>
+<p>对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>C</mi><annotation encoding="application/x-tex">C</annotation></semantics></math>
+类问题,定义
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>C</mi><annotation encoding="application/x-tex">C</annotation></semantics></math>
+个判别函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>g</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">g_i(x)</annotation></semantics></math>,把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+判给判别值<strong>最大</strong>的那个类:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>g</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>&gt;</mo><msub><mi>g</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>⇒</mo><mi>x</mi><mo>∈</mo><msub><mi>ω</mi><mi>i</mi></msub><mo>,</mo><mspace width="1.0em"></mspace><mo>∀</mo><mi>j</mi><mo>≠</mo><mi>i</mi></mrow><annotation encoding="application/x-tex">g_i(x) &gt; g_j(x) \Rightarrow x \in \omega_i,\quad \forall j \ne i</annotation></semantics></math></p>
+<p>判别技术的关键特点:<strong>它只依赖所选函数的形式,不依赖底层分布;函数的参数通过训练过程来调整。</strong></p>
+<h3 id="42-线性判别函数与-linear-machine">4.2 线性判别函数与 linear
+machine</h3>
+<p>最简单的判别函数是<strong>线性 (linear)</strong>
+的——测量向量各分量的线性组合:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msup><mi>ω</mi><mi>t</mi></msup><mi>x</mi><mo>+</mo><msub><mi>ω</mi><mn>0</mn></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>p</mi></munderover><msub><mi>ω</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><msub><mi>ω</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">g(x) = \omega^t x + \omega_0 = \sum_{i=1}^{p} \omega_i x_i + \omega_0</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ω</mi><annotation encoding="application/x-tex">\omega</annotation></semantics></math>
+是权重向量,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mn>0</mn></msub><annotation encoding="application/x-tex">\omega_0</annotation></semantics></math>
+是阈值权重(bias)。这个方程描述一个<strong>超平面
+(hyperplane)</strong>:它的单位法向量沿
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ω</mi><annotation encoding="application/x-tex">\omega</annotation></semantics></math>
+方向,到原点的垂直距离为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>ω</mi><mn>0</mn></msub><mo stretchy="true" form="postfix">|</mo></mrow><mi>/</mi><mrow><mo stretchy="true" form="prefix">|</mo><mi>ω</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">|\omega_0| / |\omega|</annotation></semantics></math>。slides
+的 Figure 9 给了几何图:<strong>判别函数在某点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+的取值,正比于该点到超平面的垂直距离</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">g &gt; 0</annotation></semantics></math>
+在超平面一侧,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo>&lt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">g &lt; 0</annotation></semantics></math>
+在另一侧)。</p>
+<p>使用线性判别函数的分类器叫 <strong>linear
+machine(线性机)</strong>。</p>
+<p><strong>Minimum-distance classifier(最小距离分类器)</strong> 是
+linear machine 的一个典型例子,它用<strong>最近邻 (nearest-neighbour)
+决策规则</strong>。设每个类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\omega_i</annotation></semantics></math>
+由一个<strong>原型点 (prototype point)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mi>i</mi></msub><annotation encoding="application/x-tex">p_i</annotation></semantics></math>
+代表,把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+判给最近的原型点所属的类。距离平方展开:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><msub><mi>p</mi><mi>i</mi></msub><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>=</mo><msup><mi>x</mi><mi>t</mi></msup><mi>x</mi><mo>−</mo><mn>2</mn><msup><mi>x</mi><mi>t</mi></msup><msub><mi>p</mi><mi>i</mi></msub><mo>+</mo><msubsup><mi>p</mi><mi>i</mi><mi>t</mi></msubsup><msub><mi>p</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">\|x - p_i\|^2 = x^t x - 2 x^t p_i + p_i^t p_i</annotation></semantics></math></p>
+<p>注意
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mi>t</mi></msup><mi>x</mi></mrow><annotation encoding="application/x-tex">x^t x</annotation></semantics></math>
+对所有类相同,可丢掉;最小化距离等价于<strong>最大化</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mi>t</mi></msup><msub><mi>p</mi><mi>i</mi></msub><mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><msubsup><mi>p</mi><mi>i</mi><mi>t</mi></msubsup><msub><mi>p</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">x^t p_i - \frac{1}{2} p_i^t p_i</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mtext mathvariant="normal">判给 </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>ω</mi><mi>i</mi></msub><mo>=</mo><mo>arg</mo><munder><mo>max</mo><mi>i</mi></munder><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>x</mi><mi>t</mi></msup><msub><mi>p</mi><mi>i</mi></msub><mo>−</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><msubsup><mi>p</mi><mi>i</mi><mi>t</mi></msubsup><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\text{判给 } \omega_i = \arg\max_i \left( x^t p_i - \tfrac{1}{2} p_i^t p_i \right)</annotation></semantics></math></p>
+<p>这正好是一个线性判别函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>g</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msubsup><mi>ω</mi><mi>i</mi><mi>t</mi></msubsup><mi>x</mi><mo>+</mo><msub><mi>ω</mi><mrow><mi>i</mi><mn>0</mn></mrow></msub></mrow><annotation encoding="application/x-tex">g_i(x) = \omega_i^t x + \omega_{i0}</annotation></semantics></math>,其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mi>i</mi></msub><mo>=</mo><msub><mi>p</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">\omega_i = p_i</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mrow><mi>i</mi><mn>0</mn></mrow></msub><mo>=</mo><mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mo stretchy="false" form="postfix">∥</mo><msub><mi>p</mi><mi>i</mi></msub><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\omega_{i0} = -\frac{1}{2}\|p_i\|^2</annotation></semantics></math>——<strong>证明了最小距离分类器确实是
+linear
+machine</strong>。若把原型点取成<strong>每类样本的均值</strong>,就得到
+<strong>nearest class mean classifier(最近类均值分类器)</strong>。</p>
+<h3 id="43-凸决策区域linear-machine-的局限">4.3 凸决策区域:linear
+machine 的局限</h3>
+<p>linear machine 的决策边界有一个重要几何性质(slides Figure
+10):<strong>每条边界是连接两个相邻原型点的连线的垂直平分线
+(perpendicular bisector)</strong>,而且 <strong>linear machine
+的决策区域永远是凸的 (convex)</strong>。</p>
+<p>凸,既是优点也是死穴。<strong>当数据要求的决策区域是非凸 (non-convex)
+的时候,linear discriminant 就无能为力了。</strong> slides Figure 11
+给了反例:两类点的分布方式让任何一条直线都分不开。</p>
+<pre class="mermaid"><code>graph TB
+  LM[&quot;Linear machine&lt;br/&gt;线性判别函数&quot;] --&gt; CVX[&quot;决策区域永远是凸的&quot;]
+  CVX --&gt; OK[&quot;✅ 凸可分:能正确分类&quot;]
+  CVX --&gt; BAD[&quot;❌ 非凸可分:失败&lt;br/&gt;需要 piecewise linear&quot;]</code></pre>
+<h3 id="44-分段线性判别函数">4.4 分段线性判别函数</h3>
+<p>解决非凸问题的一个办法是 <strong>piecewise linear discriminant
+functions(分段线性判别函数)</strong>,它推广了最小距离分类器:<strong>允许每个类有多于一个原型</strong>。设类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\omega_i</annotation></semantics></math>
+有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>i</mi></msub><annotation encoding="application/x-tex">n_i</annotation></semantics></math>
+个原型
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>p</mi><mi>i</mi><mn>1</mn></msubsup><mo>,</mo><mi>…</mi><mo>,</mo><msubsup><mi>p</mi><mi>i</mi><msub><mi>n</mi><mi>i</mi></msub></msubsup></mrow><annotation encoding="application/x-tex">p_i^1, \dots, p_i^{n_i}</annotation></semantics></math>,则把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+判给
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\omega_i</annotation></semantics></math>
+的判别函数定义为各子判别函数的<strong>最大值</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>g</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>max</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>n</mi><mi>i</mi></msub></mrow></munder><msubsup><mi>g</mi><mi>i</mi><mi>j</mi></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="2.0em"></mspace><msubsup><mi>g</mi><mi>i</mi><mi>j</mi></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msup><mi>x</mi><mi>t</mi></msup><msubsup><mi>p</mi><mi>i</mi><mi>j</mi></msubsup><mo>−</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><msubsup><mi>p</mi><mi>i</mi><mrow><mi>j</mi><mspace width="0.167em"></mspace><mi>t</mi></mrow></msubsup><msubsup><mi>p</mi><mi>i</mi><mi>j</mi></msubsup></mrow><annotation encoding="application/x-tex">g_i(x) = \max_{j = 1, \dots, n_i} g_i^j(x), \qquad g_i^j(x) = x^t p_i^j - \tfrac{1}{2} p_i^{j\,t} p_i^j</annotation></semantics></math></p>
+<p>用"取 max"把多段线性拼接起来,就能围出非凸的决策区域。</p>
+<blockquote>
+<p>老师在录音里坦言:这些线性/分段线性方法"我讲得很快,不是因为它们不重要,而是因为实践中你<strong>真正常用的</strong>是接下来要讲的——<strong>核方法和
+SVM</strong>"。所以从这里开始进入本章的重头戏。</p>
+</blockquote>
+<hr />
+<h2 id="5-核方法换个空间非线性变线性">5.
+核方法:换个空间,非线性变线性</h2>
+<h3 id="51-核心思想与一个绝妙的比喻">5.1 核心思想与一个绝妙的比喻</h3>
+<p>很多分类问题在原始特征空间里<strong>线性不可分</strong>——两团点纠缠在一起,画不出一条直线把它们分开。<strong>核方法
+(kernel methods)</strong> 的主意是:</p>
+<blockquote>
+<p><strong>把数据嵌入 (embed)
+到另一个空间,在那个空间里,原本非线性的模式变成了线性关系。</strong></p>
+</blockquote>
+<pre class="mermaid"><code>graph LR
+  A[&quot;原始空间&lt;br/&gt;两类纠缠,线性不可分&quot;] --&gt;|&quot;映射 ϕ 嵌入&quot;| B[&quot;新特征空间&lt;br/&gt;同一批数据,线性可分!&quot;]
+  B --&gt; C[&quot;在新空间用简单的&lt;br/&gt;线性方法分类/回归&quot;]</code></pre>
+<blockquote>
+<p><strong>🔑 例 (换个角度看椅子)</strong> —
+老师的比喻特别传神:"我现在这样看这把椅子,只能看到正面,分不清它和桌子。但我<strong>换个角度</strong>走过去,就能看到它的靠背、四条腿——一下子就认出来了。核方法做的就是这件事:<strong>还是同一批数据,只是投影到不同的空间,突然就一目了然、可以线性区分了。</strong>"
+关键是——映射后的空间维度可能很高(甚至无穷),但正如下文 kernel trick
+所示,这<strong>不增加计算负担</strong>。</p>
+</blockquote>
+<p>核方法有两个步骤:(1) 映射由一个 <strong>kernel
+function(核函数)</strong> 隐式定义(取决于对数据来源的领域知识);(2)
+在新空间用一个稳健的通用算法。它的算法是<strong>高效</strong>的——计算量是数据规模和数量的多项式;尤其精妙的是:<strong>嵌入空间的维度可以指数级增长,却不影响计算负担</strong>(为什么?见
+§5.4 的 kernel trick)。</p>
+<h3 id="52-重访岭回归primal-与-dual-两种解">5.2 重访岭回归:primal 与
+dual 两种解</h3>
+<p>要理解核方法为什么可行,老师把上一章的 <strong>Ridge
+regression</strong>
+拿回来重新审视——因为核方法最早正是从这里看出门道的。岭回归的优化问题和解(primal
+form,原始形式):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mi>W</mi></munder><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>W</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>+</mo><mo stretchy="false" form="postfix">∥</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mspace width="1.0em"></mspace><mo>⇒</mo><mspace width="1.0em"></mspace><mi>W</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo>+</mo><mi>λ</mi><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mi>X</mi><mi>Y</mi><mspace width="1.0em"></mspace><mtext mathvariant="normal">(primal)</mtext></mrow><annotation encoding="application/x-tex">\min_W F(W) = \lambda \|W\|^2 + \|X^T W - Y\|^2 \quad\Longrightarrow\quad W = (X X^T + \lambda I)^{-1} X Y \quad \text{(primal)}</annotation></semantics></math></p>
+<p>老师指出,同一个解可以<strong>改写</strong>成另一种形式。利用矩阵恒等式,解可以写成训练样本的<strong>线性组合</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo>=</mo><mi>X</mi><mi>α</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>α</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mo>+</mo><mi>λ</mi><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mi>Y</mi><mspace width="1.0em"></mspace><mtext mathvariant="normal">(dual)</mtext></mrow><annotation encoding="application/x-tex">W = X\alpha, \qquad \alpha = (G + \lambda I)^{-1} Y \quad \text{(dual)}</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mo>=</mo><msup><mi>X</mi><mi>T</mi></msup><mi>X</mi></mrow><annotation encoding="application/x-tex">G = X^T X</annotation></semantics></math>
+叫 <strong>Gram 矩阵 (Gram
+matrix)</strong>,它的<strong>每个元素都是两个样本的内积 (inner
+product)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">G_{ij} = \langle x_i, x_j \rangle</annotation></semantics></math></p>
+<p>对新样本
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+的预测函数也只用到内积:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><mi>W</mi><mo>,</mo><mi>x</mi><mo stretchy="false" form="postfix">⟩</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msub><mi>α</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">⟨</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><mi>x</mi><mo stretchy="false" form="postfix">⟩</mo><mo>=</mo><msup><mi>Y</mi><mi>T</mi></msup><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mo>+</mo><mi>λ</mi><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mi>k</mi><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>k</mi><mi>i</mi></msub><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><mi>x</mi><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">g(x) = \langle W, x \rangle = \sum_{i=1}^{m} \alpha_i \langle x_i, x \rangle = Y^T (G + \lambda I)^{-1} k, \qquad k_i = \langle x_i, x \rangle</annotation></semantics></math></p>
+<h3 id="53-primal-vs-dual为什么-dual-重要">5.3 Primal vs Dual:为什么
+dual 重要</h3>
+<p>我们有了岭回归的两种解(其他回归类似):</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Primal form(原始)</strong></th>
+<th><strong>Dual form(对偶)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>解的形式</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo>+</mo><mi>λ</mi><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mi>X</mi><mi>Y</mi></mrow><annotation encoding="application/x-tex">W = (XX^T + \lambda I)^{-1}XY</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo>=</mo><mi>X</mi><mi>α</mi></mrow><annotation encoding="application/x-tex">W = X\alpha</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>求解的方程组规模</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">N \times N</annotation></semantics></math>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+= 特征维度)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>×</mo><mi>m</mi></mrow><annotation encoding="application/x-tex">m \times m</annotation></semantics></math>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+= 样本数)</td>
+</tr>
+<tr class="odd">
+<td>计算上的含义</td>
+<td>显式计算权重</td>
+<td>把解表达为训练样本的线性组合</td>
+</tr>
+<tr class="even">
+<td>什么时候占优</td>
+<td>样本多、特征少</td>
+<td><strong>特征维度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>≫</mo><mi>m</mi></mrow><annotation encoding="application/x-tex">N \gg m</annotation></semantics></math>
+样本数时</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键观察(老师划重点):岭回归算法可以写成一种只需要"样本点之间的内积"的形式。</strong>
+当特征维度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+远大于样本数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+时,解
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>×</mo><mi>m</mi></mrow><annotation encoding="application/x-tex">m \times m</annotation></semantics></math>
+的系统比解
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">N \times N</annotation></semantics></math>
+划算得多。而一旦"只需要内积",核方法的大门就打开了。</p>
+<h3 id="54-kernel-trick不必知道-phi直接在原空间算内积">5.4 Kernel
+trick:不必知道
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>,直接在原空间算内积</h3>
+<p>考虑一个嵌入映射
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mo>:</mo><mi>x</mi><mo>∈</mo><msup><mi>ℝ</mi><mi>N</mi></msup><mo>↦</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>F</mi><mo>⊆</mo><msup><mi>ℝ</mi><mrow><mi>N</mi><mi>′</mi></mrow></msup></mrow><annotation encoding="application/x-tex">\phi: x \in \mathbb{R}^N \mapsto \phi(x) \in F \subseteq \mathbb{R}^{N&#39;}</annotation></semantics></math>,它把数据重新编码,目标是把非线性关系变成线性。映射后,Gram
+矩阵的元素变成<strong>新空间里的内积</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">G_{ij} = \langle \phi(x_i), \phi(x_j) \rangle</annotation></semantics></math></p>
+<p><strong>难题来了</strong>:若
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
+把数据映到很高(甚至无穷)维,逐个计算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\phi(x_i)</annotation></semantics></math>
+再求内积,代价巨大(算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+的成本
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>m</mi><mn>3</mn></msup><mo>+</mo><msup><mi>m</mi><mn>2</mn></msup><mi>N</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(m^3 + m^2 N)</annotation></semantics></math>,在新空间会爆炸)。</p>
+<p><strong>Mercer 定理(老师口中的"Messus
+theorem")给出救星</strong>:<strong>内积可以直接在原始输入空间里算出来,根本不需要先算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\phi(x)</annotation></semantics></math>!</strong>
+方法是选一个合适的<strong>核函数 (kernel function)</strong>。</p>
+<p><strong>核函数的定义</strong>:核是一个函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>,对所有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>,</mo><mi>z</mi><mo>∈</mo><mi>S</mi></mrow><annotation encoding="application/x-tex">x, z \in S</annotation></semantics></math>
+满足</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\kappa(x, z) = \langle \phi(x), \phi(z) \rangle</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
+是从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
+到某个内积特征空间
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+的映射。<strong>这就是 kernel trick
+的全部秘密</strong>:你给两个原始向量喂给
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>,得到的结果<strong>等于</strong>先把它们映射到高维空间
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+再求内积——但你完全不用踏进
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+那一步。这正是 §5.1 说的"维度指数增长却不增加计算负担"的原因。</p>
+<blockquote>
+<p><strong>🔑 例 (亲手验证 kernel trick)</strong> — 取二维输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><msup><mi>ℝ</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x = (x_1, x_2) \in \mathbb{R}^2</annotation></semantics></math>,映射到三维:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mo>:</mo><mi>x</mi><mo>↦</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>x</mi><mn>1</mn><mn>2</mn></msubsup><mo>,</mo><mspace width="0.222em"></mspace><msubsup><mi>x</mi><mn>2</mn><mn>2</mn></msubsup><mo>,</mo><mspace width="0.222em"></mspace><msqrt><mn>2</mn></msqrt><mspace width="0.167em"></mspace><msub><mi>x</mi><mn>1</mn></msub><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>F</mi><mo>=</mo><msup><mi>ℝ</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">\phi: x \mapsto \phi(x) = (x_1^2,\ x_2^2,\ \sqrt{2}\, x_1 x_2) \in F = \mathbb{R}^3</annotation></semantics></math>
+直接在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+里算内积:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo><mo>=</mo><msubsup><mi>x</mi><mn>1</mn><mn>2</mn></msubsup><msubsup><mi>z</mi><mn>1</mn><mn>2</mn></msubsup><mo>+</mo><msubsup><mi>x</mi><mn>2</mn><mn>2</mn></msubsup><msubsup><mi>z</mi><mn>2</mn><mn>2</mn></msubsup><mo>+</mo><mn>2</mn><msub><mi>x</mi><mn>1</mn></msub><msub><mi>x</mi><mn>2</mn></msub><msub><mi>z</mi><mn>1</mn></msub><msub><mi>z</mi><mn>2</mn></msub><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>1</mn></msub><msub><mi>z</mi><mn>1</mn></msub><mo>+</mo><msub><mi>x</mi><mn>2</mn></msub><msub><mi>z</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><mi>x</mi><mo>,</mo><mi>z</mi><msup><mo stretchy="false" form="postfix">⟩</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\langle \phi(x), \phi(z) \rangle = x_1^2 z_1^2 + x_2^2 z_2^2 + 2 x_1 x_2 z_1 z_2 = (x_1 z_1 + x_2 z_2)^2 = \langle x, z \rangle^2</annotation></semantics></math>
+<strong>所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><mi>x</mi><mo>,</mo><mi>z</mi><msup><mo stretchy="false" form="postfix">⟩</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\kappa(x, z) = \langle x, z \rangle^2</annotation></semantics></math>
+就是这个特征空间对应的核函数。</strong>
+注意右边——我们只在原始二维空间里算了个内积再平方,就得到了三维空间的内积,完全没碰
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>!</p>
+<p><strong>特征空间不唯一</strong>:换一个映射
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>x</mi><mn>1</mn><mn>2</mn></msubsup><mo>,</mo><msubsup><mi>x</mi><mn>2</mn><mn>2</mn></msubsup><mo>,</mo><msub><mi>x</mi><mn>1</mn></msub><msub><mi>x</mi><mn>2</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><msub><mi>x</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><msup><mi>ℝ</mi><mn>4</mn></msup></mrow><annotation encoding="application/x-tex">\phi(x) = (x_1^2, x_2^2, x_1 x_2, x_2 x_1) \in \mathbb{R}^4</annotation></semantics></math>,算出来内积<strong>还是</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><mi>x</mi><mo>,</mo><mi>z</mi><msup><mo stretchy="false" form="postfix">⟩</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\langle x, z\rangle^2</annotation></semantics></math>——<strong>同一个核可以对应不同的特征空间</strong>。这说明我们真正在乎的是核(内积),而不是具体的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>。</p>
+</blockquote>
+<h3 id="55-常用核函数">5.5 常用核函数</h3>
+<table>
+<thead>
+<tr class="header">
+<th>名称</th>
+<th>数学形式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo></mrow><annotation encoding="application/x-tex">\kappa(x_i, x_j)=</annotation></semantics></math></th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Linear</strong>(线性)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\langle x_i, x_j \rangle</annotation></semantics></math></td>
+<td>就是原始内积,不做非线性变换</td>
+</tr>
+<tr class="even">
+<td><strong>Polynomial</strong>(多项式)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>γ</mi><mo stretchy="false" form="prefix">⟨</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>d</mi></msup><annotation encoding="application/x-tex">(\gamma \langle x_i, x_j \rangle + r)^d</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\gamma&gt;0</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>
+阶多项式特征</td>
+</tr>
+<tr class="odd">
+<td><strong>Gaussian (RBF)</strong>(高斯/径向基)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mi>γ</mi><msup><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>x</mi><mi>i</mi></msub><mo>−</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\exp(-\gamma |x_i - x_j|^2)</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\gamma&gt;0</annotation></semantics></math></td>
+<td><strong>最常用</strong>;映到无穷维空间</td>
+</tr>
+<tr class="even">
+<td><strong>Sigmoid</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>γ</mi><mo stretchy="false" form="prefix">⟨</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\tanh(\gamma \langle x_i, x_j \rangle + r)</annotation></semantics></math></td>
+<td>类似神经网络激活</td>
+</tr>
+</tbody>
+</table>
+<p>老师反复强调:<strong>RBF(高斯核)是实践中最常用、最万能的核</strong>——它几乎能把任何非线性纠缠的数据变成线性可分,经验上首选它。</p>
+<blockquote>
+<p><strong>🔑 例 (RBF 核手算)</strong> — 取
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">[</mo><mn>1</mn><mspace width="0.222em"></mspace><mn>4</mn><mspace width="0.222em"></mspace><mn>6</mn><mo stretchy="true" form="postfix">]</mo></mrow><mi>T</mi></msup></mrow><annotation encoding="application/x-tex">x = [1\ 4\ 6]^T</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">[</mo><mn>3</mn><mspace width="0.222em"></mspace><mn>5</mn><mspace width="0.222em"></mspace><mn>2</mn><mo stretchy="true" form="postfix">]</mo></mrow><mi>T</mi></msup></mrow><annotation encoding="application/x-tex">z = [3\ 5\ 2]^T</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>=</mo><mn>0.2222</mn></mrow><annotation encoding="application/x-tex">\gamma = 0.2222</annotation></semantics></math>,用
+RBF 核:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><mi>z</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mn>3</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>4</mn><mo>−</mo><mn>5</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>6</mn><mo>−</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><mo>=</mo><mn>4</mn><mo>+</mo><mn>1</mn><mo>+</mo><mn>16</mn><mo>=</mo><mn>21</mn></mrow><annotation encoding="application/x-tex">\|x - z\|^2 = (1-3)^2 + (4-5)^2 + (6-2)^2 = 4 + 1 + 16 = 21</annotation></semantics></math>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>0.2222</mn><mo>×</mo><mn>21</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>4.667</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>9.4</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>3</mn></mrow></msup></mrow><annotation encoding="application/x-tex">\kappa(x, z) = \exp(-0.2222 \times 21) = \exp(-4.667) = 9.4 \times 10^{-3}</annotation></semantics></math>
+这个值就等于
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\langle \phi(x), \phi(z)\rangle</annotation></semantics></math>——而我们根本没去那个(无穷维的)<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+空间。老师说:"自己动手算一遍,确保理解了这个概念。"</p>
+</blockquote>
+<h3 id="56-核化kernelization适用于一切需要内积的方法">5.6
+核化(Kernelization)适用于一切需要内积的方法</h3>
+<p>回忆 §5.2:岭回归的 Gram 矩阵每个元素都是输入空间的内积。把映射
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
+引入高维空间后,Gram 矩阵的每个元素都能用相应的核来算:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo><mo>=</mo><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G_{ij} = \langle \phi(x_i), \phi(x_j) \rangle = \kappa(x_i, x_j)</annotation></semantics></math></p>
+<p><strong>核心结论(也是老师反复说的考点)</strong>:<strong>Kernelization
+提供了处理非线性关系的通用工具</strong>——只要一个算法能写成"只依赖样本内积"的形式,就能被核化,从而处理非线性。这适用于<strong>回归(kernel
+ridge regression)、分类、降维(kernel PCA)</strong>
+等等。所以你既可以做普通 ridge,也可以做 kernel
+ridge;既可以做线性分类,也可以核化成非线性分类。<strong>你只需要选一个合适的核</strong>,其余计算照旧在原空间里高效进行。</p>
+<hr />
+<h2 id="6-支持向量机-support-vector-machine-svm">6. 支持向量机 (Support
+Vector Machine, SVM)</h2>
+<p>终于到了本章的最高峰。在神经网络流行起来之前,<strong>SVM
+是当之无愧的首选分类技术</strong>(老师:"那时它就是 go-to
+technique")。它把前面的核方法用到了极致。</p>
+<h3 id="61-问题设定间隔最大的那条线">6.1 问题设定:间隔最大的那条线</h3>
+<p>考虑一个<strong>二分类 (binary classification)</strong> 任务:数据点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>i</mi></msub><annotation encoding="application/x-tex">x_i</annotation></semantics></math>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>m</mi></mrow><annotation encoding="application/x-tex">i=1,\dots,m</annotation></semantics></math>),标签
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><mo>±</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">y_i = \pm 1</annotation></semantics></math>。决策函数:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mtext mathvariant="normal">sign</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><mi>x</mi><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">g(x) = \text{sign}(\langle w, x \rangle + b)</annotation></semantics></math></p>
+<p>对<strong>可分 (separable)</strong> 数据集,所有点被正确分类当且仅当
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>&gt;</mo><mn>0</mn><mo>,</mo><mspace width="0.222em"></mspace><mo>∀</mo><mi>i</mi></mrow><annotation encoding="application/x-tex">y_i(\langle w, x_i\rangle + b) &gt; 0,\ \forall i</annotation></semantics></math>。</p>
+<p>但能把两类分开的直线有<strong>无穷多条</strong>(回忆回归章拟合线的直觉)。SVM
+问:<strong>哪条最好?</strong> 答案是——<strong>间隔 (margin)
+最大的那条</strong>。直觉上,离两类都尽量远的边界,泛化能力最强、最稳健。</p>
+<p>定义<strong>正则超平面 (canonical
+hyperplane)</strong>:让离分界面最近的点满足
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><mi>x</mi><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo>=</mo><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\langle w, x\rangle + b = +1</annotation></semantics></math>(一侧)和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><mi>x</mi><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo>=</mo><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\langle w, x\rangle + b = -1</annotation></semantics></math>(另一侧)。</p>
+<ul>
+<li><strong>分界面 (separating
+plane)</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><mi>x</mi><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\langle w, x\rangle + b = 0</annotation></semantics></math>,法向量是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac><mi>w</mi><mrow><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><mo stretchy="false" form="postfix">∥</mo></mrow></mfrac><annotation encoding="application/x-tex">\frac{w}{\|w\|}</annotation></semantics></math>;</li>
+<li><strong>间隔 (margin)</strong>:由两侧最近点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>1</mn></msup><mo>,</mo><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x^1, x^2</annotation></semantics></math>
+在分界面上的投影决定。由
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><msup><mi>x</mi><mn>1</mn></msup><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\langle w, x^1\rangle + b = 1</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo>=</mo><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\langle w, x^2\rangle + b = -1</annotation></semantics></math>
+推得 <strong>margin
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>=</mo><mn>1</mn><mi>/</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><mo stretchy="false" form="postfix">∥</mo></mrow><annotation encoding="application/x-tex">\gamma = 1/\|w\|</annotation></semantics></math></strong>。</li>
+</ul>
+<p>落在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>±</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\pm 1</annotation></semantics></math>
+这两条边界线上的点,就是 <strong>support
+vectors(支持向量)</strong>——它们"撑起"了间隔,是唯一真正决定分界面的点(故得名)。</p>
+<pre class="mermaid"><code>graph TB
+  H[&quot;无穷多条可分界线&quot;] --&gt; Q[&quot;哪条最好?&quot;]
+  Q --&gt; M[&quot;间隔最大的那条&lt;br/&gt;margin γ = 1/‖w‖&quot;]
+  M --&gt; SV[&quot;撑在 ±1 边界上的点&lt;br/&gt;= support vectors&lt;br/&gt;(只有它们决定分界面)&quot;]</code></pre>
+<h3 id="62-优化目标最大化间隔--最小化-w">6.2 优化目标:最大化间隔 =
+最小化 ‖w‖</h3>
+<p>最大化间隔
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>=</mo><mn>1</mn><mi>/</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><mo stretchy="false" form="postfix">∥</mo></mrow><annotation encoding="application/x-tex">\gamma = 1/\|w\|</annotation></semantics></math>,等价于最小化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><mo stretchy="false" form="postfix">∥</mo></mrow><annotation encoding="application/x-tex">\|w\|</annotation></semantics></math>(或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\frac{1}{2}\|w\|^2</annotation></semantics></math>,方便求导)。于是
+SVM 的优化问题是:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mi>w</mi></munder><mspace width="0.222em"></mspace><mfrac><mn>1</mn><mn>2</mn></mfrac><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mspace width="2.0em"></mspace><mtext mathvariant="normal">subject to</mtext><mspace width="1.0em"></mspace><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>≥</mo><mn>1</mn><mo>,</mo><mspace width="0.222em"></mspace><mo>∀</mo><mi>i</mi></mrow><annotation encoding="application/x-tex">\min_{w}\ \frac{1}{2}\|w\|^2 \qquad \text{subject to} \quad y_i(\langle w, x_i\rangle + b) \ge 1,\ \forall i</annotation></semantics></math></p>
+<p>(注意这里又出现了"最小化权重范数"——和回归章 Ridge 的 L2
+思想一脉相承,本质都是在做某种模型选择/复杂度控制。)</p>
+<h3 id="63-对偶形式内积登场核方法接入">6.3
+对偶形式:内积登场,核方法接入</h3>
+<p>用 <strong>Lagrange 乘子法 (method of Lagrange multipliers)</strong>
+求解。原始(primal)目标函数:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><mi>w</mi><mo stretchy="false" form="postfix">⟩</mo><mo>−</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msub><mi>α</mi><mi>i</mi></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mn>1</mn><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">L = \frac{1}{2}\langle w, w\rangle - \sum_{i=1}^{m} \alpha_i \big(y_i(\langle w, x_i\rangle + b) - 1\big)</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>α</mi><mi>i</mi></msub><mo>≥</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\alpha_i \ge 0</annotation></semantics></math>
+是 Lagrange 乘子。对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+求导、代回,得到<strong>对偶 (dual) 目标函数</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msub><mi>α</mi><mi>i</mi></msub><mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msub><mi>α</mi><mi>i</mi></msub><msub><mi>α</mi><mi>j</mi></msub><msub><mi>y</mi><mi>i</mi></msub><msub><mi>y</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">⟨</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">W(\alpha) = \sum_{i=1}^{m} \alpha_i - \frac{1}{2}\sum_{i,j=1}^{m} \alpha_i \alpha_j y_i y_j \langle x_i, x_j\rangle</annotation></semantics></math></p>
+<p>在约束
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>α</mi><mi>i</mi></msub><mo>≥</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\alpha_i \ge 0</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>α</mi><mi>i</mi></msub><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sum_i \alpha_i y_i = 0</annotation></semantics></math>
+下<strong>最大化</strong>它。这是一个<strong>二次规划 (Quadratic
+Program)</strong>,解出来就得到可分数据的最大间隔最优分界面。</p>
+<p><strong>注意对偶式里那个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\langle x_i, x_j\rangle</annotation></semantics></math>——又是内积!</strong>
+这意味着 §5 的 kernel trick 可以无缝接入。</p>
+<h3 id="64-核化-svm对付线性不可分">6.4 核化 SVM:对付线性不可分</h3>
+<p>对<strong>线性不可分</strong>的数据,把内积换成核(等于在高维特征空间里求内积):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">⟩</mo><mspace width="0.222em"></mspace><mo>↦</mo><mspace width="0.222em"></mspace><mo stretchy="false" form="prefix">⟨</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo><mo>=</mo><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\langle x_i, x_j\rangle \ \longmapsto\ \langle \phi(x_i), \phi(x_j)\rangle = \kappa(x_i, x_j)</annotation></semantics></math></p>
+<p>无需知道
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
+的具体形式(核隐式定义了它)。核化后的对偶目标:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msub><mi>α</mi><mi>i</mi></msub><mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msub><mi>α</mi><mi>i</mi></msub><msub><mi>α</mi><mi>j</mi></msub><msub><mi>y</mi><mi>i</mi></msub><msub><mi>y</mi><mi>j</mi></msub><mspace width="0.167em"></mspace><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">W(\alpha) = \sum_{i=1}^{m} \alpha_i - \frac{1}{2}\sum_{i,j=1}^{m} \alpha_i \alpha_j y_i y_j\, \kappa(x_i, x_j)</annotation></semantics></math></p>
+<p>对新测试点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+的<strong>决策函数</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mtext mathvariant="normal">sign</mtext><mrow><mo stretchy="true" form="prefix">(</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msub><mi>y</mi><mi>i</mi></msub><msub><mi>α</mi><mi>i</mi></msub><mspace width="0.167em"></mspace><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f(z) = \text{sign}\left( \sum_{i=1}^{m} y_i \alpha_i\, \kappa(x_i, z) + b \right)</annotation></semantics></math></p>
+<p>比如取
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mi>γ</mi><mo stretchy="false" form="postfix">∥</mo><msub><mi>x</mi><mi>i</mi></msub><mo>−</mo><msub><mi>x</mi><mi>j</mi></msub><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\kappa(x_i, x_j) = \exp(-\gamma\|x_i - x_j\|^2)</annotation></semantics></math>(RBF)。<strong>这就是
+SVM
+的威力来源:线性可分时用线性核求最大间隔,线性不可分时换个核,先把数据投影到能线性可分的空间,再求最大间隔。</strong></p>
+<h3 id="65-软间隔-svm容忍噪声与离群点">6.5 软间隔
+SVM:容忍噪声与离群点</h3>
+<p>现实数据有<strong>噪声 (noisy data) 和离群点
+(outliers)</strong>,硬要求所有点都满足
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>≥</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">y_i(\langle w,x_i\rangle+b)\ge 1</annotation></semantics></math>
+会导致<strong>泛化变差</strong>(被个别坏点带跑)。<strong>软间隔 (soft
+margin)</strong> 允许少量违例。有两种做法:</p>
+<ul>
+<li><strong>L1 范数误差</strong>:引入<strong>盒约束 (box
+constraint)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>≤</mo><msub><mi>α</mi><mi>i</mi></msub><mo>≤</mo><mi>C</mi></mrow><annotation encoding="application/x-tex">0 \le \alpha_i \le C</annotation></semantics></math>——给乘子设个上限
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>C</mi><annotation encoding="application/x-tex">C</annotation></semantics></math>;</li>
+<li><strong>L2
+范数误差</strong>:在核矩阵对角线上加一个小正数,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>→</mo><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>λ</mi></mrow><annotation encoding="application/x-tex">\kappa(x_i, x_j) \to \kappa(x_i, x_j) + \lambda</annotation></semantics></math>。</li>
+</ul>
+<p>参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>C</mi><annotation encoding="application/x-tex">C</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+用来<strong>权衡训练误差与泛化能力</strong>,通常用<strong>验证集
+(validation set)</strong> 来选(著名的库 <strong>libsvm</strong>
+提供了确定
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>C</mi><annotation encoding="application/x-tex">C</annotation></semantics></math>
+的接口)。</p>
+<h3 id="66-实战怎么用-svmhsu-et-al-的建议">6.6 实战:怎么用 SVM(Hsu et
+al. 的建议)</h3>
+<p>老师给了一个新手友好的标准流程(出自 Hsu et al. 2003–2016
+的实用指南):</p>
+<pre class="mermaid"><code>graph TB
+  A[&quot;1. 把数据转成 SVM 包的格式&quot;] --&gt; B[&quot;2. 对数据做简单缩放 scaling&quot;]
+  B --&gt; C[&quot;3. 优先考虑 RBF 核&quot;]
+  C --&gt; D[&quot;4. 用 cross-validation 找最佳参数 C 和 γ&quot;]
+  D --&gt; E[&quot;5. 用最佳 C、γ 在全部训练集上训练&quot;]
+  E --&gt; F[&quot;6. 测试&quot;]</code></pre>
+<blockquote>
+<p>📎 <strong>拓展(交叉验证与三路划分)</strong> — 老师解释了
+<strong>cross-validation</strong> 的作用:模型里有些<strong>超参数
+(hyperparameters)</strong>(如 SVM 的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>C</mi><annotation encoding="application/x-tex">C</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>γ</mi><annotation encoding="application/x-tex">\gamma</annotation></semantics></math>),要选最佳值,就要把数据做<strong>三路划分</strong>:<strong>training(训练)
++ validation(验证) +
+testing(测试)</strong>。用训练集学权重,用<strong>验证集挑超参数</strong>,最后用从未碰过的测试集报告真实性能。Scikit-Learn
+直接暴露了 cross-validation 接口,声明一下即可,不用自己写。</p>
+</blockquote>
+<h3 id="67-svm-全景">6.7 SVM 全景</h3>
+<pre class="mermaid"><code>graph LR
+  LIN[&quot;线性可分&quot;] --&gt; MAX[&quot;最大化间隔&lt;br/&gt;min ½‖w‖² s.t. yᵢ(⟨w,xᵢ⟩+b)≥1&quot;]
+  MAX --&gt; DUAL[&quot;Lagrange → 对偶式&lt;br/&gt;(只含内积 ⟨xᵢ,xⱼ⟩)&quot;]
+  DUAL --&gt; KERN[&quot;线性不可分?&lt;br/&gt;内积换成核 κ(xᵢ,xⱼ)&quot;]
+  KERN --&gt; SOFT[&quot;有噪声/离群点?&lt;br/&gt;软间隔:0≤αᵢ≤C 或对角加 λ&quot;]
+  SOFT --&gt; USE[&quot;实战:scaling → RBF → CV 选 C,γ → 训练 → 测试&quot;]</code></pre>
+<hr />
+<h2 id="7-把整章串起来一条主线">7. 把整章串起来:一条主线</h2>
+<pre class="mermaid"><code>graph TB
+  D[&quot;§1 分类 = 学&#39;特征空间 → 类别&#39;的函数&lt;br/&gt;(vs 回归的&#39;→ 数值&#39;)&quot;]
+  D --&gt; F[&quot;§2 鱼的故事:特征要有区分力,&lt;br/&gt;特征不是越多越好(维度灾难/Occam)&quot;]
+  F --&gt; B[&quot;§3 Bayes 决策:已知分布时的最优决策&lt;br/&gt;min error / min risk&quot;]
+  B --&gt; DF[&quot;§4 判别函数:不假设分布,直接学边界&lt;br/&gt;linear machine(凸区域,有局限)&quot;]
+  DF --&gt; K[&quot;§5 核方法:换空间,非线性变线性&lt;br/&gt;kernel trick(不必知道 ϕ)&quot;]
+  K --&gt; S[&quot;§6 SVM:最大间隔分类器&lt;br/&gt;+ 核化 + 软间隔&quot;]</code></pre>
+<p>从"分类是把特征映射到类别"这个起点,我们先用鱼的故事建立特征工程的直觉;然后走两条互补的路线对付分类——<strong>概率路线</strong>(Bayes
+决策,需要知道分布)和<strong>判别路线</strong>(判别函数,直接学边界,但线性机受限于凸区域);为突破线性的局限,核方法提供了"换空间"的通用武器;而
+SVM 把"最大间隔 +
+核技巧"结合,成为经典分类方法的集大成者。这一切方法,底层都是同一句话:<strong>学一个从特征空间到类别的映射</strong>。</p>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>分类把输入映射到类别 (category),回归映射到数值
+(value)——这是两者最根本的区别。</strong>
+但更深的统一视角是:所有机器学习都在学一个"特征空间 →
+输出空间"的函数(function approximation)。</li>
+<li><strong>一个模式分类系统的流程是 sensor → feature extractor →
+classifier → decision;模式被表示为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+维特征向量。</strong>
+设计目标不是在训练集上最优,而是<strong>泛化</strong>到未见数据。</li>
+<li><strong>鱼的故事(salmon vs
+bass)教会特征工程的直觉:特征要有区分力(分布重叠区就是错误来源),合并多个特征能改善边界,但特征过多会导致维度灾难和过拟合——Occam's
+razor 要我们在能拟合的前提下选最简单的模型。</strong></li>
+<li><strong>Bayes 决策(已知概率分布时最优):minimum error 把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+判给后验
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(\omega_j\|x)</annotation></semantics></math>
+最大的类,用 Bayes 定理
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="postfix">∥</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(\omega_i\|x)=p(x\|\omega_i)P(\omega_i)/p(x)</annotation></semantics></math>
+转化为先验×类条件密度;minimum risk 用 loss matrix
+区分错误代价、最小化条件风险;zero-one loss 下 min risk 退化为 min
+error。</strong></li>
+<li><strong>判别函数不假设分布,直接假设函数形式并学其参数;linear
+machine(如 minimum-distance
+classifier)的决策区域永远是凸的,因此无法处理非凸可分问题,需用 piecewise
+linear 推广。</strong></li>
+<li><strong>核方法的核心——kernel trick:核函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\kappa(x,z)=\langle\phi(x),\phi(z)\rangle</annotation></semantics></math>
+让我们在原始空间直接算出高维特征空间的内积,无需知道映射
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>。</strong>
+任何只依赖样本内积的算法(ridge、分类、PCA)都能被核化以处理非线性;RBF
+是最常用的核。<strong>这是本章最重要的考点——理解 kernelization
+在干什么,而非默写公式。</strong></li>
+<li><strong>SVM 寻找间隔最大的分界面(margin
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>=</mo><mn>1</mn><mi>/</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><mo stretchy="false" form="postfix">∥</mo></mrow><annotation encoding="application/x-tex">\gamma=1/\|w\|</annotation></semantics></math>),等价于在约束
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>≥</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">y_i(\langle w,x_i\rangle+b)\ge1</annotation></semantics></math>
+下最小化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\frac{1}{2}\|w\|^2</annotation></semantics></math>;其对偶形式只含内积,故可用核推广到非线性;soft
+margin(box constraint
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>≤</mo><msub><mi>α</mi><mi>i</mi></msub><mo>≤</mo><mi>C</mi></mrow><annotation encoding="application/x-tex">0\le\alpha_i\le C</annotation></semantics></math>)容忍噪声与离群点;实战用
+RBF + 交叉验证选
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mo>,</mo><mi>γ</mi></mrow><annotation encoding="application/x-tex">C,\gamma</annotation></semantics></math>。</strong></li>
+<li><strong>考试提醒:本章(尤其
+kernel/SVM)不要求推导公式,要求概念理解。</strong> 期末为 3
+小时手写闭卷,可带一页 A4 手写 cheat sheet。</li>
+</ul>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

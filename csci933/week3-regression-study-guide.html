@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>第三章 · 回归 (Regression)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+</style>
+</head>
+<body>
+<h1 id="第三章--回归-regression">第三章 · 回归 (Regression)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>用自己的话解释<strong>回归 (regression)</strong>
+解决的是什么问题,并说清它与分类的根本区别;</li>
+<li>写出回归问题的形式化框架(input space、target
+function、loss、generalization error、empirical
+error),并解释我们"真正想要的"和"实际能优化的"之间的鸿沟;</li>
+<li>推导<strong>线性回归 (linear regression)</strong> 的 normal
+equations,并理解它的几何意义(正交投影);</li>
+<li>解释 <strong>bias–variance
+trade-off</strong>,并说明为什么纯最小二乘容易过拟合;</li>
+<li>区分 <strong>Ridge</strong>、<strong>Lasso</strong>、<strong>Elastic
+Net</strong>
+三种正则化:各自用什么范数、对权重做了什么、什么时候选哪个;</li>
+<li>说清楚现实数据的三类毛病(non-representative、poor
+quality、irrelevant features)以及对应的处理手段。</li>
+</ul>
+</blockquote>
+<p>回归是机器学习里最古老、也最"耐用"的一类方法。讲到这一章时老师反复强调一句话:<strong>代码只有两三行,真正的难点在于理解每个参数背后的概念</strong>——<code>model.fit(X, y)</code>
+谁都会写,但为什么要正则化、该用 L1 还是
+L2、得到的权重说明了什么,这些才是考试和实战真正考的东西。所以本章我们几乎不碰代码,而是把每个公式"读出声来",弄清它在说什么。</p>
+<p>我们要回答的核心问题是:<strong>给定一些输入,如何预测一个连续的数值输出?</strong>
+比如根据一个国家的人均 GDP
+预测国民幸福感,根据房子的面积、位置预测房价。下面我们从这个问题的历史讲起,一步步搭起完整的数学框架,再逐个引入线性回归及其三种正则化变体,最后讨论"数据本身"这个常被忽视却决定成败的环节。</p>
+<hr />
+<h2 id="1-回归是什么从-galton-的豌豆与身高说起">1. 回归是什么:从 Galton
+的豌豆与身高说起</h2>
+<p><strong>回归 (regression)</strong> 是一种<strong>监督学习 (supervised
+learning)</strong> 方法,最常用于<strong>预测 (prediction)</strong>
+任务(稍作修改后也能用于分类)。它的名字有一段有趣的来历。</p>
+<p>作为一种科学方法,回归大约在 <strong>1885
+年</strong>首次出现。英国学者 <strong>Francis Galton</strong>
+在研究<strong>遗传身高 (hereditary stature)</strong>
+时提出了这个概念——他比较父母与子女的身高,发现一个现象:个子特别高的父母,孩子往往没那么高;个子特别矮的父母,孩子往往没那么矮——后代的身高会"回归"到群体平均值附近。"regression"(回归、回退)这个词就是这么来的。有趣的是,Galton
+当时并没有把这个想法和<strong>最小二乘法 (least squares)</strong>
+联系起来,这个数学联系是大约 <strong>80 年后</strong>才被建立的(Izenman
+2008)。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+为什么叫"监督"学习?因为训练时每个输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+都配有一个"正确答案"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>(标签),就像有老师在旁边监督、对答案。与之相对的<strong>无监督学习
+(unsupervised learning)</strong> 只有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+没有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>,要自己从数据里找结构。这个区分在下一章分类里会再次出现。</p>
+</blockquote>
+<h3 id="11-回归的三种规模">1.1 回归的三种规模</h3>
+<p>线性回归模型按"输入有几个、输出有几个"分成三类:</p>
+<table>
+<thead>
+<tr class="header">
+<th>类型</th>
+<th>输入</th>
+<th>输出</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>simple linear regression</strong>(简单线性回归)</td>
+<td>一个</td>
+<td>一个</td>
+<td>用 GDP 预测幸福感</td>
+</tr>
+<tr class="even">
+<td><strong>multiple regression</strong>(多元回归)</td>
+<td>多个</td>
+<td>一个</td>
+<td>用面积+地段+房龄预测房价</td>
+</tr>
+<tr class="odd">
+<td><strong>multivariate regression</strong>(多变量回归)</td>
+<td>多个</td>
+<td>多个</td>
+<td>用气象因子同时预测温度和湿度</td>
+</tr>
+</tbody>
+</table>
+<p>注意中文里"多元"和"多变量"很容易混,记住分界点:<strong>multiple
+是"多输入、单输出",multivariate 是"多输出"</strong>。</p>
+<h3 id="12-两套术语和一个关键自由度">1.2 两套术语和一个关键自由度</h3>
+<p>回归里有两组等价的叫法,务必都认识,因为不同教材、不同老师会混用:</p>
+<ul>
+<li>我们要预测的那个量,叫<strong>输出
+(output)</strong>,也叫<strong>因变量 (dependent variable)</strong>;</li>
+<li>用来做预测的那些量,叫<strong>输入
+(input)</strong>,也叫<strong>自变量 (independent
+variables)</strong>,它们张成的空间称为 <strong>input
+space(输入空间)</strong>。</li>
+</ul>
+<p>基本假设是:输出与输入之间存在<strong>线性关系 (linearly
+related)</strong>。但"线性"这个词比你想的灵活——自变量本身可以是对原始输入做了某种<strong>非线性变换</strong>后的结果。更精确地说,自变量可以由一组固定的非线性函数(称为
+<strong>basis functions,基函数</strong>)的线性组合构成。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 这一点很重要但 slides
+一笔带过:比如你想拟合一条抛物线
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><msub><mi>w</mi><mn>0</mn></msub><mo>+</mo><msub><mi>w</mi><mn>1</mn></msub><mi>x</mi><mo>+</mo><msub><mi>w</mi><mn>2</mn></msub><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">y = w_0 + w_1 x + w_2 x^2</annotation></semantics></math>,它对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+是非线性的,但只要把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>x</mi><mn>2</mn></msup><annotation encoding="application/x-tex">x^2</annotation></semantics></math>
+当成一个"新特征",它对<strong>权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+仍然是线性的</strong>。回归里所谓"线性",指的是<strong>对权重线性</strong>,不是对原始输入线性。这就是后面
+feature mapping
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Φ</mi><annotation encoding="application/x-tex">\Phi</annotation></semantics></math>
+的全部用意——它把"对输入非线性"的问题,变回"对权重线性"的标准问题来解。</p>
+</blockquote>
+<p>最后,我们真正想求的,是这个"关联函数"的<strong>系数
+(coefficients)</strong>——也就是那一组权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>。一旦求出系数,我们就得到一个方程,可以拿去对<strong>新观测到的输入</strong>做预测。这就是回归的全部目的。</p>
+<hr />
+<h2 id="2-回归问题的数学框架我们想要什么又能拿到什么">2.
+回归问题的数学框架:我们想要什么,又能拿到什么</h2>
+<p>slides
+在这里给了一套相当形式化的定义。初学者很容易被这串符号吓退,但它其实在讲一个很朴素的故事,我们逐行翻译。</p>
+<h3 id="21-形式化定义">2.1 形式化定义</h3>
+<ul>
+<li>设
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒳</mi><annotation encoding="application/x-tex">\mathcal{X}</annotation></semantics></math>
+为<strong>输入空间 (input
+space)</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒴</mi><annotation encoding="application/x-tex">\mathcal{Y}</annotation></semantics></math>
+为实数轴
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ℝ</mi><annotation encoding="application/x-tex">\mathbb{R}</annotation></semantics></math>
+的一个可测子集(也就是输出的取值范围)。</li>
+<li>存在一个<strong>未知分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒟</mi><annotation encoding="application/x-tex">\mathcal{D}</annotation></semantics></math></strong>,所有输入都是按这个分布"抽"出来的。这是个关键设定:数据不是凭空来的,而是来自某个我们不知道、但客观存在的概率分布。</li>
+<li>存在一个<strong>目标标注函数 (target labelling function)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>:</mo><mi>𝒳</mi><mo>→</mo><mi>𝒴</mi></mrow><annotation encoding="application/x-tex">f: \mathcal{X} \to \mathcal{Y}</annotation></semantics></math>——这是"上帝知道、我们不知道"的真实规律,我们的全部努力就是去逼近它。</li>
+<li>学习器拿到一个<strong>带标签样本集 (labelled sample)</strong></li>
+</ul>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mo>=</mo><mo stretchy="false" form="prefix">{</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>y</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>…</mi><mo>,</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>m</mi></msub><mo>,</mo><msub><mi>y</mi><mi>m</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo>∈</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝒳</mi><mo>×</mo><mi>𝒴</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>m</mi></msup></mrow><annotation encoding="application/x-tex">S = \{(x_1, y_1), \dots, (x_m, y_m)\} \in (\mathcal{X} \times \mathcal{Y})^m</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>x</mi><mi>m</mi></msub></mrow><annotation encoding="application/x-tex">x_1, \dots, x_m</annotation></semantics></math>
+是从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒟</mi><annotation encoding="application/x-tex">\mathcal{D}</annotation></semantics></math>
+中<strong>独立同分布 (i.i.d.)</strong> 抽取的,且
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y_i = f(x_i)</annotation></semantics></math>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+<strong>i.i.d.</strong>(independent and identically
+distributed,独立同分布)是几乎所有机器学习理论的地基,slides
+默认你懂。它说两件事:(1) <strong>identically
+distributed</strong>——每个样本都来自同一个分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒟</mi><annotation encoding="application/x-tex">\mathcal{D}</annotation></semantics></math>;(2)
+<strong>independent</strong>——样本之间互不影响,抽到谁不改变抽到别人的概率。直观类比:从同一副洗好的牌里反复抽一张再放回。这个假设之所以重要,是因为后面"训练集和测试集来自同一分布"正是它的直接推论——如果训练和实战的数据分布不一样,模型再好也会失灵。</p>
+</blockquote>
+<h3 id="22-用什么衡量错得多离谱损失函数">2.2
+用什么衡量"错得多离谱":损失函数</h3>
+<ul>
+<li>用一个<strong>损失函数 (loss function)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>:</mo><mi>𝒴</mi><mo>×</mo><mi>𝒴</mi><mo>→</mo><msub><mi>ℝ</mi><mo>+</mo></msub></mrow><annotation encoding="application/x-tex">L: \mathcal{Y} \times \mathcal{Y} \to \mathbb{R}_+</annotation></semantics></math>
+来度量误差的大小。</li>
+<li>最常用的是<strong>平方误差 (squared error)</strong>:对任意
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>,</mo><mover><mi>y</mi><mo accent="true">̂</mo></mover><mo>∈</mo><mi>𝒴</mi></mrow><annotation encoding="application/x-tex">y, \hat{y} \in \mathcal{Y}</annotation></semantics></math>,</li>
+</ul>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>y</mi><mo>,</mo><mover><mi>y</mi><mo accent="true">̂</mo></mover><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><mi>y</mi><mo>−</mo><mover><mi>y</mi><mo accent="true">̂</mo></mover><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">L(y, \hat{y}) = \|y - \hat{y}\|^2</annotation></semantics></math></p>
+<p>读作:"真实值与预测值之差,取平方。"取平方有两个好处:一是消除正负号(预测高了和低了都算错),二是对大误差惩罚更重(差
+2 倍,惩罚 4 倍),逼模型不要犯离谱的大错。</p>
+<ul>
+<li>更一般地,可以用
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>p</mi></msub><annotation encoding="application/x-tex">L_p</annotation></semantics></math>
+损失</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>p</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>y</mi><mo>,</mo><mover><mi>y</mi><mo accent="true">̂</mo></mover><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><mi>y</mi><mo>−</mo><mover><mi>y</mi><mo accent="true">̂</mo></mover><msup><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msup></mrow><annotation encoding="application/x-tex">L_p(y, \hat{y}) = \|y - \hat{y}\|^p</annotation></semantics></math>,其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>≥</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">p \ge 1</annotation></semantics></math>。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">p=2</annotation></semantics></math>
+就是平方误差,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">p=1</annotation></semantics></math>
+就是绝对误差。</li>
+</ul>
+<h3 id="23-我们真正想要的-vs-我们实际能算的">2.3 我们真正想要的 vs
+我们实际能算的</h3>
+<p>这是整个框架最重要的一对概念,务必分清。</p>
+<p>给定一个<strong>假设集 (hypothesis set)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>H</mi><annotation encoding="application/x-tex">H</annotation></semantics></math>(所有候选函数构成的集合,比如"所有直线"),回归问题就是用样本
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
+在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>H</mi><annotation encoding="application/x-tex">H</annotation></semantics></math>
+里找一个假设
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>,使得它相对于真实函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+的<strong>期望损失</strong>最小。这个期望损失叫<strong>泛化误差
+(generalization error)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>𝔼</mi><mrow><mi>x</mi><mo>∼</mo><mi>𝒟</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">[</mo><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">R(h) = \mathbb{E}_{x \sim \mathcal{D}}[L(h(x), f(x))] \tag{1}</annotation></semantics></math></p>
+<p>这个式子在说:"在整个分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒟</mi><annotation encoding="application/x-tex">\mathcal{D}</annotation></semantics></math>
+上,我的预测
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h(x)</annotation></semantics></math>
+与真值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f(x)</annotation></semantics></math>
+平均差多少。"——<strong>这才是我们真正关心的</strong>:模型在没见过的新数据上表现如何。</p>
+<p>但问题来了:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒟</mi><annotation encoding="application/x-tex">\mathcal{D}</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+我们都不知道,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R(h)</annotation></semantics></math>
+根本算不出来!我们手里只有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+个样本。于是退而求其次,用样本上的平均损失来近似,这叫<strong>经验误差/经验损失
+(empirical loss)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mi>m</mi></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{R}(h) = \frac{1}{m} \sum_{i=1}^{m} L(h(x_i), y_i) \tag{2}</annotation></semantics></math></p>
+<pre class="mermaid"><code>graph LR
+  W[&quot;我们想要的:&lt;br/&gt;泛化误差 R(h)&lt;br/&gt;在整个分布 D 上的期望损失&quot;]
+  E[&quot;我们能算的:&lt;br/&gt;经验误差 R̂(h)&lt;br/&gt;在 m 个样本上的平均损失&quot;]
+  E -.近似.-&gt; W
+  E ==训练时最小化的是它==&gt; E
+  W ==我们真正在意的是它==&gt; W</code></pre>
+<p><strong>这一张图道破了机器学习的核心张力</strong>:我们最小化的是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{R}(h)</annotation></semantics></math>(因为只有它能算),但我们真正想小的是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R(h)</annotation></semantics></math>。两者不一定一致——一个在训练样本上误差为零的模型,在新数据上可能错得离谱。这个鸿沟正是后面
+§4 偏差-方差权衡和 §5–§7
+正则化要对付的根本问题。记住这句话,本章后半段全是它的展开。</p>
+<hr />
+<h2 id="3-线性回归把拟合一条线写成矩阵方程">3.
+线性回归:把"拟合一条线"写成矩阵方程</h2>
+<h3 id="31-从直觉到几何">3.1 从直觉到几何</h3>
+<p>老师在课上用了一个很形象的讲法:想象平面上撒了一堆点,你要拿一根直尺去"拟合"它们。可能的直线有无穷多条——可以这样斜、那样斜、上下平移……到处都是。<strong>线性回归要找的,是这样一条线:当你用这条线上的值去代替每个真实点时,你"造成"的总误差最小。</strong></p>
+<p>具体怎么算误差?对每个点,它的真实高度和直线在那个位置给出的高度之间有个竖直距离,这就是这个点的误差(老师叫它"我把点搬到线上,搬动了多远")。把所有点的误差平方后加起来,就是总误差。线性回归
+= 找一条让这个总平方误差最小的线。</p>
+<pre class="mermaid"><code>graph TB
+  subgraph 一维直观
+    A[&quot;数据点散落&quot;] --&gt; B[&quot;每个点到直线有竖直误差(residual)&quot;]
+    B --&gt; C[&quot;误差平方求和&quot;]
+    C --&gt; D[&quot;找让总和最小的那条线&quot;]
+  end</code></pre>
+<p>推广到高维:一维时我们找一条<strong>线</strong>;输入是二维(两个自变量)时,我们找的是一个<strong>平面/超平面
+(hyperplane)</strong>——想象一张纸在三维空间里移动、倾斜,去贴近一团点,使竖直方向的总误差最小。slides
+的 Figure 2 画的就是这件事:预测向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>y</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{y}</annotation></semantics></math>
+是真实
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+在自变量张成的超平面上的<strong>正交投影 (orthogonal
+projection)</strong>。"正交投影"这个词不是巧合——最小二乘解恰好让残差向量垂直于该超平面,这是它最优的几何标志。</p>
+<h3 id="32-形式化假设集与优化目标">3.2 形式化:假设集与优化目标</h3>
+<p>设
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Φ</mi><mo>:</mo><mi>𝒳</mi><mo>→</mo><msup><mi>ℝ</mi><mi>N</mi></msup></mrow><annotation encoding="application/x-tex">\Phi: \mathcal{X} \to \mathbb{R}^N</annotation></semantics></math>
+是从输入空间到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>ℝ</mi><mi>N</mi></msup><annotation encoding="application/x-tex">\mathbb{R}^N</annotation></semantics></math>
+的<strong>特征映射 (feature mapping)</strong>(回忆
+§1.2:它可以是非线性的)。考虑这样一族<strong>线性假设</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><mo stretchy="false" form="prefix">{</mo><mi>x</mi><mo>↦</mo><mi>w</mi><mo>⋅</mo><mi>Φ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>b</mi><mo>:</mo><mi>w</mi><mo>∈</mo><msup><mi>ℝ</mi><mi>N</mi></msup><mo>,</mo><mspace width="0.222em"></mspace><mi>b</mi><mo>∈</mo><mi>ℝ</mi><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">H = \{x \mapsto w \cdot \Phi(x) + b : w \in \mathbb{R}^N,\ b \in \mathbb{R}\} \tag{3}</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+是权重向量,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
+是<strong>偏置 (bias)</strong>。线性回归要在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>H</mi><annotation encoding="application/x-tex">H</annotation></semantics></math>
+中找<strong>均方误差 (mean squared error)</strong>
+最小的假设。给定样本集
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>,要解的优化问题是:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mrow><mi>w</mi><mo>,</mo><mi>b</mi></mrow></munder><mspace width="0.222em"></mspace><mfrac><mn>1</mn><mi>m</mi></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo>⋅</mo><mi>Φ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>b</mi><mo>−</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\min_{w, b}\ \frac{1}{m} \sum_{i=1}^{m} (w \cdot \Phi(x_i) + b - y_i)^2 \tag{4}</annotation></semantics></math></p>
+<h3 id="33-偏置去哪了吸收进权重">3.3 偏置去哪了:吸收进权重</h3>
+<p>直接处理
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
+两个东西很麻烦。有一个标准技巧:把偏置
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
+<strong>吸收 (absorb)</strong>
+进权重。做法是给每个特征向量末尾添一个恒为 1 的分量,同时把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
+当作对应这个"1"的权重。slides 写成:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><mi>w</mi><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo>=</mo><mi>w</mi><mi>′</mi><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">y_i = w x_i + b = w&#39; x_i + 1</annotation></semantics></math></p>
+<p>(这里
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">w&#39;</annotation></semantics></math>
+是扩充后的权重,最后一维就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>。)这样一来,我们就能把整个问题写成干净的矩阵形式。定义<strong>设计矩阵
+(design matrix)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>、权重向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>、目标向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mi>Φ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="center" style="text-align: center"><mi>⋯</mi></mtd><mtd columnalign="center" style="text-align: center"><mi>Φ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>m</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mi>⋯</mi></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><mi>W</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>w</mi><mn>1</mn></msub></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mi>⋮</mi></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>w</mi><mi>N</mi></msub></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><mi>Y</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>y</mi><mn>1</mn></msub></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mi>⋮</mi></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>y</mi><mi>m</mi></msub></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">X = \begin{bmatrix} \Phi(x_1) &amp; \cdots &amp; \Phi(x_m) \\ 1 &amp; \cdots &amp; 1 \end{bmatrix},\quad W = \begin{bmatrix} w_1 \\ \vdots \\ w_N \end{bmatrix},\quad Y = \begin{bmatrix} y_1 \\ \vdots \\ y_m \end{bmatrix}</annotation></semantics></math></p>
+<p>那么 (4) 就紧凑地写成:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mi>W</mi></munder><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mi>m</mi></mfrac><mo stretchy="false" form="postfix">∥</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\min_W F(W) = \frac{1}{m} \|X^T W - Y\|^2 \tag{5}</annotation></semantics></math></p>
+<p>为了不被矩阵维度搞晕,记住各部分的形状:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>X</mi><mi>T</mi></msup><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>m</mi><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>N</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msup></mrow><annotation encoding="application/x-tex">X^T \in \mathbb{R}^{m \times (N+1)}</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>N</mi><mo>+</mo><mn>1</mn></mrow></msup></mrow><annotation encoding="application/x-tex">W \in \mathbb{R}^{N+1}</annotation></semantics></math>,所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>∈</mo><msup><mi>ℝ</mi><mi>m</mi></msup></mrow><annotation encoding="application/x-tex">X^T W \in \mathbb{R}^m</annotation></semantics></math>,正好和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Y</mi><mo>∈</mo><msup><mi>ℝ</mi><mi>m</mi></msup></mrow><annotation encoding="application/x-tex">Y \in \mathbb{R}^m</annotation></semantics></math>
+对得上——<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi></mrow><annotation encoding="application/x-tex">X^TW - Y</annotation></semantics></math>
+就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+个样本的残差向量。</p>
+<h3 id="34-求解normal-equations正规方程">3.4 求解:normal
+equations(正规方程)</h3>
+<p>这里是线性回归最漂亮的地方,也是 slides
+要你"看懂为什么"的地方。目标函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mi>m</mi></mfrac><mo stretchy="false" form="postfix">∥</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">F(W) = \frac{1}{m}\|X^TW - Y\|^2</annotation></semantics></math>
+有三个好性质:它是<strong>凸的 (convex)</strong>、<strong>可微的
+(differentiable)</strong>、并且有一个<strong>全局最小值 (global
+minimum)</strong>。</p>
+<p>凸 +
+可微意味着:<strong>只要找到梯度为零的点,那就一定是全局最优</strong>——没有别的局部陷阱。于是我们对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">F(W)</annotation></semantics></math>
+求梯度、令其为零:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0</mn><mspace width="0.222em"></mspace><mo>⇒</mo><mspace width="0.222em"></mspace><mfrac><mn>2</mn><mi>m</mi></mfrac><mi>X</mi><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0</mn><mspace width="0.222em"></mspace><mo>⇒</mo><mspace width="0.222em"></mspace><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>=</mo><mi>X</mi><mi>Y</mi></mrow><annotation encoding="application/x-tex">\nabla F(W) = 0 \ \Longrightarrow\ \frac{2}{m} X(X^T W - Y) = 0 \ \Longrightarrow\ X X^T W = X Y</annotation></semantics></math></p>
+<p>最后一步
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>=</mo><mi>X</mi><mi>Y</mi></mrow><annotation encoding="application/x-tex">XX^TW = XY</annotation></semantics></math>
+就是大名鼎鼎的 <strong>normal equations(正规方程)</strong>。解出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mi>X</mi><mi>Y</mi></mtd><mtd columnalign="left" style="text-align: left"><mrow><mtext mathvariant="normal">若 </mtext><mspace width="0.333em"></mspace></mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 可逆</mtext></mrow></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo stretchy="true" form="postfix">)</mo></mrow><mo>†</mo></msup><mi>X</mi><mi>Y</mi></mtd><mtd columnalign="left" style="text-align: left"><mrow><mtext mathvariant="normal">否则,用伪逆 (pseudo-inverse) </mtext><mspace width="0.333em"></mspace></mrow><mo>†</mo></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">W = \begin{cases} (X X^T)^{-1} X Y &amp; \text{若 } X X^T \text{ 可逆} \\ (X X^T)^{\dagger} X Y &amp; \text{否则,用伪逆 (pseudo-inverse) } \dagger \end{cases} \tag{6}</annotation></semantics></math></p>
+<p>这个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+就是权重向量(系数)的<strong>最小二乘估计 (least squares
+estimate)</strong>。</p>
+<blockquote>
+<p><strong>🔑 例 (Worked example)</strong> — 为什么
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mi>F</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\nabla F = 0</annotation></semantics></math>
+给出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>=</mo><mi>X</mi><mi>Y</mi></mrow><annotation encoding="application/x-tex">XX^TW = XY</annotation></semantics></math>?
+把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mi>m</mi></mfrac><msup><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>T</mi></msup><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">F(W) = \frac{1}{m}(X^TW - Y)^T(X^TW - Y)</annotation></semantics></math>
+展开,对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+求导用到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mi>∂</mi><mrow><mi>∂</mi><mi>W</mi></mrow></mfrac><mo stretchy="false" form="postfix">∥</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>=</mo><mn>2</mn><mi>X</mi><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\frac{\partial}{\partial W}\|X^TW-Y\|^2 = 2X(X^TW - Y)</annotation></semantics></math>。令它等于零,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>X</mi><mi>Y</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">X X^T W - XY = 0</annotation></semantics></math>,移项即得。<strong>这就是
+§2.3
+里"最小化经验误差"在线性情形下的具体兑现</strong>——经验误差是个二次函数,二次函数求极值就是求导置零,而且因为它是凸的,这个极值就是全局最小。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+老师在课上特别提醒:理论上我们有 (6) 这个<strong>闭式解 (closed-form
+solution)</strong>,一步到位。但现实中数据集可能非常大,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup></mrow><annotation encoding="application/x-tex">XX^T</annotation></semantics></math>
+是个巨大的矩阵,对它求逆<strong>计算代价太高</strong>。所以实际工程里通常改用<strong>迭代方法</strong>,最典型的就是<strong>梯度下降
+(gradient descent)</strong>——不去直接求逆,而是从一个初始
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+出发,沿梯度反方向一小步一小步往下挪,直到收敛。这个算法本章先按下不表,后面神经网络一章会专门讲。</p>
+</blockquote>
+<h3 id="35-最小二乘的软肋">3.5 最小二乘的"软肋"</h3>
+<p>slides
+列了几条关于线性回归最小二乘解的重要提醒,每一条都是后面引入正则化的伏笔:</p>
+<ul>
+<li><strong>预测精度通常 low bias 但 large
+variance</strong>(低偏差、高方差)——意思是它平均而言不偏,但对训练数据的微小变动非常敏感,换一批数据系数可能大变。这正是过拟合的征兆(详见
+§4)。</li>
+<li>当自变量很多时,我们往往<strong>想知道哪些变量真正起关键作用</strong>——纯最小二乘不会告诉你这件事,它给所有特征都安排上权重。</li>
+<li><strong>没有强泛化保证</strong>:因为我们只最小化了经验误差,<strong>完全没有控制权重向量的范数(长度)</strong>——也就是说,<strong>没有正则化
+(no regularization)</strong>。</li>
+<li>因此存在<strong>过拟合 (overfitting) 或欠拟合
+(underfitting)</strong> 的风险。</li>
+</ul>
+<p>记住最后两条:"没有控制权重范数"是病根,而 §5–§7
+的三种方法,本质上都是在给权重范数加上不同形式的约束。</p>
+<h3 id="36-一个完整的例子钱能让人更幸福吗">3.6
+一个完整的例子:钱能让人更幸福吗?</h3>
+<p>老师用了一个很接地气的例子(取自 Géron 2019)。问题:<strong>人均 GDP
+能预测国民的生活满意度吗?</strong></p>
+<p>数据来自两个来源:OECD 网站的 <strong>Better Life
+Index</strong>(生活满意度)和 IMF 网站的<strong>人均 GDP</strong>。</p>
+<table>
+<thead>
+<tr class="header">
+<th>国家</th>
+<th>人均 GDP (USD)</th>
+<th>生活满意度 (0–10)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Hungary</td>
+<td>12,240</td>
+<td>4.9</td>
+</tr>
+<tr class="even">
+<td>Korea</td>
+<td>27,195</td>
+<td>5.8</td>
+</tr>
+<tr class="odd">
+<td>France</td>
+<td>37,675</td>
+<td>6.5</td>
+</tr>
+<tr class="even">
+<td>Australia</td>
+<td>50,962</td>
+<td>7.3</td>
+</tr>
+<tr class="odd">
+<td>United States</td>
+<td>55,805</td>
+<td>7.2</td>
+</tr>
+</tbody>
+</table>
+<p>把这些点画到图上,会看到一个<strong>大致线性的趋势</strong>——越富的国家,满意度越高。注意:<strong>"假设它是线性的"这一步本身就是一种模型选择
+(model selection)</strong>。我们选择用一条直线来建模:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">life satisfaction</mtext><mo>=</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>+</mo><msub><mi>θ</mi><mn>1</mn></msub><mo>×</mo><mtext mathvariant="normal">GDP per capita</mtext></mrow><annotation encoding="application/x-tex">\text{life satisfaction} = \theta_0 + \theta_1 \times \text{GDP per capita} \tag{7}</annotation></semantics></math></p>
+<p>接下来要找的就是两个参数:截距
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>θ</mi><mn>0</mn></msub><annotation encoding="application/x-tex">\theta_0</annotation></semantics></math>(也就是偏置
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>)和斜率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>θ</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\theta_1</annotation></semantics></math>。不同的参数给出不同的直线——slides
+的 Figure 4 画了好几条:有的斜率取负、有的截距取
+8,都"解释不了"数据;优化的目标就是找到那条<strong>最好地贴合数据</strong>的线。最终拟合结果是:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">life satisfaction</mtext><mo>=</mo><mn>4.85</mn><mo>+</mo><mn>4.91</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>5</mn></mrow></msup><mo>×</mo><mtext mathvariant="normal">GDP per capita</mtext></mrow><annotation encoding="application/x-tex">\text{life satisfaction} = 4.85 + 4.91 \times 10^{-5} \times \text{GDP per capita} \tag{8}</annotation></semantics></math></p>
+<p>一旦有了这个模型,对任何一个<strong>没有满意度数据、但有 GDP
+数据</strong>的国家,我们都能预测。比如 Cyprus 的人均 GDP 是 22,587:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">life satisfaction</mtext><mo>=</mo><mn>4.85</mn><mo>+</mo><mn>4.91</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>5</mn></mrow></msup><mo>×</mo><mn>22587</mn><mo>≈</mo><mn>5.96</mn></mrow><annotation encoding="application/x-tex">\text{life satisfaction} = 4.85 + 4.91 \times 10^{-5} \times 22587 \approx 5.96</annotation></semantics></math></p>
+<p><strong>截距的含义值得玩味</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>θ</mi><mn>0</mn></msub><mo>=</mo><mn>4.85</mn></mrow><annotation encoding="application/x-tex">\theta_0 = 4.85</annotation></semantics></math>
+表示——按这个模型,即使一个国家 GDP 为零,国民满意度也有
+4.85(老师打趣说"没人会对生活零满意,除非他已经死了,而我们不采访死人")。这正是
+§1.2
+说的偏置带来的自由度:没有它,直线被迫过原点,能表达的关系就受限了。</p>
+<blockquote>
+<p>⚠️ <strong>一个深刻的提醒</strong> —
+老师特别强调:模型的价值<strong>极度依赖数据的质量</strong>。IMF
+有时发布统计说"你们国家应该很幸福",而当地人却一脸茫然——因为模型是基于数据建的,<strong>数据本身可能有误导性</strong>(garbage
+in, garbage
+out)。数据有多能代表你想研究的真实现象,才是真正决定成败的东西。这条线索直接通往
+§8。</p>
+</blockquote>
+<h3 id="37-代码只有两行但这不是重点">3.7 代码只有两行(但这不是重点)</h3>
+<p>老师反复演示了 Scikit-Learn 的实现,目的恰恰是说明"代码不是难点":</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sklearn.linear_model</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> sklearn.linear_model.LinearRegression()   <span class="co"># 选模型</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>model.fit(X, y)                                    <span class="co"># 训练</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>model.predict(X_new)                               <span class="co"># 预测</span></span></code></pre></div>
+<p>核心就两三行。常用的库还有 Google 的 <strong>TensorFlow</strong> 和
+Facebook 的 <strong>PyTorch</strong>(主要用于神经网络),而传统机器学习里
+<strong>Scikit-Learn</strong>
+几乎是首选。老师的态度很明确:<strong>真正花时间的是数据清洗,真正需要脑子的是理解每个参数的含义</strong>——而那取决于你对算法本身的理解。比如
+<code>LinearRegression</code> 有
+<code>fit_intercept</code>、<code>copy_X</code>、<code>tol</code>
+等参数,不懂算法就不知道怎么设、设错了照样给你吐个数字出来,但那个数字可能是垃圾。</p>
+<hr />
+<h2 id="4-为什么需要正则化偏差-方差权衡">4.
+为什么需要正则化:偏差-方差权衡</h2>
+<p>在引入 Ridge / Lasso 之前,我们必须先理解它们要解决的根本病症。这就是
+<strong>bias–variance trade-off(偏差-方差权衡)</strong>,它是 §2.3
+那对张力(经验误差 vs 泛化误差)的定量版本。</p>
+<h3 id="41-模型复杂度的两难">4.1 模型复杂度的两难</h3>
+<p>想象你不断增加模型的复杂度(比如多项式回归里不断提高次数):</p>
+<pre class="mermaid"><code>graph LR
+  S[&quot;模型太简单&quot;] --&gt;|&quot;欠拟合 underfit&quot;| B[&quot;large bias&lt;br/&gt;训练/测试误差都高&quot;]
+  C[&quot;模型太复杂&quot;] --&gt;|&quot;过拟合 overfit&quot;| V[&quot;large variance&lt;br/&gt;训练误差低、测试误差高&quot;]
+  M[&quot;刚刚好&quot;] --&gt; G[&quot;good generalization&lt;br/&gt;最佳折中&quot;]</code></pre>
+<p>slides 的 Figure 8
+画的就是这个经典图景:横轴是模型复杂度,纵轴是误差。</p>
+<ul>
+<li><strong>训练误差 (training error)</strong>
+随复杂度增加<strong>单调下降</strong>——模型越复杂,越能把训练数据"背"得严丝合缝,极端情况下可以一点不差。</li>
+<li><strong>测试误差 (test error)</strong> 却是个 <strong>U
+形</strong>:复杂度太低时,模型连训练数据都拟合不好(<strong>欠拟合</strong>,large
+bias);复杂度太高时,模型把训练数据里的噪声也当成规律学了进去(<strong>过拟合</strong>,large
+variance),一到新数据就崩。</li>
+</ul>
+<p>中间存在一个最佳复杂度——这就是<strong>偏差与方差的权衡</strong>:你没法同时把两者都压到最低,降低一个往往抬高另一个。</p>
+<h3 id="42-预测误差的三段分解">4.2 预测误差的三段分解</h3>
+<p>slides
+给出一个更精确的说法:预测误差可以分解成<strong>三个部分</strong>:</p>
+<ol type="1">
+<li><strong>不可约误差 (irreducible
+error)</strong>——新测试目标自身的方差,源于数据里固有的随机性,<strong>超出我们的控制</strong>,再好的模型也消不掉;</li>
+<li><strong>偏差分量
+(bias)</strong>——估计的真实均值与估计的期望值之间差的平方,反映模型系统性的"偏";</li>
+<li><strong>方差分量
+(variance)</strong>——估计自身的波动,反映模型对训练数据扰动的敏感程度。</li>
+</ol>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">预测误差</mtext><mo>=</mo><munder><munder><mtext mathvariant="normal">irreducible error</mtext><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">消不掉</mtext></munder><mo>+</mo><munder><munder><msup><mtext mathvariant="normal">bias</mtext><mn>2</mn></msup><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">模型太简单</mtext></munder><mo>+</mo><munder><munder><mtext mathvariant="normal">variance</mtext><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">模型太复杂</mtext></munder></mrow><annotation encoding="application/x-tex">\text{预测误差} = \underbrace{\text{irreducible error}}_{\text{消不掉}} + \underbrace{\text{bias}^2}_{\text{模型太简单}} + \underbrace{\text{variance}}_{\text{模型太复杂}}</annotation></semantics></math></p>
+<p>回忆 §3.5:纯最小二乘是 <strong>low bias, high
+variance</strong>——它落在上图的右侧,容易过拟合。<strong>那怎么办?既然
+variance 太大,我们就想办法压低 variance,哪怕略微抬高一点
+bias,只要总误差下降就值。</strong> 压低 variance
+的手段,就是给权重的"自由度"套上缰绳——这就是<strong>正则化
+(regularization)</strong>,也是接下来三节的主题。</p>
+<hr />
+<h2 id="5-岭回归给权重套上缰绳l2-正则化">5. 岭回归:给权重套上缰绳(L2
+正则化)</h2>
+<h3 id="51-动机控制权重的大小">5.1 动机:控制权重的大小</h3>
+<p>回到 §3.5
+的病根:普通线性回归对权重<strong>毫无约束</strong>,权重可以取任意值。这有两个坏处:一是可能数值不稳定(系数大到离谱、"飞出天际");二是它把所有特征一视同仁,而现实中<strong>不同特征的重要性并不相等</strong>。我们希望有办法把这件事"建进"模型里:<strong>让重要的特征权重大,不那么重要的特征权重小</strong>。</p>
+<p><strong>Ridge regression(岭回归 / Kernel Ridge regression)</strong>
+就是干这个的。它的形式和线性回归很像,但在优化目标里<strong>多加了一项</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mi>W</mi></munder><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>W</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>+</mo><mo stretchy="false" form="postfix">∥</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\min_W F(W) = \lambda \|W\|^2 + \|X^T W - Y\|^2 \tag{9}</annotation></semantics></math></p>
+<p>把这个式子拆开看(老师强调这是理解的关键):</p>
+<ul>
+<li><strong>第二项
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|X^TW - Y\|^2</annotation></semantics></math></strong>
+就是老朋友——经验均方误差(<strong>误差项</strong>)。如果把第一项拿掉,(9)
+就退化回普通线性回归。</li>
+<li><strong>第一项
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>W</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\lambda \|W\|^2</annotation></semantics></math></strong>
+是新加的<strong>正则化项 (regularization
+term)</strong>。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>W</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|W\|^2</annotation></semantics></math>
+是权重向量长度的平方(L2
+范数的平方),<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\lambda &gt; 0</annotation></semantics></math>
+是一个控制两者<strong>权衡 (trade-off)</strong> 的正参数。</li>
+</ul>
+<p>这一项在说什么?它说:"我<strong>不光</strong>要误差小,我<strong>还</strong>要权重短。"
+因为优化器要让整个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">F(W)</annotation></semantics></math>
+小,而第一项随权重变大而变大,所以它会逼着权重往零靠拢——但又不能靠太狠,否则第二项(误差)会变大。两项拉锯,达成平衡。</p>
+<h3 id="52-求解这次永远可逆">5.2 求解:这次永远可逆</h3>
+<p>和线性回归一样,(9) 仍然是凸且可微的,有全局最小。对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+求导置零:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0</mn><mo>⇔</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo>+</mo><mi>λ</mi><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>W</mi><mo>=</mo><mi>X</mi><mi>Y</mi><mo>⇔</mo><mi>W</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo>+</mo><mi>λ</mi><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mi>X</mi><mi>Y</mi></mrow><annotation encoding="application/x-tex">\nabla F(W) = 0 \iff (X X^T + \lambda I) W = X Y \iff W = (X X^T + \lambda I)^{-1} X Y \tag{10}</annotation></semantics></math></p>
+<p>对比 (6) 和 (10),<strong>唯一的变化是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup></mrow><annotation encoding="application/x-tex">XX^T</annotation></semantics></math>
+变成了
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo>+</mo><mi>λ</mi><mi>I</mi></mrow><annotation encoding="application/x-tex">XX^T + \lambda I</annotation></semantics></math></strong>(在对角线上加了
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>)。这个小改动带来一个大好处:<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo>+</mo><mi>λ</mi><mi>I</mi></mrow><annotation encoding="application/x-tex">XX^T + \lambda I</annotation></semantics></math>
+永远可逆!</strong></p>
+<p>为什么?因为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup></mrow><annotation encoding="application/x-tex">XX^T</annotation></semantics></math>
+是<strong>半正定 (positive semi-definite)</strong> 矩阵,它的特征值都
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\ge 0</annotation></semantics></math>;加上
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mi>I</mi></mrow><annotation encoding="application/x-tex">\lambda I</annotation></semantics></math>
+后,所有特征值都变成"原值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mi>λ</mi></mrow><annotation encoding="application/x-tex">+ \lambda</annotation></semantics></math>",而
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\lambda &gt; 0</annotation></semantics></math>,于是特征值全都严格大于零,矩阵必然可逆。这解决了
+(6)
+里"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup></mrow><annotation encoding="application/x-tex">XX^T</annotation></semantics></math>
+可能不可逆、只好用伪逆"的尴尬。</p>
+<p>岭回归还有一个等价的<strong>约束形式</strong>,理解正则化的几何时很有用:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mi>w</mi></munder><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo>⋅</mo><mi>Φ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><mspace width="1.0em"></mspace><mtext mathvariant="normal">subject to</mtext><mspace width="1.0em"></mspace><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>≤</mo><msup><mi>Λ</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\min_w \sum_{i=1}^{m} (w \cdot \Phi(x_i) - y_i)^2 \quad \text{subject to} \quad \|w\|^2 \le \Lambda^2 \tag{11}</annotation></semantics></math></p>
+<p>意思是:"在权重长度不超过
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Λ</mi><annotation encoding="application/x-tex">\Lambda</annotation></semantics></math>
+的前提下,把误差最小化。"——把权重锁在一个半径为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Λ</mi><annotation encoding="application/x-tex">\Lambda</annotation></semantics></math>
+的球里。</p>
+<h3 id="53-老师的咸汤妙喻务必记住">5.3 老师的"咸汤"妙喻(务必记住)</h3>
+<p>老师讲了一个让全班笑出声、保证忘不掉的比喻,把岭回归的精神讲透了。</p>
+<blockquote>
+<p><strong>🔑 例 (盐与肉豆蔻的汤)</strong> —
+假设你要调一锅汤,有几种配料:盐、胡椒、肉豆蔻(nutmeg)……每种配料的"用量"就是一个权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>i</mi></msub><annotation encoding="application/x-tex">w_i</annotation></semantics></math>。你尝一口,目标是达到某个味道。</p>
+<p>现在比较两个权重向量:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.2</mn><mo>,</mo><mn>0.9</mn><mo>,</mo><mn>1.0</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(0.2, 0.9, 1.0)</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>1.5</mn><mo>,</mo><mn>2.6</mn><mo>,</mo><mn>7.6</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(1.5, 2.6, 7.6)</annotation></semantics></math>。哪个的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>W</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|W\|^2</annotation></semantics></math>
+更小?显然是第一个。岭回归偏爱的就是第一种——<strong>长度小、各分量都被压得比较温和</strong>。</p>
+<p>关键洞见:这些权重告诉你<strong>每种配料对最终味道的贡献有多大</strong>。如果"盐"的权重最大,意味着想调出这个味道,<strong>盐要多放</strong>——它最重要。岭回归做的事是:<strong>它不会把任何一种配料的用量归零</strong>(哪怕某种配料不太需要,它也会"留一点点,以防万一"),它只是<strong>根据每种配料对目标的重要程度,合理地分配、并整体压小用量</strong>,从而既稳定又能反映重要性。</p>
+</blockquote>
+<p>这个比喻点出了岭回归的本质特征,我们正式总结如下。</p>
+<h3 id="54-岭回归的性质">5.4 岭回归的性质</h3>
+<ul>
+<li><strong>它本质上是一种隐式的模型选择 (model selection)
+方法</strong>:ridge 参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+帮我们恰当地"加权"各个变量,等于在悄悄地做特征选择。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+是调节 bias–variance
+权衡的旋钮</strong>:<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+越大,bias 越大、variance
+越小</strong>(权重被压得越狠,模型越"死板"但越稳定);<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+越小,越接近无约束的最小二乘。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+的具体取值可以用<strong>交叉验证 (cross-validation)</strong> 来定(见 §8
+拓展)。</li>
+<li><strong>它是一种 shrinkage
+estimator(收缩估计量)</strong>:把最小二乘的权重整体<strong>朝零收缩
+(shrink towards
+zero)</strong>。划重点:<strong>是"朝零收缩",不是"变成零"</strong>——所以你拿到的
+ridge 权重往往是一堆
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mi>.</mi><mtext mathvariant="normal">几</mtext></mrow><annotation encoding="application/x-tex">0.\text{几}</annotation></semantics></math>
+的小值,没有一个正好是 0。这一点和下一节的 Lasso 形成鲜明对比。</li>
+<li>它可以配合<strong>正定对称核 (PDS kernels)</strong>
+使用,从而推广到<strong>非线性回归</strong>和更一般的特征空间——这就是"Kernel
+Ridge regression"里"kernel"的由来(核方法的细节在下一章分类里展开)。</li>
+</ul>
+<h3 id="55-代码与求解器">5.5 代码与求解器</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.linear_model <span class="im">import</span> Ridge</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>ridge_reg <span class="op">=</span> Ridge(alpha<span class="op">=</span><span class="dv">1</span>, solver<span class="op">=</span><span class="st">&quot;cholesky&quot;</span>)   <span class="co"># alpha 就是 λ</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>ridge_reg.fit(X, y)</span></code></pre></div>
+<p><code>alpha</code> 就是正则化强度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>。<code>solver="cholesky"</code>
+表示用闭式解(配合 Cholesky
+分解求逆)。当<strong>数据量和特征都很多</strong>时,闭式解算不动,改用随机梯度:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.linear_model <span class="im">import</span> SGDRegressor</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>sgd_reg <span class="op">=</span> SGDRegressor(penalty<span class="op">=</span><span class="st">&quot;l2&quot;</span>)   <span class="co"># penalty=&quot;l2&quot; 即岭回归的 L2 正则</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>sgd_reg.fit(X, y.ravel())</span></code></pre></div>
+<p><code>penalty="l2"</code> 点明了岭回归的数学身份就是 <strong>L2
+正则化</strong>。老师说:<strong>训练神经网络时用的基本就是这种随机梯度优化</strong>——所以这里埋了通往后面章节的线。</p>
+<hr />
+<h2 id="6-lasso-回归把没用的特征直接清零l1-正则化">6. Lasso
+回归:把没用的特征直接清零(L1 正则化)</h2>
+<h3 id="61-动机我们想要一个精简的模型">6.1
+动机:我们想要一个"精简"的模型</h3>
+<p>岭回归虽好,但它<strong>不会把任何权重变成零</strong>。可现实中我们常常想问一个更狠的问题:<strong>到底哪些特征是真正需要的?能不能干脆把没用的特征踢出去?</strong>
+选一个<strong>精简的 (parsimonious / economical)</strong>
+模型,不仅更省算力,还更<strong>可解释</strong>。</p>
+<blockquote>
+<p><strong>🔑 例 (可解释性为什么重要)</strong> —
+老师讲了个真实例子:他请过一位纽约证券交易所的人来做讲座。对方说,美国法律规定,如果你用模型给客户建议,你必须能向客户<strong>清楚展示</strong>这个建议是怎么来的、对应现实中哪些具体因素。所以哪怕神经网络更强,他们也被迫用"原始"但<strong>透明</strong>的模型。同理,医生用模型开药,他需要知道"为什么"——这个特征是心率、那个是体温,他能理解;而如果特征是"鞋长的某种古怪线性组合",没人敢用。能让你看清"哪个特征贡献了什么"的模型,叫<strong>可解释模型
+(interpretable model)</strong>。</p>
+</blockquote>
+<p>在 Lasso 之前,传统的<strong>变量选择 (variable selection)</strong>
+方法有两种,都基于 <strong>F 检验</strong>:</p>
+<ul>
+<li><strong>后向消元 (backward
+elimination)</strong>:从全部变量开始,每步剔除
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+比值最小的那个变量,重新拟合,迭代:</li>
+</ul>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mo>=</mo><mfrac><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>R</mi><mi>S</mi><msub><mi>S</mi><mn>0</mn></msub><mo>−</mo><mi>R</mi><mi>S</mi><msub><mi>S</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>d</mi><msub><mi>f</mi><mn>0</mn></msub><mo>−</mo><mi>d</mi><msub><mi>f</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>R</mi><mi>S</mi><msub><mi>S</mi><mn>1</mn></msub><mi>/</mi><mi>d</mi><msub><mi>f</mi><mn>1</mn></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">F = \frac{(RSS_0 - RSS_1)/(df_0 - df_1)}{RSS_1 / df_1} \tag{12}</annotation></semantics></math></p>
+<p>(其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>S</mi><msub><mi>S</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">RSS_0</annotation></semantics></math>
+是简化模型的残差平方和、自由度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><msub><mi>f</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">df_0</annotation></semantics></math>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>S</mi><msub><mi>S</mi><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">RSS_1</annotation></semantics></math>
+是较大模型的、自由度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><msub><mi>f</mi><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">df_1</annotation></semantics></math>。)</p>
+<ul>
+<li><strong>前向选择 (forward
+selection)</strong>:从空集开始,每步加入能带来最大
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+值的变量。</li>
+</ul>
+<p>这些方法有效但笨重(要反复拟合)。Lasso
+提供了一种更优雅的、一步到位的做法。</p>
+<h3 id="62-lasso-是什么l1-范数登场">6.2 Lasso 是什么:L1 范数登场</h3>
+<p><strong>Lasso = Least Absolute Shrinkage and Selection
+Operator</strong>(最小绝对值收缩与选择算子)。光看名字就知道它<strong>同时做收缩
+(shrinkage) 和选择 (selection)</strong>。</p>
+<p>它的形式和岭回归几乎一样,<strong>唯一的区别是把 L2 范数换成了 L1
+范数</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mrow><mi>w</mi><mo>,</mo><mi>b</mi></mrow></munder><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo>,</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msub><mo stretchy="false" form="postfix">∥</mo><mn>1</mn></msub><mo>+</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo>⋅</mo><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo>−</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\min_{w, b} F(w, b) = \lambda \|w\|_1 + \sum_{i=1}^{m} (w \cdot x_i + b - y_i)^2 \tag{14}</annotation></semantics></math></p>
+<p>等价的约束形式:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>min</mo><mo>∑</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo>⋅</mo><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo>−</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\min \sum (w\cdot x_i + b - y_i)^2</annotation></semantics></math>
+s.t.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msub><mo stretchy="false" form="postfix">∥</mo><mn>1</mn></msub><mo>≤</mo><msub><mi>Λ</mi><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">\|w\|_1 \le \Lambda_1</annotation></semantics></math>。这是一个<strong>二次规划
+(Quadratic Program)</strong>,可以用 QP 求解器解。</p>
+<p>(一个小限制:Lasso <strong>不方便</strong>直接套用 PDS
+核,所以这里假设输入空间就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>ℝ</mi><mi>N</mi></msup><annotation encoding="application/x-tex">\mathbb{R}^N</annotation></semantics></math>。)</p>
+<p>那么不同范数到底什么区别?这是本节的核心,我们专门讲。</p>
+<h3 id="63-三种范数l0l1l2">6.3 三种范数:L0、L1、L2</h3>
+<table>
+<thead>
+<tr class="header">
+<th>范数</th>
+<th>定义</th>
+<th>直观含义</th>
+<th>可优化性</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math></strong></td>
+<td>非零分量的<strong>个数</strong></td>
+<td>"我用了几个特征"</td>
+<td>❌ 不易计算(组合爆炸)</td>
+</tr>
+<tr class="even">
+<td><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math></strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>i</mi></msub><mo stretchy="false" form="prefix">|</mo><msub><mi>w</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">\sum_i \lvert w_i \rvert</annotation></semantics></math>(绝对值之和)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>
+的最佳"可计算替身"</td>
+<td>✅ 凸,可优化</td>
+</tr>
+<tr class="odd">
+<td><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math></strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><mrow><msub><mo>∑</mo><mi>i</mi></msub><msubsup><mi>w</mi><mi>i</mi><mn>2</mn></msubsup></mrow></msqrt><annotation encoding="application/x-tex">\sqrt{\sum_i w_i^2}</annotation></semantics></math>(平方和开根)</td>
+<td>权重的"长度"</td>
+<td>✅ 光滑,可优化</td>
+</tr>
+</tbody>
+</table>
+<p>老师把这条逻辑链讲得很清楚:<strong>我们真正想做的,其实是最小化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>
+范数</strong>——也就是让"非零权重的个数"尽量少,这样没用的特征系数就是
+0,模型自然精简。<strong>但
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>
+范数没法直接优化</strong>(它是离散的、不连续的,优化技术搞不定)。于是我们找一个<strong>最接近、又可计算的替身
+(surrogate)</strong>——这就是
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+范数</strong>。用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+去逼近
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>,就能在可计算的前提下,达到"逼着一部分权重恰好变成
+0"的效果。</p>
+<p><strong>这正是 Lasso 与 Ridge
+的根本分野</strong>:Ridge(L2)把权重朝零<strong>收缩</strong>但<strong>不清零</strong>;Lasso(L1)会把不重要特征的权重<strong>直接压成
+0</strong>——也就是产生<strong>稀疏解 (sparse
+solution)</strong>:只有少数几个非零分量。回到咸汤的比喻——Lasso
+允许你说"这道汤根本不用放盐",直接把盐的用量设为零。</p>
+<h3 id="64-为什么-l1-会产生稀疏几何直觉">6.4 为什么 L1
+会产生稀疏:几何直觉</h3>
+<p>为什么换个范数,效果就从"收缩"变成"清零"?slides 的 Figure 6
+用一张图道破天机(老师在课上拿笔比划的就是它)。</p>
+<p>把优化问题想成:目标函数(误差)的等高线是一圈圈<strong>椭圆
+(ellipsoids)</strong>,它们的中心是无约束最优解;而正则化约束是一个"球"。最优的正则化解,出现在<strong>椭圆等高线第一次碰到这个球</strong>的地方。</p>
+<ul>
+<li><strong>L2
+的球是圆的</strong>(光滑无棱角)。椭圆碰到圆,接触点几乎总在某个"斜"的位置——<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+坐标都非零。所以 L2 给你两个都不为零的小权重。</li>
+<li><strong>L1
+的球是个菱形/方块</strong>(有尖角,尖角正好落在坐标轴上)。椭圆去碰这个菱形,<strong>最容易碰在尖角处</strong>,而尖角在坐标轴上意味着<strong>某些坐标恰好为
+0</strong>。所以 L1 自然地把一部分权重清零,产生稀疏。</li>
+</ul>
+<pre class="mermaid"><code>graph TB
+  subgraph &quot;L2 / Ridge&quot;
+    R1[&quot;约束区是圆(无棱角)&quot;] --&gt; R2[&quot;椭圆切在&#39;斜&#39;处&lt;br/&gt;各坐标都非零&quot;] --&gt; R3[&quot;收缩,不清零&quot;]
+  end
+  subgraph &quot;L1 / Lasso&quot;
+    L1[&quot;约束区是菱形(有尖角在轴上)&quot;] --&gt; L2[&quot;椭圆最易切在尖角&lt;br/&gt;某些坐标=0&quot;] --&gt; L3[&quot;稀疏,自动清零&quot;]
+  end</code></pre>
+<p>一句话记住:<strong>圆没有角,所以不清零;菱形的角恰好在轴上,所以清零。</strong>
+这就是 L1 promotes sparsity 的几何根源。</p>
+<h3 id="65-代码">6.5 代码</h3>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.linear_model <span class="im">import</span> Lasso</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>lasso_reg <span class="op">=</span> Lasso(alpha<span class="op">=</span><span class="fl">0.1</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>lasso_reg.fit(X, y)</span></code></pre></div>
+<hr />
+<h2 id="7-弹性网络两全其美l1--l2-一起上">7. 弹性网络:两全其美(L1 + L2
+一起上)</h2>
+<h3 id="71-动机与形式">7.1 动机与形式</h3>
+<p>既然 Ridge 和 Lasso 各有所长,能不能<strong>同时用</strong>?能——这就是
+<strong>Elastic Net regularization(弹性网络正则化)</strong>,它把 lasso
+和 ridge 两种惩罚<strong>叠加</strong>起来:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mrow><mi>w</mi><mo>,</mo><mi>b</mi></mrow></munder><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo>,</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msub><mo stretchy="false" form="postfix">∥</mo><mn>1</mn></msub><mo>+</mo><mi>β</mi><mo stretchy="false" form="postfix">∥</mo><mi>W</mi><msubsup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn><mn>2</mn></msubsup><mo>+</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo>⋅</mo><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo>−</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\min_{w, b} F(w, b) = \lambda \|w\|_1 + \beta \|W\|_2^2 + \sum_{i=1}^{m} (w \cdot x_i + b - y_i)^2 \tag{15}</annotation></semantics></math></p>
+<p>看式子:<strong>第一项是 L1(来自
+Lasso,负责清零、做选择)</strong>,<strong>第二项是 L2(来自
+Ridge,负责收缩、保稳定)</strong>,第三项还是误差。</p>
+<p>老师描述了它的<strong>两阶段 (two stages)</strong>
+工作方式:<strong>先</strong>找到 ridge 回归的系数(L2
+收缩,保证稳定),<strong>再</strong>用 lasso
+式的收缩对这些系数做第二步处理(L1 清零,踢掉没用的)。</p>
+<h3 id="72-什么时候用-elastic-net">7.2 什么时候用 Elastic Net?</h3>
+<p>课堂上有同学问了一个好问题:既然 Lasso
+已经能把没用的特征清零,为什么还需要 Ridge 那部分?</p>
+<p>老师的回答:有时候<strong>解并不集中在一个区域</strong>。如果你要找的答案散落在<strong>不同的、不相连的子空间
+(disparate subspaces)</strong> 里,单纯的 ridge 或 lasso
+可能照顾不全。Elastic Net 的策略是——<strong>先用 ridge
+把"哪些区域有好东西"大致圈出来(分组、保稳),再用 lasso
+在其中精细地剔除真正没用的</strong>。所以当特征之间有<strong>分组结构</strong>、或解分布在多个子空间时,Elastic
+Net 往往比单一方法更稳健。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides 的细节)</strong> — slides
+还提到一个相关概念:当特征空间<strong>天然地被划分成若干子集</strong>、而我们希望<strong>整组整组地</strong>选入或剔除特征时,合适的范数是
+<strong>group / mixed norm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mn>2</mn><mo>,</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">L_{2,1}</annotation></semantics></math></strong>——它是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+的组合(组内用 L2、组间用 L1),实现"按组稀疏"。</p>
+</blockquote>
+<h3 id="73-代码">7.3 代码</h3>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.linear_model <span class="im">import</span> ElasticNet</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>elastic_net <span class="op">=</span> ElasticNet(alpha<span class="op">=</span><span class="fl">0.1</span>, l1_ratio<span class="op">=</span><span class="fl">0.5</span>)   <span class="co"># l1_ratio 控制 L1/L2 的比例</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>elastic_net.fit(X, y)</span></code></pre></div>
+<h3 id="74-三种正则化总览">7.4 三种正则化总览</h3>
+<table>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th>惩罚项</th>
+<th>范数</th>
+<th>对权重的作用</th>
+<th>产生稀疏?</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Linear</strong>(无正则)</td>
+<td>无</td>
+<td>—</td>
+<td>不约束</td>
+<td>否</td>
+<td>基线;特征少且干净</td>
+</tr>
+<tr class="even">
+<td><strong>Ridge</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>W</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\lambda|W|^2</annotation></semantics></math></td>
+<td>L2</td>
+<td>朝零<strong>收缩</strong>,不清零</td>
+<td>否</td>
+<td>稳定化;隐式加权所有特征</td>
+</tr>
+<tr class="odd">
+<td><strong>Lasso</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><msub><mrow><mo stretchy="true" form="prefix">|</mo><mi>w</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">\lambda|w|_1</annotation></semantics></math></td>
+<td>L1</td>
+<td>把不重要的<strong>清零</strong></td>
+<td>✅ 是</td>
+<td>特征选择;要可解释/精简模型</td>
+</tr>
+<tr class="even">
+<td><strong>Elastic Net</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><msub><mrow><mo stretchy="true" form="prefix">|</mo><mi>w</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>1</mn></msub><mo>+</mo><mi>β</mi><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>W</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\lambda|w|_1 + \beta|W|^2</annotation></semantics></math></td>
+<td>L1+L2</td>
+<td>先收缩再清零</td>
+<td>✅ 是</td>
+<td>特征分组/解分布在多个子空间</td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid"><code>graph LR
+  LR[&quot;普通线性回归&lt;br/&gt;误差最小,但权重失控&lt;br/&gt;high variance&quot;] --&gt;|&quot;加 L2:控制权重长度&quot;| RIDGE[&quot;Ridge&lt;br/&gt;收缩,稳定&quot;]
+  LR --&gt;|&quot;加 L1:逼近 L0,做选择&quot;| LASSO[&quot;Lasso&lt;br/&gt;稀疏,可解释&quot;]
+  RIDGE --&gt; EN[&quot;Elastic Net&lt;br/&gt;L1+L2,两全&quot;]
+  LASSO --&gt; EN</code></pre>
+<hr />
+<h2 id="8-数据处理再好的算法也救不了烂数据">8.
+数据处理:再好的算法也救不了烂数据</h2>
+<p>老师在讲完算法后,郑重地转向一个常被低估的话题——<strong>数据本身</strong>。他的话很扎心:"过去我们用偏微分方程去描述现象;现在我们说'让数据替我们说话'。<strong>但如果数据不好,它说出来的就是胡话</strong>,而你还不知道。"
+优化本质上是一个<strong>搜索过程 (search
+process)</strong>——一个坏数据点可能把这个搜索带向完全错误的方向。数据问题分三类。</p>
+<h3 id="81-非代表性数据-non-representative-data">8.1 非代表性数据
+(Non-representative Data)</h3>
+<ul>
+<li>要让模型能<strong>泛化
+(generalise)</strong>,训练数据必须能<strong>代表</strong>部署后会遇到的新数据(生产数据)。</li>
+<li>用 §2.1
+的语言说:<strong>训练数据和生产数据背后的概率分布必须是同一个</strong>(这正是
+i.i.d. 假设在现实中的兑现)。如果你在分布 A 上训练、却到分布 B
+上测试/部署,模型必然失灵。</li>
+<li>解决之道是<strong>恰当的采样</strong>:既不能太少(避免
+<strong>sampling noise,采样噪声</strong>),也要保证代表性(避免
+<strong>sampling bias,采样偏差</strong>)。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例 (幸福感调查)</strong> — 回到 §3.6
+的例子。你没钱给全世界每个人发问卷,只能抽样调查若干国家。但你要确保抽到的国家<strong>有高收入、中等、低收入的合理分布</strong>(spread),这样模型才能代表"GDP
+与幸福"的真实关系。如果你只调查了富国,模型就带上了 sampling bias。</p>
+</blockquote>
+<h3 id="82-低质量数据-poor-quality-data">8.2 低质量数据 (Poor Quality
+Data)</h3>
+<p>毛病来源:<strong>errors(错误)、outliers(离群点)、noise(噪声)</strong>。</p>
+<ul>
+<li><strong>Outliers(离群点)</strong>:手动<strong>剔除或修正</strong>。例:某测量设备长期没校准,某次开机吐出一个离谱的数,被记录进数据集——这种点会把模型带偏。</li>
+<li><strong>Missing
+values(缺失值)</strong>:几种策略——若某特征缺失太多,干脆<strong>忽略该特征</strong>;或用<strong>中位数(或均值)填补</strong>缺失值(这一步叫
+<strong>imputation,插补</strong>);或者训练两个模型,一个带该特征、一个不带,做对比。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例 (Pima 印第安人糖尿病数据集)</strong> —
+老师举了一个著名的真实例子。这个数据集里有人的"心率 =
+0"。心率为零意味着人已经死了——显然是采集时的<strong>错误</strong>。你不能盲目把这条记录扔掉,而要判断:这是
+outlier、error
+还是别的?然后把这个不合理的值<strong>修正/插补</strong>成有意义的数(imputation)。这就是数据清洗里最考验判断力的部分。</p>
+</blockquote>
+<h3 id="83-无关特征-irrelevant-features">8.3 无关特征 (Irrelevant
+Features)</h3>
+<ul>
+<li>这些特征<strong>不给模型带来任何新信息</strong>,却平白增加复杂度和过拟合风险。</li>
+<li><strong>Feature engineering(特征工程)</strong>
+可以解决无关特征问题,具体有两条路:
+<ul>
+<li><strong>Feature
+selection(特征选择)</strong>:从现有特征里挑出最有用的。<strong>这里正是
+Lasso / Elastic Net 大显身手的地方</strong>——通过 L1
+正则化,模型会<strong>隐式地</strong>把无关特征的权重压成零,等于自动帮你做了特征选择(呼应
+§6)。</li>
+<li><strong>Feature
+extraction(特征提取)</strong>:把多个特征<strong>组合</strong>成更有用的新特征。典型代表是<strong>降维
+(dimensionality reduction)</strong>,比如
+<strong>PCA(主成分分析)</strong> 或
+<strong>autoencoder(自编码器)</strong>——把高维空间映射到一个低维空间。</li>
+</ul></li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — PCA 与 Lasso
+的可解释性对比(老师课上特意点出):Lasso
+是从<strong>原始特征</strong>里挑,挑出来的还是原来那些可解释的特征(心率、体温……);而
+PCA
+把所有特征<strong>揉成新的线性组合</strong>,这些新特征(主成分)虽然按重要性排好了序,却<strong>不再可解释</strong>——你没法告诉医生"主成分
+1"是什么。所以需要可解释性时用 Lasso,只求降维不在乎可解释时才用
+PCA。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(延伸阅读)</strong> — 老师强烈推荐 <strong>Géron
+(2019) 的 Chapter
+2</strong>,作为机器学习系统端到端设计(尤其是数据处理)的极佳参考。另一本经典是
+Hastie &amp; Tibshirani 的 <em>The Elements of Statistical
+Learning</em>——顺便一提,<strong>Ridge 正是 Hastie 和 Tibshirani
+提出的</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="9-把整章串起来一条主线">9. 把整章串起来:一条主线</h2>
+<p>回头看,本章其实是同一个故事的层层递进:</p>
+<pre class="mermaid"><code>graph TB
+  P[&quot;§2 核心张力:&lt;br/&gt;能算的是经验误差,想要的是泛化误差&quot;]
+  P --&gt; L[&quot;§3 线性回归:&lt;br/&gt;最小化经验误差,normal equations 闭式解&quot;]
+  L --&gt; BV[&quot;§4 病症:bias-variance&lt;br/&gt;纯最小二乘 low bias / high variance → 过拟合&quot;]
+  BV --&gt; R[&quot;§5 Ridge(L2):&lt;br/&gt;收缩权重,压低 variance&quot;]
+  BV --&gt; LA[&quot;§6 Lasso(L1):&lt;br/&gt;清零权重,稀疏+可解释&quot;]
+  R --&gt; EN[&quot;§7 Elastic Net:L1+L2&quot;]
+  LA --&gt; EN
+  EN --&gt; D[&quot;§8 但这一切的前提:&lt;br/&gt;数据必须有代表性、高质量、特征相关&quot;]</code></pre>
+<p>从"我们想要泛化、却只能优化经验误差"这一根本张力出发,线性回归给了我们一个干净的闭式解,但它高方差、易过拟合;为了治这个病,我们用正则化给权重套缰绳——L2
+收缩(Ridge)、L1 清零(Lasso)、两者结合(Elastic
+Net);而所有这些算法,最终都建立在"数据是否可靠"这块地基上。</p>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>回归是监督学习,预测连续数值输出;它的核心张力是:我们能优化的是样本上的经验误差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{R}(h)</annotation></semantics></math>,但真正想小的是整个分布上的泛化误差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R(h)</annotation></semantics></math>。</strong>
+两者的鸿沟就是过拟合的根源。</li>
+<li><strong>线性回归通过最小化均方误差求解。</strong>
+由于目标函数凸且可微,令梯度为零得到 normal equations
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>=</mo><mi>X</mi><mi>Y</mi></mrow><annotation encoding="application/x-tex">XX^TW = XY</annotation></semantics></math>,闭式解
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mi>X</mi><mi>Y</mi></mrow><annotation encoding="application/x-tex">W = (XX^T)^{-1}XY</annotation></semantics></math>;几何上,预测是真值在特征超平面上的正交投影。数据量大时改用梯度下降迭代求解。</li>
+<li><strong>纯最小二乘 low bias 但 high
+variance,且不控制权重范数(无正则化),容易过拟合。</strong>
+这是引入正则化的根本动机。</li>
+<li><strong>Ridge(L2 正则)给目标函数加
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>W</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\lambda\|W\|^2</annotation></semantics></math>,把权重朝零收缩但不清零;它使
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo>+</mo><mi>λ</mi><mi>I</mi></mrow><annotation encoding="application/x-tex">XX^T+\lambda I</annotation></semantics></math>
+永远可逆,是一种 shrinkage
+estimator,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+越大 bias 越大、variance 越小。</strong>
+记住"咸汤比喻":它按重要性给所有配料分配用量,但一种都不归零。</li>
+<li><strong>Lasso(L1 正则)的目标是最小化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>(非零特征个数),但
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>
+不可优化,故用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+作替身;L1
+的菱形约束有落在坐标轴上的尖角,因此产生稀疏解、把无关特征清零,实现自动特征选择和可解释性。</strong></li>
+<li><strong>Elastic Net 同时用 L1+L2,先 ridge 收缩、再 lasso
+清零,适合特征分组或解分布在多个子空间的情形。</strong></li>
+<li><strong>再好的算法也救不了烂数据。</strong>
+三类数据问题:non-representative(需保证训练与生产同分布,避免采样噪声/偏差)、poor
+quality(处理 errors/outliers/missing values,如中位数插补)、irrelevant
+features(用特征选择如 Lasso,或特征提取如 PCA/autoencoder 降维)。</li>
+</ul>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>
