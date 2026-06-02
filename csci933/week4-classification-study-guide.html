@@ -12,6 +12,7 @@
     font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
                  "Songti SC", Georgia, serif;
     line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
   }
   h1, h2, h3 { line-height: 1.3; }
   h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
@@ -30,10 +31,28 @@
   table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
   th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
   th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each <table> in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
   math { font-size: 1.05em; }
-  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; }
-  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
   hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
 </style>
 </head>
 <body>
@@ -439,7 +458,7 @@ loss)</strong>(也叫对称损失):</p>
 的概率"——要让风险最小,就让
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(\omega_i|x)</annotation></semantics></math>
 最大,这与最小错误完全一致。</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th></th>
@@ -474,7 +493,7 @@ loss)</strong>(也叫对称损失):</p>
 <td>更一般</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <hr />
 <h2 id="4-判别函数不假设分布直接学边界">4.
 判别函数:不假设分布,直接学边界</h2>
@@ -626,7 +645,7 @@ product)</strong>:</p>
 <h3 id="53-primal-vs-dual为什么-dual-重要">5.3 Primal vs Dual:为什么
 dual 重要</h3>
 <p>我们有了岭回归的两种解(其他回归类似):</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th></th>
@@ -660,7 +679,7 @@ dual 重要</h3>
 样本数时</strong></td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p><strong>关键观察(老师划重点):岭回归算法可以写成一种只需要"样本点之间的内积"的形式。</strong>
 当特征维度
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
@@ -727,7 +746,7 @@ theorem")给出救星</strong>:<strong>内积可以直接在原始输入空间�
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>。</p>
 </blockquote>
 <h3 id="55-常用核函数">5.5 常用核函数</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>名称</th>
@@ -759,7 +778,7 @@ theorem")给出救星</strong>:<strong>内积可以直接在原始输入空间�
 <td>类似神经网络激活</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p>老师反复强调:<strong>RBF(高斯核)是实践中最常用、最万能的核</strong>——它几乎能把任何非线性纠缠的数据变成线性可分,经验上首选它。</p>
 <blockquote>
 <p><strong>🔑 例 (RBF 核手算)</strong> — 取

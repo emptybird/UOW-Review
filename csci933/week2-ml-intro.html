@@ -12,6 +12,7 @@
     font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
                  "Songti SC", Georgia, serif;
     line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
   }
   h1, h2, h3 { line-height: 1.3; }
   h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
@@ -30,10 +31,28 @@
   table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
   th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
   th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each <table> in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
   math { font-size: 1.05em; }
-  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; }
-  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
   hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
 </style>
 </head>
 <body>
@@ -106,7 +125,7 @@ parameters),而学习就是用训练数据优化那些参数的过程。</li>
 的增加而提升。</p>
 </blockquote>
 <p>三个字母分别代表:</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>字母</th>
@@ -135,7 +154,7 @@ parameters),而学习就是用训练数据优化那些参数的过程。</li>
 <td>测试集准确率</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p>这个框架的深刻之处在于它明确区分了"什么是学习"和"学习在干什么":学习本身不是目标任务,而是<strong>获得完成目标任务能力的手段</strong>。</p>
 <p>为什么需要学习而不是手工编程?因为有些任务"太难用固定程序解决了"——比如识别自然语言、理解图像。规则太复杂、例外太多、情境太多变。但如果有足够多的数据,机器可以从中归纳出比人手写更精妙的模式。</p>
 <pre class="mermaid"><code>graph LR
@@ -334,7 +353,7 @@ id="36-降维与流形学习-dimensionality-reduction--manifold-learning">3.6
 维时,<strong>信息量的损失要尽可能小</strong>。这背后涉及信息论的概念。常用技术是<strong>特征值分解
 (eigenvalue decomposition)</strong> 或<strong>奇异值分解 (Singular Value
 Decomposition, SVD)</strong>。</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>任务</th>
@@ -377,7 +396,7 @@ Decomposition, SVD)</strong>。</p>
 <td>数据可视化、压缩</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <h3 id="37-自然语言理解问答与对话">3.7 自然语言理解、问答与对话</h3>
 <p><strong>目标:</strong> 给定一段文本或语音,产生对其意义的理解
 (NLU)、或用自然语言回答问题 (QA)、或维持多轮对话 (dialogue)。</p>
@@ -455,7 +474,7 @@ measure)</strong>。</p>
 <li>性能度量必须<strong>匹配系统的期望行为</strong>。</li>
 </ul>
 <h3 id="42-常见指标">4.2 常见指标</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>指标</th>
@@ -490,7 +509,7 @@ measure)</strong>。</p>
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mi>N</mi></mfrac><msub><mo>∑</mo><mi>i</mi></msub><msup><mrow><mo stretchy="true" form="prefix">(</mo><msub><mover><mi>y</mi><mo accent="true">̂</mo></mover><mi>i</mi></msub><mo>−</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\frac{1}{N}\sum_i (\hat{y}_i - y_i)^2</annotation></semantics></math></td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <blockquote>
 <p>📎 <strong>拓展(超出 slides)</strong> —
 精确率和召回率往往是矛盾的(提高一个会降低另一个),工程中常用 <strong>F1
@@ -718,7 +737,7 @@ Trade-off)</h3>
 <p><strong>容量越大,需要的训练数据越多,但泛化误差可以更小——前提是有足够数据。</strong></p>
 </blockquote>
 <p>三者之间的权衡:</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>因素</th>
@@ -739,7 +758,7 @@ Trade-off)</h3>
 <td>要求更多数据或适当容量</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p><strong>实践建议(来自讲师):</strong></p>
 <ul>
 <li>特征要<strong>独立(非冗余)<strong>且</strong>信息量丰富</strong>——不能互相预测,每个特征提供独特信息。</li>

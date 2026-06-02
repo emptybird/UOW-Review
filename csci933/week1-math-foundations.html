@@ -12,6 +12,7 @@
     font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
                  "Songti SC", Georgia, serif;
     line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
   }
   h1, h2, h3 { line-height: 1.3; }
   h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
@@ -30,10 +31,28 @@
   table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
   th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
   th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each <table> in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
   math { font-size: 1.05em; }
-  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; }
-  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
   hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
 </style>
 </head>
 <body>
@@ -295,7 +314,7 @@ out"——一定要亲手算几个,光看公式记不住。</p>
 </annotation></semantics></math></p>
 <h2 id="4-几类特殊的矩阵">§4 几类特殊的矩阵</h2>
 <p>在机器学习的论文和教材里,你会反复看到一些专有名字描述矩阵的"形状"。这些名字本身不难,但你必须形成一种条件反射——看到名字就知道形状,看到形状就知道能做什么。</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>类别</th>
@@ -348,7 +367,7 @@ out"——一定要亲手算几个,光看公式记不住。</p>
 就是"每个分量乘一个数"</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p>单位矩阵的对角线常用 <strong>Kronecker delta</strong> 函数来描述:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mn>1</mn><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mrow><mtext mathvariant="normal">if </mtext><mspace width="0.333em"></mspace></mrow><mi>i</mi><mo>=</mo><mi>j</mi></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mn>0</mn><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">otherwise</mtext></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">
 \delta_{ij} = \begin{cases} 1, &amp; \text{if } i = j \\ 0, &amp; \text{otherwise} \end{cases}
@@ -427,7 +446,7 @@ vector)。把任何非零向量除以它自己的范数,就可以<strong>归一�
 (约 40.5 度)</p>
 </blockquote>
 <h3 id="三个重要的特殊情况">三个重要的特殊情况</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>情况</th>
@@ -452,7 +471,7 @@ vector)。把任何非零向量除以它自己的范数,就可以<strong>归一�
 <td>内积永远不超过两个范数的积</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p><strong>Cauchy-Schwartz</strong>
 其实就是上面那个角度公式的直接结果——因为
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>cos</mo><mi>θ</mi><mo>≤</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\cos\theta \leq 1</annotation></semantics></math>,所以两边乘以
@@ -744,7 +763,7 @@ convex),意味着<strong>唯一全局最小值</strong>存在。梯度下降在�
 乘以任何非零常数,它还是同一个特征值的特征向量(方向不变)。所以我们<strong>约定</strong>把特征向量归一化:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>𝐮</mi><mi>i</mi><mi>T</mi></msubsup><msub><mi>𝐮</mi><mi>i</mi></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\mathbf{u}_i^T \mathbf{u}_i = 1</annotation></semantics></math>。</li>
 </ol>
 <h3 id="七条必须记住的性质">七条必须记住的性质</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>#</th>
@@ -797,7 +816,7 @@ convex),意味着<strong>唯一全局最小值</strong>存在。梯度下降在�
 <td>等价于性质 1</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <h3 id="对称矩阵的对角化-diagonalization">对称矩阵的对角化
 (Diagonalization)</h3>
 <p>性质 3 和 4
@@ -1131,7 +1150,7 @@ P\left(\bigcup_i A_i\right) = \sum_i P(A_i)
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>u</mi></msub><annotation encoding="application/x-tex">v_u</annotation></semantics></math>
 = "两骰子之和为
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>u</mi><annotation encoding="application/x-tex">u</annotation></semantics></math>":</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>事件</th>
@@ -1196,7 +1215,7 @@ P\left(\bigcup_i A_i\right) = \sum_i P(A_i)
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mn>36</mn></mrow><annotation encoding="application/x-tex">1/36</annotation></semantics></math></td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p>(注意
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mn>1</mn></msub><annotation encoding="application/x-tex">v_1</annotation></semantics></math>
 不可能存在,因为两颗骰子最小和为 2。) 这个表后面在条件概率中会用到。</p>
@@ -1291,7 +1310,7 @@ P(A \cap E) = P(A|E) P(E) = P(A) P(E)
 </blockquote>
 <h3 id="直觉and-乘-vs-or-加">直觉:and (乘) vs or (加)</h3>
 <p>Philip 在课堂上提了一句非常实用的"经验法则",值得记下来:</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>关系词</th>
@@ -1314,7 +1333,7 @@ P(A \cap E) = P(A|E) P(E) = P(A) P(E)
 加</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p>所以<strong>看到"和"想到"乘",看到"或"想到"加"</strong>——大部分推理一上来这条都对。</p>
 <h2 id="4-联合分布和边际分布">§4 联合分布和边际分布</h2>
 <h3 id="联合概率分布-joint-probability-distribution">联合概率分布 (Joint
@@ -1325,7 +1344,7 @@ probability distribution)</h3>
 <blockquote>
 <p><strong>🔑 例 (夏季温度和湿度)</strong> —
 给出温度和湿度的联合分布:</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>∖</mo><mi>H</mi></mrow><annotation encoding="application/x-tex">T \backslash H</annotation></semantics></math></th>
@@ -1350,7 +1369,7 @@ probability distribution)</h3>
 <td>2/12</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p><strong>整个表的概率之和必须等于
 1</strong>,这是联合分布作为"合法概率"的必要条件。验算:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mn>6</mn><mo>+</mo><mn>1</mn><mi>/</mi><mn>12</mn><mo>+</mo><mn>5</mn><mi>/</mi><mn>18</mn><mo>+</mo><mn>1</mn><mi>/</mi><mn>9</mn><mo>+</mo><mn>7</mn><mi>/</mi><mn>36</mn><mo>+</mo><mn>2</mn><mi>/</mi><mn>12</mn><mo>=</mo><mn>6</mn><mi>/</mi><mn>36</mn><mo>+</mo><mn>3</mn><mi>/</mi><mn>36</mn><mo>+</mo><mn>10</mn><mi>/</mi><mn>36</mn><mo>+</mo><mn>4</mn><mi>/</mi><mn>36</mn><mo>+</mo><mn>7</mn><mi>/</mi><mn>36</mn><mo>+</mo><mn>6</mn><mi>/</mi><mn>36</mn><mo>=</mo><mn>36</mn><mi>/</mi><mn>36</mn><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">1/6 + 1/12 + 5/18 + 1/9 + 7/36 + 2/12 = 6/36 + 3/36 + 10/36 + 4/36 + 7/36 + 6/36 = 36/36 = 1</annotation></semantics></math>
 ✓</p>
@@ -1505,7 +1524,7 @@ E(X) = \sum_n x_n p(x_n)
 <p>📎 <strong>拓展 — 这是机器学习里最常用的均值公式吗?</strong>
 是的,但需要看穿一个表象。看 Philip 的推导:假设一个班里的年龄分布是</p>
 </blockquote>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>年龄</th>
@@ -1538,7 +1557,7 @@ E(X) = \sum_n x_n p(x_n)
 <td>67</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p>总人数 117。<strong>直觉上</strong>算平均年龄就是
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>20</mn><mo>×</mo><mn>5</mn><mo>+</mo><mn>21</mn><mo>×</mo><mn>2</mn><mo>+</mo><mn>22</mn><mo>×</mo><mn>30</mn><mo>+</mo><mn>23</mn><mo>×</mo><mn>1</mn><mo>+</mo><mn>24</mn><mo>×</mo><mn>12</mn><mo>+</mo><mn>25</mn><mo>×</mo><mn>67</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>117</mn></mrow><annotation encoding="application/x-tex">(20\times 5 + 21\times 2 + 22\times 30 + 23 \times 1 + 24 \times 12 + 25 \times 67) / 117</annotation></semantics></math>。但如果我们把式子改写一下:</p>
 <blockquote>
@@ -1892,7 +1911,7 @@ Week 1
 的最后给出了一个简短的"剧透",我把它整理在这里,作为通向后面章节的桥梁。</p>
 <h2 id="三种学习范式-three-learning-paradigms">三种学习范式 (Three
 learning paradigms)</h2>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>范式</th>
@@ -1917,7 +1936,7 @@ learning paradigms)</h2>
 <td>联合分布 + 条件独立假设</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <h2 id="一个核心概念泛化-generalization">一个核心概念:泛化
 (Generalization)</h2>
 <p>Philip 在结束 Week 1 时留下了一个关键概念,作为后面所有内容的伏笔:</p>

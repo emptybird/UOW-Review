@@ -12,6 +12,7 @@
     font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
                  "Songti SC", Georgia, serif;
     line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
   }
   h1, h2, h3 { line-height: 1.3; }
   h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
@@ -30,10 +31,28 @@
   table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
   th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
   th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each <table> in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
   math { font-size: 1.05em; }
-  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; }
-  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
   hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
 </style>
 </head>
 <body>
@@ -89,7 +108,7 @@ learning)</strong> 方法,最常用于<strong>预测 (prediction)</strong>
 </blockquote>
 <h3 id="11-回归的三种规模">1.1 回归的三种规模</h3>
 <p>线性回归模型按"输入有几个、输出有几个"分成三类:</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>类型</th>
@@ -118,7 +137,7 @@ learning)</strong> 方法,最常用于<strong>预测 (prediction)</strong>
 <td>用气象因子同时预测温度和湿度</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p>注意中文里"多元"和"多变量"很容易混,记住分界点:<strong>multiple
 是"多输入、单输出",multivariate 是"多输出"</strong>。</p>
 <h3 id="12-两套术语和一个关键自由度">1.2 两套术语和一个关键自由度</h3>
@@ -382,7 +401,7 @@ variance</strong>(低偏差、高方差)——意思是它平均而言不偏,但
 能预测国民的生活满意度吗?</strong></p>
 <p>数据来自两个来源:OECD 网站的 <strong>Better Life
 Index</strong>(生活满意度)和 IMF 网站的<strong>人均 GDP</strong>。</p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>国家</th>
@@ -417,7 +436,7 @@ Index</strong>(生活满意度)和 IMF 网站的<strong>人均 GDP</strong>。</
 <td>7.2</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p>把这些点画到图上,会看到一个<strong>大致线性的趋势</strong>——越富的国家,满意度越高。注意:<strong>"假设它是线性的"这一步本身就是一种模型选择
 (model selection)</strong>。我们选择用一条直线来建模:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">life satisfaction</mtext><mo>=</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>+</mo><msub><mi>θ</mi><mn>1</mn></msub><mo>×</mo><mtext mathvariant="normal">GDP per capita</mtext></mrow><annotation encoding="application/x-tex">\text{life satisfaction} = \theta_0 + \theta_1 \times \text{GDP per capita} \tag{7}</annotation></semantics></math></p>
@@ -661,7 +680,7 @@ s.t.
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>ℝ</mi><mi>N</mi></msup><annotation encoding="application/x-tex">\mathbb{R}^N</annotation></semantics></math>。)</p>
 <p>那么不同范数到底什么区别?这是本节的核心,我们专门讲。</p>
 <h3 id="63-三种范数l0l1l2">6.3 三种范数:L0、L1、L2</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>范数</th>
@@ -691,7 +710,7 @@ s.t.
 <td>✅ 光滑,可优化</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <p>老师把这条逻辑链讲得很清楚:<strong>我们真正想做的,其实是最小化
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>
 范数</strong>——也就是让"非零权重的个数"尽量少,这样没用的特征系数就是
@@ -780,7 +799,7 @@ class="sourceCode python"><code class="sourceCode python"><span id="cb9-1"><a hr
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>elastic_net <span class="op">=</span> ElasticNet(alpha<span class="op">=</span><span class="fl">0.1</span>, l1_ratio<span class="op">=</span><span class="fl">0.5</span>)   <span class="co"># l1_ratio 控制 L1/L2 的比例</span></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>elastic_net.fit(X, y)</span></code></pre></div>
 <h3 id="74-三种正则化总览">7.4 三种正则化总览</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr class="header">
 <th>方法</th>
@@ -825,7 +844,7 @@ class="sourceCode python"><code class="sourceCode python"><span id="cb9-1"><a hr
 <td>特征分组/解分布在多个子空间</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <pre class="mermaid"><code>graph LR
   LR[&quot;普通线性回归&lt;br/&gt;误差最小,但权重失控&lt;br/&gt;high variance&quot;] --&gt;|&quot;加 L2:控制权重长度&quot;| RIDGE[&quot;Ridge&lt;br/&gt;收缩,稳定&quot;]
   LR --&gt;|&quot;加 L1:逼近 L0,做选择&quot;| LASSO[&quot;Lasso&lt;br/&gt;稀疏,可解释&quot;]
