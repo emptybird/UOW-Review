@@ -1,0 +1,10 @@
+# 系统/编辑器
+.DS_Store
+.vscode/
+
+# 依赖与构建缓存
+node_modules/
+.wrangler/
+
+# 自动生成的索引页（产物，由 build-index.mjs / Cloudflare 构建时生成）
+index.html

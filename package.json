@@ -1,0 +1,10 @@
+{
+  "name": "uow-review-notes",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "UOW 课程复习笔记静态站点，按科目组织，索引页自动生成。",
+  "scripts": {
+    "build": "node build-index.mjs"
+  }
+}
