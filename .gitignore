@@ -6,5 +6,5 @@
 node_modules/
 .wrangler/
 
-# 自动生成的索引页（产物，由 build-index.mjs / Cloudflare 构建时生成）
-index.html
+# 构建产物（dist/ 由 build-index.mjs 生成，Cloudflare 构建时重建）
+dist/

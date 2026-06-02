@@ -10,14 +10,15 @@
 //   <根>/index.html             首页：列出所有科目
 //   <根>/<科目>/index.html      科目页：列出该科目所有笔记
 
-import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = dirname(fileURLToPath(import.meta.url))
+const DIST = join(ROOT, 'dist')
 
 // 不当作科目扫描的目录
-const IGNORE = new Set(['.git', 'node_modules', '.wrangler', '.vscode', 'assets', 'public'])
+const IGNORE = new Set(['.git', 'node_modules', '.wrangler', '.vscode', 'assets', 'public', 'dist'])
 
 // 与笔记一致的视觉基底（绿色 accent + 衬线），外加首页/列表所需的卡片样式
 const BASE_CSS = `
@@ -171,6 +172,8 @@ ${items}
   })
 }
 
+// 把可发布内容（首页、各科目页、笔记副本）输出到独立的 dist/ 目录，
+// 供 Cloudflare Workers 静态资源部署（见 wrangler.jsonc 的 assets.directory = ./dist）。
 const build = () => {
   const subjects = listSubjects()
 
@@ -178,10 +181,20 @@ const build = () => {
     console.warn('⚠️  没有发现任何含 .html 笔记的科目文件夹，仍生成空首页。')
   }
 
-  writeFileSync(join(ROOT, 'index.html'), homePage(subjects))
-  subjects.forEach((subject) => writeFileSync(join(subject.dir, 'index.html'), subjectPage(subject)))
+  rmSync(DIST, { recursive: true, force: true })
+  mkdirSync(DIST, { recursive: true })
+  writeFileSync(join(DIST, 'index.html'), homePage(subjects))
 
-  console.log(`✅ 生成完成：首页 + ${subjects.length} 个科目页`)
+  subjects.forEach((subject) => {
+    const outDir = join(DIST, subject.name)
+    mkdirSync(outDir, { recursive: true })
+    subject.notes.forEach((note) =>
+      copyFileSync(join(subject.dir, note.file), join(outDir, note.file)),
+    )
+    writeFileSync(join(outDir, 'index.html'), subjectPage(subject))
+  })
+
+  console.log(`✅ 构建完成 → dist/（首页 + ${subjects.length} 个科目页 + 笔记副本）`)
   subjects.forEach((subject) =>
     console.log(`   - ${subject.meta.title || subject.name}：${subject.notes.length} 篇`),
   )
