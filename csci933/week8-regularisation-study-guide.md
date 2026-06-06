@@ -1,4 +1,4 @@
-# Week 8 · 正则化 (Regularization)
+# 第八章 · 正则化 (Regularization)
 
 > **学习目标 (Learning objectives)** — 读完本章你应该能够:
 > - 用"假设空间搜索"的语言解释机器学习在学什么,并说清 neural network 作为 universal approximator 的角色;

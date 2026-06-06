@@ -1,4 +1,4 @@
-# Week 10 · 表示学习导论 (Representation Learning: An Introduction)
+# 第十章 · 表示学习导论 (Representation Learning: An Introduction)
 
 > **学习目标 (Learning objectives)** — 读完本章你应该能够:
 > - 解释什么叫 **representation(表示)**、什么样的表示才"有用",并复述老师的"**三个问题**"统一框架(学的是什么 / 为什么有用 / 怎么学的);

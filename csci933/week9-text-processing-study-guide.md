@@ -1,4 +1,4 @@
-# Week 9 · 文本处理与 Transformer (Text Processing / NLP → Transformer)
+# 第九章 · 文本处理与 Transformer (Text Processing / NLP → Transformer)
 
 > **学习目标 (Learning objectives)** — 读完本章你应该能够:
 > - 解释什么是 **natural language**(自然语言),以及为什么 NLP 的第一步永远是"**把信号变成数字**";

@@ -1,4 +1,4 @@
-# Week 6 · 卷积神经网络与深度学习 (II) — CNN
+# 第六章 · 卷积神经网络与深度学习 (II) — CNN
 
 > **学习目标 (Learning objectives)** — 读完本章你应该能够:
 > - 解释为什么处理图像时**全连接网络 (fully connected MLP)** 会"参数爆炸",以及 **CNN** 用哪两条先验(local connectivity + weight sharing)把它救回来;

@@ -1,4 +1,4 @@
-# Week 7 · 循环神经网络 (Recurrent Neural Networks, RNN)
+# 第七章 · 循环神经网络 (Recurrent Neural Networks, RNN)
 
 > **学习目标 (Learning objectives)** — 读完本章你应该能够:
 > - 解释什么是**序列 / 时间序列数据 (sequence / time-series data)**,并说出它与图像这类 2D 数据的本质区别

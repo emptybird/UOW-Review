@@ -1,4 +1,4 @@
-# Week 11 · 图神经网络 Graph Neural Networks:表示、消息传递与 GCN
+# 第十一章 · 图神经网络 Graph Neural Networks:表示、消息传递与 GCN
 
 > **学习目标 (Learning objectives)** — 读完本章你应该能够:
 > - 用 nodes、edges、feature matrix、adjacency matrix 把关系型数据表示成一张图,并写出 adjacency / degree / Laplacian 三个矩阵;
