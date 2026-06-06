@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 11 · 图神经网络 Graph Neural Networks:表示、消息传递与 GCN</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-11--图神经网络-graph-neural-networks表示消息传递与-gcn">Week 11
+· 图神经网络 Graph Neural Networks:表示、消息传递与 GCN</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>用 nodes、edges、feature matrix、adjacency matrix
+把关系型数据表示成一张图,并写出 adjacency / degree / Laplacian
+三个矩阵;</li>
+<li>解释为什么 graph 数据不能自然地交给 MLP 或 CNN 处理,以及 permutation
+equivariance/invariance 到底要求什么;</li>
+<li>把 <strong>message
+passing</strong>(消息传递)读成"基于邻居的表示学习",并能手算两轮消息传递;</li>
+<li>写出并解释 GCN layer 的 node-wise 形式与 matrix 形式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>=</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>A</mi><mo accent="true">̂</mo></mover><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">H^{(\ell+1)}=\sigma(\hat A H^{(\ell)} W^{(\ell)})</annotation></semantics></math>;</li>
+<li>区分 node-level、edge-level、graph-level 三类预测任务;</li>
+<li>说出 GNN 的主要家族(GCN/GraphSAGE/GAT/GIN/R-GCN/Graph
+Transformer)各自的核心思想与适用场景;</li>
+<li>指出 GNN
+的典型失败模式(oversmoothing、oversquashing、heterophily)与实践设计权衡。</li>
+</ul>
+</blockquote>
+<p>我们这门课一路走来,处理的数据其实都"很规整":回归里是一行行独立的特征向量,CNN
+里是排成网格的像素,RNN/Transformer
+里是有先后顺序的序列。它们有一个共同点——<strong>数据点之间要么相互独立,要么沿着某个固定的顺序(空间或时间)排列</strong>。但现实里有一大类数据不是这样的。</p>
+<p>老师在课上用了一个很贴切的例子:把这间教室看成数据。开学第一周,每个人都是一个孤立的特征向量(身高、成绩、兴趣……);可上了五六周课之后,你和邻座加了微信、和后排的人在
+Facebook
+上互相点了赞、和某人交换了邮箱——<strong>人没变,但人和人之间长出了"连接"</strong>。这些连接本身携带信息:谁和谁来往密切、谁是班里的"活跃节点"。要预测"谁是班委""这是个什么样的班级",光看单个人的特征是不够的,<strong>关系结构
+(relational structure) 本身就是预测信号</strong>。这正是 graph
+数据的本质,也是本章 <strong>图神经网络 (Graph Neural Networks,
+GNN)</strong> 要解决的问题。</p>
+<p>本章的主线可以先记在脑子里:先搞清楚<strong>图是什么</strong>(代数对象)→
+<strong>GNN 想学什么</strong>(node/edge/graph 表示)→
+<strong>它靠什么学</strong>(message passing,全章的心脏)→
+<strong>GCN</strong> 这个最常用的具体实现 →
+<strong>各种变体与设计选择</strong> →
+<strong>应用、局限与考试</strong>。</p>
+<pre class="mermaid"><code>graph LR
+  A[&quot;关系型数据&lt;br/&gt;(社交/分子/引用…)&quot;] --&gt; B[&quot;图 G=(V,E)&lt;br/&gt;邻接/度/拉普拉斯矩阵&quot;]
+  B --&gt; C[&quot;GNN 学什么&lt;br/&gt;node/edge/graph embedding&quot;]
+  C --&gt; D[&quot;怎么学:&lt;b&gt;Message Passing&lt;/b&gt;&lt;br/&gt;聚合-变换-更新&quot;]
+  D --&gt; E[&quot;GCN&lt;br/&gt;归一化邻接聚合&quot;]
+  E --&gt; F[&quot;变体 GraphSAGE/GAT/GIN…&quot;]
+  F --&gt; G[&quot;应用 &amp; 局限&lt;br/&gt;oversmoothing/heterophily&quot;]</code></pre>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+课程定位提示:老师明确说本章重点是<strong>理解与推理</strong>,不是背公式。考试"不会要求你推导任何方程",但会给你一个方程问"如果改动这一项会怎样""为什么有人要这样设计"。所以本章每个公式,你要会<strong>读它在说什么</strong>,而不是会从头推它。下面的讲解会刻意强调每个符号、每一项的"含义"。</p>
+</blockquote>
+<hr />
+<h2 id="1-为什么需要图关系结构才是关键">1.
+为什么需要图?关系结构才是关键</h2>
+<h3 id="11-很多数据天生不是独立的特征向量">1.1
+很多数据天生不是独立的特征向量</h3>
+<p>回忆一下我们处理过的数据形态。<strong>序列数据 (sequence)</strong>
+像股票价格、文本,靠的是<strong>顺序</strong>——RNN/Transformer
+利用先后次序和 attention;<strong>网格数据 (image grid)</strong>
+像图片,靠的是<strong>局部网格邻域</strong>——CNN
+用卷积核扫描相邻像素。这两类都有一个"规则的"邻域结构(前后、上下左右)。</p>
+<p>但社交网络、分子、引用网络这些数据,邻域是<strong>不规则的
+(irregular)</strong>:一个节点可能连着 2 个邻居,另一个连着 200
+个,而且"谁挨着谁"完全由数据本身决定,没有统一的行列坐标。老师把三者的对比讲得很清楚:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>数据形态</th>
+<th>邻域结构</th>
+<th>典型模型</th>
+<th>利用的归纳偏置</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Sequence(序列)</td>
+<td>线性、有顺序</td>
+<td>RNN / Transformer</td>
+<td>顺序 + attention</td>
+</tr>
+<tr class="even">
+<td>Image grid(网格)</td>
+<td>规则二维网格</td>
+<td>CNN</td>
+<td>局部网格邻域</td>
+</tr>
+<tr class="odd">
+<td><strong>Graph(图)</strong></td>
+<td><strong>不规则邻域</strong></td>
+<td><strong>GNN</strong></td>
+<td><strong>图的连接关系</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>GNN 把 <strong>graph connectivity(图的连接)当作 inductive
+bias(归纳偏置)</strong>——也就是说,模型从一开始就假设"信息应该沿着边流动"。这一点和我们
+Week 8 讲 regularization
+时说过的话呼应:<strong>选择一种网络结构,本质上就是选择了一类你愿意去逼近的函数</strong>。你选了图结构,就等于告诉模型"请重点利用这些连接"。</p>
+<blockquote>
+<p><strong>🔑 例(为什么"结构即信息")</strong> —
+老师举的几个真实例子,值得记住,因为考试爱用它们当背景:</p>
+<ul>
+<li><strong>Connected Papers</strong>
+这个网站:输入一篇论文,它画出引用它/被它引的所有论文构成的图,你一眼就能看出该读哪些相关工作。引用关系(边)本身就告诉你论文之间的脉络。</li>
+<li><strong>推荐系统</strong>:你在购物网站点了自行车、点了马拉松,系统把你的点击建成图,一挖掘就知道"该给他推头盔"。</li>
+<li><strong>欺诈/异常检测</strong>:政府或平台把人群建成图,通过连接模式发现可疑团伙;只要你用社交平台,就会"掉面包屑",有心人能从图里拼出你的画像。</li>
+<li><strong>药物发现 (drug
+discovery)</strong>:把分子建成"原子=节点、化学键=边"的图,通过和已知有效分子的结构相似性,预测新分子能不能治某种病。</li>
+</ul>
+</blockquote>
+<h3 id="12-同一张图画法可以千变万化">1.2 同一张图,画法可以千变万化</h3>
+<p>这里有个关键直觉,直接决定了后面所有的设计。看下面这张图:节点
+A、B、C、D、E 之间有若干连接。我<strong>把 A 画在左上还是右下,把 E
+挪到哪个角落,都不重要</strong>——只要那些连接(边)还在,它就还是同一张图。</p>
+<p>对比一下:如果是一张图片,我把像素位置打乱,它就变成了另一张图片;如果是股票序列,我把时间
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t{+}1</annotation></semantics></math>
+的收盘价对调,数据的含义就全变了;甚至一句话,词序一改意思就不同。<strong>唯独
+graph,节点摆在哪里无所谓,真正定义它的是"连接"。</strong> 这就是后面
+permutation invariance(排列不变性)的来源,先记住这个画面。</p>
+<pre class="mermaid"><code>graph TD
+  subgraph 同一张图的两种画法
+    A1((A)) --- B1((B))
+    B1 --- C1((C))
+    C1 --- D1((D))
+    A1 --- E1((E))
+  end</code></pre>
+<blockquote>
+<p><strong>本节小结</strong> —
+当实体之间的<strong>关系</strong>对预测很重要、而不只是附带的元数据时,就该用图来建模;图的价值在于连接结构,而连接结构与"节点怎么摆放"无关。</p>
+</blockquote>
+<hr />
+<h2 id="2-图作为代数对象从画图到矩阵">2.
+图作为代数对象:从画图到矩阵</h2>
+<p>画图只是为了让我们脑子里有个直观形象。真正喂给 GNN
+训练的,全是<strong>矩阵
+(matrices)</strong>。这一节把图翻译成线性代数,这样才能"借用线性代数的全部威力"去发现规律。</p>
+<h3 id="21-形式定义">2.1 形式定义</h3>
+<p>一个 <strong>graph(图)</strong> 是一个二元组(老师强调这是个 tuple):
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>V</mi><mo>,</mo><mi>E</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G = (V, E)</annotation></semantics></math>
+其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi><mo>=</mo><mo stretchy="false" form="prefix">{</mo><msub><mi>v</mi><mn>1</mn></msub><mo>,</mo><msub><mi>v</mi><mn>2</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>v</mi><mi>n</mi></msub><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">V=\{v_1, v_2, \dots, v_n\}</annotation></semantics></math>
+是 <strong>nodes(节点,也叫 vertices 顶点)</strong>
+的集合,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo>⊆</mo><mi>V</mi><mo>×</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">E \subseteq V\times V</annotation></semantics></math>
+是 <strong>edges(边)</strong> 的集合。一条边
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>E</mi></mrow><annotation encoding="application/x-tex">(i,j)\in E</annotation></semantics></math>
+表示节点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+和节点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+相连。几个变体:</p>
+<ul>
+<li><strong>Undirected(无向)</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>u</mi><mo>,</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>E</mi><mo>⇔</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>v</mi><mo>,</mo><mi>u</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>E</mi></mrow><annotation encoding="application/x-tex">(u,v)\in E \Leftrightarrow (v,u)\in E</annotation></semantics></math>,边没有方向,你来我往是对称的。</li>
+<li><strong>Directed(有向)</strong>:边是有序对,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi><mo>→</mo><mi>v</mi></mrow><annotation encoding="application/x-tex">u\to v</annotation></semantics></math>
+不等于
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi><mo>→</mo><mi>u</mi></mrow><annotation encoding="application/x-tex">v\to u</annotation></semantics></math>(比如"关注"关系、引用关系)。</li>
+<li><strong>Weighted(带权)</strong>:边带实数权重(路程时间、化学键强度)。</li>
+<li><strong>Attributed(带属性)</strong>:节点和/或边带特征向量——这是机器学习里我们最关心的情形。</li>
+</ul>
+<p>再认两个常用记号,后面公式里到处都是:<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{N}(i)</annotation></semantics></math></strong>
+表示节点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+的
+<strong>neighbourhood(邻居集合)</strong>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>S</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|S|</annotation></semantics></math>
+表示集合
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
+的 <strong>cardinality(基数,即元素个数)</strong>。例如节点 B 若与
+A、C、D 相连,则
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>B</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="prefix">{</mo><mi>A</mi><mo>,</mo><mi>C</mi><mo>,</mo><mi>D</mi><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\mathcal N(B)=\{A,C,D\}</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>B</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">|</mo></mrow><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">|\mathcal N(B)|=3</annotation></semantics></math>。</p>
+<h3 id="22-gnn-的输入到底是什么">2.2 GNN 的输入到底是什么</h3>
+<p>一个 attributed graph 喂给 GNN 时,典型输入是三件套:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>A</mi><mo>,</mo><mspace width="0.278em"></mspace><mi>X</mi><mo>,</mo><mspace width="0.278em"></mspace><msub><mi>E</mi><mtext mathvariant="normal">feat</mtext></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G = (A,\; X,\; E_{\text{feat}})</annotation></semantics></math></p>
+<ul>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo>×</mo><mi>n</mi></mrow></msup></mrow><annotation encoding="application/x-tex">A \in \mathbb{R}^{n\times n}</annotation></semantics></math>:adjacency
+matrix(邻接矩阵)</strong>——"谁连着谁",编码图的<strong>结构</strong>。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo>×</mo><mi>F</mi></mrow></msup></mrow><annotation encoding="application/x-tex">X \in \mathbb{R}^{n\times F}</annotation></semantics></math>:node-feature
+matrix(节点特征矩阵)</strong>——每个节点一行
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>i</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mi>F</mi></msup></mrow><annotation encoding="application/x-tex">x_i\in\mathbb R^F</annotation></semantics></math>,编码每个节点<strong>自身</strong>的信息。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>E</mi><mtext mathvariant="normal">feat</mtext></msub><annotation encoding="application/x-tex">E_{\text{feat}}</annotation></semantics></math>:edge
+features(边特征)</strong>——可表示关系类型、距离、化学键类型或权重。</li>
+<li>此外 <strong>labels(标签)</strong> 可以挂在节点、边或整张图上。</li>
+</ul>
+<p>一句话:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>
+决定信息<strong>能往哪流</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+决定每个节点<strong>带什么信息</strong>。</p>
+<h3 id="23-三个核心矩阵邻接度拉普拉斯">2.3
+三个核心矩阵:邻接、度、拉普拉斯</h3>
+<p>用老师课上那个最简单的例子:4 个节点排成一条链,1–2、2–3、3–4 相连,1 和
+4 不相连。</p>
+<pre class="mermaid"><code>graph LR
+  1((1)) --- 2((2)) --- 3((3)) --- 4((4))</code></pre>
+<p><strong>Adjacency matrix(邻接矩阵)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>A</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">A_{ij}=1</annotation></semantics></math>
+表示
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+相连,否则为 0。对角线为 0(节点默认不连自己)。
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr></mtable><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">A=\begin{pmatrix} 0&amp;1&amp;0&amp;0\\ 1&amp;0&amp;1&amp;0\\ 0&amp;1&amp;0&amp;1\\ 0&amp;0&amp;1&amp;0 \end{pmatrix}</annotation></semantics></math>
+注意它是 <strong>symmetric(对称)</strong> 的:因为 1 连 2,则 2 也连
+1,所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>=</mo><msup><mi>A</mi><mi>𝖳</mi></msup></mrow><annotation encoding="application/x-tex">A=A^{\mathsf T}</annotation></semantics></math>。这正是无向图的特征,也正因为对称,我们才能放心地把线性代数那一套用上去。</p>
+<p><strong>Degree matrix(度矩阵)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>:对角矩阵,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>D</mi><mrow><mi>i</mi><mi>i</mi></mrow></msub><mo>=</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>A</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">D_{ii}=\sum_j A_{ij}</annotation></semantics></math>
+数的是节点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+有几个邻居。这里节点 1 和 4 各 1 个邻居,2 和 3 各 2 个:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>2</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>2</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr></mtable><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">D=\begin{pmatrix} 1&amp;0&amp;0&amp;0\\ 0&amp;2&amp;0&amp;0\\ 0&amp;0&amp;2&amp;0\\ 0&amp;0&amp;0&amp;1 \end{pmatrix}</annotation></semantics></math></p>
+<p><strong>Graph Laplacian(图拉普拉斯)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>=</mo><mi>D</mi><mo>−</mo><mi>A</mi></mrow><annotation encoding="application/x-tex">L = D - A</annotation></semantics></math>,它把"连接"编码进一个矩阵,是后续谱分析
+(spectral analysis) 的基础:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>=</mo><mi>D</mi><mo>−</mo><mi>A</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>2</mn></mtd><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>2</mn></mtd><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>1</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr></mtable><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">L=D-A=\begin{pmatrix} 1&amp;-1&amp;0&amp;0\\ -1&amp;2&amp;-1&amp;0\\ 0&amp;-1&amp;2&amp;-1\\ 0&amp;0&amp;-1&amp;1 \end{pmatrix}</annotation></semantics></math></p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 老师顺口提了一句:Graph
+Laplacian 和 <strong>Fourier transform</strong> 有深刻关系,它支撑了
+<strong>graph signal
+processing(图信号处理)</strong>——用图来处理信号的整套理论。这部分"比较玄",考试不要求,但知道"GCN
+最初是从图谱卷积推出来的"有助于理解后面为什么要做对称归一化。</p>
+</blockquote>
+<h3 id="24-实践中会遇到的图的种类">2.4 实践中会遇到的图的种类</h3>
+<p>老师建议这张表<strong>从右往左读</strong>:不是"背一串类型",而是"我手上这个问题,该用哪种图来建模"。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>图的类型</th>
+<th>含义</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Homogeneous(同质)</td>
+<td>只有一种主要的节点/边类型</td>
+<td>论文引用网络</td>
+</tr>
+<tr class="even">
+<td>Heterogeneous(异质)</td>
+<td>多种节点或边类型</td>
+<td>推荐里的用户、商品、标签</td>
+</tr>
+<tr class="odd">
+<td>Bipartite(二部图)</td>
+<td>两类节点,边只跨类相连</td>
+<td>用户—商品</td>
+</tr>
+<tr class="even">
+<td>Directed(有向)</td>
+<td>边的方向有意义</td>
+<td>关注网络、引用网络</td>
+</tr>
+<tr class="odd">
+<td>Weighted(带权)</td>
+<td>边的强弱有意义</td>
+<td>道路通行时间、化学键强度</td>
+</tr>
+<tr class="even">
+<td>Dynamic(动态)</td>
+<td>图随时间变化</td>
+<td>金融交易、交通网络</td>
+</tr>
+<tr class="odd">
+<td>Knowledge graph(知识图谱)</td>
+<td>实体 + 语义关系</td>
+<td>"药物 治疗 疾病""作者 写了 论文"</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>本节小结</strong> — 图
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>V</mi><mo>,</mo><mi>E</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G=(V,E)</annotation></semantics></math>
+在计算上就是三个矩阵:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>(谁连谁)、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>(各连几个)、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>=</mo><mi>D</mi><mo>−</mo><mi>A</mi></mrow><annotation encoding="application/x-tex">L=D-A</annotation></semantics></math>(连接的代数编码);GNN
+的输入是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>A</mi><mo>,</mo><mi>X</mi><mo>,</mo><msub><mi>E</mi><mtext mathvariant="normal">feat</mtext></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(A, X, E_{\text{feat}})</annotation></semantics></math>
+加标签。</p>
+</blockquote>
+<hr />
+<h2 id="3-gnn-到底学什么三种表示三类任务">3. GNN
+到底学什么:三种表示,三类任务</h2>
+<p>有了图的代数表示,下一个问题是:GNN
+学出来的<strong>到底是什么</strong>?答案是
+<strong>embedding(嵌入/表示)</strong>。</p>
+<h3 id="31-三个层次的-embedding">3.1 三个层次的 embedding</h3>
+<p>老师特意停下来解释 <strong>embedding</strong>
+这个词,因为它在全课反复出现:embedding 就是把对象映射到一个
+<strong>latent
+space(隐空间)</strong>,在那里对象获得了原始形式看不出来的<strong>语义含义</strong>。回想
+NLP 里的
+word2vec:词本身只是符号,映射到嵌入空间后,意思相近的词聚到一起。GNN
+做的是同一件事,只不过对象是图上的东西。它可以学三个层次的表示:</p>
+<ul>
+<li><strong>node embedding(节点嵌入)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mi>i</mi></msub><annotation encoding="application/x-tex">h_i</annotation></semantics></math>
+—— 用于 <strong>node
+classification(节点分类)</strong>(这个人是什么类型、这个基因是不是致病基因);</li>
+<li><strong>edge embedding(边嵌入)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">h_{ij}</annotation></semantics></math>
+—— 用于 <strong>link prediction(链接预测)</strong>
+或关系分类(这条关系强不强);</li>
+<li><strong>graph embedding(图嵌入)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mi>G</mi></msub><annotation encoding="application/x-tex">h_G</annotation></semantics></math>
+—— 用于 <strong>whole-graph
+prediction(整图预测)</strong>(这个分子有什么性质、这个班是不是"高智商班")。</li>
+</ul>
+<p>关键一句:<strong>图的结构约束了表示如何被更新和共享</strong>——一个节点的
+embedding
+不是孤立学出来的,而是被它的邻居"塑造"出来的。老师的说法很形象:"tell me
+your friends and I'll describe you"(告诉我你的朋友,我就能描述你)。</p>
+<h3 id="32-三类预测任务">3.2 三类预测任务</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>任务</th>
+<th>在什么层次</th>
+<th>形式</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Node classification</strong></td>
+<td>节点</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y_i = f(h_i)</annotation></semantics></math></td>
+<td>论文主题、用户类型、致病基因</td>
+</tr>
+<tr class="even">
+<td><strong>Link prediction</strong></td>
+<td>边</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mi>i</mi></msub><mo>,</mo><msub><mi>h</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p_{ij} = f(h_i, h_j)</annotation></semantics></math></td>
+<td>推荐、补全缺失关系、交互预测</td>
+</tr>
+<tr class="odd">
+<td><strong>Graph classification</strong></td>
+<td>整图</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>G</mi></msub><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mi>G</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y_G = f(h_G)</annotation></semantics></math></td>
+<td>分子性质、欺诈模式、程序行为</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 例(link prediction 的直觉)</strong> — 老师讲得很生动:你是
+1 号的朋友,1 号是 2 号的朋友,2 号是 3 号的朋友——那么"你和 3
+号会不会成为朋友?"很可能会。LinkedIn
+正是这么干的:它发现你和某人是三度、四度连接,兴趣又相似,就弹窗"你可能想认识他"。这就是从图里<strong>预测一条还不存在的边</strong>。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展</strong> — slides 上把"GNN
+学什么"列成清单,老师提示要<strong>反过来读</strong>:"我能学到
+node/edge/graph
+表示"——这其实就是在告诉你<strong>可能的考题方向</strong>(给定场景,判断这是
+node 还是 graph 级任务)。</p>
+</blockquote>
+<hr />
+<h2 id="4-为什么不能直接用-mlp排列等变与不变">4. 为什么不能直接用
+MLP:排列等变与不变</h2>
+<p>既然图最后也是矩阵,为什么不把它拍扁成一个向量喂给
+MLP?这一节回答这个"看似简单其实很关键"的问题——它也是 GNN
+整个设计哲学的支点。</p>
+<h3 id="41-mlp-期望固定顺序图没有顺序">4.1 MLP
+期望固定顺序,图没有顺序</h3>
+<p><strong>MLP(multilayer perceptron)</strong>
+期望输入特征有<strong>固定的排列顺序</strong>:第 1 维永远是身高、第 2
+维永远是体重。CNN、RNN
+也一样,都假设数据有某种空间或时间的<strong>序</strong>。可是图<strong>没有天然的节点顺序</strong>——我们在
+§1.2 已经看到,把节点重新编号(relabel)不该改变任何预测结果。</p>
+<pre class="mermaid"><code>graph LR
+  subgraph 原始编号
+    a1((1)) --- a2((2))
+    a2 --- a3((3))
+    a1 --- a3
+  end
+  subgraph 重新编号后
+    b3((3)) --- b1((1))
+    b1 --- b2((2))
+    b3 --- b2
+  end</code></pre>
+<p>更重要的是:<strong>connectivity(连接)不是"又一个特征",它定义了信息的流动方式。</strong>
+你如果硬把图拍扁成特征向量喂给
+MLP,这种"沿边流动"的结构信息就丢了。所以我们需要一种从设计上就尊重图结构的模型。</p>
+<h3 id="42-permutation-equivariance-vs-invariance排列等变-vs-不变">4.2
+Permutation equivariance vs invariance(排列等变 vs 不变)</h3>
+<p>GNN 应当满足两条性质,区别在于"任务在哪个层次":</p>
+<ul>
+<li><strong>Permutation
+equivariance(排列等变)——node-level</strong>:如果把节点顺序打乱,<strong>节点的输出也跟着同样打乱</strong>。你和某人的关系不会因为他换了个座位就消失——只要邻接矩阵
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>
+里那条连接还在。节点级预测要的是这个。</li>
+<li><strong>Permutation
+invariance(排列不变)——graph-level</strong>:如果把节点顺序打乱,<strong>整图的预测完全不变</strong>。这个班被判定为"高智商班",改天大家换座位坐,结论还是一样。整图级预测要的是这个。</li>
+</ul>
+<h3 id="43-为什么聚合函数能保证这两条性质">4.3
+为什么聚合函数能保证这两条性质</h3>
+<p>答案藏在一个简单的事实里:<strong>sum、mean、max 这些聚合
+(aggregation) 函数,天然与"邻居以什么顺序被列出"无关。</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>+</mo><mn>5</mn><mo>+</mo><mn>7</mn></mrow><annotation encoding="application/x-tex">4+5+7</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>7</mn><mo>+</mo><mn>4</mn><mo>+</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">7+4+5</annotation></semantics></math>
+一样,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>4</mn><mo>,</mo><mn>5</mn><mo>,</mo><mn>7</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\max(4,5,7)</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>7</mn><mo>,</mo><mn>5</mn><mo>,</mo><mn>4</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\max(7,5,4)</annotation></semantics></math>
+一样。所以只要 GNN
+用这类<strong>与顺序无关的聚合</strong>来融合邻居信息,排列等变/不变就自动成立。这也正是下一节
+message passing
+为什么非用这类聚合不可——它是把"图没有顺序"这个约束,落实到计算里的办法。</p>
+<blockquote>
+<p><strong>本节小结</strong> — 不能用 MLP,是因为图没有节点顺序而 MLP
+要求固定顺序;GNN 通过<strong>与顺序无关的邻居聚合</strong>,获得节点级的
+permutation equivariance 和图级的 permutation invariance。</p>
+</blockquote>
+<hr />
+<h2 id="5-消息传递-message-passing全章的心脏">5. 消息传递 Message
+Passing:全章的心脏</h2>
+<p>老师反复强调:<strong>"the heart of everything is message
+passing"</strong>。前面所有铺垫,都是为了讲清楚这一个机制。一句话概括:<strong>GNN
+通过反复地把每个节点的特征,和它图邻域的信息融合,来学习表示。</strong></p>
+<h3 id="51-一个-gnn-layer-到底是什么最常见的误解">5.1 一个 GNN "layer"
+到底是什么(最常见的误解)</h3>
+<p>先消除一个误解,老师专门为此重做了课件。在 MLP/CNN 里,"4 层"意味着 4
+组堆叠的、不同的处理单元。<strong>但 GNN 里的 "layer"
+完全不是这个意思。</strong></p>
+<blockquote>
+<p><strong>GNN 的一个 layer =
+在同一张图上,做一轮消息传递与节点更新。</strong></p>
+</blockquote>
+<p>图的结构
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>
+自始至终<strong>没变</strong>,节点也还是那些节点、坐在原位;<strong>变的只是节点的表示矩阵</strong>:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>→</mo><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>→</mo><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>→</mo><mi>⋯</mi></mrow><annotation encoding="application/x-tex">H^{(0)} \to H^{(1)} \to H^{(2)} \to \cdots</annotation></semantics></math>
+课件里把每层的图重画一遍、只是给节点换了颜色,纯粹是为了图示;真实计算是在<strong>同一张图</strong>上递归地精炼同一批节点的
+embedding。老师的类比:这就像 CNN 里一个 filter 作用于输入得到一张新的
+feature map——feature map 是数据的一种新表示;GNN
+每做一轮消息传递,也得到图的一种新表示,但<strong>架构没变,节点没动,只是"颜色"(表示)变了</strong>。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>MLP / CNN</th>
+<th>GNN</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>输入结构</td>
+<td>固定向量 / 网格张量</td>
+<td>不规则图(节点 + 边)</td>
+</tr>
+<tr class="even">
+<td>层的操作</td>
+<td>张量变换</td>
+<td>消息传递 + 节点更新</td>
+</tr>
+<tr class="odd">
+<td>什么在变</td>
+<td>feature maps / 隐藏激活</td>
+<td>节点嵌入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><annotation encoding="application/x-tex">H^{(\ell)}</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>什么在指导计算</td>
+<td>权重矩阵、卷积核</td>
+<td>图连接
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>(或归一化的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat A</annotation></semantics></math>)</td>
+</tr>
+<tr class="odd">
+<td>"更深"意味着</td>
+<td>更多层张量变换</td>
+<td>更多轮邻域信息交换</td>
+</tr>
+<tr class="even">
+<td>常见误解</td>
+<td>通常符合"堆叠层"的直觉</td>
+<td>误以为在堆叠"新图";实则是<strong>递归精炼同一批节点的嵌入</strong></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="52-通用消息传递层的公式">5.2 通用消息传递层的公式</h3>
+<p>把上面的话写成公式。对每个节点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>,一层消息传递分两步:</p>
+<p><strong>第一步——聚合邻居的消息 (aggregate):</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>m</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><msub><mrow><mi mathvariant="normal">A</mi><mi mathvariant="normal">G</mi><mi mathvariant="normal">G</mi></mrow><mrow><mspace width="0.167em"></mspace><mi>j</mi><mo>∈</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><mspace width="0.278em"></mspace><msup><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><mspace width="0.167em"></mspace><msubsup><mi>h</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><mspace width="0.167em"></mspace><msub><mi>e</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">m_i^{(\ell)} = \mathrm{AGG}_{\,j\in\mathcal N(i)}\; \phi^{(\ell)}\!\left(h_i^{(\ell)},\, h_j^{(\ell)},\, e_{ij}\right)</annotation></semantics></math></p>
+<p><strong>第二步——用消息更新自己 (update):</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><msup><mi>ψ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><mspace width="0.167em"></mspace><msubsup><mi>m</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_i^{(\ell+1)} = \psi^{(\ell)}\!\left(h_i^{(\ell)},\, m_i^{(\ell)}\right)</annotation></semantics></math></p>
+<p>逐个符号读(这正是考试会考的"读方程"):</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">h_i^{(\ell)}</annotation></semantics></math>:节点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+在第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>ℓ</mo><annotation encoding="application/x-tex">\ell</annotation></semantics></math>
+层的当前表示;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal N(i)</annotation></semantics></math>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+的邻居;那个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>∈</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">j\in\mathcal N(i)</annotation></semantics></math>
+就是"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+的邻居"的意思;</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>:message
+function(消息函数)</strong>——根据"我自己
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mi>i</mi></msub><annotation encoding="application/x-tex">h_i</annotation></semantics></math>、邻居
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mi>j</mi></msub><annotation encoding="application/x-tex">h_j</annotation></semantics></math>、连我俩的边
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">e_{ij}</annotation></semantics></math>"算出一条消息;</li>
+<li><strong>AGG:permutation-invariant
+aggregation(排列不变聚合)</strong>——把所有邻居的消息汇总成一个,与邻居顺序无关(§4.3);</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ψ</mi><annotation encoding="application/x-tex">\psi</annotation></semantics></math>:update
+function(更新函数)</strong>——把"我旧的表示"和"汇总来的邻居消息"结合,产生我新的表示。</li>
+</ul>
+<p>用大白话说:<strong>一个节点的新表示 = 它旧表示 +
+邻居信息的、与顺序无关的汇总。</strong></p>
+<h3 id="53-三步走aggregate--transform--update">5.3 三步走:Aggregate →
+Transform → Update</h3>
+<p>老师喜欢把一层 GNN 拆成三个动作,便于记忆:</p>
+<pre class="mermaid"><code>graph LR
+  H0[&quot;输入节点特征&lt;br/&gt;H⁽ℓ⁾&quot;] --&gt; AGG[&quot;① Aggregate&lt;br/&gt;收集邻居消息&lt;br/&gt;sum / mean / max&quot;]
+  AGG --&gt; T[&quot;② Transform&lt;br/&gt;(可学习变换)&quot;]
+  T --&gt; U[&quot;③ Update&lt;br/&gt;结合自身,更新表示&quot;]
+  U --&gt; H1[&quot;新节点特征&lt;br/&gt;H⁽ℓ⁺¹⁾&quot;]</code></pre>
+<p>一层 GNN
+就是<strong>一条"用局部邻域信息更新节点表示"的可学习规则</strong>。</p>
+<h3 id="54-深度--感受野一层一跳">5.4 深度 = 感受野:一层一跳</h3>
+<p>为什么要堆多层?因为<strong>一层只传递一跳 (one-hop)
+的信息</strong>。</p>
+<ul>
+<li>做完 1
+层,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">h_i^{(1)}</annotation></semantics></math>
+包含了直接邻居(1-hop)的信息;</li>
+<li>做完 2
+层,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">h_i^{(2)}</annotation></semantics></math>
+还反映了"邻居的邻居"(2-hop),因为第 2 层聚合时,邻居已经在第 1
+层吸收过它们各自的邻居了;</li>
+<li>一般地:<strong>做完
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+层消息传递,一个节点的表示能包含最多
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+跳以外节点的信息。</strong></li>
+</ul>
+<p>这就是 GNN 里的 <strong>receptive
+field(感受野)</strong>:深度越大,感受野越大。这和 CNN
+里"层数越深、感受野越大"是一个道理,只不过这里"距离"是用图上的跳数(hop)量的。</p>
+<pre class="mermaid"><code>graph TD
+  i((i)) --- a((1-hop))
+  i --- b((1-hop))
+  a --- c((2-hop))
+  b --- d((2-hop))</code></pre>
+<h3 id="55-手算两轮消息传递">5.5 手算:两轮消息传递</h3>
+<p>老师特意手算了一个数值例子。他的原则很值得学:<strong>"能用手算,就能写代码"</strong>——先用手把机制走一遍,你才真懂它。</p>
+<p>设节点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+有两个邻居
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>,</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">j,k</annotation></semantics></math>,初始(标量)表示为
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mn>2</mn><mo>,</mo><mspace width="1.0em"></mspace><msubsup><mi>h</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mn>4</mn><mo>,</mo><mspace width="1.0em"></mspace><msubsup><mi>h</mi><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mn>6</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">h_i^{(0)}=2,\quad h_j^{(0)}=4,\quad h_k^{(0)}=6.</annotation></semantics></math>
+采用<strong>带自身信息的 mean
+聚合</strong>(self-information,即把自己也算进去):
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>v</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mfrac><mn>1</mn><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">|</mo></mrow><mo>+</mo><mn>1</mn></mrow></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>h</mi><mi>v</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>+</mo><munder><mo>∑</mo><mrow><mi>u</mi><mo>∈</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></munder><msubsup><mi>h</mi><mi>u</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_v^{(\ell+1)} = \frac{1}{|\mathcal N(v)|+1}\left(h_v^{(\ell)} + \sum_{u\in\mathcal N(v)} h_u^{(\ell)}\right)</annotation></semantics></math></p>
+<blockquote>
+<p><strong>🔑 例(Worked example)</strong> <strong>Round 1</strong> —
+节点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+有 2 个邻居,分母
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">|</mo></mrow><mo>+</mo><mn>1</mn><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">=|\mathcal N(i)|+1 = 3</annotation></semantics></math>:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mfrac displaystyle="false"><mn>1</mn><mn>3</mn></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo>+</mo><mn>4</mn><mo>+</mo><mn>6</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>4</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">h_i^{(1)} = \tfrac13(2+4+6) = 4.</annotation></semantics></math>
+假设同一规则也把邻居更新为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mn>5</mn><mo>,</mo><mspace width="0.278em"></mspace><msubsup><mi>h</mi><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mn>7</mn></mrow><annotation encoding="application/x-tex">h_j^{(1)}=5,\; h_k^{(1)}=7</annotation></semantics></math>。
+<strong>Round 2</strong> —
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mfrac displaystyle="false"><mn>1</mn><mn>3</mn></mfrac><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>+</mo><msubsup><mi>h</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>+</mo><msubsup><mi>h</mi><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac displaystyle="false"><mn>1</mn><mn>3</mn></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mn>4</mn><mo>+</mo><mn>5</mn><mo>+</mo><mn>7</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac displaystyle="false"><mn>16</mn><mn>3</mn></mfrac><mo>≈</mo><mn>5.33</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">h_i^{(2)} = \tfrac13\!\left(h_i^{(1)}+h_j^{(1)}+h_k^{(1)}\right) = \tfrac13(4+5+7) = \tfrac{16}{3}\approx 5.33.</annotation></semantics></math>
+<strong>读这个例子的关键</strong>:图自始至终没变,变的只是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+的嵌入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mspace width="-0.167em"></mspace><mo>→</mo><mspace width="-0.167em"></mspace><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mspace width="-0.167em"></mspace><mo>→</mo><mspace width="-0.167em"></mspace><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mrow><annotation encoding="application/x-tex">h_i^{(0)}\!\to\! h_i^{(1)}\!\to\! h_i^{(2)}</annotation></semantics></math>。如果换成
+<strong>max 聚合</strong>,Round 1 的结果就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>4</mn><mo>,</mo><mn>6</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">\max(2,4,6)=6</annotation></semantics></math>;换成
+<strong>sum</strong>,就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mo>+</mo><mn>4</mn><mo>+</mo><mn>6</mn><mo>=</mo><mn>12</mn></mrow><annotation encoding="application/x-tex">2+4+6=12</annotation></semantics></math>。聚合函数的选择决定了"邻居信息怎么汇总"。</p>
+</blockquote>
+<h3 id="56-为什么一定要带上自己self-loop--self-information">5.6
+为什么一定要带上"自己"(self-loop / self-information)</h3>
+<p>注意上面公式里那个"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mspace width="0.167em"></mspace><msubsup><mi>h</mi><mi>v</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mrow><annotation encoding="application/x-tex">+\,h_v^{(\ell)}</annotation></semantics></math>"——更新时<strong>必须把节点自己也算进去</strong>。老师的话很形象:<strong>"你不能忘了自己,否则久而久之你就变成了别人。"</strong>
+如果只聚合邻居、不保留自身,节点会丢失自己的身份(identity),也就无法"和自己对话"。在矩阵实现里,这通过加
+<strong>self-loop(自环)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>A</mi><mo accent="true">̃</mo></mover><mo>=</mo><mi>A</mi><mo>+</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">\tilde A = A + I</annotation></semantics></math>
+实现——这正是下一节 GCN 的第一步。</p>
+<blockquote>
+<p><strong>本节小结</strong> — Message passing 是 GNN
+的核心:每层在同一张图上,对每个节点做"聚合邻居消息(与顺序无关)→ 变换 →
+结合自身更新";堆
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+层 = 感受野
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+跳;更新时务必保留自身信息。</p>
+</blockquote>
+<hr />
+<h2 id="6-图卷积网络-gcn最常用的具体实现">6. 图卷积网络
+GCN:最常用的具体实现</h2>
+<p>通用消息传递给了我们一个框架。<strong>Graph Convolutional
+Network(图卷积网络,GCN)</strong>
+是其中最常见的一个具体实例——它的特点是用<strong>归一化的邻接矩阵</strong>来做邻居聚合。</p>
+<h3 id="61-为什么需要归一化以及自环">6.1 为什么需要归一化(以及自环)</h3>
+<p>直接用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>
+聚合有两个毛病,GCN 各用一招解决:</p>
+<p><strong>毛病一:节点会忘了自己。</strong> → 解法:<strong>加自环 (add
+self-loops)</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>A</mi><mo accent="true">̃</mo></mover><mo>=</mo><mi>A</mi><mo>+</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">\tilde A = A + I</annotation></semantics></math>
+这样聚合时每个节点都保留自己的信息(承接 §5.6)。</p>
+<p><strong>毛病二:高度数节点 (high-degree nodes) 会主导更新。</strong>
+一个连着 200 人的节点,消息一加和,数值就爆掉,把别人都盖过去。→
+解法:<strong>对称归一化 (symmetric normalisation)</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>A</mi><mo accent="true">̂</mo></mover><mo>=</mo><msup><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow></msup><mspace width="0.167em"></mspace><mover><mi>A</mi><mo accent="true">̃</mo></mover><mspace width="0.167em"></mspace><msup><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow></msup><mo>,</mo><mspace width="2.0em"></mspace><msub><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mi>i</mi><mi>i</mi></mrow></msub><mo>=</mo><munder><mo>∑</mo><mi>j</mi></munder><msub><mover><mi>A</mi><mo accent="true">̃</mo></mover><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\hat A = \tilde D^{-1/2}\,\tilde A\,\tilde D^{-1/2},\qquad \tilde D_{ii}=\sum_j \tilde A_{ij}</annotation></semantics></math>
+其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>D</mi><mo accent="true">̃</mo></mover><annotation encoding="application/x-tex">\tilde D</annotation></semantics></math>
+是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̃</mo></mover><annotation encoding="application/x-tex">\tilde A</annotation></semantics></math>
+的度矩阵。归一化让不同度数的节点在特征混合时<strong>尺度稳定</strong>,谁也别想靠"朋友多"就压倒别人。这和我们之前对输入特征做归一化、避免某个大特征主导的道理完全一样。</p>
+<h3 id="62-gcn-层node-wise-形式">6.2 GCN 层:node-wise 形式</h3>
+<p>把"归一化 + 共享变换 + 非线性"写成单个节点的更新:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mi>σ</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><munder><mo>∑</mo><mrow><mi>j</mi><mo>∈</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∪</mo><mo stretchy="false" form="prefix">{</mo><mi>i</mi><mo stretchy="false" form="postfix">}</mo></mrow></munder><mfrac><mn>1</mn><msqrt><mrow><msub><mover><mi>d</mi><mo accent="true">̃</mo></mover><mi>i</mi></msub><mspace width="0.167em"></mspace><msub><mover><mi>d</mi><mo accent="true">̃</mo></mover><mi>j</mi></msub></mrow></msqrt></mfrac><mspace width="0.278em"></mspace><msubsup><mi>h</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_i^{(\ell+1)} = \sigma\!\left(\sum_{j\in\mathcal N(i)\cup\{i\}} \frac{1}{\sqrt{\tilde d_i\,\tilde d_j}}\; h_j^{(\ell)} W^{(\ell)}\right)</annotation></semantics></math></p>
+<p>读这个公式:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>∈</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∪</mo><mo stretchy="false" form="prefix">{</mo><mi>i</mi><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">j\in\mathcal N(i)\cup\{i\}</annotation></semantics></math>:邻居<strong>加上自己</strong>(自环);</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac displaystyle="true"><mn>1</mn><msqrt><mrow><msub><mover><mi>d</mi><mo accent="true">̃</mo></mover><mi>i</mi></msub><msub><mover><mi>d</mi><mo accent="true">̃</mo></mover><mi>j</mi></msub></mrow></msqrt></mfrac><annotation encoding="application/x-tex">\dfrac{1}{\sqrt{\tilde d_i \tilde d_j}}</annotation></semantics></math>:基于两端度数的归一化系数,控制尺度;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><annotation encoding="application/x-tex">W^{(\ell)}</annotation></semantics></math>:<strong>所有节点共享</strong>的可学习权重矩阵,对邻居特征做变换;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>:非线性激活(ReLU、tanh
+等),提供非线性表达能力。</li>
+</ul>
+<h3 id="63-gcn-层matrix-形式kipfwelling">6.3 GCN 层:matrix
+形式(Kipf–Welling)</h3>
+<p>把所有节点的更新一次性写成矩阵,就是最常被引用的 <strong>Kipf–Welling
+GCN layer</strong>:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><menclose notation="box"><mrow><mspace width="0.167em"></mspace><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>=</mo><mi>σ</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>A</mi><mo accent="true">̂</mo></mover><mspace width="0.167em"></mspace><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mspace width="0.167em"></mspace><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace></mrow></menclose><mo>,</mo><mspace width="2.0em"></mspace><mover><mi>A</mi><mo accent="true">̂</mo></mover><mo>=</mo><msup><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow></msup><mover><mi>A</mi><mo accent="true">̃</mo></mover><mspace width="0.167em"></mspace><msup><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow></msup></mrow><annotation encoding="application/x-tex">\boxed{\,H^{(\ell+1)} = \sigma\!\left(\hat A\, H^{(\ell)}\, W^{(\ell)}\right)\,},\qquad \hat A = \tilde D^{-1/2}\tilde A\,\tilde D^{-1/2}</annotation></semantics></math></p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>=</mo><mi>X</mi></mrow><annotation encoding="application/x-tex">H^{(0)} = X</annotation></semantics></math>:第
+0 层就是输入的节点特征;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat A</annotation></semantics></math>:<strong>混合邻居</strong>特征(谁连谁决定怎么混);</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><annotation encoding="application/x-tex">W^{(\ell)}</annotation></semantics></math>:可学习的特征变换;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>:非线性。</li>
+</ul>
+<p><strong>怎么读这个式子(考试高频):</strong> 虽然写成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>A</mi><mo accent="true">̂</mo></mover><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">\hat A H^{(\ell)} W^{(\ell)}</annotation></semantics></math>,但可以分两步理解——</p>
+<ol type="1">
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">H^{(\ell)}W^{(\ell)}</annotation></semantics></math>:对每个节点的特征做一次<strong>可学习的变换</strong>(transform);</li>
+<li>左乘
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat A</annotation></semantics></math>:把每个节点变换后的特征,<strong>和它邻居的混合起来</strong>(aggregate)。</li>
+</ol>
+<p>所以一句话:<strong>一个 GCN 层 = 归一化的邻域聚合 + 共享的可学习变换
++ 非线性。</strong> 同一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><annotation encoding="application/x-tex">W^{(\ell)}</annotation></semantics></math>
+被所有节点共享(类比 CNN
+的权重共享);<strong>多堆几层,感受野就扩大</strong>(§5.4)。</p>
+<pre class="mermaid"><code>graph LR
+  H[&quot;H⁽ℓ⁾&lt;br/&gt;节点表示&quot;] --&gt;|&quot;× W⁽ℓ⁾&quot;| T[&quot;变换后的特征&quot;]
+  T --&gt;|&quot;× Â 混合邻居&quot;| M[&quot;聚合结果&quot;]
+  M --&gt;|&quot;σ 非线性&quot;| H2[&quot;H⁽ℓ⁺¹⁾&lt;br/&gt;新表示&quot;]</code></pre>
+<h3 id="64-用-gcn-做半监督节点分类">6.4 用 GCN 做半监督节点分类</h3>
+<p>GCN 最经典的应用是 <strong>semi-supervised node
+classification(半监督节点分类)</strong>:图里只有<strong>一部分节点有标签</strong>,大量节点没标签,我们想推断那些没标签节点的类别。</p>
+<p>一个<strong>两层 GCN</strong> 的完整前向:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">f</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">m</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">x</mi></mrow><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>A</mi><mo accent="true">̂</mo></mover><mspace width="0.278em"></mspace><mi>σ</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>A</mi><mo accent="true">̂</mo></mover><mi>X</mi><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">Z = \mathrm{softmax}\!\left(\hat A\;\sigma\!\left(\hat A X W^{(0)}\right) W^{(1)}\right)</annotation></semantics></math>
+只在<strong>有标签的节点</strong>上算交叉熵损失:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℒ</mi><mo>=</mo><mo>−</mo><munder><mo>∑</mo><mrow><mi>i</mi><mo>∈</mo><msub><mi>𝒴</mi><mi>L</mi></msub></mrow></munder><munder><mo>∑</mo><mi>c</mi></munder><msub><mi>Y</mi><mrow><mi>i</mi><mi>c</mi></mrow></msub><mo>log</mo><msub><mi>Z</mi><mrow><mi>i</mi><mi>c</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\mathcal L = -\sum_{i\in\mathcal Y_L}\sum_{c} Y_{ic}\log Z_{ic}</annotation></semantics></math></p>
+<p>它为什么
+work?<strong>因为图结构会把信息从有标签节点"传播"到无标签节点。</strong>
+老师的说法:一个打着问号(?)的节点,本来没有值;但它和别人相连,做几轮消息传递后,它会从邻居那里"沾染"上一个值,从而能被推断、被分类。这就是半监督的精髓——<strong>少量已知,顺着连接,推断未知。</strong></p>
+<blockquote>
+<p><strong>🔑 例(考试原型题)</strong> — 一名学生提议用<strong>两层
+GCN</strong> 对引用网络里的论文(节点)做分类:节点特征是论文摘要的
+bag-of-words 向量,边代表引用。</p>
+<ol type="1">
+<li><strong>用了哪些信息?</strong>
+节点特征(摘要词袋)提供论文<strong>内容</strong>;图结构(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat A</annotation></semantics></math>)提供论文之间的<strong>引用关系</strong>。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat A</annotation></semantics></math>
+的作用?</strong>
+它告诉模型哪些论文相连,从而把每篇论文的表示和它引用/被引的论文混合——让内容相似且互相引用的论文表示靠拢。</li>
+<li><strong>为什么可能 work?</strong>
+互相引用的论文往往主题相近(homophily),邻域聚合会强化这种一致性。</li>
+<li><strong>一个要实验检验的失败模式?</strong> 若存在
+<strong>heterophily</strong>(相连论文主题其实不同),或层数过多导致
+<strong>oversmoothing</strong>,效果会变差(见 §8)。</li>
+</ol>
+</blockquote>
+<h3 id="65-transductive-vs-inductive直推式-vs-归纳式">6.5 Transductive
+vs Inductive(直推式 vs 归纳式)</h3>
+<p>最后区分两种使用设定,它决定了你该不该用 GCN
+这种"吃固定邻接矩阵"的模型:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Transductive(直推式)</strong></th>
+<th><strong>Inductive(归纳式)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>训练/测试节点</td>
+<td>属于<strong>同一张图</strong>(闭集)</td>
+<td>要泛化到<strong>没见过的节点或新图</strong></td>
+</tr>
+<tr class="even">
+<td>标签</td>
+<td>只有部分节点有标签</td>
+<td>需要基于特征的泛化</td>
+</tr>
+<tr class="odd">
+<td>典型场景</td>
+<td>引用网络</td>
+<td>分子、推荐、动态图</td>
+</tr>
+<tr class="even">
+<td>设计后果</td>
+<td>直接吃整张
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>
+即可</td>
+<td>常需采样、局部聚合、可泛化的特征</td>
+</tr>
+</tbody>
+</table></div>
+<p>老师特别澄清:<strong>inductive(归纳)=
+generalization(泛化)</strong>,也就是我们全课一直追求的"训练集和部署集来自<strong>同一分布</strong>,但具体样本不同"。在直推式里没有"新数据进来测试"——测试节点训练时就在图里,只是它的标签被遮住,做完消息传递后给它一个预测值;若真有新节点/新图进来,那就是
+inductive 的活。注意别把测试节点的标签泄漏进训练(<strong>data
+leakage</strong>)。</p>
+<blockquote>
+<p><strong>本节小结</strong> — GCN = 加自环
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>A</mi><mo accent="true">̃</mo></mover><mo>=</mo><mi>A</mi><mo>+</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">\tilde A=A+I</annotation></semantics></math>
+→ 对称归一化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>A</mi><mo accent="true">̂</mo></mover><mo>=</mo><msup><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow></msup><mover><mi>A</mi><mo accent="true">̃</mo></mover><msup><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow></msup></mrow><annotation encoding="application/x-tex">\hat A=\tilde D^{-1/2}\tilde A\tilde D^{-1/2}</annotation></semantics></math>
+→
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>=</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>A</mi><mo accent="true">̂</mo></mover><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">H^{(\ell+1)}=\sigma(\hat A H^{(\ell)}W^{(\ell)})</annotation></semantics></math>;它把"归一化邻域聚合
++ 共享变换 +
+非线性"合在一层,经典用法是半监督节点分类,靠图结构把标签信息从已知传到未知。</p>
+</blockquote>
+<hr />
+<h2 id="7-gnn-家族与设计选择">7. GNN 家族与设计选择</h2>
+<p>GCN 只是起点。不同问题对"邻居信息怎么聚合"有不同需求,于是发展出一个
+GNN 大家族。下表先纵览,再逐一讲关键的几个。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>家族</th>
+<th>核心思想</th>
+<th>优势</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>GCN</strong></td>
+<td>基于归一化邻接矩阵的聚合</td>
+<td>简单、高效、强基线</td>
+<td>引用网络、节点分类</td>
+</tr>
+<tr class="even">
+<td><strong>GraphSAGE</strong></td>
+<td>采样 + 聚合邻域</td>
+<td>归纳式、可扩展</td>
+<td>大图、动态图</td>
+</tr>
+<tr class="odd">
+<td><strong>GAT</strong></td>
+<td>attention 加权的邻居聚合</td>
+<td>学出"哪个邻居更重要"、可解释</td>
+<td>邻居相关性不均、需可解释</td>
+</tr>
+<tr class="even">
+<td><strong>GIN</strong></td>
+<td>sum 聚合 + 表达力强的 MLP 更新</td>
+<td>图级判别力强</td>
+<td>分子图分类</td>
+</tr>
+<tr class="odd">
+<td><strong>R-GCN</strong></td>
+<td>关系特定的变换</td>
+<td>处理多关系图</td>
+<td>知识图谱</td>
+</tr>
+<tr class="even">
+<td><strong>Graph Transformer</strong></td>
+<td>在图感知的 token/节点上做 attention</td>
+<td>捕捉长程交互</td>
+<td>分子、复杂关系任务</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="71-graphsage采样并聚合">7.1 GraphSAGE:采样并聚合</h3>
+<p>GCN
+要把<strong>整个邻域</strong>一次性聚合,大图上太贵。<strong>GraphSAGE</strong>
+的招数是:每个节点只<strong>采样固定数量的邻居</strong>再聚合。
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mrow><mi mathvariant="normal">A</mi><mi mathvariant="normal">G</mi><mi mathvariant="normal">G</mi></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mo stretchy="false" form="prefix">{</mo><msubsup><mi>h</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>:</mo><mi>j</mi><mo>∈</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">h_{\mathcal N(i)}^{(\ell)} = \mathrm{AGG}\big(\{h_j^{(\ell)}: j\in\mathcal N(i)\}\big)</annotation></semantics></math>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mi>σ</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">[</mo><mspace width="0.167em"></mspace><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mspace width="0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">∥</mo><mspace width="0.167em"></mspace><msubsup><mi>h</mi><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mspace width="0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">]</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_i^{(\ell+1)} = \sigma\!\left(W^{(\ell)}\big[\,h_i^{(\ell)} \,\big\|\, h_{\mathcal N(i)}^{(\ell)}\,\big]\right)</annotation></semantics></math>
+这里
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo stretchy="false" form="postfix">∥</mo><annotation encoding="application/x-tex">\|</annotation></semantics></math>
+是<strong>拼接
+(concatenation)</strong>——把"自己的表示"和"邻域聚合"接起来再变换。好处:当全邻域聚合太贵时省算力,而且天然支持<strong>没见过的节点和大图</strong>(inductive)。</p>
+<h3 id="72-gat让模型学哪个邻居更重要">7.2
+GAT:让模型学"哪个邻居更重要"</h3>
+<p>GCN
+用度数归一化系数对待邻居,但<strong>并非所有邻居都同等重要</strong>。<strong>Graph
+Attention Network(GAT)</strong> 用 <strong>attention 权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\alpha_{ij}</annotation></semantics></math></strong>
+来加权聚合:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mi>σ</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><munder><mo>∑</mo><mrow><mi>j</mi><mo>∈</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></munder><msub><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mspace width="0.167em"></mspace><mi>W</mi><msubsup><mi>h</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_i^{(\ell+1)} = \sigma\!\left(\sum_{j\in\mathcal N(i)} \alpha_{ij}\, W h_j^{(\ell)}\right)</annotation></semantics></math>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\alpha_{ij}</annotation></semantics></math>
+不是预先定死的,而是<strong>从节点特征里学出来</strong>的——像给图挂了一层"注意力
+mask",自动判断该多看哪个邻居。<strong>Multi-head
+attention(多头注意力)</strong> 可以稳定训练。这正是我们在 Week 9
+Transformer 里学的 attention,搬到了图上。</p>
+<h3 id="73-graph-level-readout从节点到整图">7.3 Graph-level
+Readout:从节点到整图</h3>
+<p>要做<strong>图级</strong>预测(如判断整个分子的性质),得把所有节点表示汇总成一个图表示——这一步叫
+<strong>readout(读出)</strong>:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>G</mi></msub><mo>=</mo><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">E</mi><mi mathvariant="normal">A</mi><mi mathvariant="normal">D</mi><mi mathvariant="normal">O</mi><mi mathvariant="normal">U</mi><mi mathvariant="normal">T</mi></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mo stretchy="false" form="prefix">{</mo><msubsup><mi>h</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>L</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>:</mo><mi>i</mi><mo>∈</mo><mi>V</mi><mo stretchy="false" form="postfix">}</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">h_G = \mathrm{READOUT}\big(\{h_i^{(L)}: i\in V\}\big)</annotation></semantics></math>
+和聚合一样,readout <strong>必须对节点顺序不变</strong>(graph-level 要
+permutation invariance)。常用 sum/mean/max 以及 attention
+pooling。用于分子分类、程序分析、图级异常检测。</p>
+<h3 id="74-怎么选架构">7.4 怎么选架构</h3>
+<p>老师又一次提醒<strong>从右往左读</strong>:先看"我是什么情况",再决定"用什么"。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>情况</th>
+<th>可能的选择</th>
+<th>为什么</th>
+<th>注意</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>小的同质图</td>
+<td>GCN</td>
+<td>简单、可解释、强基线</td>
+<td>遇到 heterophily 会吃力</td>
+</tr>
+<tr class="even">
+<td>大的动态图</td>
+<td>GraphSAGE</td>
+<td>邻居采样带来可扩展性</td>
+<td>采样设计很关键</td>
+</tr>
+<tr class="odd">
+<td>邻居相关性不均</td>
+<td>GAT</td>
+<td>学注意力权重</td>
+<td>计算更贵</td>
+</tr>
+<tr class="even">
+<td>图分类</td>
+<td>GIN 或图池化模型</td>
+<td>判别力强</td>
+<td>小数据集易过拟合</td>
+</tr>
+<tr class="odd">
+<td>多关系知识图谱</td>
+<td>R-GCN 或 KG 嵌入</td>
+<td>关系特定参数</td>
+<td>参数可能爆炸</td>
+</tr>
+<tr class="even">
+<td>长程依赖</td>
+<td>Graph Transformer / 位置编码</td>
+<td>捕捉非局部交互</td>
+<td>需谨慎正则化</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>本节小结</strong> — 同一个 message-passing
+框架,换"聚合方式"就得到不同家族:GCN(归一化和)、GraphSAGE(采样拼接)、GAT(注意力加权)、GIN(求和+MLP)、R-GCN(按关系)、Graph
+Transformer(全局注意力);选哪个由图规模、任务层次、关系类型、是否
+heterophily、是否需要泛化共同决定。</p>
+</blockquote>
+<hr />
+<h2 id="8-应用局限与失败模式">8. 应用、局限与失败模式</h2>
+<h3 id="81-什么时候该用-gnn">8.1 什么时候该用 GNN</h3>
+<p>GNN 用得非常广。老师把应用分两大类:</p>
+<ul>
+<li><strong>科学与工程</strong>:分子性质预测、蛋白质相互作用网络、电网/交通预测、传感器网络与故障检测;</li>
+<li><strong>信息与社会系统</strong>:推荐系统、引用网络、欺诈/交易网络、知识图谱推理。</li>
+</ul>
+<p>但有一条原则要刻在心里:<strong>GNN
+该被"关系型归纳偏置"证明其合理,而不是"因为数据长得像张图"。</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>✅ 该用 GNN</th>
+<th>⚠️ 要谨慎</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>关系对预测是核心</td>
+<td>边是噪声或随意定义的</td>
+</tr>
+<tr class="even">
+<td>邻域携带语义含义</td>
+<td>标签与邻域结构无关</td>
+</tr>
+<tr class="odd">
+<td>任务是 node/edge/graph 级</td>
+<td>图太稠密、局部性失去意义</td>
+</tr>
+<tr class="even">
+<td>"同一规则"应适用于图的各处</td>
+<td>简单基线已经表现很好</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="82-实践工作流">8.2 实践工作流</h3>
+<pre class="mermaid"><code>graph LR
+  A[关系型数据] --&gt; B[构建图]
+  B --&gt; C[准备特征]
+  C --&gt; D[定义任务&lt;br/&gt;和数据划分]
+  D --&gt; E[选择 GNN]
+  E --&gt; F[训练]
+  F --&gt; G[评估并解释]</code></pre>
+<p>老师说,这里的<strong>关键工程问题</strong>永远是那一句:<strong>"什么是节点?什么是边?什么是特征?要预测什么?"</strong>
+在班级例子里:节点是人,边是人际关系,节点特征是每个人的属性,边特征描述两人连接的性质。</p>
+<h3 id="83-数据划分别让信息泄漏">8.3 数据划分:别让信息泄漏</h3>
+<p>图上的 <strong>data split</strong>
+比普通数据更微妙,因为节点是连在一起的:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>划分方式</th>
+<th>做法</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Node split</td>
+<td>train/val/test 标签挂在同一张图的不同节点上</td>
+</tr>
+<tr class="even">
+<td>Edge split</td>
+<td>藏掉一些边做 link prediction,看模型能否还原</td>
+</tr>
+<tr class="odd">
+<td>Graph split</td>
+<td>在一些图上训练,在没见过的图上测试</td>
+</tr>
+<tr class="even">
+<td>Temporal split</td>
+<td>用过去训练,用未来的图事件测试</td>
+</tr>
+</tbody>
+</table></div>
+<p>⚠️ 当图有强
+homophily、重复结构或时间依赖时,<strong>随机划分可能误导</strong>——划分方式应当匹配真实部署场景。</p>
+<h3 id="84-评估指标随任务而变">8.4 评估指标随任务而变</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>任务</th>
+<th>输出</th>
+<th>常用指标</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Node classification</td>
+<td>每节点一个类别</td>
+<td>Accuracy、macro-F1、micro-F1</td>
+</tr>
+<tr class="even">
+<td>Link prediction</td>
+<td>候选边的分数</td>
+<td>AUC、average precision、Hits@K</td>
+</tr>
+<tr class="odd">
+<td>Graph classification</td>
+<td>每图一个类别</td>
+<td>Accuracy、F1、ROC-AUC</td>
+</tr>
+<tr class="even">
+<td>Graph regression</td>
+<td>每图一个实数</td>
+<td>MAE、RMSE、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mn>2</mn></msup><annotation encoding="application/x-tex">R^2</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>异常检测</td>
+<td>异常分数</td>
+<td>AUC、precision@K、recall@K</td>
+</tr>
+</tbody>
+</table></div>
+<p>指标必须匹配<strong>预测层次</strong>和应用中<strong>犯错的代价</strong>。</p>
+<h3 id="85-三大失败模式">8.5 三大失败模式</h3>
+<p>这是本章最该记牢的"坑",也是老师反复点名的考点。</p>
+<p><strong>① Oversmoothing(过平滑)</strong> —
+堆<strong>太多层</strong>时,因为不停地"平均的平均的平均",所有节点的表示会越来越<strong>相似</strong>,最后变得"一片模糊",难以区分。老师说这就是<strong>为什么
+GNN 通常不做得很深</strong>——你得知道"该传几跳就停"。</p>
+<p><strong>② Oversquashing(过压缩)</strong> —
+一个<strong>固定大小</strong>的
+embedding,被迫去概括越来越多的远处节点;重要的长程信息在通过图的"瓶颈"时被<strong>压缩或丢失</strong>。缓解办法:graph
+rewiring、residual connections、positional encodings、attention。</p>
+<p>二者的区别一定要分清:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>Oversmoothing</th>
+<th>Oversquashing</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>问题本质</td>
+<td>表示变得<strong>太相似</strong></td>
+<td>信息被挤过<strong>狭窄瓶颈</strong>而丢失</td>
+</tr>
+<tr class="even">
+<td>诱因</td>
+<td>层数过多、反复平均</td>
+<td>远处信息太多、嵌入容量固定</td>
+</tr>
+<tr class="odd">
+<td>直觉</td>
+<td>"大家都变成一个样"</td>
+<td>"太多远方信号塞进一个向量"</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>③ Homophily vs Heterophily(同配 vs 异配)</strong> — 很多简单
+GCN 默认
+<strong>相连的节点倾向于相似(homophily)</strong>。但如果相连节点常有<strong>不同</strong>标签(<strong>heterophily</strong>),朴素的"平滑/聚合"反而会<strong>伤害</strong>性能——你把不同类的信息混到一起了。</p>
+<pre class="mermaid"><code>graph TD
+  subgraph Homophily 同配
+    h1((A类)) --- h2((A类))
+    h2 --- h3((A类))
+  end
+  subgraph Heterophily 异配
+    e1((A类)) --- e2((B类))
+    e2 --- e3((A类))
+  end</code></pre>
+<h3 id="86-其他实践挑战">8.6 其他实践挑战</h3>
+<ul>
+<li><strong>Scalability(可扩展性)</strong>:大图可能放不进内存,mini-batching
+不平凡;</li>
+<li><strong>Dynamic graphs(动态图)</strong>:边和节点特征会随时间变;</li>
+<li><strong>Feature
+quality(特征质量)</strong>:节点/边特征差,模型学不到东西;</li>
+<li><strong>Graph
+construction(图的构造)</strong>:边的定义不同,学习问题就不同;</li>
+<li><strong>Interpretability(可解释性)</strong>:解释要同时涉及特征和关系路径;</li>
+<li><strong>Fairness &amp;
+leakage(公平与泄漏)</strong>:图的连接可能编码了敏感信息或未来信息。</li>
+</ul>
+<blockquote>
+<p><strong>本节小结</strong> — 该用 GNN
+是因为"关系是核心",不是因为"数据像图";堆太深会 oversmoothing,瓶颈会
+oversquashing,异配(heterophily)会让朴素平滑失效——这三个是最常考的失败模式。</p>
+</blockquote>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>图表示实体与关系</strong>;在计算上,一张图就是
+<strong>adjacency
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>、degree
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>、normalised
+adjacency
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat A</annotation></semantics></math></strong>
+等矩阵,把连接结构代数化。</li>
+<li><strong>GNN 通过 message passing
+学习表示</strong>:在同一张图上反复地"聚合邻居(与顺序无关)→ 变换 →
+结合自身更新";一个 layer = 一轮消息传递 = 一跳信息,堆
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+层 = 感受野
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+跳。</li>
+<li><strong>不能用 MLP</strong>,因为图没有节点顺序;GNN
+用与顺序无关的聚合,获得节点级 <strong>permutation equivariance</strong>
+与图级 <strong>permutation invariance</strong>。</li>
+<li><strong>GCN
+是最常用的实例</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>=</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>A</mi><mo accent="true">̂</mo></mover><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">H^{(\ell+1)}=\sigma(\hat A H^{(\ell)}W^{(\ell)})</annotation></semantics></math>,即"归一化邻域聚合
++ 共享变换 +
+非线性";经典用于<strong>半监督节点分类</strong>,靠图结构把标签从已知传到未知。</li>
+<li><strong>更新务必保留自身信息(self-loop
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>A</mi><mo accent="true">̃</mo></mover><mo>=</mo><mi>A</mi><mo>+</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">\tilde A=A+I</annotation></semantics></math>)</strong>,否则节点会丢失身份;<strong>对称归一化</strong>防止高度数节点主导。</li>
+<li><strong>GNN 支持 node classification、link prediction、graph
+classification</strong> 三类任务;readout
+把节点表示汇成图表示(须排列不变)。</li>
+<li><strong>架构选择</strong>取决于图规模、任务、关系类型、heterophily
+与部署设定:GCN / GraphSAGE / GAT / GIN / R-GCN / Graph Transformer
+各有所长。</li>
+<li><strong>堆层会带来 oversmoothing 与
+oversquashing</strong>;<strong>heterophily</strong>
+会让朴素平滑失效——这些是 GNN 最重要的局限。</li>
+<li>一句话:<strong>GNN 最好被理解为"由关系结构引导的表示学习
+(representation learning guided by relational
+structure)"。</strong></li>
+</ul>
+<hr />
+<h2 id="如何复习这一章--考试提示">如何复习这一章 &amp; 考试提示</h2>
+<p>老师在最后一节课(也是他多年来最后一堂教学课)给的复习与考试建议,几乎是"划重点",照做即可:</p>
+<p><strong>对每一个 GNN 模型家族,问自己这六个问题</strong>(这是 slides
+"How to Study This Topic" 的核心):</p>
+<ol type="1">
+<li>表示的是什么图对象——node、edge 还是整图?</li>
+<li>邻域信息是<strong>怎么聚合</strong>的?</li>
+<li><strong>学的是什么</strong>——权重、attention 系数、关系特定变换,还是
+pooling 函数?</li>
+<li>在解决<strong>哪类预测任务</strong>?</li>
+<li>对 locality、homophily、图结构做了<strong>什么假设</strong>?</li>
+<li>可能出现<strong>什么失败模式</strong>?</li>
+</ol>
+<p><strong>关于考试(老师反复强调):</strong></p>
+<ul>
+<li>形式:<strong>纸笔闭卷,3 小时</strong>,共 <strong>4
+道大题</strong>,每题分小问,<strong>每小问 5 分,合计 100
+分</strong>;可用<strong>分值</strong>判断该题要投入多少笔墨(1
+分的小问别写一整页)。</li>
+<li><strong>不会考推导 (no
+derivation)</strong>。考的是<strong>推理与解释</strong>:给你一个方程,问"这一项是什么含义""改动它会怎样""为什么这样设计"。</li>
+<li>允许带 <strong>一张 A4 cheat
+sheet(可双面)</strong>。老师的忠告:<strong>别在小抄上抄公式,纯属浪费空间</strong>;要写就写<strong>概念的解释</strong>——"这一项是什么意思、有什么设计含义"。用机器学习的<strong>专业语言</strong>回答(说"这是
+regularizer""这是 error
+term""<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat A</annotation></semantics></math>
+是归一化邻接矩阵,决定谁连谁"),别只说"A 是个符号"。</li>
+<li>别死记硬背,<strong>靠基本功 (fundamentals)
+解释问题</strong>。空白卷拿不到分,所以"用机器学习的语言写出合理的东西"。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 自测题(Check your understanding,来自 slides)</strong></p>
+<ol type="1">
+<li>对社交网络,为什么图比特征向量更自然?</li>
+<li>adjacency matrix 编码了什么?</li>
+<li>GCN 为什么在归一化前要加 self-loop?</li>
+<li>在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>=</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>A</mi><mo accent="true">̂</mo></mover><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">H^{(\ell+1)}=\sigma(\hat A H^{(\ell)}W^{(\ell)})</annotation></semantics></math>
+里,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat A</annotation></semantics></math>
+的作用是什么?</li>
+<li>node classification 和 graph classification 有何不同?</li>
+<li>为什么 GNN 层数太多会导致 oversmoothing?</li>
+</ol>
+</blockquote>
+<hr />
+<h2 id="参考文献-selected-references">参考文献 (Selected
+references)</h2>
+<ul>
+<li>Kipf, T. N. &amp; Welling, M. (2017). <em>Semi-supervised
+classification with graph convolutional networks.</em> ICLR. (GCN)</li>
+<li>Gilmer, J. et al. (2017). <em>Neural message passing for quantum
+chemistry.</em> ICML. (MPNN,消息传递统一框架)</li>
+<li>Hamilton, W. L., Ying, R. &amp; Leskovec, J. (2017). <em>Inductive
+representation learning on large graphs.</em> NeurIPS. (GraphSAGE)</li>
+<li>Veličković, P. et al. (2018). <em>Graph attention networks.</em>
+ICLR. (GAT)</li>
+<li>Xu, K. et al. (2019). <em>How powerful are graph neural
+networks?</em> ICLR. (GIN)</li>
+<li>Battaglia, P. W. et al. (2018). <em>Relational inductive biases,
+deep learning, and graph networks.</em> arXiv:1806.01261.</li>
+<li>Broadwater, K. &amp; Stillman, N. (2023). <em>Graph Neural Networks
+in Action.</em> Manning.(老师推荐、会发给大家的入门书,带可运行代码)</li>
+</ul>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

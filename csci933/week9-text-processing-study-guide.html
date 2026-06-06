@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 9 · 文本处理与 Transformer (Text Processing / NLP → Transformer)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-9--文本处理与-transformer-text-processing--nlp--transformer">Week
+9 · 文本处理与 Transformer (Text Processing / NLP → Transformer)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>解释什么是 <strong>natural language</strong>(自然语言),以及为什么
+NLP 的第一步永远是"<strong>把信号变成数字</strong>";</li>
+<li>说清把原始文本变成模型输入的完整流水线:<strong>standardization →
+tokenization → vectorization</strong>,并区分 word / subword / character
+/ n-gram 几种 token;</li>
+<li>对比 <strong>one-hot encoding</strong> 与 <strong>word
+embedding</strong> 的本质差别,解释 embedding
+为什么是"有语义的几何空间",并能写出
+<code>king + woman − man ≈ queen</code> 背后的直觉;</li>
+<li>指出 <strong>static
+embedding(静态词向量)的根本缺陷</strong>——同一个词在不同语境里被迫共用一个向量(站点
+station 的例子);</li>
+<li>描述 <strong>RNN encoder–decoder</strong> 怎么做 neural machine
+translation,并说出它的三个短板(长程依赖、单向因果、固定长度)及对应补救(bidirectional
+RNN、beam search、padding);</li>
+<li><strong>准确写出并解读</strong> self-attention 的核心公式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">Attention</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>Q</mi><mo>,</mo><mi>K</mi><mo>,</mo><mi>V</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mtext mathvariant="normal">softmax</mtext><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mfrac displaystyle="false"><mrow><mi>Q</mi><msup><mi>K</mi><mi>⊤</mi></msup></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">\text{Attention}(Q,K,V)=\text{softmax}\!\big(\tfrac{QK^\top}{\sqrt{d_k}}\big)V</annotation></semantics></math>,讲清
+Query / Key / Value 三者的角色,以及
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><annotation encoding="application/x-tex">\sqrt{d_k}</annotation></semantics></math>
+作为"temperature(温度)"的作用;</li>
+<li>复述 <strong>Transformer</strong>
+的关键组件(self-attention、positional encoding、multi-head、residual +
+layer norm、feed-forward),并解释为什么说"<strong>attention is all you
+need</strong>"。</li>
+</ul>
+</blockquote>
+<p>机器翻译、ChatGPT、Claude、文本摘要、情感分析——这些今天习以为常的能力,背后是同一个根本难题:<strong>计算机只会算数字,而语言是符号。</strong>
+一句话怎么变成机器能"理解"、能拿来做运算的东西?这就是本章 (Week 9)
+的全部主题。老师在录音里反复点的那句话可以当作整章的锚:"<strong>Anything
+you have in some form or other that is a signal, you have to get down to
+numbers.</strong>"——任何信号,最终都得落成数字,计算机才能
+crunch(处理)它。</p>
+<p>本章是一条非常清晰的进化线,跟着 slides 的四段式 outline(Language
+Modelling → Neural Machine Translation → Attention →
+Transformer)走:我们先弄清"语言建模在干什么、为什么"(§1),再把文本一步步变成数字——先用笨办法
+one-hot(§2–§3),再升级到有语义的 embedding(§4);接着发现 embedding
+是"静态的",撞上语境的墙(§5);为解决序列建模,先看早期的 RNN
+encoder–decoder 翻译模型(§6)及其短板与补丁(§7);短板逼出了
+<strong>attention</strong>(§8);最后 <strong>Transformer</strong> 把
+attention
+推上主角位置,统一了整个领域(§9)。整章其实就是一句话:<strong>符号 → 数字
+→ 稠密语义 → 动态语境 → Transformer。</strong></p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 本章在课程里的位置</strong> —
+本周是承上启下的一周。前几周(Week 5–8)讲的是 neural
+network、RNN、regularization
+这些"通用工具";本周把它们用到<strong>文本/序列</strong>这个具体战场上,顺势引出
+Transformer。老师在课末"剧透"了下周(Week 10)的 representation
+learning(PCA / autoencoder / VAE / GAN /
+GNN),那部分<strong>不属于本周考核范围</strong>,我在 §11
+只做一个过渡桥接。本周 slides 标注 "Based on Chollet (2021, Chp.
+11.4)",配套教材还有 Géron (2023)。</p>
+</blockquote>
+<hr />
+<h2 id="1-自然语言与语言建模我们到底在处理什么">§1
+自然语言与语言建模:我们到底在处理什么</h2>
+<h3 id="11-什么是自然语言">1.1 什么是"自然语言"</h3>
+<p>直觉上,natural
+language(自然语言)就是人类的语言。但老师特意把这个概念<strong>撑大</strong>了。Slides
+(S3) 的定义是:</p>
+<blockquote>
+<p><strong>Natural language(自然语言)</strong> =
+自然产生的、用来<strong>表示和传递意义 (representing and communicating
+meaning)</strong> 的系统。在 NLP 里通常指人类语言(以<strong>语音
+speech、文本 text、手语 sign</strong>
+的形式出现),但更宽泛的计算视角下,它可以包括<strong>任何结构化的生物通信信号</strong>——比如动物的叫声或歌声——只要我们把这些信号<strong>建模成承载信息的序列
+(sequences carrying information)</strong>。</p>
+</blockquote>
+<p>注意这里的三个关键词:<strong>speech / text /
+sign</strong>(语音、文本、手语),以及"<strong>建模成序列</strong>"。手语也有语法、有结构,本质上和口语一样可以被处理。</p>
+<blockquote>
+<p><strong>🔑 例(濒危鸟类的"方言")</strong> —
+老师讲了一个真实项目:澳洲有一种濒危鸟叫 ground
+parrot(地鹦鹉),极难直接观测计数。生物学家在野外(新南威尔士州 Barrington
+Tops
+山区)放录音设备,收集大量鸟鸣,交给老师团队去<strong>识别鸟叫、数出有多少不同个体</strong>,以此推断种群是在增长还是走向灭绝。有趣的是,他们发现<strong>同一种鸟在不同地区的叫法略有不同</strong>——就像有了"口音"甚至"方言"。这说明动物也有自己的一套通信系统。狗叫也一样——"They
+don't bark for
+nothing",不同的叫声有不同含义。老师的用意是:<strong>别太傲慢地以为只有人类会"说话"</strong>;任何能发声、能传信息的东西,都可以纳入"语言"来建模。</p>
+</blockquote>
+<h3 id="12-为什么要给语言建模language-modelling">1.2
+为什么要给语言"建模"(language modelling)</h3>
+<p>把语言<strong>建模
+(model)</strong>,目的就是把它变成一种<strong>可以做计算
+(computation)</strong> 的形式
+(S4)。但不是为建模而建模——我们希望模型能<strong>捕捉到语言里的结构</strong>:时态
+(tenses)、含义 (meaning)、上下文 (context)、词与词之间的关系
+(relationships)。</p>
+<p>老师有一句话点破了这件事的本质:当你把"人类处理文本的方式"都捕捉进一个模型里,<strong>这个模型就"学会了像人一样处理语言"</strong>——这正是
+GPT、Claude 这类大语言模型在做的事。它们把人类的文本/对话方式封装
+(encapsulate) 进了一个模型,于是你可以拿这个模型去做各种各样的事。</p>
+<p>这些"各种各样的事",在 NLP 里有个统称:<strong>downstream
+tasks(下游任务)</strong>。一旦你有了一个好的语言模型,下面这些任务都能在它之上完成
+(S4–S5):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>下游任务 (Downstream task)</th>
+<th>在做什么</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Semantic understanding</strong>(语义理解)</td>
+<td>理解词、句、篇章的含义——要懂句子,先得给每个词建模</td>
+<td>阅读理解、问答</td>
+</tr>
+<tr class="even">
+<td><strong>Language generation</strong>(语言生成)</td>
+<td>利用词间关系生成<strong>连贯有意义</strong>的句子</td>
+<td>机器翻译、文本摘要 (summarization)、人机对话</td>
+</tr>
+<tr class="odd">
+<td><strong>Information retrieval</strong>(信息检索)</td>
+<td>比较用户 query
+与文档的<strong>含义</strong>,即使用词不同也能检索到相关内容</td>
+<td>语义搜索</td>
+</tr>
+<tr class="even">
+<td><strong>Text classification / Sentiment
+analysis</strong>(文本分类/情感分析)</td>
+<td>把词的表示当作<strong>特征
+(features)</strong>,训练分类/情感模型</td>
+<td>垃圾邮件识别、评论好恶判断</td>
+</tr>
+<tr class="odd">
+<td><strong>Language understanding</strong>(语言理解)</td>
+<td>识别文本的各个层面:命名实体 (named entities)、词性 (part-of-speech
+tags)、句法结构 (syntactic structures)、情感</td>
+<td>NER、句法分析</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 一句话抓住主线</strong> —
+语言建模的产出是一个"懂语言"的表示;下游任务都是<strong>站在这个表示之上</strong>完成的。所以本章后面所有的努力(one-hot
+→ embedding → attention →
+Transformer),本质上都是在回答一个问题:<strong>怎样得到一个尽可能好的语言表示?</strong></p>
+</blockquote>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — ① 自然语言 =
+表示和传递意义的系统,含语音/文本/手语,广义上还含动物叫声等序列信号;②
+建模的根本动机:把信号变成数字,让计算机能算;③
+好的语言模型要捕捉意义/语境/关系,并支撑语义理解、生成、检索、分类、语言理解等下游任务。</p>
+</blockquote>
+<hr />
+<h2 id="2-从文本到数字标准化分词向量化">§2
+从文本到数字:标准化、分词、向量化</h2>
+<p>有了"为什么"(§1),现在讲"怎么做"。把一段原始文本变成神经网络能吃的张量,要走一条固定的流水线
+(S6):</p>
+<pre class="mermaid"><code>graph LR
+  A[&quot;原始文本&lt;br/&gt;raw text&quot;] --&gt; B[&quot;标准化&lt;br/&gt;standardization&quot;]
+  B --&gt; C[&quot;分词&lt;br/&gt;tokenization&quot;]
+  C --&gt; D[&quot;向量化&lt;br/&gt;vectorization&quot;]
+  D --&gt; E[&quot;打包成 token 向量张量&lt;br/&gt;tensor&quot;]
+  E --&gt; F[&quot;送入神经网络&lt;br/&gt;neural network&quot;]</code></pre>
+<p>这三步——<strong>standardise → tokenise →
+vectorise</strong>——是本章前半部分的骨架。老师强调:这些技术早在三四十年前就被研究透了,如今有现成工具自动完成,变成了"trivial
+task";但<strong>理解每一步在做什么仍然是考点级别的基础</strong>,而且你的
+assignment 就要亲手做这些。</p>
+<h3 id="21-标准化-text-standardization">2.1 标准化 (Text
+standardization)</h3>
+<p><strong>Standardization(标准化)</strong> 是一种 <strong>feature
+engineering(特征工程)</strong>,目的是<strong>去掉编码上的无关差异
+(remove encoding differences)</strong>,让"同一个意思的不同写法"被归一
+(S7)。常见操作:</p>
+<ul>
+<li><strong>转小写 (convert to lower case)</strong>:让 "The" 和 "the"
+被当作同一个 token;</li>
+<li><strong>去标点 (remove
+punctuations)</strong>:逗号、句号等过于普遍的符号通常移除;</li>
+<li><strong>保留空格</strong>:避免词被粘连在一起。</li>
+</ul>
+<p>好处很直接:标准化后,模型<strong>用更少的训练数据就能学好,且泛化更好</strong>(因为它不必为
+"The/the/THE" 分别学一遍)。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 别盲目转小写</strong> —
+老师特别提醒:转小写<strong>不是无脑全转</strong>。如果你的任务需要识别人名,而<strong>人名首字母大写本身就是信息</strong>,那就不该把它抹掉。同理,有时你反而<strong>想保留</strong>某些标点(比如它能切分句子边界)。所以
+slides 上那句 "where
+appropriate(在合适的时候)"是关键——标准化要<strong>看任务</strong>,不是一套模板套到底。</p>
+</blockquote>
+<h3 id="22-分词-tokenization">2.2 分词 (Tokenization)</h3>
+<p><strong>Tokenization(分词/切分)</strong> 是把文本切成一个个
+<strong>token(词元)</strong> 的过程 (S6, S8)。"切到多细"有几种选择:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>分词粒度</th>
+<th>定义</th>
+<th>例子</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Word tokenization</strong>(按词)</td>
+<td>token 是由若干字符组成的"词"</td>
+<td><code>["the", "cat", "sat"]</code></td>
+<td>最常用</td>
+</tr>
+<tr class="even">
+<td><strong>N-gram tokenization</strong>(N 元)</td>
+<td>token 是 <strong>N 个连续的词</strong></td>
+<td>"I am" 是 2-gram;"I am well" 是 3-gram</td>
+<td>能捕捉局部词组搭配</td>
+</tr>
+<tr class="odd">
+<td><strong>Character-level</strong>(按字符)</td>
+<td>每个字符自成一个 token</td>
+<td><code>["c","a","t"]</code></td>
+<td><strong>很少用</strong>,信息太碎</td>
+</tr>
+<tr class="even">
+<td><strong>Subword</strong>(子词)</td>
+<td>介于词与字符之间(如 BPE)</td>
+<td>"playing" → <code>["play","ing"]</code></td>
+<td>现代模型(BERT/GPT)主流</td>
+</tr>
+</tbody>
+</table></div>
+<p>老师把这一步也叫
+<strong>chunking(分块)</strong>:把整段文本切成可处理的小块。块可以基于
+n-gram、基于词,甚至基于字符——但字符级"在很多场景下其实没什么用"。</p>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> —
+文本→数字三步走:<strong>标准化</strong>(去无关差异,看任务决定转不转小写/去不去标点)→
+<strong>分词</strong>(word / n-gram / character / subword)→
+<strong>向量化</strong>(下面三节展开)。记住流水线的顺序,这是后面一切的地基。</p>
+</blockquote>
+<hr />
+<h2 id="3-one-hot-encoding第一种也是最笨的向量化">§3 One-hot
+Encoding:第一种、也是最笨的向量化</h2>
+<p>分完词,得把每个 token 变成数字向量。最朴素的办法是 <strong>one-hot
+encoding(独热编码)</strong> (S9)。它的逻辑非常机械:</p>
+<ol type="1">
+<li>先建一个 <strong>vocabulary(词表/字典)</strong>,里面是所有可能出现的
+token,共
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+个;</li>
+<li>给每个 token 分配一个<strong>唯一的整数下标 (unique integer
+index)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>;</li>
+<li>把下标
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+变成一个<strong>长度为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+的二进制向量</strong>:<strong>除了第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+位是 1,其余全是 0</strong>。</li>
+</ol>
+<p>"只有一个位置是 1"——这就是 "one-hot"(独热)名字的由来。</p>
+<blockquote>
+<p><strong>🔑 例(老师在白板上走的那一遍:"the cat sat on the
+mat")</strong> —
+这句话经过标准化(全小写)、分词后,每个词去字典里查下标。假设字典给出:<code>the→3, cat→26, sat→65, on→9, mat→133</code>(<code>the</code>
+出现两次,两次都是 3)。于是:</p>
+<ul>
+<li>"cat" 的整数表示是 26;</li>
+<li>若词表大小
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>,则
+"cat" 的 one-hot 向量是一个长度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>、<strong>只有第
+26 位为 1</strong>
+的向量:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>0</mn><mo>,</mo><mi>…</mi><mo>,</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,0,\dots,1,\dots,0]</annotation></semantics></math>。</li>
+</ul>
+<p>老师在课上还举了个迷你版:假设字典里只有 8 个 token,那下标 3
+可以表示成一个长度 8、第 3 位为 1 的二进制向量。<strong>这串只含一个 1
+的长向量,就是喂给神经网络的输入。</strong></p>
+</blockquote>
+<p><strong>One-hot 的致命问题</strong>(为下一节做铺垫):</p>
+<ul>
+<li><strong>极度稀疏、极度浪费</strong>:词表动辄上万,每个词都是一个上万维、只有一个
+1 的向量;</li>
+<li><strong>没有语义</strong>:任意两个不同词的 one-hot
+向量都互相<strong>正交</strong>,距离完全一样。也就是说,在 one-hot
+空间里,"cat" 和 "dog" 的相似度,跟 "cat" 和 "democracy"
+的相似度<strong>完全相同</strong>——这显然不符合语言的事实。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 代码层面只是几行</strong> — slides
+(S10–S12) 给了 TensorFlow(<code>Tokenizer</code> +
+<code>texts_to_matrix(mode='binary')</code>)和
+PyTorch(<code>torchtext</code> 的
+<code>build_vocab_from_iterator</code>)两套 one-hot
+代码片段。老师的原话是"这东西实现起来非常简单"。<strong>考试是手写、不考代码</strong>,但你的
+assignment 会用到,所以代码片段当作工具手册即可,理解概念才是重点。</p>
+</blockquote>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — One-hot:建词表 → 给每个 token
+一个下标 → 变成"只有一位为 1"的长向量。优点是简单;缺点是<strong>稀疏 +
+无语义</strong>(所有词两两正交)。正是这个"无语义"的缺陷,逼出了下一节的
+embedding。</p>
+</blockquote>
+<hr />
+<h2 id="4-word-embeddings稠密的有语义的向量">§4 Word
+Embeddings:稠密的、有语义的向量</h2>
+<p><strong>Word embedding(词嵌入)</strong> 是对 one-hot
+的根本性升级。一句话定义 (S13):</p>
+<blockquote>
+<p><strong>Word embedding</strong> = 语言的<strong>几何表示 (geometric
+representation)</strong>,它把人类语言<strong>映射到一个反映词语语义的几何空间</strong>,使得<strong>语义相近的词,向量也相近</strong>。</p>
+</blockquote>
+<p>老师把它和 <strong>manifold learning(流形学习)</strong>
+联系起来:你学到的是一个<strong>空间</strong>,所有 token
+都能被"画"在这个空间里,而这个空间的结构让<strong>语义相似的东西聚集在相近的区域</strong>。和
+one-hot 的高维稀疏不同,embedding 是<strong>低维稠密 (dense)</strong>
+的(比如 64 维、512 维),每一维都是实数。</p>
+<h3 id="41-几何里藏着语义最著名的观察">4.1
+几何里藏着语义:最著名的观察</h3>
+<p>embedding 最惊艳的地方,是<strong>语义关系变成了几何关系</strong>
+(S13)。经典例子:</p>
+<ul>
+<li><strong>king / queen</strong> 靠得很近,<strong>man / woman</strong>
+也靠得很近;</li>
+<li>更神奇的是<strong>向量运算</strong>能反映类比关系:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">king</mtext><mo>+</mo><mtext mathvariant="normal">woman</mtext><mo>−</mo><mtext mathvariant="normal">man</mtext><mo>≈</mo><mtext mathvariant="normal">queen</mtext></mrow><annotation encoding="application/x-tex">\text{king} + \text{woman} - \text{man} \approx \text{queen}</annotation></semantics></math></li>
+<li>同类还有:<code>cat → tiger</code> 的向量,和 <code>dog → wolf</code>
+的向量方向相近(都像是"从宠物 pet 走向野生
+wild"的位移);<code>cat → dog</code> 的向量,和 <code>tiger → wolf</code>
+的向量也平行。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 直觉(为什么向量能加减出语义)</strong> —
+老师坦白说:"我没有一个严格的科学解释为什么会这样。"但直觉是:如果"从男性到女性"这个语义差异,在空间里对应一个<strong>固定方向的位移向量</strong>,那么把这个位移加到
+"king" 上,自然就落到了 "queen"
+附近。语义结构被"几何化"了。<strong>这不是偶然</strong>——它是训练方式自然涌现出来的性质。</p>
+</blockquote>
+<h3 id="42-怎么得到-embeddings14">4.2 怎么得到 embedding(S14)</h3>
+<p>有三条路:</p>
+<ol type="1">
+<li><strong>和任务联合学习 (learn
+jointly)</strong>:从<strong>随机初始化</strong>的词向量出发,像学网络权重一样,在做你的任务(如文档分类、情感预测)的同时把词向量也学出来;</li>
+<li>本质同上,强调"<strong>随机起步,反向传播学出来</strong>";</li>
+<li><strong>用预训练 (pre-trained / pre-computed)
+词向量</strong>:别人已经在相关任务上学好的向量,直接拿来用。</li>
+</ol>
+<p>常见的<strong>预训练词向量/模型</strong> (S14):</p>
+<ul>
+<li><strong>Word2vec</strong>(Google)</li>
+<li><strong>GloVe</strong>(Global Vectors,Stanford)</li>
+<li><strong>BERT</strong>(Bidirectional Encoder Representations from
+Transformers,Google Research)</li>
+<li><strong>fastText</strong>(Cornell/Caltech/Amazon)</li>
+<li><strong>GPT-2 / GPT-3</strong>(Generative Pre-trained
+Transformer,OpenAI)</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— Hugging Face</strong> —
+老师提到,你<strong>不一定要从零学 embedding</strong>;到 <strong>Hugging
+Face</strong> 上有大量现成的库和预训练
+embedding,可以直接用或在其基础上微调。slides (S15–S16) 同样给了 TF 的
+<code>tf.keras.layers.Embedding(1000, 64, ...)</code> 和 PyTorch 的
+<code>nn.Embedding(1000, 64)</code>
+代码——本质就是一个"<strong>查表层</strong>":输入整数下标矩阵
+<code>(batch, length)</code>,输出
+<code>(batch, length, embedding_dim)</code> 的稠密向量。</p>
+</blockquote>
+<h3 id="43-one-hot-vs-embedding-对照">4.3 One-hot vs Embedding 对照</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>One-hot Encoding</th>
+<th>Word Embedding</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>向量</td>
+<td>长度 = 词表大小
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>,<strong>稀疏</strong>(一个
+1)</td>
+<td>低维(如 64/512),<strong>稠密</strong>(全是实数)</td>
+</tr>
+<tr class="even">
+<td>语义</td>
+<td><strong>无</strong>——任意两词正交,距离相等</td>
+<td><strong>有</strong>——语义近则向量近,可做类比运算</td>
+</tr>
+<tr class="odd">
+<td>维度</td>
+<td>极高(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+可达数万)</td>
+<td>低且可控</td>
+</tr>
+<tr class="even">
+<td>来源</td>
+<td>直接由词表下标确定,不用学</td>
+<td><strong>学出来</strong>(联合学习 / 预训练)</td>
+</tr>
+<tr class="odd">
+<td>类比</td>
+<td>像身份证号,只标识身份</td>
+<td>像地图坐标,位置本身有意义</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — Embedding
+把词映射到<strong>低维稠密的几何空间</strong>,语义相近→向量相近,甚至支持
+<code>king+woman−man≈queen</code> 这类向量运算。获取方式:联合学习、或用
+Word2vec/GloVe/BERT/GPT 等预训练向量。它解决了 one-hot
+的"无语义"问题——但还没解决"<strong>语境</strong>"问题,这就是下一节。</p>
+</blockquote>
+<hr />
+<h2 id="5-静态-embedding-的天花板语境问题">§5 静态 Embedding
+的天花板:语境问题</h2>
+<p>§4 的 embedding 有个隐含假设:<strong>一个词 =
+一个固定向量</strong>。这种叫 <strong>static
+embedding(静态词向量)</strong>。问题是——<strong>语言里词的意思是随语境变的</strong>
+(S17)。</p>
+<blockquote>
+<p><strong>🔑 例("station" 的三副面孔)</strong> — 同一个词
+"station":</p>
+<ul>
+<li><strong>train station</strong>(火车站)——一个地点;</li>
+<li><strong>radio station</strong>(广播电台)——一个频率/媒体;</li>
+<li><strong>(International Space)
+Station</strong>(空间站)——又是别的东西。</li>
+</ul>
+<p>在静态 embedding 里,这三个 "station"
+拿到的是<strong>同一个向量、同一个数字</strong>!因为查表时它就是那一个
+token。可它们的真实含义天差地别。真正区分它们的,是<strong>前面那个词</strong>(train
+/ radio / space)。</p>
+</blockquote>
+<p>老师还借 Chollet 教材 (S32)
+给了更多例子,说明"同词不同义"普遍存在:</p>
+<ul>
+<li>"mark the <strong>date</strong>"(标注日期)vs "go on a
+<strong>date</strong>"(约会)vs 市场上买的
+"<strong>date</strong>"(椰枣);</li>
+<li>"I'll <strong>see</strong> you soon" vs "I'll <strong>see</strong>
+this project to its end" vs "I <strong>see</strong> what you mean";</li>
+<li>代词 "he / it"
+的指代<strong>完全由句子决定</strong>,甚至一句话里能变好几次。</li>
+</ul>
+<p>结论 (S17):<strong>static embedding is not
+enough(静态词向量不够用)</strong>。我们需要的是 <strong>context-aware
+representation(语境感知的表示)</strong>——同一个词,在不同句子里给出不同的向量。</p>
+<p>而解决它的机制,就是本章的主角:<strong>attention(注意力)</strong>。Slides
+给出<strong>关键思想 (Key idea, S17)</strong>:</p>
+<blockquote>
+<p><strong>Attention</strong> computes <strong>relevance between
+elements</strong> in a sequence (or between two sequences) by measuring
+<strong>pairwise dependencies</strong>.
+(注意力通过度量<strong>两两之间的依赖关系</strong>,计算序列内元素之间——或两个序列之间——的<strong>相关性</strong>。)</p>
+</blockquote>
+<h3 id="整章地图where-we-are-going-s18">整章地图:Where we are going
+(S18)</h3>
+<p>slides
+在这里给了一张"路线图",正好是本章的<strong>脊柱</strong>,务必记住:</p>
+<pre class="mermaid"><code>graph LR
+  A[&quot;文本编码&lt;br/&gt;给 token 向量&quot;] --&gt; B[&quot;embedding&lt;br/&gt;赋予语义结构&quot;]
+  B --&gt; C[&quot;但 token 的意义&lt;br/&gt;依赖语境&quot;]
+  C --&gt; D[&quot;RNN encoder-decoder&lt;br/&gt;早期的序列建模方案&quot;]
+  D --&gt; E[&quot;attention&lt;br/&gt;动态访问相关语境&quot;]
+  E --&gt; F[&quot;Transformer&lt;br/&gt;让 attention 成为核心机制&quot;]</code></pre>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — 静态 embedding
+给每个词一个<strong>固定</strong>向量,无法区分 "train station / radio
+station" 里 "station"
+的不同含义。我们要的是<strong>语境感知</strong>的表示。Attention
+通过计算元素间的<strong>两两相关性</strong>来实现它。下面三节(RNN →
+attention → Transformer)就是沿着 S18 这张地图走。</p>
+</blockquote>
+<hr />
+<h2 id="6-neural-machine-translation用-rnn-做序列到序列">§6 Neural
+Machine Translation:用 RNN 做序列到序列</h2>
+<p>要讲清 attention 为什么必要,老师选了一个具体任务做载体:<strong>neural
+machine translation (NMT,神经机器翻译)</strong>。在 Transformer
+出现之前,序列任务都用 <strong>RNN(recurrent neural
+network,循环神经网络)</strong> 做。</p>
+<p><strong>NMT 的任务定义
+(S19)</strong>:给定一种语言的文本,生成它在另一种语言里的翻译(例:英译法)。</p>
+<h3 id="61-encoderdecoder-结构s20s21">6.1 Encoder–Decoder
+结构(S20–S21)</h3>
+<p>经典做法是一个 <strong>encoder–decoder(编码器–解码器)</strong>
+对,两边都是 RNN。贯穿全章的例子:</p>
+<ul>
+<li><strong>输入 (English)</strong>:"I drink milk"</li>
+<li><strong>目标 (French)</strong>:"Je bois du lait"</li>
+</ul>
+<pre class="mermaid"><code>graph LR
+  X[&quot;输入: I drink milk&lt;br/&gt;(倒序喂入)&quot;] --&gt; E1[&quot;embedding&quot;]
+  E1 --&gt; ENC[&quot;Encoder (RNN)&quot;]
+  ENC --&gt;|&quot;最后一个隐状态&lt;br/&gt;(压缩了整句)&quot;| DEC[&quot;Decoder (RNN)&quot;]
+  T[&quot;目标: Je bois du lait&lt;br/&gt;(右移一格, 以 SOS 开头)&quot;] --&gt; E2[&quot;embedding&quot;]
+  E2 --&gt; DEC
+  DEC --&gt; S[&quot;TimeDistributed Dense + softmax&quot;]
+  S --&gt; Y[&quot;逐词输出译文&quot;]</code></pre>
+<p>几个<strong>容易考、容易忽略</strong>的细节:</p>
+<ul>
+<li><strong>输入被倒序喂入 (input is reversed)</strong>:图里 "I drink
+milk" 是反着进 encoder 的。这是为了让翻译的开头能更好地对齐(早期 RNN
+的一个工程技巧,与"因果"处理有关)。</li>
+<li><strong>目标也要喂进 decoder,但右移一格 (shifted by one time
+step)</strong>,并以
+<code>&lt;SOS&gt;</code>(start-of-sequence,句首标记)开头。这叫
+<strong>teacher forcing</strong> 的雏形。</li>
+<li>这是 <strong>supervised
+learning(监督学习)</strong>:训练时<strong>输入(英文)和正确答案(法文
+ground truth)同时在场</strong>,用来算损失、训练网络。</li>
+</ul>
+<p><strong>算法流程 (S21)</strong>:</p>
+<ol type="1">
+<li>每个词先用它在词表里的 <strong>ID</strong> 表示;</li>
+<li><strong>Embedding 层</strong>把 ID 变成词向量(同时喂给 encoder 和
+decoder);</li>
+<li>Encoder
+处理完后,把<strong>最后的隐状态</strong>连同"正确译文(延迟一格)"一起交给
+decoder;</li>
+<li>每个时间步,decoder
+对<strong>输出词表(法文)里的每个词</strong>输出一个
+<strong>score(分数)</strong>;</li>
+<li><strong>Softmax</strong>
+把分数变成概率,<strong>概率最高的词</strong>就是这一步的输出。</li>
+</ol>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 顶上那层 "TimeDistributed + softmax"
+是什么</strong> — 老师解释:decoder 顶部先过一个稠密变换(通常是
+<strong>TimeDistributed dense
+layer</strong>,即对序列里<strong>每个时间步独立</strong>施加同一个 dense
+层),再接 <strong>softmax</strong>
+生成分数;分数最大的就是要挑的词。"TimeDistributed" 这个词后面讲
+attention 和 Transformer 还会反复出现,记住它 =
+"对序列每个位置独立地做同一种变换"。</p>
+</blockquote>
+<h3 id="62-推理阶段inference-s22">6.2 推理阶段(Inference, S22)</h3>
+<p>训练时 decoder
+能看到"正确译文(右移)";但<strong>推理(实际翻译)时没有正确答案</strong>。这时
+decoder
+的配置变了:<strong>每一步的输入,是上一步自己的输出</strong>(figure
+6)。从 <code>&lt;SOS&gt;</code>
+开始,吐一个词,再把这个词喂回去预测下一个,如此自回归 (autoregressive)
+地生成,直到 <code>&lt;eos&gt;</code>。</p>
+<h3 id="63-面对现实变长句子s23">6.3 面对现实:变长句子(S23)</h3>
+<p>理想模型假设句子<strong>等长</strong>,现实里不成立。处理办法:</p>
+<ul>
+<li><strong>Padding(填充)</strong>:设定一个固定长度(如 256 个
+token),不够的用 <code>&lt;pad&gt;</code> 补齐,超了就截断/分块;</li>
+<li><strong>Bucketing(分桶)</strong>:把长度相近的句子分组(如 1–6
+词一组、7–12 词一组),组内再 pad,减少浪费;</li>
+<li><strong><code>&lt;eos&gt;</code>(end-of-sequence,句末标记)不计入损失</strong>:它只是个结束信号,不该参与
+loss 计算;</li>
+<li><strong>Mask(掩码)</strong>:用掩码"屏蔽"掉 pad
+位置,不让它们参与计算。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例(padding 后的样子)</strong> — "I drink milk" 在倒序 +
+padding 后可能变成
+<code>&lt;pad&gt; &lt;pad&gt; &lt;pad&gt; milk drink I</code>。注意 pad
+在前、真实词在后,且 pad 不参与损失。</p>
+</blockquote>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — RNN encoder–decoder
+做翻译:输入(倒序)→ embedding → encoder 压成最后隐状态 →
+decoder(配右移的目标 + encoder 状态)逐词输出 score → softmax
+选词。训练是监督学习,推理时用上一步输出当下一步输入。现实里靠
+padding/bucketing/mask 处理变长,<code>&lt;eos&gt;</code> 不计损失。</p>
+</blockquote>
+<hr />
+<h2 id="7-rnn-的三个短板与补救">§7 RNN 的三个短板与补救</h2>
+<p>老师强调:RNN
+方案<strong>确实能用</strong>(商用系统都跑过),问题是"<strong>how
+well(好到什么程度)</strong>"。它有三个结构性短板,每个都有对应补丁——而这些补丁(尤其是
+attention 的前身)正是通往 Transformer 的台阶。</p>
+<h3 id="短板一看不到未来--bidirectional-rnns24s25">短板一:看不到"未来" →
+Bidirectional RNN(S24–S25)</h3>
+<p>普通 RNN 把输入当作 <strong>causal signal(因果信号)</strong>:在位置
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>,它<strong>只能看到现在和过去,看不到未来</strong>。</p>
+<blockquote>
+<p><strong>🔑 直觉(我们活在"因果"里)</strong> —
+老师的类比很到位:人类的生活就是因果的——我今天看到时间在走,但我<strong>不知道明天
+(t+1) 会发生什么</strong>,只能猜。所谓 "causal
+system",就是"只能看到此刻及之前,看不到之后"。</p>
+</blockquote>
+<p>但对语言理解来说,<strong>能看到后文往往很关键</strong>。经典例子(queen
+的消歧):</p>
+<blockquote>
+<p><strong>🔑 例(三种 "queen")</strong> — 读到 "the queen ..."
+时,你还不知道是哪种 queen。要往后看:</p>
+<ul>
+<li>"Queen of the <strong>United Kingdom</strong>" →
+一位<strong>君主</strong>(人);</li>
+<li>"the queen of <strong>hearts</strong>" → 扑克牌(纸牌游戏);</li>
+<li>"the queen <strong>bee</strong>" → 蜂王(昆虫)。</li>
+</ul>
+<p><strong>只有看到后面的词,才能确定 "queen" 的含义。</strong> 单向 RNN
+做不到。</p>
+</blockquote>
+<p><strong>补救:Bidirectional RNN(双向 RNN)</strong> —— 一条 RNN
+从左往右处理,另一条从右往左处理,在每个时间步<strong>把两个方向的输出拼接
+(concatenate)</strong> 起来 (S24–S25, figure
+7)。这样既看了前文也看了后文,绕开了因果限制。老师的说法:"你顺着读一遍,再倒着读一遍,就能轻松把信息凑齐。"</p>
+<h3 id="短板二输出词表太大--sampled-softmaxs24">短板二:输出词表太大 →
+Sampled Softmax(S24)</h3>
+<p>decoder 每步要对<strong>整个输出词表</strong>做 softmax
+算概率。词表一大(几万词),计算量巨大。</p>
+<p><strong>补救:Sampled Softmax(采样 softmax)</strong> ——
+不做全词表的完整计算,只考虑<strong>正确词的 logit</strong>
+加上<strong>随机采样的若干错误词</strong>,基于这"两部分"算一个<strong>近似损失</strong>。老师说这种近似"没有被发现造成多少性能损失",是常用的省算技巧。</p>
+<h3 id="短板三错了无法回头--beam-searchs26">短板三:错了无法回头 → Beam
+Search(S26)</h3>
+<p>RNN 每步贪心地选概率最高的词,一旦早期选错,后面无法纠正。</p>
+<p><strong>补救:Beam Search(束搜索)</strong> ——
+<strong>核心思想:给模型"改正早期错误"的机会</strong> (S26):</p>
+<ul>
+<li>同时保留
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个最有希望的候选句子</strong>;</li>
+<li>每个 decoder 步,把这
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个句子各扩展一个词,再从所有扩展中<strong>只保留概率最高的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个</strong>;</li>
+<li>参数
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+叫 beam width(束宽)</strong>;</li>
+<li><strong>代价高</strong>:要维持
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+份模型副本,每步都按词表规模算条件概率。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 直觉(像听人说话时的"缓冲")</strong> —
+老师:你听我说话,不是一个词一个词孤立地听(那样永远听不懂),而是<strong>在脑子里留一段缓冲/记忆</strong>,边听边回看,直到某刻"哦,我懂你意思了!"——那一刻你把前面的词全拼起来,意义才浮现。beam
+search 就是给模型这样一个"回看并修正"的缓冲。</p>
+</blockquote>
+<p><strong>承上启下</strong>:bidirectional RNN、sampled softmax、beam
+search 都是"打补丁"。slides (S26) 最后点题——<strong>attention
+解决的是另一个瓶颈</strong>:它让 decoder
+能<strong>直接回看输入序列里相关的部分</strong>,而不是只依赖 encoder
+压缩出来的那<strong>一个</strong>状态向量。这正是下一节。</p>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — RNN 三短板与补丁:①
+单向因果看不到未来 → <strong>bidirectional RNN</strong>(双向处理 +
+拼接,queen 消歧);② 大词表 softmax 太贵 → <strong>sampled
+softmax</strong>(采样近似);③ 早期错误无法纠正 → <strong>beam
+search</strong>(保留
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个候选,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>=beam
+width,贵)。但真正的瓶颈——"只靠一个压缩状态"——要靠 attention 解决。</p>
+</blockquote>
+<hr />
+<h2 id="8-attention动态的语境感知本章核心">§8
+Attention:动态的语境感知(本章核心)</h2>
+<p>这是全章最重要、最该抠透的一节。</p>
+<h3 id="81-什么是-attention为什么重要">8.1 什么是
+attention,为什么重要</h3>
+<p><strong>定义 (S27)</strong>:<strong>Attention</strong>
+是一种机制,它通过度量<strong>两两依赖 (pairwise
+dependencies)</strong>,<strong>动态地</strong>计算输入内部(或输入与输出之间)各元素的<strong>相关性
+(relevance)</strong>,从而让模型在构造表示时,<strong>聚焦于最有信息量的部分</strong>。它学习的是
+<strong>token 与 token
+之间的关系</strong>,挖掘出支撑"语境感知、富表达力"表示的模式与关联。</p>
+<p><strong>为什么重要 (S28)</strong>——四条,建议背:</p>
+<ol type="1">
+<li><strong>捕捉长程依赖 (long-range
+dependencies)</strong>:句首的词能直接影响句尾的词;</li>
+<li><strong>对特征/token 做动态加权 (dynamic
+weighting)</strong>:权重随语境变;</li>
+<li><strong>提升语境敏感度与可解释性 (context sensitivity &amp;
+interpretability)</strong>:能看出模型"在看哪儿";</li>
+<li><strong>取代 recurrence /
+convolution</strong>:现代架构(Transformer)里,attention
+直接替掉了循环和卷积。</li>
+</ol>
+<p>老师补一句分量很重的话:<strong>如今所有主流语言模型都基于
+Transformer</strong>,因为它在效果上"by a mass(大幅)"碾压
+RNN。甚至"你现在写论文还说用 RNN 做这类工作,人家可能直接不读了"。而且
+attention 不止用于文本——<strong>visual transformer(视觉
+Transformer)</strong> 把同样的机制用到图像上。</p>
+<h3 id="82-query--key--value把-attention-看成可微的字典查询">8.2 Query /
+Key / Value:把 attention 看成"可微的字典查询"</h3>
+<p>理解 attention 最好的心智模型是 <strong>differentiable
+lookup(可微的查表)</strong> (S29):</p>
+<blockquote>
+<p>一个 <strong>query(查询)</strong> 去和一堆 <strong>key(键)</strong>
+匹配,然后用匹配分数,把对应的 <strong>value(值)</strong>
+加权组合起来。</p>
+</blockquote>
+<p>这就像 Python 字典
+<code>d[key] → value</code>,只不过:普通字典是"精确命中一个 key",而
+attention 是<strong>对所有 key 都算一个匹配度,然后把所有 value
+按匹配度加权求和</strong>(软查询)。三者的角色(S32 的精辟总结):</p>
+<ul>
+<li><strong>Query(查询)</strong>:我<strong>在找什么</strong>(what we are
+looking for);</li>
+<li><strong>Key(键)</strong>:每个条目<strong>能被用什么来匹配</strong>(what
+each item can be matched against);</li>
+<li><strong>Value(值)</strong>:匹配上之后<strong>返回的信息</strong>(the
+information returned)。</li>
+</ul>
+<p><strong>记号与形状 (S29)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>符号</th>
+<th>含义</th>
+<th>形状</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math></td>
+<td>key/value 序列长度</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math></td>
+<td>query 序列长度</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>k</mi></msub><annotation encoding="application/x-tex">d_k</annotation></semantics></math></td>
+<td>query 与 key 的维度</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>v</mi></msub><annotation encoding="application/x-tex">d_v</annotation></semantics></math></td>
+<td>value 的维度</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Q</mi><annotation encoding="application/x-tex">Q</annotation></semantics></math></td>
+<td>堆叠的 query 向量</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">m \times d_k</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></td>
+<td>堆叠的 key 向量</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">n \times d_k</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math></td>
+<td>堆叠的 value 向量</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><msub><mi>d</mi><mi>v</mi></msub></mrow><annotation encoding="application/x-tex">n \times d_v</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table></div>
+<p>softmax
+的定义照常:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">softmax</mtext><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>j</mi></msub><mo>=</mo><mfrac displaystyle="true"><msup><mi>e</mi><msub><mi>z</mi><mi>j</mi></msub></msup><mrow><msub><mo>∑</mo><mo>ℓ</mo></msub><msup><mi>e</mi><msub><mi>z</mi><mo>ℓ</mo></msub></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">\text{softmax}(z)_j = \dfrac{e^{z_j}}{\sum_\ell e^{z_\ell}}</annotation></semantics></math>。</p>
+<h3 id="83-self-attention-的计算必考公式">8.3 Self-attention
+的计算(必考公式)</h3>
+<p><strong>Self-attention(自注意力)</strong> =
+一句话<strong>关注它自己</strong>:Q、K、V 都来自同一个输入序列。</p>
+<p><strong>第一步:线性投影 (S30)</strong>。给定输入序列矩阵
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">[</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>x</mi><mi>n</mi></msub><mo stretchy="true" form="postfix">]</mo></mrow><mi>⊤</mi></msup><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo>×</mo><mi>d</mi></mrow></msup></mrow><annotation encoding="application/x-tex">X = [x_1, x_2, \dots, x_n]^\top \in \mathbb{R}^{n\times d}</annotation></semantics></math>,我们<strong>学习</strong>三个投影权重矩阵
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>W</mi><mi>Q</mi></msup><mo>,</mo><msup><mi>W</mi><mi>K</mi></msup><mo>∈</mo><msup><mi>ℝ</mi><mrow><msub><mi>d</mi><mrow><mi>m</mi><mi>o</mi><mi>d</mi><mi>e</mi><mi>l</mi></mrow></msub><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub></mrow></msup></mrow><annotation encoding="application/x-tex">W^Q, W^K \in \mathbb{R}^{d_{model}\times d_k}</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>W</mi><mi>V</mi></msup><mo>∈</mo><msup><mi>ℝ</mi><mrow><msub><mi>d</mi><mrow><mi>m</mi><mi>o</mi><mi>d</mi><mi>e</mi><mi>l</mi></mrow></msub><mo>×</mo><msub><mi>d</mi><mi>v</mi></msub></mrow></msup></mrow><annotation encoding="application/x-tex">W^V \in \mathbb{R}^{d_{model}\times d_v}</annotation></semantics></math>,把输入投影成
+Q、K、V:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>Q</mi></msup><mo>,</mo><mspace width="2.0em"></mspace><mi>K</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>K</mi></msup><mo>,</mo><mspace width="2.0em"></mspace><mi>V</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>V</mi></msup></mrow><annotation encoding="application/x-tex">Q = XW^Q, \qquad K = XW^K, \qquad V = XW^V</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub></mrow></msup></mrow><annotation encoding="application/x-tex">Q \in \mathbb{R}^{n\times d_k}</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub></mrow></msup></mrow><annotation encoding="application/x-tex">K \in \mathbb{R}^{n\times d_k}</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo>×</mo><msub><mi>d</mi><mi>v</mi></msub></mrow></msup></mrow><annotation encoding="application/x-tex">V \in \mathbb{R}^{n\times d_v}</annotation></semantics></math>。<strong>要学的就是这三个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math></strong>(老师反复强调:query
+的权重、key 的权重、value 的权重,都是网络学出来的)。</p>
+<p><strong>第二步:注意力计算
+(S31)</strong>。核心公式——<strong>整章最该记牢的一行</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><menclose notation="box"><mrow><mspace width="0.278em"></mspace><mtext mathvariant="normal">Attention</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>Q</mi><mo>,</mo><mi>K</mi><mo>,</mo><mi>V</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mtext mathvariant="normal">softmax</mtext><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mrow><mi>Q</mi><msup><mi>K</mi><mi>⊤</mi></msup></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mi>V</mi><mspace width="0.278em"></mspace></mrow></menclose><annotation encoding="application/x-tex">\boxed{\;\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V\;}</annotation></semantics></math></p>
+<p>怎么读这行公式:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><msup><mi>K</mi><mi>⊤</mi></msup></mrow><annotation encoding="application/x-tex">QK^\top</annotation></semantics></math>:每个
+query 和每个 key 做<strong>点积</strong>,得到一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">n\times n</annotation></semantics></math>
+的<strong>相关性矩阵</strong>(谁和谁有多相关);</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>/</mi><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mrow><annotation encoding="application/x-tex">/\sqrt{d_k}</annotation></semantics></math>:<strong>缩放
+(scaling)</strong>,见下面的 temperature 直觉;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">softmax</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\text{softmax}(\cdot)</annotation></semantics></math>:把每行相关性归一成<strong>权重</strong>(和为
+1);</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>×</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">\times V</annotation></semantics></math>:用这些权重对所有
+value <strong>加权求和</strong>。</li>
+</ul>
+<p><strong>结果</strong>:每个 token 的输出,是<strong>所有 token 的 value
+的加权和</strong>,权重由 query–key
+相似度决定。于是每个词的新向量都"揉进了"与它相关的其它词的信息——<strong>语境感知</strong>就这样实现了。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)—
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><annotation encoding="application/x-tex">\sqrt{d_k}</annotation></semantics></math>
+是 "temperature(温度)",这是老师重点讲的直觉</strong> —
+老师专门讲了一个故事:他的博士生想改这个
+softmax,他反问"它到底在干嘛?"。关键在于:那个分母
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><annotation encoding="application/x-tex">\sqrt{d_k}</annotation></semantics></math>
+本质上是一个
+<strong>temperature(温度)/归一化因子</strong>,作用是<strong>调节注意力分布的"尖锐程度"</strong>:</p>
+<ul>
+<li>分母<strong>太大</strong> → 指数项被压平 → softmax
+输出<strong>趋于均匀</strong>,模型"对什么都给差不多的权重",<strong>等于没在
+attend</strong>(老师博士生遇到的正是这个问题:所有概率几乎一样,无法聚焦,效果很差);</li>
+<li>分母<strong>合适/偏小</strong> → 分布<strong>变尖锐
+(sharper)</strong> → 模型能<strong>明确聚焦</strong>到某个关键
+token。</li>
+</ul>
+<p>所以"该把这个温度设成多少、用语言的什么性质来决定它"本身就是一个<strong>研究问题</strong>。记住一句话:<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><annotation encoding="application/x-tex">\sqrt{d_k}</annotation></semantics></math>
+控制 attention 是"果断聚焦"还是"一视同仁"。</strong></p>
+</blockquote>
+<h3 id="84-工作实例the-train-left-the-station-on-times32">8.4
+工作实例:"The train left the station on time"(S32)</h3>
+<p>这是 Chollet 教材里的招牌例子,把 self-attention
+讲得最直观。问题:句子里的 "<strong>station</strong>" 到底是哪种
+station?算法用 self-attention 来定夺:</p>
+<ol type="1">
+<li>以 "station" 作为
+<strong>query</strong>,和句子里<strong>每个词</strong>(作为
+key)算相关性分数;</li>
+<li>经 softmax 得到一组权重;</li>
+<li>用这组权重对<strong>每个词的 value 向量加权求和</strong>,得到
+"station" 的<strong>新的、语境感知的向量</strong>。</li>
+</ol>
+<p>下面是 "station" 这一行的注意力权重(取自 slide
+的分数网格,数值示意):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>station 关注 →</th>
+<th>the</th>
+<th><strong>train</strong></th>
+<th>left</th>
+<th>the</th>
+<th><strong>station</strong></th>
+<th>on</th>
+<th>time</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>权重</td>
+<td>0.2</td>
+<td><strong>0.8</strong></td>
+<td>0.6</td>
+<td>0.3</td>
+<td><strong>1.0</strong></td>
+<td>0.2</td>
+<td>0.2</td>
+</tr>
+</tbody>
+</table></div>
+<p>最高的两个是 <strong>train(0.8)</strong> 和 <strong>station
+自己(1.0)</strong>。把权重最大的内容词聚合起来 → <strong>"train
+station"(火车站)</strong>。于是 "station"
+的新向量被<strong>拉向了"火车站"的语义</strong>——语境帮它消了歧。老师总结:"这就是
+attention 如何在语境中赋予一个词语义。"</p>
+<h3 id="85-把-attention-装进-rnn-翻译模型s33s36">8.5 把 attention 装进
+RNN 翻译模型(S33–S36)</h3>
+<p>attention 最早不是和 Transformer 一起出现的,而是先被<strong>加进 RNN
+encoder–decoder 之间</strong>(S33)。这样 decoder 在每一步都能"回看"全部
+encoder 输出,挑相关的看。</p>
+<p><strong>算法 (S34)</strong>:</p>
+<ol type="1">
+<li>decoder 计算<strong>所有 encoder
+输出的加权和</strong>,决定这一步该聚焦哪些词;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo>,</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\alpha(t,i)</annotation></semantics></math>
+= 第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+个 decoder 时间步对第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+个 encoder 输出的<strong>权重</strong>;</li>
+<li>例:若
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>3</mn><mo>,</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>&gt;</mo><mi>α</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>3</mn><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>&gt;</mo><mi>α</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>3</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\alpha(3,2) &gt; \alpha(3,0) &gt; \alpha(3,1)</annotation></semantics></math>,则
+decoder 在第 3 步主要聚焦 "milk" 这个词;</li>
+<li>除此之外,decoder 行为同普通 NMT;</li>
+<li>右边那个<strong>生成权重的模块,就是 attention 层 / alignment
+model(对齐模型)</strong>。</li>
+</ol>
+<p><strong>Alignment model(对齐模型)怎么算分 (S35–S36)</strong>:把
+decoder 上一步的隐状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><annotation encoding="application/x-tex">h_{(t)}</annotation></semantics></math>
+与每个 encoder 输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><annotation encoding="application/x-tex">y_{(i)}</annotation></semantics></math>
+比对,得到能量分数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo>,</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><annotation encoding="application/x-tex">e_{(t,i)}</annotation></semantics></math>,再
+softmax 成权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>α</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo>,</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><annotation encoding="application/x-tex">\alpha_{(t,i)}</annotation></semantics></math>,最后加权得语境向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>h</mi><mo accent="true">̃</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><mo>=</mo><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>α</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo>,</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><mspace width="0.167em"></mspace><msub><mi>y</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub></mrow><annotation encoding="application/x-tex">\tilde h_{(t)} = \sum_i \alpha_{(t,i)}\, y_{(i)}</annotation></semantics></math>。算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo>,</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><annotation encoding="application/x-tex">e_{(t,i)}</annotation></semantics></math>
+有三种经典方式:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>名称</th>
+<th>打分公式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo>,</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><annotation encoding="application/x-tex">e_{(t,i)}</annotation></semantics></math></th>
+<th>别名</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Dot</strong>(点积)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>⊤</mi></msubsup><msub><mi>y</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub></mrow><annotation encoding="application/x-tex">h_{(t)}^\top y_{(i)}</annotation></semantics></math></td>
+<td>最简单</td>
+</tr>
+<tr class="even">
+<td><strong>General</strong>(一般)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>⊤</mi></msubsup><mi>W</mi><mspace width="0.167em"></mspace><msub><mi>y</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub></mrow><annotation encoding="application/x-tex">h_{(t)}^\top W\, y_{(i)}</annotation></semantics></math></td>
+<td>中间加一个学习矩阵
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td><strong>Concat</strong>(拼接)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>v</mi><mi>⊤</mi></msup><mo>tanh</mo><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mi>W</mi><mrow><mo stretchy="true" form="prefix">[</mo><msub><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><mo>;</mo><msub><mi>y</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><mo stretchy="true" form="postfix">]</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">v^\top \tanh\!\big(W[h_{(t)}; y_{(i)}]\big)</annotation></semantics></math></td>
+<td>用小神经网络打分</td>
+</tr>
+</tbody>
+</table></div>
+<p>两大流派:用 softmax + 小神经网络打分的叫 <strong>additive
+attention(加性注意力)</strong>(即上表的
+concat,Bahdanau);用<strong>简单点积/内积</strong>的叫
+<strong>multiplicative attention(乘性注意力)</strong>,也叫 <strong>Luong
+attention</strong>(以论文一作命名)。</p>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — Attention =
+动态算两两相关性、聚焦关键信息。心智模型:<strong>可微字典查询</strong>,Query=找什么
+/ Key=拿什么匹配 / Value=返回什么。核心公式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">Attention</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>Q</mi><mo>,</mo><mi>K</mi><mo>,</mo><mi>V</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mtext mathvariant="normal">softmax</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mfrac displaystyle="false"><mrow><mi>Q</mi><msup><mi>K</mi><mi>⊤</mi></msup></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">\text{Attention}(Q,K,V)=\text{softmax}(\tfrac{QK^\top}{\sqrt{d_k}})V</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><annotation encoding="application/x-tex">\sqrt{d_k}</annotation></semantics></math>
+是控制聚焦尖锐度的"温度"。self-attention
+让每个词揉进相关词的信息(station→train station)。对齐模型有
+dot/general/concat 三种打分,分加性(Bahdanau)与乘性(Luong)。</p>
+</blockquote>
+<hr />
+<h2 id="9-transformer让-attention-成为主角">§9 Transformer:让 attention
+成为主角</h2>
+<p>RNN + attention 已经不错了,但 RNN
+本身还是瓶颈(难并行、长程依赖弱)。2017 年的 Transformer 干脆<strong>把
+RNN 和卷积全扔了,只留 attention</strong>——这就是那篇名作的标题
+<strong>"Attention Is All You Need"</strong>。老师:"Transformer 让
+attention 成为核心建模工具,这是它如此重要的原因。"</p>
+<h3 id="91-整体结构s37s39">9.1 整体结构(S37–S39)</h3>
+<p>Transformer 是一个 <strong>encoder(左)–
+decoder(右)对</strong>,而且<strong>可堆叠
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+层(Nx)</strong>:</p>
+<ul>
+<li><strong>Encoder 输入</strong>:词 ID(形状
+<code>[batch, max_input_len]</code>)→ 过 embedding → 512 维表示;encoder
+输出形状 <code>[batch, max_input_len, 512]</code>;</li>
+<li><strong>Decoder</strong>:训练时输入<strong>右移一格的目标句</strong>;第二个输入是
+<strong>encoder
+的输出</strong>;每步对每个可能的下一个词输出概率(<code>[batch, max_output_len, vocab_len]</code>);推理时同样自回归(从
+<code>&lt;SOS&gt;</code> 开始,喂回自己上一步的输出);</li>
+<li><strong>结构件</strong>:基本 encoder–decoder 对有 2 个 embedding
+层、5 条 <strong>skip connection(残差/跳连)</strong>(堆叠时是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>×</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">5\times N</annotation></semantics></math>);跳连后接
+<strong>layer normalization(层归一化)</strong> 和
+<strong>feed-forward(前馈)</strong> 模块(两个 dense 层:第一个
+ReLU,第二个无激活);decoder 输出层是 dense + softmax;<strong>所有层都是
+time-distributed</strong>(每个词独立处理);</li>
+<li><strong>词与词的关系</strong>由 <strong>multi-head
+attention</strong> 编码,<strong>位置信息</strong>由 <strong>positional
+encoding</strong> 编码。</li>
+</ul>
+<p>把一个 encoder block 的要件画出来(简化):</p>
+<pre class="mermaid"><code>graph TB
+  IN[&quot;输入 embedding&quot;] --&gt; ADD0[&quot;+ positional encoding&quot;]
+  ADD0 --&gt; MHA[&quot;Multi-Head Self-Attention&quot;]
+  MHA --&gt; R1[&quot;+ 残差 (skip)&quot;]
+  R1 --&gt; LN1[&quot;Layer Norm&quot;]
+  LN1 --&gt; FF[&quot;Feed-Forward&lt;br/&gt;(Dense ReLU → Dense)&quot;]
+  FF --&gt; R2[&quot;+ 残差 (skip)&quot;]
+  R2 --&gt; LN2[&quot;Layer Norm&quot;]
+  LN2 --&gt; OUT[&quot;该层输出&lt;br/&gt;(可堆叠 Nx)&quot;]</code></pre>
+<p><strong>Transformer 的四大关键组件</strong>(老师点名的
+take-home,务必记住):<strong>self-attention、positional
+encoding、residual connection + layer
+normalization、feed-forward、multi-head attention</strong>。</p>
+<h3 id="92-positional-encoding把顺序补回来s40-s51">9.2 Positional
+Encoding:把"顺序"补回来(S40, S51)</h3>
+<p>self-attention 有个"天生缺陷":它<strong>两两比较
+token,但本身不知道谁在前谁在后</strong>——它对顺序是"盲"的。可顺序至关重要:</p>
+<blockquote>
+<p><strong>🔑 例(顺序改变意义)</strong> — "<strong>dog bites
+man</strong>(狗咬人)" 和 "<strong>man bites dog</strong>(人咬狗)"
+用词完全相同,意思天差地别。token embedding
+只编码"是哪个词",不编码"在第几位"。</p>
+</blockquote>
+<p><strong>Positional encoding(位置编码)</strong>
+就是把位置信息<strong>加 (add)</strong> 进词向量 (S40, S51):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>z</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><msub><mi>p</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">z_i = x_i + p_i</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>i</mi></msub><annotation encoding="application/x-tex">x_i</annotation></semantics></math>
+是第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+位的词向量,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mi>i</mi></msub><annotation encoding="application/x-tex">p_i</annotation></semantics></math>
+是该位的位置编码,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>z</mi><mi>i</mi></msub><annotation encoding="application/x-tex">z_i</annotation></semantics></math>
+是"位置感知"的输入。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mi>i</mi></msub><annotation encoding="application/x-tex">p_i</annotation></semantics></math>
+可以<strong>学</strong>出来,也可以用<strong>确定性公式</strong>算。最流行的是
+<strong>sin/cos</strong> 方案:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><msub><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>p</mi><mo>,</mo><mn>2</mn><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><mo>=</mo><mo>sin</mo><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mi>p</mi><msup><mn>10000</mn><mrow><mn>2</mn><mi>i</mi><mi>/</mi><msub><mi>d</mi><mrow><mi>m</mi><mi>o</mi><mi>d</mi><mi>e</mi><mi>l</mi></mrow></msub></mrow></msup></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="2.0em"></mspace><mi>P</mi><msub><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>p</mi><mo>,</mo><mn>2</mn><mi>i</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msub><mo>=</mo><mo>cos</mo><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mi>p</mi><msup><mn>10000</mn><mrow><mn>2</mn><mi>i</mi><mi>/</mi><msub><mi>d</mi><mrow><mi>m</mi><mi>o</mi><mi>d</mi><mi>e</mi><mi>l</mi></mrow></msub></mrow></msup></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">PE_{(p,2i)} = \sin\!\left(\frac{p}{10000^{2i/d_{model}}}\right), \qquad PE_{(p,2i+1)} = \cos\!\left(\frac{p}{10000^{2i/d_{model}}}\right)</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+是 token
+位置,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+是维度下标,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mrow><mi>m</mi><mi>o</mi><mi>d</mi><mi>e</mi><mi>l</mi></mrow></msub><annotation encoding="application/x-tex">d_{model}</annotation></semantics></math>
+是 embedding 维度。(偶数维用 sin,奇数维用 cos。)</p>
+<h3 id="93-multi-head-attentions41s43">9.3 Multi-Head
+Attention(S41–S43)</h3>
+<p><strong>Scaled Dot-Product Attention(缩放点积注意力)</strong> 就是
+§8.3 那个公式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">softmax</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mfrac displaystyle="false"><mrow><mi>Q</mi><msup><mi>K</mi><mi>⊤</mi></msup></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">\text{softmax}(\tfrac{QK^\top}{\sqrt{d_k}})V</annotation></semantics></math>
+(S42)。<strong>Multi-head attention(多头注意力)</strong>
+则是<strong>并排放多个</strong>这样的注意力模块:</p>
+<ul>
+<li>先对 V、K、Q 各做一次线性变换(time-distributed dense,无激活);</li>
+<li>把它们<strong>切分 (split)</strong>,分发给多个
+<strong>head(头)</strong>,每个头是一个独立的 scaled dot-product
+attention;</li>
+<li>每个头把词表示投影到<strong>不同的子空间
+(subspace)</strong>,各自关注词的<strong>不同方面</strong>。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例("They played chess",S41)</strong> — 假设 encoder
+学到了这句话的属性:<code>They→代词(也是主语)</code>、<code>played→动词</code>、<code>chess→名词</code>。decoder
+解码完主语 "They"
+后,"决定"接下来要解一个<strong>动词</strong>:它就用一个
+<strong>query</strong> 去 encoding(这张"键–值字典")里<strong>查找
+key="verb" 对应的
+value</strong>。多头的意义在于:一个头可以专门盯<strong>名词</strong>、另一个盯<strong>动词</strong>、另一个盯<strong>指代关系</strong>……同时从多个角度理解句子。匹配靠
+<strong>scaled dot-product</strong>(快),所以多头既丰富又高效。</p>
+</blockquote>
+<h3 id="94-章末总结s44s45">9.4 章末总结(S44–S45)</h3>
+<p>slides 用两页做了<strong>核心信息</strong>收束,直接背:</p>
+<blockquote>
+<p><strong>Core message</strong> — 现代 NLP
+模型把<strong>离散的语言符号</strong>,变成<strong>语境化的数值表示</strong>,以支撑理解、生成、检索和序列到序列推理。具体:</p>
+<ol type="1">
+<li><strong>文本处理</strong>(标准化/分词/索引/向量化)把原始语言变成模型可读的输入;</li>
+<li><strong>Embedding</strong>
+用稠密的几何表示替代稀疏符号表示,捕捉语义关系;</li>
+<li><strong>静态 embedding 有局限</strong>——词义依赖语境;</li>
+<li><strong>Attention</strong> 计算 token/序列间的相关性,通过对 value
+的加权组合得到<strong>语境感知表示</strong>;</li>
+<li><strong>Transformer</strong> 让 attention 成为核心,组合
+self-attention、positional encoding、residual、layer
+norm、feed-forward、multi-head attention。</li>
+</ol>
+</blockquote>
+<blockquote>
+<p>⭐ <strong>Take-home(老师明确说"这是我要你记住的",S45)</strong> —
+<strong>A Transformer does not merely store word meanings; it
+dynamically constructs meaning from context.</strong>(Transformer
+不只是"存"词义,而是<strong>从语境动态地构造意义</strong>。)这句话能说清,本章的灵魂就抓住了。</p>
+</blockquote>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — Transformer =
+encoder–decoder、可堆叠、扔掉 RNN/卷积、只靠
+attention。关键件:<strong>self-attention + positional
+encoding(sin/cos,补顺序)+ multi-head(多子空间)+ scaled dot-product +
+residual &amp; layer norm +
+feed-forward</strong>。一句话:它从语境<strong>动态构造</strong>意义。</p>
+</blockquote>
+<hr />
+<h2 id="10-补充知识appendix锦上添花">§10
+补充知识(Appendix,锦上添花)</h2>
+<p>slide 46 起是 <strong>supplementary / backup</strong>
+材料。老师说"读一读,挺好的",但属于扩展。下面浓缩成几张表备查。</p>
+<p><strong>Attention 变体 (S47)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>变体</th>
+<th>核心思想</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Additive attention</strong></td>
+<td>用一个小神经评分函数比较 decoder 状态与 encoder 输出(Bahdanau)</td>
+</tr>
+<tr class="even">
+<td><strong>Scaled dot-product</strong></td>
+<td>query–key 相似度 /
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><annotation encoding="application/x-tex">\sqrt{d_k}</annotation></semantics></math>,再
+softmax</td>
+</tr>
+<tr class="odd">
+<td><strong>Self-attention</strong></td>
+<td>Q、K、V 来自<strong>同一</strong>序列</td>
+</tr>
+<tr class="even">
+<td><strong>Cross-attention</strong></td>
+<td>Q 来自一个序列,K、V 来自<strong>另一个</strong>序列</td>
+</tr>
+<tr class="odd">
+<td><strong>Local attention</strong></td>
+<td>只在邻域/窗口内做注意力,省算</td>
+</tr>
+<tr class="even">
+<td><strong>Multi-head attention</strong></td>
+<td>在多个学到的子空间里并行做注意力</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Self-attention vs Cross-attention (S48)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>Self-attention</th>
+<th>Cross-attention</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>投影</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>Q</mi></msup><mo>,</mo><mspace width="0.278em"></mspace><mi>K</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>K</mi></msup><mo>,</mo><mspace width="0.278em"></mspace><mi>V</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>V</mi></msup></mrow><annotation encoding="application/x-tex">Q=XW^Q,\;K=XW^K,\;V=XW^V</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mi>Y</mi><msup><mi>W</mi><mi>Q</mi></msup><mo>,</mo><mspace width="0.278em"></mspace><mi>K</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>K</mi></msup><mo>,</mo><mspace width="0.278em"></mspace><mi>V</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>V</mi></msup></mrow><annotation encoding="application/x-tex">Q=YW^Q,\;K=XW^K,\;V=XW^V</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>Q 来源</td>
+<td>同一序列</td>
+<td>decoder 表示
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>K、V 来源</td>
+<td>同一序列</td>
+<td>encoder 输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>问的问题</td>
+<td>"本序列里 token 之间该如何关联?"</td>
+<td>"输入的哪些部分与当前输出步相关?"</td>
+</tr>
+<tr class="odd">
+<td>用在</td>
+<td>encoder block、decoder 的 masked self-attention</td>
+<td>生成"以输入为条件"的输出时</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Transformer 家族 (S49)</strong>——这张很实用:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>家族</th>
+<th>结构</th>
+<th>典型用途</th>
+<th>代表</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Encoder-only</strong></td>
+<td>只用 encoder block 产生输入的语境表示</td>
+<td>分类、标注、检索 embedding、表示学习</td>
+<td><strong>BERT</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Decoder-only</strong></td>
+<td>masked self-attention,每个位置只看之前的位置</td>
+<td><strong>自回归文本生成</strong>、对话语言建模</td>
+<td><strong>GPT</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Encoder–decoder</strong></td>
+<td>encoder 处理输入,decoder 用 self- + cross-attention 生成输出</td>
+<td>翻译、摘要、看图说话、条件生成</td>
+<td>原始 Transformer</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 一句话记住</strong> — 原始 Transformer 是
+encoder–decoder;但现代系统<strong>按任务三选一</strong>:要"理解"用
+encoder-only(BERT),要"生成"用 decoder-only(GPT),要"转换"(翻译/摘要)用
+encoder–decoder。</p>
+</blockquote>
+<p><strong>Attention Masks(掩码,S50)</strong>:有时要在 softmax
+<strong>之前</strong>屏蔽某些 token 间的交互:</p>
+<ul>
+<li><strong>Padding mask</strong>:不让模型注意人工填充的
+<code>&lt;pad&gt;</code>;</li>
+<li><strong>Causal mask</strong>:不让 decoder
+生成时偷看<strong>未来</strong> token(保证自回归的因果性);</li>
+<li><strong>Cross-attention mask</strong>:限制每个输出 token
+能看到哪些源 token。</li>
+</ul>
+<p>实现:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">Attention</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>Q</mi><mo>,</mo><mi>K</mi><mo>,</mo><mi>V</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mtext mathvariant="normal">softmax</mtext><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mfrac displaystyle="false"><mrow><mi>Q</mi><msup><mi>K</mi><mi>⊤</mi></msup><mo>+</mo><mi>M</mi></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">\text{Attention}(Q,K,V) = \text{softmax}\!\big(\tfrac{QK^\top + M}{\sqrt{d_k}}\big)V</annotation></semantics></math>,其中掩码矩阵
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+在要屏蔽的位置填一个<strong>很大的负数</strong>,softmax
+后那里的权重≈0。</p>
+<p><strong>RAG(Retrieval-Augmented
+Generation,检索增强生成,S52–S53)</strong>:把语言模型和外部检索系统结合,让答案能<strong>落到检索到的证据上</strong>。流程:文档
+→ 分块 (chunking) → embedding → 向量索引;query 也
+embedding,检索到相关上下文,再约束模型生成答案。老师点题:<strong>"把文本表示成向量"这同一个思想,贯穿了
+embedding、attention、语义检索和现代 LLM 应用。</strong></p>
+<hr />
+<h2 id="11-承上启下下一站是-representation-learningweek-10-预告">§11
+承上启下:下一站是 Representation Learning(Week 10 预告)</h2>
+<p>老师在课末顺势预告了下一大块——<strong>representation
+learning(表示学习)</strong>,理由很硬核:<strong>"如果你的特征不好,无论网络搭得多漂亮都没用"</strong>(garbage
+in, garbage out)。本周讲的 embedding
+其实就是表示学习的一种;下周会系统地讲:</p>
+<ul>
+<li><strong>PCA(主成分分析)</strong>:从协方差矩阵做特征分解,取最大特征值对应的特征向量做投影,实现"用更少维度装最多信息"的降维;</li>
+<li><strong>Autoencoder(自编码器)</strong>:漏斗状网络,中间有
+bottleneck,逼模型学出输入的压缩表示(可证明与 PCA / kernel PCA
+相关);</li>
+<li><strong>VAE(变分自编码器)</strong>:学一个<strong>分布</strong>,能用来<strong>生成</strong>数据;</li>
+<li><strong>GAN(生成对抗网络)</strong>:生成以假乱真的数据;</li>
+<li><strong>GNN(图神经网络)</strong>:不仅表示每个节点,还表示<strong>节点之间的关系</strong>(老师举了反恐网络、社交关系、配餐等例子)。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 这些不在 Week 9 考核范围</strong> —
+以上是 Week 10/11 的内容,本周只需知道"embedding
+属于表示学习的一员、下周会深入"。真要预习,等下周的 slides 出来再说。</p>
+</blockquote>
+<hr />
+<h2 id="全章速览big-picture">全章速览(Big Picture)</h2>
+<pre class="mermaid"><code>graph LR
+  S[&quot;符号/信号&lt;br/&gt;(文本/语音/手语)&quot;] --&gt; N[&quot;数字化&lt;br/&gt;标准化+分词+向量化&quot;]
+  N --&gt; O[&quot;one-hot&lt;br/&gt;稀疏·无语义&quot;]
+  O --&gt; E[&quot;embedding&lt;br/&gt;稠密·有语义·但静态&quot;]
+  E --&gt; R[&quot;RNN seq2seq&lt;br/&gt;+ 双向/beam search 补丁&quot;]
+  R --&gt; A[&quot;attention&lt;br/&gt;动态语境 (Q/K/V)&quot;]
+  A --&gt; T[&quot;Transformer&lt;br/&gt;从语境动态构造意义&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>概念</th>
+<th>一句话抓住它</th>
+<th>关键公式/记号</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Standardization</td>
+<td>去无关差异,看任务决定小写/标点</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td>Tokenization</td>
+<td>切成 token:word/n-gram/char/subword</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td>One-hot</td>
+<td>一个 1 的长向量;稀疏、无语义</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>→</mo><msub><mi>e</mi><mi>i</mi></msub><mo>∈</mo><mo stretchy="false" form="prefix">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><msup><mo stretchy="false" form="postfix">}</mo><mi>N</mi></msup></mrow><annotation encoding="application/x-tex">i \to e_i \in \{0,1\}^N</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>Word embedding</td>
+<td>稠密几何空间,语义近则向量近</td>
+<td><code>king+woman−man≈queen</code></td>
+</tr>
+<tr class="odd">
+<td>Static embedding 缺陷</td>
+<td>一词一向量,无法区分 station 三义</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td>RNN encoder–decoder</td>
+<td>压成一个状态再解码;倒序输入、目标右移</td>
+<td>softmax 选词</td>
+</tr>
+<tr class="odd">
+<td>Bidirectional RNN</td>
+<td>双向读+拼接,绕开因果(queen 消歧)</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td>Beam search</td>
+<td>留
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个候选纠错;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>=beam
+width;贵</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><strong>Attention</strong></td>
+<td>动态算两两相关,聚焦关键(可微查表)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">softmax</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mfrac displaystyle="false"><mrow><mi>Q</mi><msup><mi>K</mi><mi>⊤</mi></msup></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mi>V</mi></mrow><annotation encoding="application/x-tex">\text{softmax}(\tfrac{QK^\top}{\sqrt{d_k}})V</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>Q / K / V</td>
+<td>找什么 / 拿什么匹配 / 返回什么</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>Q</mi></msup><mo>,</mo><mi>K</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>K</mi></msup><mo>,</mo><mi>V</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>V</mi></msup></mrow><annotation encoding="application/x-tex">Q=XW^Q,K=XW^K,V=XW^V</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><annotation encoding="application/x-tex">\sqrt{d_k}</annotation></semantics></math></td>
+<td>temperature,控制聚焦尖锐度</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td>Alignment</td>
+<td>打分 dot/general/concat;加性 vs 乘性</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi><mo>=</mo><msup><mi>h</mi><mi>⊤</mi></msup><mi>y</mi></mrow><annotation encoding="application/x-tex">e=h^\top y</annotation></semantics></math>
+/
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>h</mi><mi>⊤</mi></msup><mi>W</mi><mi>y</mi></mrow><annotation encoding="application/x-tex">h^\top Wy</annotation></semantics></math>
+/
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>v</mi><mi>⊤</mi></msup><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">v^\top\tanh(\cdot)</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>Positional encoding</td>
+<td>把顺序补回来(dog bites man)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>z</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><msub><mi>p</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">z_i=x_i+p_i</annotation></semantics></math>;sin/cos</td>
+</tr>
+<tr class="even">
+<td>Multi-head</td>
+<td>多子空间并行,各盯一个方面</td>
+<td>多个 scaled dot-product</td>
+</tr>
+<tr class="odd">
+<td>Transformer</td>
+<td>扔掉 RNN/卷积,attention 为核</td>
+<td>self-attn+PE+MHA+残差+LN+FFN</td>
+</tr>
+<tr class="even">
+<td>Families</td>
+<td>理解用 encoder(BERT)/生成用 decoder(GPT)/转换用两者</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>⭐ <strong>考试视角的提醒</strong> — 本课程考试是<strong>3
+小时手写、可带 1 张 A4 cheat
+sheet</strong>。本章公式(attention、positional
+encoding、对齐三式)<strong>要能写出并解读含义</strong>,但一般<strong>不要求推导</strong>。最该烂熟于心的:①
+attention 核心公式及 Q/K/V 含义;② static embedding 为什么不够(station);③
+Transformer 的关键组件;④ "从语境动态构造意义"这句
+take-home。把这些写进你的 A4 小抄正好。</p>
+</blockquote>
+<hr />
+<p><em>本笔记基于 <code>Week9_text_processing.pdf</code>(54 页,Chollet
+2021 Chp.11.4 + Géron 2023)与
+<code>CSCI933_Week9-transcript.txt</code>(讲师 = SPEAKER
+1)融合而成;录音中 SPEAKER 0 多为背景噪声/ASR 误识,已剔除。标 📎 处为超出
+slides 的补充,标 ⭐ 处为考点提示。</em></p>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

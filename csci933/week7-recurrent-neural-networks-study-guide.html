@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 7 · 循环神经网络 (Recurrent Neural Networks, RNN)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-7--循环神经网络-recurrent-neural-networks-rnn">Week 7 ·
+循环神经网络 (Recurrent Neural Networks, RNN)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>解释什么是<strong>序列 / 时间序列数据 (sequence / time-series
+data)</strong>,并说出它与图像这类 2D 数据的本质区别</li>
+<li>用自己的话讲清 RNN 的核心思想:<strong>隐藏状态 (hidden
+state)</strong> 如何充当"记忆",以及为什么"同一个盒子反复使用"</li>
+<li>写出 vanilla RNN 的递推公式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>W</mi><mrow><mi>h</mi><mi>h</mi></mrow></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mrow><mi>x</mi><mi>h</mi></mrow></msub><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_t = \tanh(W_{hh}h_{t-1}+W_{xh}x_t)</annotation></semantics></math>,并说明每个符号的含义</li>
+<li>区分 RNN 的五种输入输出形态 (one-to-one / one-to-many / many-to-one
+/ many-to-many / seq2seq),并把每种对应到一个真实任务</li>
+<li>解释 <strong>BPTT (时间反向传播)</strong>
+是什么,以及为什么长序列会带来<strong>梯度爆炸 (exploding
+gradient)</strong> 和<strong>梯度消失 (vanishing gradient)</strong></li>
+<li>描述 <strong>LSTM</strong> 与 <strong>GRU</strong> 如何用"门
+(gate)"机制解决遗忘问题,以及两者的区别</li>
+<li>说出 RNN/LSTM/GRU 的能力边界,以及它为什么最终把接力棒交给了
+Transformer</li>
+</ul>
+</blockquote>
+<p>到目前为止,我们处理的数据都是"一次性"的:一张图片、一个特征向量,输进网络、得到一个输出,彼此之间没有先后关系。但现实里有一大类数据天生带着<strong>时间</strong>或<strong>顺序</strong>:股价一天天变、句子一个词接一个词、视频一帧接一帧。这类数据如果还硬塞进普通的前馈网络(MLP/CNN),就丢掉了它最值钱的信息——<strong>顺序</strong>。本章要回答的核心问题是:<strong>当数据是一条"序列"时,我们该设计一个什么样的网络去处理它?</strong>
+答案就是循环神经网络 (RNN),以及它的两个改良版 LSTM 和 GRU。</p>
+<hr />
+<h2 id="1-从一条序列说起什么是时间序列数据">1.
+从一条序列说起:什么是时间序列数据</h2>
+<p>讲这一切之前,先得弄清我们面对的是什么数据。<strong>时间序列数据
+(time-series data)</strong>,也叫<strong>序列数据 (sequence
+data)</strong>,指的是<strong>按固定间隔反复测量同一个量</strong>而得到的一串数据。老师在课上给的直观例子是:你在校园某个固定地点架一个温度计,每隔
+10 分钟记一次温度,连记三年——你就得到了一条温度的时间序列。</p>
+<p>这样的数据无处不在:</p>
+<ul>
+<li>股票每天的收盘价 (daily price of a stock)</li>
+<li>每小时的用电量 (hourly electricity consumption)</li>
+<li>商店每周的销售额 (weekly sales of a store)</li>
+<li>地震活动 (seismic activity)</li>
+<li>河流中鱼群数量的演化 (fish population)</li>
+<li>人类的活动模式 (human activity patterns)</li>
+</ul>
+<h3 id="11-它和图像那种-2d-数据差在哪">1.1 它和图像那种 2D
+数据差在哪?</h3>
+<p>老师专门停下来问了这个问题,因为这是理解整章的钥匙。一张<strong>图片是一个"快照
+(snapshot)"</strong>:它在二维平面上变化(这里一块亮、那里一块暗),但它<strong>没有"时间"这个维度</strong>——它是"一下子"全给你的。而温度序列不同:今天测一次、下周同一天再测一次,<strong>我们把"时间"加进去了</strong>。一旦带上时间,数据点之间就有了"谁在前、谁在后"的关系,而这正是要去利用的结构。</p>
+<h3 id="12-为什么序列可以被预测缓慢演化">1.2
+为什么序列可以被"预测":缓慢演化</h3>
+<p>老师给了一个非常朴素但深刻的直觉:<strong>自然界的演化通常是缓慢的
+(slow
+evolution)</strong>。除非发生"灾难性事件"(catastrophe),否则事物不会突变。昨天
+21°C,今天大概率还是 21°C 上下,而不会突然跳到
+-5°C。正因为变化缓慢,<strong>未来才是可预测的</strong>——如果一切都在剧烈乱跳,预测就无从谈起。</p>
+<p>把这个直觉写成数学,就是最简单的<strong>自回归
+(autoregressive)</strong>
+想法:当前时刻的值,约等于上一时刻的值加一点点扰动(噪声):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>=</mo><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mtext mathvariant="normal">noise</mtext></mrow><annotation encoding="application/x-tex">x_t = x_{t-1} + \text{noise}</annotation></semantics></math></p>
+<blockquote>
+<p><strong>🔑 例 (老师的温度例子)</strong> — 昨天 21°C,你猜今天
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>21</mn><mo>+</mo><mn>0.5</mn><mo>=</mo><mn>21.5</mn></mrow><annotation encoding="application/x-tex">21 + 0.5 = 21.5</annotation></semantics></math>°C;实测
+21.3°C。误差很小,这个"上下浮动一点点"的模型就抓住了序列的精髓。</p>
+</blockquote>
+<p>更一般地,当前值可能依赖<strong>好几步之前</strong>的历史:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>=</mo><msub><mi>α</mi><mn>1</mn></msub><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>α</mi><mn>2</mn></msub><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>2</mn></mrow></msub><mo>+</mo><msub><mi>α</mi><mn>3</mn></msub><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>3</mn></mrow></msub><mo>+</mo><mi>⋯</mi><mo>+</mo><msub><mi>α</mi><mi>n</mi></msub><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mi>n</mi></mrow></msub></mrow><annotation encoding="application/x-tex">x_t = \alpha_1 x_{t-1} + \alpha_2 x_{t-2} + \alpha_3 x_{t-3} + \cdots + \alpha_n x_{t-n}</annotation></semantics></math></p>
+<p>老师写下这个式子后立刻抛出一个关键问题:<strong>"我到底要往回看多远?(How
+far back do I go?)"</strong>
+——这正是后面"记忆有多长"这个核心难题的伏笔。要记住越久远的历史,就需要越长的"记忆",而记忆一长,麻烦就来了(见
+§6)。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 上面这个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>=</mo><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>α</mi><mi>i</mi></msub><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mi>i</mi></mrow></msub></mrow><annotation encoding="application/x-tex">x_t=\sum_i \alpha_i x_{t-i}</annotation></semantics></math>
+是信号处理里的 <strong>AR(自回归)模型</strong>。slides
+没有写它,但老师在课上用它来引出"记忆长度"这个贯穿全章的难题,所以值得记一笔。它告诉你:序列预测本质上是"用过去预测现在"。</p>
+</blockquote>
+<h3 id="13-序列数据的几个特征">1.3 序列数据的几个特征</h3>
+<p>把上面的直觉整理成正式特征(slides 第 4 页):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>特征</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>每个数据点 (data point)</strong></td>
+<td>是一串向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></msup><annotation encoding="application/x-tex">x^{(t)}</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>≤</mo><mi>t</mi><mo>≤</mo><mi>τ</mi></mrow><annotation encoding="application/x-tex">1 \le t \le \tau</annotation></semantics></math>。即一条序列本身就是一个样本</td>
+</tr>
+<tr class="even">
+<td><strong>长度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math>
+(tau)</strong></td>
+<td>序列是<strong>有限</strong>的;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math>
+是终点。不同序列的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math>
+可以不一样</td>
+</tr>
+<tr class="odd">
+<td><strong>批数据 (batch data)</strong></td>
+<td>许多条<strong>长度不同</strong>的序列放在一起训练</td>
+</tr>
+<tr class="even">
+<td><strong>标签 (label)</strong></td>
+<td>可以是一个标量、一个向量,<strong>甚至是另一条序列</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>周期性 (cyclic)</strong></td>
+<td>序列常带周期规律(老师的例子:商店 6
+月年中大促、夏天租自行车的人多)</td>
+</tr>
+</tbody>
+</table></div>
+<p>最后一栏的"标签可以是序列"很重要,它直接决定了 RNN
+能干多少种任务。</p>
+<h3 id="14-序列任务动物园">1.4 序列任务动物园</h3>
+<p>正因为输入和输出都可以是"序列",RNN 能覆盖一大批看似不相干的任务:</p>
+<pre class="mermaid"><code>graph LR
+  A[输入是序列?] --&gt; B[情感分析&lt;br/&gt;Sentiment analysis&lt;br/&gt;一句话 → 正/负]
+  A --&gt; C[机器翻译&lt;br/&gt;Machine translation&lt;br/&gt;一种语言序列 → 另一种语言序列]
+  A --&gt; D[图像描述&lt;br/&gt;Image captioning&lt;br/&gt;一张图 → 一句话]
+  A --&gt; E[视频分类/描述&lt;br/&gt;视频帧序列 → 类别/字幕]</code></pre>
+<ul>
+<li><strong>机器翻译 (machine
+translation)</strong>:把一种语言的词序列翻成另一种语言的词序列。老师强调:之所以当作"序列"处理,是因为语言有<strong>语法和顺序</strong>——比如英文里看到字母
+<code>Q</code>,几乎可以肯定下一个是 <code>U</code>,而几乎不会是
+<code>A</code> 或
+<code>T</code>。这种"前面决定后面"的依赖,正是序列模型要抓的东西。</li>
+<li><strong>图像描述 (image
+captioning)</strong>:把图片的不同部分看成一种"序列",再生成一句描述文字。这是"图
+→ 词序列"的转换(你用 ChatGPT 让它描述一张图,背后就是这类能力)。</li>
+</ul>
+<p><strong>小结</strong>:序列数据 = 普通数据 +
+时间/顺序维度;因为自然演化缓慢,序列可预测;输入输出都可以是序列,所以任务形态非常丰富。下一步的问题是:用什么网络结构才能"边读边记"地处理它?</p>
+<hr />
+<h2 id="2-rnn-的核心思想一个带记忆的循环">2. RNN
+的核心思想:一个带记忆的循环</h2>
+<h3 id="21-从人脑借来的直觉">2.1 从人脑借来的直觉</h3>
+<p>slides
+开篇就点明了灵感来源:<strong>生物智能是"增量式"处理信息的</strong>——它一边读,一边在脑子里维护一个"目前为止理解到了什么"的内部模型,新信息一来就更新它。RNN
+就是这个原理的一个<strong>极度简化版</strong>。</p>
+<p>老师用"读书"做了个绝妙的类比:你读一页书,<strong>并不是一个字一个字孤立地读</strong>的,你的大脑会把刚读过的大约四五个词暂存在<strong>短期记忆
+(short-term memory)</strong>
+里,这样你才能理解整句话的意思,并预判下一个词。如果没有这点记忆,每个词都是孤立的,整句话就成了乱码。</p>
+<p><strong>这个"暂存的短期记忆",在 RNN 里就叫隐藏状态 (hidden state)
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>。</strong></p>
+<h3 id="22-核心机制循环与状态更新">2.2 核心机制:循环与状态更新</h3>
+<p>普通前馈网络是一条直线:输入 → 隐层 → 输出,信息只往前走。<strong>RNN
+的不同之处在于它有一个"内部循环 (internal
+loop)"</strong>:每读入一个新元素,它就把"当前输入"和"上一步留下的状态"揉在一起,产生新的状态和输出。</p>
+<p>用文字说就是两步(slides 第 18–19 页):</p>
+<ol type="1">
+<li><strong>更新状态</strong>:新状态 = 某个函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>W</mi></msub><annotation encoding="application/x-tex">f_W</annotation></semantics></math>
+作用于(旧状态,当前输入)</li>
+<li><strong>产生输出</strong>:输出 = 另一个函数作用于(新状态)</li>
+</ol>
+<p>写成公式:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><menclose notation="box"><mrow><mspace width="0.167em"></mspace><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>f</mi><mi>W</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><mspace width="0.167em"></mspace><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace></mrow></menclose><mspace width="2.0em"></mspace><msub><mi>y</mi><mi>t</mi></msub><mo>=</mo><msub><mi>f</mi><msub><mi>W</mi><mi>o</mi></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\boxed{\,h_t = f_W(h_{t-1},\, x_t)\,} \qquad y_t = f_{W_o}(h_t)</annotation></semantics></math></p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>t</mi></msub><annotation encoding="application/x-tex">x_t</annotation></semantics></math>:第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+步的输入(比如第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+个词)</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">h_{t-1}</annotation></semantics></math>:上一步的隐藏状态,也就是"截至上一步的记忆"</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mi>t</mi></msub><annotation encoding="application/x-tex">h_t</annotation></semantics></math>:更新后的新状态</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>t</mi></msub><annotation encoding="application/x-tex">y_t</annotation></semantics></math>:第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+步的输出</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>W</mi></msub><annotation encoding="application/x-tex">f_W</annotation></semantics></math>:带参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+的状态更新函数;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><msub><mi>W</mi><mi>o</mi></msub></msub><annotation encoding="application/x-tex">f_{W_o}</annotation></semantics></math>:带参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>W</mi><mi>o</mi></msub><annotation encoding="application/x-tex">W_o</annotation></semantics></math>
+的输出函数</li>
+</ul>
+<p>老师反复强调一句话来锚定这个图景:<strong>"那个黄盒子(RNN
+cell)本身是不变的,变的是状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>。"</strong>
+你看到的"展开图"里有好几个盒子,但它们<strong>是同一个盒子在不同时刻的快照</strong>——参数完全一样,只是喂进去的状态和输入在变。</p>
+<h3 id="23-把循环展开-unroll">2.3 把循环"展开 (unroll)"</h3>
+<p>那个内部循环画成图不直观,所以我们把它<strong>沿时间展开
+(unrolled)</strong>:一步画一个 cell,状态像接力棒一样从左传到右。</p>
+<pre class="mermaid"><code>graph LR
+  h0((h₀)) --&gt; C1[RNN cell]
+  x1([x₁]) --&gt; C1
+  C1 --&gt; y1([y₁])
+  C1 --&gt;|h₁| C2[RNN cell]
+  x2([x₂]) --&gt; C2
+  C2 --&gt; y2([y₂])
+  C2 --&gt;|h₂| C3[RNN cell]
+  x3([x₃]) --&gt; C3
+  C3 --&gt; y3([y₃])
+  C3 --&gt;|h₃| Cd[ ... ]</code></pre>
+<p>读图要点:状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>
+横向流动(这就是"记忆"在时间上的传递),每一步既吐出一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>t</mi></msub><annotation encoding="application/x-tex">y_t</annotation></semantics></math>,又把更新后的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mi>t</mi></msub><annotation encoding="application/x-tex">h_t</annotation></semantics></math>
+传给下一步。</p>
+<h3 id="24-最关键的一点参数共享-parameter-sharing">2.4
+最关键的一点:参数共享 (parameter sharing)</h3>
+<p>这是整章最容易被忽略、却最重要的考点:<strong>展开图里每一个 cell
+用的是同一套参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>。</strong>(slides
+第 21、26 页用大字强调:"the same function and the same set of parameters
+are used at every time step.")</p>
+<p>为什么这点至关重要?</p>
+<ul>
+<li><strong>它让网络能处理任意长度的序列</strong>——不管来 3 个词还是 300
+个词,都是同一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+反复用,参数量不随序列变长而膨胀。</li>
+<li><strong>训练时,这一套共享的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+要从所有时间步的误差里一起学</strong>,这正是后面 BPTT(§5)的由来。</li>
+</ul>
+<h3 id="25-具体化vanilla--elman-rnn">2.5 具体化:Vanilla / Elman RNN</h3>
+<p>到此
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>W</mi></msub><annotation encoding="application/x-tex">f_W</annotation></semantics></math>
+还是个抽象函数。最简单的实现——<strong>vanilla RNN</strong>(也叫
+<strong>Elman RNN</strong>,得名于 Jeffrey Elman
+教授)——把状态取成一个隐藏向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>,更新规则是:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mo>tanh</mo><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>W</mi><mrow><mi>h</mi><mi>h</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mrow><mi>x</mi><mi>h</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>x</mi><mi>t</mi></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">h_t = \tanh\!\big(W_{hh}\,h_{t-1} + W_{xh}\,x_t\big)</annotation></semantics></math>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>t</mi></msub><mo>=</mo><msub><mi>W</mi><mrow><mi>h</mi><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>h</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">y_t = W_{hy}\,h_t</annotation></semantics></math></p>
+<p>逐符号读一遍(这是"把公式读出声"的关键):</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>W</mi><mrow><mi>x</mi><mi>h</mi></mrow></msub><annotation encoding="application/x-tex">W_{xh}</annotation></semantics></math>:把<strong>输入</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>t</mi></msub><annotation encoding="application/x-tex">x_t</annotation></semantics></math>
+投影到隐藏空间的权重矩阵</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>W</mi><mrow><mi>h</mi><mi>h</mi></mrow></msub><annotation encoding="application/x-tex">W_{hh}</annotation></semantics></math>:把<strong>上一时刻状态</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">h_{t-1}</annotation></semantics></math>
+投影到隐藏空间的权重矩阵——"记忆怎么往下传"全靠它</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>W</mi><mrow><mi>h</mi><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">W_{hy}</annotation></semantics></math>:把当前状态映射成输出的权重矩阵</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>:<strong>双曲正切</strong>激活函数,把结果压到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(-1, 1)</annotation></semantics></math>,给网络加非线性</li>
+</ul>
+<p>整句话的意思是:<strong>"把上一刻的记忆和这一刻的输入各自加权、相加、再用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>
+压一下,就得到新的记忆;再从新记忆里读出这一步的输出。"</strong></p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 为什么这里偏偏用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>
+而不是 CNN 里常见的 ReLU?老师在 §6
+给了答案:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>
+是<strong>饱和型 (saturating)</strong> 函数,输出被夹在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(-1,1)</annotation></semantics></math>,能在一定程度上抑制状态在时间上反复相乘时数值爆炸。这也是"为什么
+RNN 默认用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>"的原因。</p>
+</blockquote>
+<h3 id="26-一句话就能写出来kerastensorflow-实现">2.6
+一句话就能写出来:Keras/TensorFlow 实现</h3>
+<p>老师特意要"祛魅":别被公式和图吓到,<strong>真写起来通常就一行</strong>。</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 单个 RNN 单元</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> keras.models.Sequential([</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    keras.layers.SimpleRNN(<span class="dv">1</span>, input_shape<span class="op">=</span>[<span class="va">None</span>, <span class="dv">1</span>])</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 多层堆叠的 RNN</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> keras.models.Sequential([</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    keras.layers.SimpleRNN(<span class="dv">20</span>, return_sequences<span class="op">=</span><span class="va">True</span>, input_shape<span class="op">=</span>[<span class="va">None</span>, <span class="dv">1</span>]),</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    keras.layers.SimpleRNN(<span class="dv">20</span>, return_sequences<span class="op">=</span><span class="va">True</span>),</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    keras.layers.SimpleRNN(<span class="dv">1</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>])</span></code></pre></div>
+<p>注意
+<code>return_sequences=True</code>:它让这一层在<strong>每个时间步都输出</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mi>t</mi></msub><annotation encoding="application/x-tex">h_t</annotation></semantics></math>(供下一层继续按时间处理),而不是只输出最后一步——堆叠
+RNN
+时,除了最后一层,前面各层都要打开它。<code>input_shape=[None, 1]</code>
+里的 <code>None</code> 表示"序列长度不固定",正好呼应 §2.4
+的参数共享。</p>
+<p><strong>小结</strong>:RNN = 一个反复使用的 cell +
+一个横向流动的隐藏状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>
+是"记忆",每步用同一套参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+把(旧记忆,
+新输入)更新成(新记忆),再读出输出。理解了这个,后面全是它的变形。</p>
+<hr />
+<h2 id="3-rnn-的五种输入输出形态">3. RNN 的五种输入输出形态</h2>
+<p>RNN
+真正的威力在于:输入和输出的"长度"可以自由搭配。slides(借自斯坦福李飞飞团队的经典图)把它归纳成五种形态。把每一种对应到一个真实任务,就记得牢:</p>
+<pre class="mermaid"><code>graph TB
+  subgraph 五种形态
+  A[&quot;one-to-one&lt;br/&gt;一对一&quot;] -.-&gt; A1[&quot;普通分类&lt;br/&gt;(其实就是退化的前馈网络)&quot;]
+  B[&quot;one-to-many&lt;br/&gt;一对多&quot;] -.-&gt; B1[&quot;图像描述&lt;br/&gt;一张图 → 一句话&quot;]
+  C[&quot;many-to-one&lt;br/&gt;多对一&quot;] -.-&gt; C1[&quot;情感分析 / 动作识别&lt;br/&gt;一句话/一段视频 → 一个类别&quot;]
+  D[&quot;many-to-many (对齐)&lt;br/&gt;多对多&quot;] -.-&gt; D1[&quot;视频逐帧分类&lt;br/&gt;每帧都给一个标签&quot;]
+  E[&quot;many-to-many (seq2seq)&lt;br/&gt;多对多,不等长&quot;] -.-&gt; E1[&quot;机器翻译&lt;br/&gt;读完整句再逐词翻译&quot;]
+  end</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>形态</th>
+<th>输入</th>
+<th>输出</th>
+<th>典型任务</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>one-to-one</strong></td>
+<td>单个</td>
+<td>单个</td>
+<td>普通分类(无序列性,退化情形)</td>
+</tr>
+<tr class="even">
+<td><strong>one-to-many</strong></td>
+<td>单个</td>
+<td>序列</td>
+<td>图像描述 (image captioning)</td>
+</tr>
+<tr class="odd">
+<td><strong>many-to-one</strong></td>
+<td>序列</td>
+<td>单个</td>
+<td>情感分析、视频动作识别 (action prediction)</td>
+</tr>
+<tr class="even">
+<td><strong>many-to-many(对齐)</strong></td>
+<td>序列</td>
+<td>等长序列</td>
+<td>视频逐帧分类、逐帧打标签</td>
+</tr>
+<tr class="odd">
+<td><strong>many-to-many(seq2seq)</strong></td>
+<td>序列</td>
+<td>不等长序列</td>
+<td>机器翻译</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="31-几个形态的实现要点">3.1 几个形态的实现要点</h3>
+<ul>
+<li><strong>one-to-many</strong>(slides 第 32–35
+页):只有一个输入,却要吐出一串输出。做法是把<strong>上一步的输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">y_{t-1}</annotation></semantics></math>
+当作下一步的输入</strong>喂回去,这样网络就能自己"接着往下写"。</li>
+<li><strong>seq2seq = many-to-one + one-to-many</strong>(slides 第 36–37
+页):这是机器翻译的经典结构,分两段——
+<ul>
+<li><strong>编码器 (encoder)</strong>:用 many-to-one
+把整个输入句子"压缩"进一个状态向量(读完全句,形成对整句的理解);</li>
+<li><strong>解码器 (decoder)</strong>:用 one-to-many
+从这个向量出发,逐词生成译文。</li>
+<li>老师的直觉:<strong>翻译要先读完整句、理解了,再开口翻</strong>,而不是看一个词翻一个词——这正是
+encoder-decoder 结构的动机。</li>
+</ul></li>
+</ul>
+<pre class="mermaid"><code>graph LR
+  subgraph Encoder 编码器 · many-to-one
+  x1([我]) --&gt; e1[RNN]
+  e1 --&gt; e2[RNN]
+  x2([爱]) --&gt; e2
+  e2 --&gt; e3[RNN]
+  x3([你]) --&gt; e3
+  end
+  e3 --&gt;|上下文向量 context| d1[RNN]
+  subgraph Decoder 解码器 · one-to-many
+  d1 --&gt; y1([I])
+  d1 --&gt; d2[RNN]
+  d2 --&gt; y2([love])
+  d2 --&gt; d3[RNN]
+  d3 --&gt; y3([you])
+  end</code></pre>
+<p><strong>小结</strong>:同一个 RNN
+机制,靠"输入/输出哪头是序列"的不同组合,就能覆盖分类、生成、翻译等截然不同的任务。seq2seq
+的"编码-解码"是其中最重要的一种,后面 Transformer 也沿用了这个框架。</p>
+<hr />
+<h2 id="4-如何训练-rnn时间反向传播-bptt">4. 如何训练 RNN:时间反向传播
+(BPTT)</h2>
+<p>会"前向跑"还不够,得能<strong>学</strong>。RNN
+的训练用的是<strong>时间反向传播 (Backpropagation Through Time,
+BPTT)</strong>。</p>
+<p>别被名字唬住——老师明确说了<strong>他不打算推导它</strong>,要的是你脑子里有这个"概念图景"。所谓反向传播,无论哪种网络,都只有<strong>两个部分</strong>:</p>
+<pre class="mermaid"><code>flowchart LR
+  A[&quot;前向传播&lt;br/&gt;Forward pass&lt;br/&gt;数据穿过网络 → 产生输出 ŷ&quot;] --&gt; B[&quot;和真实标签 y 比较&lt;br/&gt;→ 得到误差 (error)&quot;]
+  B --&gt; C[&quot;反向传播&lt;br/&gt;Backward pass&lt;br/&gt;用误差算梯度 → 修正权重 W&quot;]
+  C --&gt; A</code></pre>
+<ol type="1">
+<li><strong>前向传播 (forward
+pass)</strong>:数据穿过网络,生成一个输出;</li>
+<li>把输出和<strong>真实的目标</strong>对比,得到<strong>误差
+(error)</strong>;</li>
+<li><strong>反向传播 (backward
+pass)</strong>:用这个误差,反着算出"每个权重该往哪改"(梯度),并更新权重;</li>
+<li>再跑下一遍,如此循环。</li>
+</ol>
+<p><strong>BPTT 的特别之处</strong>仅仅在于:RNN
+是沿时间展开的,所以反向传播要<strong>穿过所有时间步</strong>往回走——一个长度为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math>
+的序列,误差要一路传回到第 1
+步。它本质上还是那个"前向+反向"的老套路,只不过"在时间上"展开了。<strong>也正因为要穿过这么多步,长序列才会出大问题——这就引出了下一节。</strong></p>
+<hr />
+<h2 id="5-rnn-的两大顽疾梯度爆炸与梯度消失">5. RNN
+的两大顽疾:梯度爆炸与梯度消失</h2>
+<p>这是 RNN 这一章的<strong>重中之重</strong>,也是 LSTM/GRU 乃至
+Transformer 存在的理由。问题的根源很简单:<strong>序列一长,BPTT
+要穿过的时间步就很多;梯度一路相乘传回去,要么越乘越大,要么越乘越小。</strong></p>
+<pre class="mermaid"><code>graph TD
+  L[&quot;长序列 + BPTT&lt;br/&gt;梯度穿过很多时间步连乘&quot;] --&gt; E[&quot;梯度爆炸&lt;br/&gt;Exploding gradient&quot;]
+  L --&gt; V[&quot;梯度消失 / 衰减&lt;br/&gt;Vanishing gradient&quot;]
+  E --&gt; E1[&quot;数值剧增 → 训练不稳定&lt;br/&gt;(instability)&quot;]
+  V --&gt; V1[&quot;越靠前的输入,影响越小&lt;br/&gt;→ &#39;忘掉&#39;序列开头&quot;]</code></pre>
+<h3 id="51-梯度爆炸-exploding-gradient">5.1 梯度爆炸 (exploding
+gradient)</h3>
+<p>梯度在反向传播中数值<strong>不断增大</strong>,导致训练<strong>不稳定
+(instability)</strong>——权重剧烈震荡,模型学不出来。</p>
+<h3 id="52-梯度消失--遗忘-vanishing-gradient--forgetting">5.2 梯度消失 /
+遗忘 (vanishing gradient / forgetting)</h3>
+<p>反过来,梯度<strong>越乘越小</strong>,小到趋近于零。后果是:<strong>序列开头的那些输入,对当前输出的贡献被压缩得几乎为零</strong>——网络"忘掉"了最早看到的信息。老师把它和"记忆"挂钩:你要记的东西越久远、网络越深,梯度就越小越小,<strong>小到一定程度就等于在遗忘</strong>。</p>
+<p>slides
+还补了一句机制层面的原因:<strong>数据每穿过一个时间步,都要经历一次变换,每次都会丢一点信息;走了很多步之后,状态里几乎不剩任何最初输入的痕迹了。</strong></p>
+<blockquote>
+<p><strong>🔑 为什么"遗忘"是致命的——老师的"bank"例子</strong> —
+读一个长句子,某个词的意思可能取决于很远之前的词。比如 "bank"
+到底指<strong>银行</strong>还是<strong>河岸</strong>?你得把句子前半段的语境一直记在脑子里,读到后面才能确定。这种"现在的理解依赖很久以前的信息",就叫<strong>长程依赖
+(long-term dependency)</strong>。普通 RNN
+因为会遗忘开头,处理不了这种依赖——这正是 LSTM 要解决的问题。</p>
+</blockquote>
+<h3 id="53-缓解手段一览">5.3 缓解手段一览</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>问题</th>
+<th>手段</th>
+<th>原理</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>通用</td>
+<td><strong>输入缩放 (input scaling)</strong> 到
+~<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,1]</annotation></semantics></math></td>
+<td>数值太大会让激活函数<strong>饱和、削顶
+(clip)</strong>,梯度传不动;神经网络在小数值上工作得更好</td>
+</tr>
+<tr class="even">
+<td>爆炸</td>
+<td><strong>更小的学习率 (smaller learning rate)</strong></td>
+<td>每步更新幅度小,降低数值失控的风险</td>
+</tr>
+<tr class="odd">
+<td>爆炸</td>
+<td><strong>饱和型激活函数 (saturating activation)</strong>,如
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math></td>
+<td>输出被夹在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(-1,1)</annotation></semantics></math>,这正是
+<strong>RNN 默认用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math></strong>
+的原因</td>
+</tr>
+<tr class="even">
+<td>爆炸</td>
+<td><strong>层归一化 (Layer Normalization)</strong></td>
+<td>每过一层就把数值归一化回一个标准范围,并学习一个 scale 和 offset
+参数</td>
+</tr>
+<tr class="odd">
+<td>遗忘</td>
+<td><strong>LSTM / GRU</strong>(下两节)</td>
+<td>用"门"机制显式地控制记忆的存、删、读</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+处理爆炸还有一个工业界最常用的招叫<strong>梯度裁剪 (gradient
+clipping)</strong>:梯度一旦超过阈值就按比例缩回去。slides
+没写它,但它和"smaller learning rate"是配套的常识,值得知道。</p>
+</blockquote>
+<p><strong>小结</strong>:长序列 + BPTT → 梯度连乘 →
+要么爆炸(不稳定)、要么消失(遗忘开头)。缩放输入、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>、层归一化能缓解爆炸;而"遗忘长程依赖"这个更棘手的病,要靠
+LSTM/GRU 的门控机制来治。</p>
+<hr />
+<h2 id="6-lstm给网络装上一条可控的记忆传送带">6.
+LSTM:给网络装上一条可控的"记忆传送带"</h2>
+<h3 id="61-它要解决什么">6.1 它要解决什么</h3>
+<p><strong>LSTM (Long Short-Term Memory,长短期记忆)</strong> 单元由
+Hochreiter 和 Schmidhuber 在 <strong>1997
+年</strong>提出,后来被不断改进。名字本身就是它的纲领:它维护一种"<strong>长的短期记忆</strong>"——比普通
+RNN 的短期记忆能撑得更久。它的好处是:</p>
+<ul>
+<li>用起来和普通 RNN cell 几乎一样(可以直接替换);</li>
+<li>表现更好、<strong>训练收敛更快</strong>;</li>
+<li><strong>能够捕捉数据里的长程依赖 (long-term
+dependencies)</strong>——也就是治好了 §5.2 那个"忘掉开头"的病。</li>
+</ul>
+<h3 id="62-核心思想学会存什么扔什么读什么">6.2
+核心思想:学会"存什么、扔什么、读什么"</h3>
+<p>LSTM 的灵魂(slides 第 40
+页)一句话:<strong>网络自己学习——该往长期记忆里存什么、该扔掉什么、该从里面读出什么。</strong>
+老师的比喻:<strong>信息在流动,有些重要、有些不重要;当某条信息变得不重要时,就把它丢掉,同时消化吸收新信息。</strong>
+这种"有选择地记和忘",就是用<strong>门 (gate)</strong> 实现的。</p>
+<h3 id="63-结构两条状态--三道门--一个候选">6.3 结构:两条状态 + 三道门 +
+一个候选</h3>
+<p>理解 LSTM,抓住"<strong>两条状态线</strong>"最关键:</p>
+<ul>
+<li><strong>长期状态 (long-term state)
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mi>t</mi></msub><annotation encoding="application/x-tex">c_t</annotation></semantics></math></strong>:这是一条贯穿始终的"记忆传送带",从左到右一路传下去。它受两道门调节——先经过<strong>遗忘门</strong>丢掉一些旧记忆,再由<strong>输入门</strong>添进一些新记忆。</li>
+<li><strong>短期状态 (short-term state)
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mi>t</mi></msub><annotation encoding="application/x-tex">h_t</annotation></semantics></math></strong>:也就是这一步的输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>t</mi></msub><annotation encoding="application/x-tex">y_t</annotation></semantics></math>。它由长期状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mi>t</mi></msub><annotation encoding="application/x-tex">c_t</annotation></semantics></math>
+经过
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>、再被<strong>输出门</strong>过滤后得到。</li>
+</ul>
+<p>每一步,当前输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>t</mi></msub><annotation encoding="application/x-tex">x_t</annotation></semantics></math>
+和上一步的短期状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">h_{t-1}</annotation></semantics></math>
+会一起喂给<strong>四个全连接层 (FC layers)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>组件</th>
+<th>符号</th>
+<th>激活函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>主层 (main layer)</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>g</mi><mi>t</mi></msub><annotation encoding="application/x-tex">g_t</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math></td>
+<td>分析当前输入和旧状态,产出"候选新记忆"</td>
+</tr>
+<tr class="even">
+<td><strong>遗忘门 (forget gate)</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>t</mi></msub><annotation encoding="application/x-tex">f_t</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+(logistic)</td>
+<td>控制<strong>长期状态的哪些部分该被抹掉</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>输入门 (input gate)</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>i</mi><mi>t</mi></msub><annotation encoding="application/x-tex">i_t</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+(logistic)</td>
+<td>控制
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>g</mi><mi>t</mi></msub><annotation encoding="application/x-tex">g_t</annotation></semantics></math>
+的哪些部分该<strong>加进</strong>长期状态</td>
+</tr>
+<tr class="even">
+<td><strong>输出门 (output gate)</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>o</mi><mi>t</mi></msub><annotation encoding="application/x-tex">o_t</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+(logistic)</td>
+<td>控制长期状态的哪些部分该被<strong>读出</strong>为这一步的输出</td>
+</tr>
+</tbody>
+</table></div>
+<p>为什么三道门都用 <strong>logistic (sigmoid)
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math></strong>?因为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+的输出在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,1]</annotation></semantics></math>
+之间,正好当"阀门开度":<strong>输出 0 = 关闭这道门(对应信息全砍掉),输出 1
+= 完全打开(信息全通过)</strong>。门的输出和记忆做<strong>逐元素相乘
+(element-wise multiplication,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>⊗</mo><annotation encoding="application/x-tex">\otimes</annotation></semantics></math>)</strong>,就实现了"按比例放行"。</p>
+<pre class="mermaid"><code>graph LR
+  c0[&quot;c_{t-1}&lt;br/&gt;长期记忆&quot;] --&gt;|⊗ 遗忘门 f| M1[&quot;丢掉部分旧记忆&quot;]
+  M1 --&gt;|+ 输入门 i ⊗ 候选 g| c1[&quot;c_t&lt;br/&gt;新长期记忆&quot;]
+  c1 --&gt;|tanh| T[&quot;tanh(c_t)&quot;]
+  T --&gt;|⊗ 输出门 o| h1[&quot;h_t = y_t&lt;br/&gt;这一步输出/短期记忆&quot;]
+  x[&quot;x_t&quot;] --&gt; G[&quot;四个 FC 层&lt;br/&gt;产出 i, f, o, g&quot;]
+  h0[&quot;h_{t-1}&quot;] --&gt; G
+  G -.-&gt; c1
+  G -.-&gt; h1</code></pre>
+<h3 id="64-计算公式">6.4 计算公式</h3>
+<blockquote>
+<p>⚠️ <strong>考试说明(老师原话)</strong> —
+老师明确说:<strong>不会要求你默写 LSTM/GRU
+的公式</strong>(考试是闭卷、在考场里一个人写,他不会问这种死记的题)。但你<strong>必须能描述它是怎么工作的</strong>——四道运算、三道门各管什么。下面的公式放在你那张
+A4 cheat sheet 上即可,理解结构比背符号重要。</p>
+</blockquote>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>i</mi><mi>t</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>W</mi><mrow><mi>x</mi><mi>i</mi></mrow><mi>T</mi></msubsup><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msubsup><mi>W</mi><mrow><mi>h</mi><mi>i</mi></mrow><mi>T</mi></msubsup><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>b</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">输入门</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>f</mi><mi>t</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>W</mi><mrow><mi>x</mi><mi>f</mi></mrow><mi>T</mi></msubsup><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msubsup><mi>W</mi><mrow><mi>h</mi><mi>f</mi></mrow><mi>T</mi></msubsup><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>b</mi><mi>f</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">遗忘门</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>o</mi><mi>t</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>W</mi><mrow><mi>x</mi><mi>o</mi></mrow><mi>T</mi></msubsup><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msubsup><mi>W</mi><mrow><mi>h</mi><mi>o</mi></mrow><mi>T</mi></msubsup><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>b</mi><mi>o</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">输出门</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>g</mi><mi>t</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>W</mi><mrow><mi>x</mi><mi>g</mi></mrow><mi>T</mi></msubsup><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msubsup><mi>W</mi><mrow><mi>h</mi><mi>g</mi></mrow><mi>T</mi></msubsup><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>b</mi><mi>g</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">候选记忆(主层)</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>c</mi><mi>t</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><msub><mi>f</mi><mi>t</mi></msub><mo>⊗</mo><msub><mi>c</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>i</mi><mi>t</mi></msub><mo>⊗</mo><msub><mi>g</mi><mi>t</mi></msub></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">更新长期记忆</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>y</mi><mi>t</mi></msub><mo>=</mo><msub><mi>h</mi><mi>t</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><msub><mi>o</mi><mi>t</mi></msub><mo>⊗</mo><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>c</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">输出/短期记忆</mtext></mtd></mtr></mtable><annotation encoding="application/x-tex">
+\begin{aligned}
+i_t &amp;= \sigma(W_{xi}^{T} x_t + W_{hi}^{T} h_{t-1} + b_i) &amp;&amp;\text{输入门}\\
+f_t &amp;= \sigma(W_{xf}^{T} x_t + W_{hf}^{T} h_{t-1} + b_f) &amp;&amp;\text{遗忘门}\\
+o_t &amp;= \sigma(W_{xo}^{T} x_t + W_{ho}^{T} h_{t-1} + b_o) &amp;&amp;\text{输出门}\\
+g_t &amp;= \tanh(W_{xg}^{T} x_t + W_{hg}^{T} h_{t-1} + b_g) &amp;&amp;\text{候选记忆(主层)}\\
+c_t &amp;= f_t \otimes c_{t-1} + i_t \otimes g_t &amp;&amp;\text{更新长期记忆}\\
+y_t = h_t &amp;= o_t \otimes \tanh(c_t) &amp;&amp;\text{输出/短期记忆}
+\end{aligned}
+</annotation></semantics></math></p>
+<p>注意四个门/层的结构<strong>完全一样</strong>(都是"输入加权 +
+旧状态加权 + 偏置"),区别只在各自的权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+和激活函数。真正发生"记忆管理"的是最后两行:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><msub><mi>f</mi><mi>t</mi></msub><mo>⊗</mo><msub><mi>c</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>i</mi><mi>t</mi></msub><mo>⊗</mo><msub><mi>g</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">c_t = f_t \otimes c_{t-1} + i_t \otimes g_t</annotation></semantics></math>
+一眼就能读出——"<strong>先用遗忘门
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+决定旧记忆
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">c_{t-1}</annotation></semantics></math>
+留多少,再用输入门
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+决定候选
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math>
+加多少</strong>"。</p>
+<h3 id="65-keras-实现">6.5 Keras 实现</h3>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> keras.models.Sequential([</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    keras.layers.LSTM(<span class="dv">20</span>, return_sequences<span class="op">=</span><span class="va">True</span>, input_shape<span class="op">=</span>[<span class="va">None</span>, <span class="dv">1</span>]),</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    keras.layers.LSTM(<span class="dv">20</span>, return_sequences<span class="op">=</span><span class="va">True</span>),</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    keras.layers.TimeDistributed(keras.layers.Dense(<span class="dv">10</span>))</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>])</span></code></pre></div>
+<p>照例,把 <code>SimpleRNN</code> 换成 <code>LSTM</code>
+就行——又是"几行代码"的事。</p>
+<p><strong>小结</strong>:LSTM 用一条受门控的长期记忆线
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mi>t</mi></msub><annotation encoding="application/x-tex">c_t</annotation></semantics></math>,加上遗忘门/输入门/输出门(都用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+当阀门)和一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>
+候选层,让网络<strong>学会有选择地记忆和遗忘</strong>,从而抓住长程依赖。</p>
+<hr />
+<h2 id="7-gru更轻量的门控单元">7. GRU:更轻量的门控单元</h2>
+<p><strong>GRU (Gated Recurrent Unit,门控循环单元)</strong>
+是另一种循环单元,思路和 LSTM
+一脉相承,目标也是解决同一个遗忘问题,但<strong>更简单</strong>。</p>
+<p>它和 LSTM 的关系,老师讲得很清楚:</p>
+<ol type="1">
+<li>GRU 也用门,但只有<strong>两道门:重置门 (reset gate)
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math></strong>
+和 <strong>更新门 (update gate)
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math></strong>——分别类似
+LSTM 里的遗忘门/输入门。</li>
+<li>最大的区别:GRU <strong>不再区分长期状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+和短期状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math></strong>,而是直接用一条
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>,通过"<strong>带自适应时间常数的泄漏积分
+(leaky
+integration)</strong>"把记忆内容<strong>完全暴露</strong>出来。</li>
+<li>因此 GRU <strong>计算单元更少</strong>(老师当场数:LSTM 有 4 个、GRU
+只有 3
+个),更<strong>简单、好算、好实现</strong>,但<strong>效果相近</strong>。</li>
+</ol>
+<p>计算公式(同样:理解即可,不必默写):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>z</mi><mi>t</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>W</mi><mrow><mi>x</mi><mi>z</mi></mrow><mi>T</mi></msubsup><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msubsup><mi>W</mi><mrow><mi>h</mi><mi>z</mi></mrow><mi>T</mi></msubsup><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>b</mi><mi>z</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">更新门</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>r</mi><mi>t</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>W</mi><mrow><mi>x</mi><mi>r</mi></mrow><mi>T</mi></msubsup><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msubsup><mi>W</mi><mrow><mi>h</mi><mi>r</mi></mrow><mi>T</mi></msubsup><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>b</mi><mi>r</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">重置门</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>g</mi><mi>t</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>W</mi><mrow><mi>x</mi><mi>g</mi></mrow><mi>T</mi></msubsup><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msubsup><mi>W</mi><mrow><mi>h</mi><mi>g</mi></mrow><mi>T</mi></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>r</mi><mi>t</mi></msub><mo>⊗</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msub><mi>b</mi><mi>g</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">候选状态</mtext></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>h</mi><mi>t</mi></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><msub><mi>z</mi><mi>t</mi></msub><mo>⊗</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>z</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>⊗</mo><msub><mi>g</mi><mi>t</mi></msub></mtd><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">更新状态</mtext></mtd></mtr></mtable><annotation encoding="application/x-tex">
+\begin{aligned}
+z_t &amp;= \sigma(W_{xz}^{T} x_t + W_{hz}^{T} h_{t-1} + b_z) &amp;&amp;\text{更新门}\\
+r_t &amp;= \sigma(W_{xr}^{T} x_t + W_{hr}^{T} h_{t-1} + b_r) &amp;&amp;\text{重置门}\\
+g_t &amp;= \tanh(W_{xg}^{T} x_t + W_{hg}^{T} (r_t \otimes h_{t-1}) + b_g) &amp;&amp;\text{候选状态}\\
+h_t &amp;= z_t \otimes h_{t-1} + (1 - z_t) \otimes g_t &amp;&amp;\text{更新状态}
+\end{aligned}
+</annotation></semantics></math></p>
+<p>最后一行最值得读:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>z</mi><mi>t</mi></msub><mo>⊗</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>z</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>⊗</mo><msub><mi>g</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">h_t = z_t \otimes h_{t-1} + (1-z_t)\otimes g_t</annotation></semantics></math>
+是一个<strong>加权平均</strong>——更新门
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+像一个旋钮,<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+越接近 1 就越保留旧记忆
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">h_{t-1}</annotation></semantics></math>,越接近
+0 就越采纳新候选
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>g</mi><mi>t</mi></msub><annotation encoding="application/x-tex">g_t</annotation></semantics></math></strong>。一道门同时管了"记旧"和"纳新",这正是
+GRU 比 LSTM 省一道门的精妙之处。</p>
+<h3 id="lstm-vs-gru-速查">LSTM vs GRU 速查</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>LSTM</th>
+<th>GRU</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>提出时间</td>
+<td>1997 (Hochreiter &amp; Schmidhuber)</td>
+<td>较晚,受 LSTM 启发</td>
+</tr>
+<tr class="even">
+<td>门的数量</td>
+<td>3 道(遗忘/输入/输出)+ 1 主层 = <strong>4 个单元</strong></td>
+<td>2 道(重置/更新)+ 1 候选 = <strong>3 个单元</strong></td>
+</tr>
+<tr class="odd">
+<td>状态</td>
+<td><strong>两条</strong>:长期
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
++ 短期
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math></td>
+<td><strong>一条</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>(记忆完全暴露)</td>
+</tr>
+<tr class="even">
+<td>复杂度</td>
+<td>较高</td>
+<td><strong>更简单、更省算力</strong></td>
+</tr>
+<tr class="odd">
+<td>效果</td>
+<td>强</td>
+<td><strong>相近</strong></td>
+</tr>
+<tr class="even">
+<td>共同目标</td>
+<td>解决长程依赖 / 遗忘问题</td>
+<td>同左</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>小结</strong>:GRU 是 LSTM
+的"精简版"——用更少的门、单一状态,换取相近的效果和更低的开销。两者解决的是同一个病。</p>
+<hr />
+<h2 id="8-rnn-的能力边界以及通向-transformer">8. RNN 的能力边界,以及通向
+Transformer</h2>
+<p>最后要诚实地说出 RNN 家族的天花板(slides 第 46 页 endnote):</p>
+<ul>
+<li>即便有了 LSTM 和
+GRU,它们的记忆<strong>终究还是偏"短"</strong>——当序列长到 <strong>100
+个时间步以上</strong>,依然难以学到那么长的依赖关系。</li>
+<li>一个工程上的补救:<strong>先用一维卷积 (1-D CNN)
+做预处理</strong>,把长序列"压短"一点,再喂给 GRU/LSTM。</li>
+</ul>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> keras.models.Sequential([</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    keras.layers.Conv1D(filters<span class="op">=</span><span class="dv">20</span>, kernel_size<span class="op">=</span><span class="dv">4</span>, strides<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>                        padding<span class="op">=</span><span class="st">&quot;valid&quot;</span>, input_shape<span class="op">=</span>[<span class="va">None</span>, <span class="dv">1</span>]),</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    keras.layers.GRU(<span class="dv">20</span>, return_sequences<span class="op">=</span><span class="va">True</span>),</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    keras.layers.GRU(<span class="dv">20</span>, return_sequences<span class="op">=</span><span class="va">True</span>),</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    keras.layers.TimeDistributed(keras.layers.Dense(<span class="dv">10</span>))</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>])</span></code></pre></div>
+<p>但这终究是"打补丁"。老师反复点题:正是 RNN
+在<strong>长序列上的根本困难</strong>(梯度问题 + 记忆有限),催生了
+<strong>Transformer</strong>——它用注意力机制一次性看到整条序列,绕开了"沿时间一步步传递、越传越淡"的瓶颈。<strong>所以这一章不是"过时知识":理解了
+RNN 为什么不够用,你才真正理解 Transformer
+为什么要那样设计。</strong>(老师说后面会专门用一整套 slides 讲
+Transformer。)</p>
+<pre class="mermaid"><code>graph LR
+  A[&quot;Vanilla RNN&lt;br/&gt;有记忆,但会遗忘&lt;br/&gt;梯度爆炸/消失&quot;] --&gt; B[&quot;LSTM / GRU&lt;br/&gt;门控记忆&lt;br/&gt;能处理中等长度依赖&quot;]
+  B --&gt; C[&quot;仍困于 ~100+ 步&lt;br/&gt;记忆终究有限&quot;]
+  C --&gt; D[&quot;Transformer&lt;br/&gt;注意力机制&lt;br/&gt;(下一章)&quot;]</code></pre>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>序列/时间序列数据</strong>带有时间或顺序维度,这是它与图像等"快照"数据的本质区别;因为自然演化缓慢,序列才可被预测,且输入输出都可以是序列。</li>
+<li><strong>RNN 的核心</strong>是一个反复使用的 cell
+加一条横向流动的<strong>隐藏状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>(记忆)</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>f</mi><mi>W</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_t = f_W(h_{t-1}, x_t)</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>t</mi></msub><mo>=</mo><msub><mi>f</mi><msub><mi>W</mi><mi>o</mi></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y_t = f_{W_o}(h_t)</annotation></semantics></math>;"黄盒子不变,变的是状态"。</li>
+<li><strong>参数共享</strong>——每个时间步用同一套权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>——让
+RNN 能处理任意长度序列,也是 BPTT 训练的基础。</li>
+<li>Vanilla(Elman)RNN 的具体形式是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>W</mi><mrow><mi>h</mi><mi>h</mi></mrow></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mrow><mi>x</mi><mi>h</mi></mrow></msub><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_t = \tanh(W_{hh}h_{t-1} + W_{xh}x_t)</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>t</mi></msub><mo>=</mo><msub><mi>W</mi><mrow><mi>h</mi><mi>y</mi></mrow></msub><msub><mi>h</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">y_t = W_{hy}h_t</annotation></semantics></math>;默认用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>
+是因为它<strong>饱和</strong>、能抑制数值爆炸。</li>
+<li>RNN 有<strong>五种输入输出形态</strong>;其中 <strong>seq2seq =
+many-to-one 编码器 + one-to-many
+解码器</strong>,是机器翻译的经典结构。</li>
+<li>训练用 <strong>BPTT</strong>(前向 +
+沿时间反向);长序列会导致<strong>梯度爆炸(不稳定)<strong>和</strong>梯度消失(遗忘开头、丢失长程依赖)</strong>。</li>
+<li>缓解爆炸:输入缩放、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>、更小学习率、层归一化;缓解遗忘:<strong>LSTM
+/ GRU</strong>。</li>
+<li><strong>LSTM</strong> 用长期记忆线
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mi>t</mi></msub><annotation encoding="application/x-tex">c_t</annotation></semantics></math>
++ 遗忘/输入/输出三道
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+门 +
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>
+候选层,学会"存什么、扔什么、读什么";<strong>GRU</strong>
+用重置/更新两道门、单一状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>,是更轻量的等效方案。</li>
+<li>LSTM/GRU 在 <strong>100+ 时间步</strong>仍吃力;可用 <strong>1-D CNN
+预处理</strong>缓解,但根本出路是 <strong>Transformer</strong>——RNN
+的局限正是 Transformer 的动机。</li>
+</ul>
+<hr />
+<h2 id="-考点提示老师在课上明示的">📌 考点提示(老师在课上明示的)</h2>
+<p>老师在讲课中直接给了几条"考试风向标",务必记牢:</p>
+<ol type="1">
+<li><strong>不会让你默写 LSTM/GRU
+的公式</strong>——考试闭卷,他不考这种死记题。但<strong>你要能用文字描述它们怎么工作</strong>(门控机制、三/两道门各管什么、记忆怎么存取)。公式可以抄在你那张
+<strong>A4 cheat sheet</strong> 上。</li>
+<li><strong>重点能描述</strong>:RNN
+是什么、结构如何、用来做什么、它的主要问题(梯度爆炸/消失、长程依赖处理不了),以及
+LSTM/GRU 如何解决这些问题。</li>
+<li>理解 <strong>RNN 的局限 → 为什么需要 Transformer</strong>
+这条逻辑线(承上启下,后面会接着讲)。</li>
+</ol>
+<blockquote>
+<p><strong>备考建议</strong>:本指南配套的
+<strong>flashcards/自测题(Review)</strong> 和 <strong>A4 cheat
+sheet(Cram)</strong> 可以直接用来检验上面这几条是否真的记住了。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

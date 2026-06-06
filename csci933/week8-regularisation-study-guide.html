@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 8 · 正则化 (Regularization)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-8--正则化-regularization">Week 8 · 正则化
+(Regularization)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>用"假设空间搜索"的语言解释机器学习在学什么,并说清 neural network
+作为 universal approximator 的角色;</li>
+<li>准确定义 <strong>generalization</strong>(泛化)与
+<strong>overfitting</strong>(过拟合),并解释二者与正则化的关系(这是老师点名的考点);</li>
+<li>写出并<strong>解读</strong>损失函数的 expected risk / empirical risk
+形式,指出其中的 fidelity term 与 regularization term;</li>
+<li>复述 Kukačka et al. (2017) 对正则化的"伞形"定义,并说出决定权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>w</mi><mo>*</mo></msup><annotation encoding="application/x-tex">w^*</annotation></semantics></math>
+的<strong>五个要素</strong>;</li>
+<li>对五个要素中的每一个,各举出至少一种具体的正则化手段,并解释它<strong>为什么</strong>能改善泛化;</li>
+<li>解读 weight decay、smoothness(Jacobian/Frobenius)、Dice、SGD、early
+stopping 等关键公式的含义。</li>
+</ul>
+</blockquote>
+<p>机器学习里有一个让人不安的事实:一个足够大的 neural network
+几乎可以<strong>背下</strong>任何训练数据——你给它一堆图片和标签,它能把每张图和每个标签的对应关系硬记下来,在训练集上做到接近零错误。可一旦换上一张它没见过的图,它可能就彻底失灵。这就引出了本章的核心问题:<strong>我们要的从来不是"在训练集上答对",而是"在没见过的数据上也答对"。</strong>
+如何逼着模型去真正"学会"、而不是"背答案"——这件事的统称,就是
+<strong>regularization(正则化)</strong>。</p>
+<p>本章的组织非常清爽。我们先把"机器学习在学什么"讲清楚(§1),由此自然地引出"泛化"这个目标和它的反面"过拟合"(§2);然后把正则化<strong>形式化</strong>成损失函数里的一项(§3);接着给出全章的地图——决定模型最终权重的<strong>五个要素</strong>(§4);最后逐一走过这五个要素,看正则化如何从每一个"入口"渗透进来(§5–§9)。整章其实是一条线:<em>学什么
+→ 为何要泛化 → 怎么形式化 → 五个入口 → 逐个击破</em>。</p>
+<hr />
+<h2 id="1-从任务到概念机器学习到底在学什么">§1
+从"任务"到"概念":机器学习到底在学什么</h2>
+<p>要理解正则化,先得把"学习"这件事看清楚。Slides 用四个<strong>任务
+(task)</strong>
+的例子开场。所谓任务,讲的是"机器学习系统应该<strong>如何处理一个样本</strong>";而<strong>样本
+(example)</strong>
+本身,是从某个对象或事件上<strong>定量测量</strong>出来的一组<strong>特征
+(features)</strong>,数学上写成一个向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>∈</mo><msup><mi>ℝ</mi><mi>n</mi></msup></mrow><annotation encoding="application/x-tex">x \in \mathbb{R}^n</annotation></semantics></math>(比如一张图片拉直成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+个像素值,就是一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+维特征向量)。</p>
+<p>四个任务的区别,本质上是它们要学的那个函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+的<strong>输入输出类型</strong>不同:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>任务 (Task)</th>
+<th>要学的函数</th>
+<th>含义</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Classification</strong>(分类)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>:</mo><msup><mi>ℝ</mi><mi>n</mi></msup><mo>→</mo><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>k</mi><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">f:\mathbb{R}^n \to \{1,\dots,k\}</annotation></semantics></math></td>
+<td>判断输入属于
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个类别中的哪一个;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y=f(x)</annotation></semantics></math>
+把特征
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+指派到类别
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math></td>
+<td>图像识别(这是猫还是狗)</td>
+</tr>
+<tr class="even">
+<td><strong>Regression</strong>(回归)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>:</mo><msup><mi>ℝ</mi><mi>n</mi></msup><mo>→</mo><mi>ℝ</mi></mrow><annotation encoding="application/x-tex">f:\mathbb{R}^n \to \mathbb{R}</annotation></semantics></math></td>
+<td>预测一个<strong>数值</strong>,而非类别</td>
+<td>预测房价、温度</td>
+</tr>
+<tr class="odd">
+<td><strong>Transcription</strong>(转写)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>:</mo><msup><mi>ℝ</mi><mi>n</mi></msup><mo>→</mo><msup><mi>A</mi><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msup></mrow><annotation encoding="application/x-tex">f:\mathbb{R}^n \to A^{k(m)}</annotation></semantics></math></td>
+<td>把相对<strong>非结构化</strong>的数据转成<strong>离散的文本</strong>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>
+是某种语言的字母表,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">k(m)</annotation></semantics></math>
+表示长度可变</td>
+<td>语音识别</td>
+</tr>
+<tr class="even">
+<td><strong>Machine translation</strong>(机器翻译)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>:</mo><msubsup><mi>A</mi><mi>x</mi><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msubsup><mo>→</mo><msubsup><mi>A</mi><mi>y</mi><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msubsup></mrow><annotation encoding="application/x-tex">f:A_x^{k(n)} \to A_y^{k(m)}</annotation></semantics></math></td>
+<td>把源语言的符号序列转成目标语言的符号序列</td>
+<td>中译英</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 怎么读这些函数签名</strong> —
+不要被符号吓到。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>:</mo><msup><mi>ℝ</mi><mi>n</mi></msup><mo>→</mo><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>k</mi><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">f:\mathbb{R}^n \to \{1,\dots,k\}</annotation></semantics></math>
+读作"一个把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+维实数向量映射到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>
+到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+这几个整数标签之一的函数"。Classification
+的输出是<strong>类别</strong>(categorical),所以箭头右边是一个有限集合
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>k</mi><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\{1,\dots,k\}</annotation></semantics></math>;Regression
+的输出是<strong>连续数值</strong>,所以右边是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ℝ</mi><annotation encoding="application/x-tex">\mathbb{R}</annotation></semantics></math>——这一对比正是
+slides
+反复强调的两者本质差别。分类器也可以不直接吐一个类别,而是输出一个<strong>类别上的概率分布</strong>(比如"70%
+是猫,30% 是狗")。</p>
+</blockquote>
+<p>这四个例子真正想说的是更抽象的一点(Slide
+5):这些任务都可以看成在<strong>学习一个"概念"(concept)</strong>。问题在于,我们并<strong>不知道</strong>那个能实现映射的函数长什么样、有没有一个简洁的解析式。怎么办?</p>
+<p>这里是全章的关键思想转折。<strong>想象有一个装满了各种函数的"大筐",我们要做的就是从里面挑一个最合适的。</strong>
+这个大筐就叫 <strong>hypothesis space(假设空间)</strong>,记作
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ℋ</mi><annotation encoding="application/x-tex">\mathcal{H}</annotation></semantics></math>;学习的目标,就是找到一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mo>∈</mo><mi>ℋ</mi></mrow><annotation encoding="application/x-tex">h \in \mathcal{H}</annotation></semantics></math>,使得它在把"学到的知识泛化到没见过的样本"时<strong>误差最小</strong>。</p>
+<p>那 neural network 在这里扮演什么角色?它是一个 <strong>universal
+approximator(通用逼近器)</strong>——理论上能逼近各种各样的函数,所以可以拿它当作"要学的那个函数"的一个<strong>模板
+(template)</strong>。更具体地说,neural network
+是一个<strong>参数化的函数 (parameterised function)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>w</mi></msub><annotation encoding="application/x-tex">f_w</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mi>w</mi></msub><mo>:</mo><mi>x</mi><mo>↦</mo><mi>y</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>w</mi><mo>∈</mo><mi>W</mi></mrow><annotation encoding="application/x-tex">f_w : x \mapsto y, \qquad w \in W</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+就是网络的<strong>参数(权重 weights、偏置 biases
+等)</strong>。这些参数可以从数据里<strong>学</strong>出来——这个过程我们就叫<strong>训练网络
+(training)</strong>。于是整个机器学习被收拢成一句话:<strong>从假设空间里,通过调参,找到一组能让模型"泛化"该概念的权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>。</strong>
+记住这个"搜索 +
+调参"的画面,下一节我们就会看到,正则化干的事情正是<strong>缩小这个搜索范围</strong>。</p>
+<pre class="mermaid"><code>graph LR
+  D[&quot;数据 D&lt;br/&gt;(x, t)&quot;] --&gt; H[&quot;假设空间 H&lt;br/&gt;(所有可能的函数 f_w)&quot;]
+  H --&gt;|&quot;训练: 调权重 w&quot;| h[&quot;选中的 h = f_w*&quot;]
+  h --&gt;|&quot;部署到未见样本&quot;| G[&quot;泛化 Generalization&quot;]</code></pre>
+<hr />
+<h2 id="2-过拟合与泛化为什么非要正则化不可">§2
+过拟合与泛化:为什么非要正则化不可</h2>
+<p>上一节我们说,目标是让模型在<strong>没见过的数据</strong>上也表现好。这个能力有个正式名字:<strong>generalization(泛化)</strong>。老师在课上把它列为"机器学习里<strong>非常重要</strong>"的概念,值得我们把定义抠清楚。</p>
+<p><strong>泛化的定义(老师的口径)</strong>:训练好一个模型并部署它,使得对于任何<strong>它没在训练中见过、但来自与训练数据相同分布</strong>的数据,它也能给出合理的结果。这里有一个<strong>绝不能省</strong>的前提——"<strong>来自同一个分布
+(same distribution)</strong>"。老师反复强调这一点。</p>
+<blockquote>
+<p><strong>🔑 例(同分布:房间里的身高)</strong> —
+想象这间教室里所有人的身高构成一个<strong>分布</strong>。来了一个新同学,只要他的身高落在这个分布的合理范围内,我们对"教室里的人"建立的模型对他依然适用。但如果走进来一个身高三米的人,你会脱口而出:"他是从火星来的吧?"——因为他<strong>根本不属于这个分布</strong>。模型对这种"分布外
+(out-of-distribution)"的样本失灵,不算它没泛化好;泛化只承诺"同分布的未见样本"。</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 例(打篮球的超级巨星)</strong> —
+老师用了一个很生动的类比。假设你要做一个游戏,模仿某位会扣篮的篮球巨星。你研究他的比赛录像,找出"他在什么条件下会得分"——这些条件就成了<strong>特征
+(features)</strong>;由此你为他建立一个<strong>概率分布</strong>。之后,只要某个特定条件出现,你的游戏就让虚拟球员扣篮。<strong>只要情况落在那个分布能复现的范围内</strong>,他就会像真人一样打球——这时你就可以说,你已经"建模了这个人",你的模型<strong>泛化</strong>了。只有在分布之外,他才会"失手、不扣篮"。</p>
+</blockquote>
+<p>泛化的反面是
+<strong>overfitting(过拟合)</strong>。老师给了一个很硬核的直觉:<strong>如果网络"过大"(over-parameterized)而数据又不够,它就会单纯地把数据背下来
+(memorize)。</strong>
+它在训练集上看起来完美,但什么概念都没学到——因为它只是建了一张查找表。反过来,如果网络规模<strong>合适</strong>、数据量也<strong>合适</strong>,它才会被逼着去学到真正可复用的规律。这正是本章开头那个"让人不安的事实"的来源。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 数据的"多样性"比"数量"更关键</strong> —
+老师在优化那一节抛出一个绝佳的类比,值得提前放在这里理解过拟合:"假设你要教我英文字母。今天你给我看
+A,明天看 B——我的大脑会想,哦,学到了 A 和 B。可你接下来又给我 A、又给我
+B——这就<strong>不是训练</strong>了。"数据必须<strong>有足够的多样性,覆盖住要学的那个分布</strong>;光是"样本很多"没用,关键是"覆盖得全"。这解释了为什么数据增强(§5)能正则化:它人为地扩大覆盖面。</p>
+</blockquote>
+<p>现在到了本章最被点名的考点。老师在课上<strong>两次</strong>给出明确的考试提示:</p>
+<blockquote>
+<p>⭐ <strong>考点(老师原话改写)</strong> — "Regularization 和
+generalization 之间有某种联系。这个联系是什么?你至少能给我写 3、4
+行吧……这正是我喜欢在考试里问的那类问题。我现在就是在给你<strong>考试提示</strong>。"</p>
+</blockquote>
+<p>它俩的联系,用老师自己的答案说:<strong>generalization
+是目标,regularization
+是手段——通过正则化,你能得到一个泛化能力更好的模型。</strong>
+把这句话记牢,并能展开三四行(例如:正则化通过约束模型/数据/优化等,抑制对训练集噪声的记忆,从而缩小训练表现与未见数据表现之间的差距,即提升泛化)。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>Underfitting(欠拟合)</th>
+<th>恰好 (good fit)</th>
+<th>Overfitting(过拟合)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>训练集表现</td>
+<td>差</td>
+<td>好</td>
+<td><strong>极好(甚至完美)</strong></td>
+</tr>
+<tr class="even">
+<td>未见数据表现</td>
+<td>差</td>
+<td><strong>好</strong></td>
+<td><strong>差</strong></td>
+</tr>
+<tr class="odd">
+<td>直觉</td>
+<td>模型太弱/太受限,没学到</td>
+<td>学到了可复用的规律</td>
+<td>把训练数据(含噪声)背了下来</td>
+</tr>
+<tr class="even">
+<td>正则化的作用</td>
+<td>(可能正则太强,需放松)</td>
+<td>——</td>
+<td><strong>正则化主要对治这一侧</strong></td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="3-把正则化形式化损失风险与那个惩罚项">§3
+把正则化形式化:损失、风险与那个"惩罚项"</h2>
+<p>我们已经知道目标是泛化,也知道训练就是"找权重"。这一节把这两件事拧成一个可计算的<strong>优化问题</strong>,正则化就会作为其中清清楚楚的一项浮现出来。</p>
+<p>训练一个网络,就是在所有可能的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>∈</mo><mi>W</mi></mrow><annotation encoding="application/x-tex">w \in W</annotation></semantics></math>
+当中,找到那个(通常记作
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>w</mi><mo>*</mo></msup><annotation encoding="application/x-tex">w^*</annotation></semantics></math>)能让一个<strong>损失函数
+(loss function)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>:</mo><mi>W</mi><mo>→</mo><mi>ℝ</mi></mrow><annotation encoding="application/x-tex">L:W \to \mathbb{R}</annotation></semantics></math>
+最小的权重:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>w</mi><mo>*</mo></msup><mo>=</mo><mo>arg</mo><munder><mo>min</mo><mi>w</mi></munder><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">w^* = \arg\min_w L(w). \tag{5}</annotation></semantics></math></p>
+<blockquote>
+<p><strong>🔑 怎么读
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>arg</mo><mo>min</mo></mrow><annotation encoding="application/x-tex">\arg\min</annotation></semantics></math></strong>
+—
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>arg</mo><msub><mo>min</mo><mi>w</mi></msub><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\arg\min_w L(w)</annotation></semantics></math>
+的意思是"让
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">L(w)</annotation></semantics></math>
+取到最小值的那个<strong>自变量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math></strong>"。注意它返回的不是最小的损失值,而是<strong>取到该最小值的权重</strong>。老师特意点过:objective
+function、loss function、cost function
+这几个名字说的是<strong>同一样东西</strong>,别被术语绕晕。</p>
+</blockquote>
+<p>这个损失一般写成一个<strong>期望风险 (expected risk)</strong>
+的形式:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>=</mo><msub><mi>𝔼</mi><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∼</mo><mi>P</mi></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">[</mo><mspace width="0.167em"></mspace><mi>ℰ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>f</mi><mi>w</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="0.167em"></mspace><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>⋯</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">L = \mathbb{E}_{(x,t)\sim P}\big[\, \mathcal{E}(f_w(x),\,t) + R(\cdots) \,\big] \tag{6}</annotation></semantics></math></p>
+<p>这条式子是本章的"主方程",务必能逐项读出来:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝔼</mi><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∼</mo><mi>P</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">[</mo><mo>⋅</mo><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\mathbb{E}_{(x,t)\sim P}[\cdot]</annotation></semantics></math>:对从真实数据分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>P</mi><annotation encoding="application/x-tex">P</annotation></semantics></math>
+中抽到的样本对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x,t)</annotation></semantics></math>
+求<strong>期望(平均)</strong>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+是 target(目标/真值)。</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℰ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>f</mi><mi>w</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{E}(f_w(x), t)</annotation></semantics></math>:<strong>error
+function(误差函数)</strong>,也叫 <strong>fidelity term(保真项 /
+数据项)</strong>。它衡量网络的预测
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mi>w</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f_w(x)</annotation></semantics></math>
+与真值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+差多少——我们希望它<strong>越小越好</strong>。</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>⋯</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R(\cdots)</annotation></semantics></math>:<strong>regularization
+term(正则项)</strong>。注意它是<strong>对模型本身的一个惩罚
+(penalty)</strong>,典型地只惩罚权重(不含 target
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>),目的是<strong>约束我们从中挑选函数(网络)参数的那个集合</strong>。</li>
+</ul>
+<p>可现实里我们拿不到真实分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>P</mi><annotation encoding="application/x-tex">P</annotation></semantics></math>,只有一个有限的数据集
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>。于是用
+<strong>empirical risk(经验风险)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>L</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat L</annotation></semantics></math>
+去<strong>近似</strong>式
+(6)——把"对分布求期望"换成"在手头数据上求平均":</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>w</mi><mo>*</mo></msup><mo>=</mo><mo>arg</mo><munder><mo>min</mo><mi>w</mi></munder><mfrac><mn>1</mn><mrow><mo stretchy="true" form="prefix">|</mo><mi>D</mi><mo stretchy="true" form="postfix">|</mo></mrow></mfrac><munder><mo>∑</mo><mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>t</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>D</mi></mrow></munder><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mi>ℰ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>f</mi><mi>w</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>⋯</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">w^* = \arg\min_w \frac{1}{|D|}\sum_{(x_i,t_i)\in D}\big(\mathcal{E}(f_w(x),t)+R(\cdots)\big) \tag{7}</annotation></semantics></math></p>
+<p>这就是实际训练时真正在最小化的东西。老师把它的结构口语化成一句很好记的话:"<strong>让这个误差项尽可能小,subject
+to(在……的约束下)正则项也成立</strong>;而这个 'subject to' 是通过乘一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+塞进优化里的。"——换句话说,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+越大,正则的约束就越被当回事。</p>
+<p>那么,正则化到底<strong>在直觉上</strong>干了什么?老师给了全课最精彩的类比:</p>
+<blockquote>
+<p><strong>🔑 例(找一个人:蓝衬衫的故事)</strong> —
+"我在找一个人,你能帮我找到吗?"——这是个没法回答的问题,因为答案可能是房间里<strong>任何一个人</strong>(搜索范围
+=
+整个假设空间,毫无约束)。"但如果我说:我找的人<strong>穿着蓝色衬衫</strong>——啊,可能的人选范围一下就缩小了。<strong>这就是正则化在做的事:它把你的搜索空间缩小到一个更可控、更有意义的范围,让你更快找到答案。</strong>"
+再加一个条件("蓝衬衫<strong>而且</strong>卷发"),范围进一步收窄到某个区域。关键的细节:正则化<strong>并不直接把答案告诉你</strong>("它不会说出那个人的名字")——<strong>搜索仍然要靠
+optimization 来做;正则化只是缩小你要搜的地方。</strong></p>
+</blockquote>
+<p>这个类比把 §1
+的"在假设空间里搜索"和正则化漂亮地接上了:<strong>optimization
+是搜索过程,regularization 是给搜索画的范围圈。</strong> 由此也能理解
+slides 给出的那条总纲定义:</p>
+<blockquote>
+<p>⭐ <strong>定义(Kukačka et al. 2017,伞形定义)</strong> —
+"<strong>任何旨在让模型泛化得更好的辅助技术,都是一种正则化 (Any
+supplementary technique aimed at making a model generalize better is a
+form of regularization)。</strong>"</p>
+</blockquote>
+<p>这个定义之所以重要,是因为它<strong>故意很宽</strong>。它告诉我们:正则化不是某一个具体公式,而是一<strong>类目的</strong>。只要某种做法的目的是改善泛化,它就算正则化——哪怕只是换了个网络结构。这就把我们引向下一节那张关键的"地图"。</p>
+<hr />
+<h2 id="4-决定权重的五个要素全章的地图">§4
+决定权重的五个要素:全章的地图</h2>
+<p>既然"任何能改善泛化的手段"都算正则化,那它能从哪些"入口"进入?Slide 7
+给出一个极其好用的框架:列出<strong>所有决定最终学到的权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>w</mi><mo>*</mo></msup><annotation encoding="application/x-tex">w^*</annotation></semantics></math>
+的要素</strong>——因为只要你能影响这些要素,你就能影响泛化,也就是在做正则化。</p>
+<p>老师特别澄清:这里的"权重
+(weights)"是<strong>广义</strong>的,泛指网络从数据里学到的<strong>一切</strong>(多层网络每一层学的东西都算),不只是某一层的连接系数。</p>
+<p><strong>决定
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>w</mi><mo>*</mo></msup><annotation encoding="application/x-tex">w^*</annotation></semantics></math>
+的五个要素:</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>要素</th>
+<th>符号</th>
+<th>一句话</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>训练集 (the training set)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math></td>
+<td>你喂进去的数据</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>选定的模型族 / 假设空间</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ℋ</mi><annotation encoding="application/x-tex">\mathcal{H}</annotation></semantics></math>)</td>
+<td>你选的网络架构</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>选定的误差函数</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ℰ</mi><annotation encoding="application/x-tex">\mathcal{E}</annotation></semantics></math></td>
+<td>你用什么衡量"错"</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>正则项</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math></td>
+<td>你给模型加的惩罚</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>优化技术</td>
+<td>——</td>
+<td>你怎么搜索最优
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>老师原话的味道:"用很差的数据,模型就学不好……你选的假设族也很重要……<strong>所有这些都影响你最终选到的权重,都关乎泛化。</strong>"</p>
+</blockquote>
+<p>这张表就是本章后半段的<strong>目录</strong>。接下来 §5–§9
+会逐一走过这五个入口,看每一个具体能玩出哪些正则化花样。下面这张图请记在脑子里——它是
+Week 8 的骨架:</p>
+<pre class="mermaid"><code>graph TD
+  W[&quot;学到的权重 w*&lt;br/&gt;(决定泛化好坏)&quot;]
+  E1[&quot;① 数据 Data&lt;br/&gt;§5&quot;] --&gt; W
+  E2[&quot;② 网络架构 Architecture&lt;br/&gt;§6&quot;] --&gt; W
+  E3[&quot;③ 误差函数 Error function&lt;br/&gt;§7&quot;] --&gt; W
+  E4[&quot;④ 正则项 Reg. term&lt;br/&gt;§8&quot;] --&gt; W
+  E5[&quot;⑤ 优化 Optimization&lt;br/&gt;§9&quot;] --&gt; W
+  R[&quot;正则化 = 从任意一个入口&lt;br/&gt;改善泛化&quot;] -.-&gt; E1 &amp; E2 &amp; E3 &amp; E4 &amp; E5</code></pre>
+<hr />
+<h2 id="5-要素一通过数据正则化-regularization-via-data">§5
+要素一:通过<strong>数据</strong>正则化 (Regularization via Data)</h2>
+<p>第一个入口是数据本身。核心思路(Slide 8):把给定的数据集
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+<strong>变换</strong>成一个新的、更"适合学习"的数据集
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>D</mi><mi>R</mi></msub><annotation encoding="application/x-tex">D_R</annotation></semantics></math>,或者<strong>生成</strong>更多数据。具体有三条路。</p>
+<h3 id="51-特征提取与预处理把数据洗干净抽精华">5.1
+特征提取与预处理:把数据"洗干净、抽精华"</h3>
+<p>第一类做法是对数据做 <strong>feature
+extraction(特征提取)</strong>、<strong>preprocessing(预处理)</strong>、<strong>feature
+space transformation(特征空间变换)</strong> 或 <strong>distribution
+remodelling(分布重塑)</strong>。常见工具包括 <strong>PCA、KPCA(kernel
+PCA)、Fourier transform、wavelet transform、autoencoder、word
+model</strong>
+等——它们把原始数据映射到一个<strong>学起来更容易</strong>的空间。</p>
+<p>为什么这能算正则化?老师用一个人脸识别的故事讲透了:</p>
+<blockquote>
+<p><strong>🔑 例(5 张照片与冗余特征)</strong> — 假设你给每个人拍 5
+张照片(= 一个 5 维特征向量)来训练人脸模型,结果准确率只有约
+50%——"那我跟抛硬币有什么区别?"问题出在哪?<strong>很可能这 5
+个特征是冗余的 (redundant)</strong>:其中 4 个其实能从另外 1、2
+个推出来,所以你名义上有 5 个特征,<strong>实际只有 2
+个</strong>独立信息。可 2
+个又可能<strong>不足以</strong>训练出好模型。正则化在数据这一侧要做的,就是<strong>保证特征彼此不冗余
+(non-redundant)、线性无关 (linearly
+independent)</strong>——这一维讲的故事和那一维不一样,合起来才是一个<strong>丰富
+(rich)
+的表示</strong>。如果它们其实只讲了同一个故事,你就等于只有一个特征,而"一个特征能描述太多人了",当然<strong>没法泛化</strong>。</p>
+</blockquote>
+<p>这正是 PCA
+这类方法的价值:它去掉相关/冗余的成分,留下彼此独立、信息密集的特征。<strong>让表示更紧凑、更不冗余
+→ 泛化更好</strong>,这就是"通过数据正则化"的第一层意思。</p>
+<h3 id="52-数据增强人为制造同分布的多样性">5.2
+数据增强:人为制造"同分布"的多样性</h3>
+<p>第二类做法是 <strong>data generation / data
+augmentation(数据增强,augmented
+dataset)</strong>:人工<strong>生成更多样本</strong>,覆盖同一对象的各种形态。</p>
+<blockquote>
+<p><strong>🔑 例(给人脸"加戏")</strong> — "我给 Philip
+拍一张正脸,然后让他:转个身、再转、抬头、低头、把灯调暗、再暗一点、摘掉眼镜、再戴上……这就是
+data generation——生成足够多的样本,覆盖各种形态。"</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 例(机场刷脸:分布外的真实代价)</strong> —
+为什么机场的自助刷脸闸机有时认不出你?"很可能是你呈现给它的样子<strong>落在了训练分布之外</strong>——比如你刚下了
+27 小时的飞机,脸都熬'垮'了,变成了'丧尸',这个样子不在它的训练分布里。"
+解决之道:<strong>人工生成</strong>这些极端形态(疲惫、不同光照、不同角度)的样本加进训练集,扩大覆盖。"这又是一种正则化。"</p>
+</blockquote>
+<p>把 §2 那个"字母表"类比接上来就完全通了:augmentation
+之所以正则化,是因为它<strong>主动扩大数据对真实分布的覆盖</strong>,逼模型见过更多变体,从而不去死记某一张特定的脸,而是学到"这个人<strong>在各种情况下</strong>的样子"。</p>
+<h3 id="53-怎么变在哪儿变何时变三个维度">5.3
+怎么变、在哪儿变、何时变:三个维度</h3>
+<p>Slides 9–10 把"通过数据正则化"拆成几个可调的维度,值得分清楚。</p>
+<p><strong>(a) 用随机参数做变换——注入噪声。</strong>
+一种常见形式是给输入加噪声:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>τ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>x</mi><mo>+</mo><mi>θ</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>θ</mi><mo>∼</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>Σ</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\tau_\theta(x) = x + \theta, \qquad \theta \sim \mathcal{N}(0,\Sigma) \tag{8}</annotation></semantics></math></p>
+<p>读作:把样本
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+加上一个从均值为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>、协方差为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Σ</mi><annotation encoding="application/x-tex">\Sigma</annotation></semantics></math>
+的<strong>高斯分布 (Gaussian / normal distribution)</strong>
+中抽出的随机扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>。直觉:让模型见到"原样本的一圈邻居",它就不敢对某个精确点死记硬背,而要学得平滑一些。其中的扰动参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+可以有三种来源:</p>
+<ul>
+<li><strong>deterministically(确定地)</strong>——由某个固定方程给出;</li>
+<li><strong>randomly(随机地)</strong>——按某个分布抽样(如式 8);</li>
+<li><strong>adaptively(自适应地)</strong>——通过(有约束/无约束/随机)<strong>优化</strong>得到,带着特定目标去生成。</li>
+</ul>
+<p><strong>(b) 变换是否改变表示。</strong> 数据变换可以是:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>类型</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Representation-preserving</strong>(保表示)</td>
+<td>特征空间与分布都基本不变(如轻微加噪、平移)</td>
+</tr>
+<tr class="even">
+<td><strong>Representation-modifying</strong>(改表示)</td>
+<td>可能换成不同的分布与特征空间;把原始因子(特征)映射到一个<strong>更易学习</strong>的空间</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>(c) 在哪个空间、什么时候变。</strong>
+变换可以发生在不同的数据空间:</p>
+<ul>
+<li><strong>input space(输入空间)</strong>——直接对数据
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+做变换;</li>
+<li><strong>hidden-feature
+space(隐藏特征空间)</strong>——例如修改某些层的输出;</li>
+<li><strong>target / label(目标/标签)</strong>——训练时连标签也可以改(如
+label smoothing 之类)。</li>
+</ul>
+<p>而且它<strong>既可以发生在训练时,也可以发生在测试时</strong>(对训练样本或测试样本都行)。</p>
+<pre class="mermaid"><code>graph LR
+  X[&quot;原始数据 D&quot;] --&gt;|&quot;特征提取 PCA/AE&quot;| A[&quot;更紧凑/不冗余&quot;]
+  X --&gt;|&quot;增强 augmentation&quot;| B[&quot;更多样/覆盖分布&quot;]
+  X --&gt;|&quot;加噪 x+θ&quot;| C[&quot;更平滑/抗记忆&quot;]
+  A &amp; B &amp; C --&gt; DR[&quot;新数据集 D_R&quot;]
+  DR --&gt; G[&quot;更好的泛化&quot;]</code></pre>
+<hr />
+<h2
+id="6-要素二通过网络架构正则化-regularization-via-network-architecture">§6
+要素二:通过<strong>网络架构</strong>正则化 (Regularization via Network
+Architecture)</h2>
+<p>第二个入口是网络结构本身。这是老师课上<strong>最感兴趣、讲得最多</strong>的一个要素(他原话:"我想讲到的、我觉得很有意思的,就是这个
+architecture")。</p>
+<h3 id="61-选架构本身就是一种正则化inductive-bias">6.1
+选架构本身就是一种正则化:inductive bias</h3>
+<p>核心论断(Slide
+11):<strong>仅仅是"选定一个网络架构"这件事,就已经是一种正则化</strong>——因为架构<strong>规定了</strong>你能用来逼近的函数<strong>类型</strong>。Goodfellow
+et al. (2016, p.200)
+的话:"使用深层架构,确实表达了一种关于'模型所学函数空间'的有用先验 (a
+useful prior)。"</p>
+<p>老师把这层意思讲得很透:</p>
+<blockquote>
+<p>⭐ <strong>关键直觉(架构 = inductive bias)</strong> —
+"你一旦选定了某个具体架构,就已经在做一种正则化了:因为在所有可能的架构里,你<strong>偏偏挑了这一个</strong>。这是一种
+<strong>induction
+bias(归纳偏置)</strong>——你通过选定架构,<strong>限制了能被建模的函数类</strong>。换个架构,它做的事就不一样。任何架构都还在
+universal approximator
+的范畴内,但<strong>选择本身</strong>就是一种正则化。"</p>
+</blockquote>
+<p>为什么?回忆
+§1:网络是个<strong>函数</strong>,它按照<strong>层数和神经元数</strong>把输入映射到输出——这就已经约束了"映射的类型"。再回忆
+§3
+的搜索画面:架构强加的<strong>权重结构</strong>,会和你选的优化方法一起,<strong>决定搜索空间的形状</strong>(优化时我们是在一张"权重的函数"——误差曲面
+(error surface)——上行走)。所以选架构 = 选你要在哪片"地形"上找答案。</p>
+<p>更妙的是,有些<strong>不变性 (invariances)</strong> 可以被"焊死 (baked
+in / hardwired)"进架构——典型如
+<strong>convolution(卷积)</strong>。Kukačka et al. (2017) 的 Table 3
+列出了一串网络架构层面的方法,以及它们各自编码的假设。</p>
+<h3 id="62-权重共享-weight-sharing">6.2 权重共享 (Weight sharing)</h3>
+<p><strong>Weight sharing</strong>
+指<strong>在网络的多个部位重复使用同一批可训练参数</strong>。它带来两个好处(Slide
+12):</p>
+<ol type="1">
+<li><strong>降低模型复杂度</strong>——参数变少了,假设空间收窄,自然更不容易过拟合;</li>
+<li><strong>内嵌关于数据底层过程的先验知识</strong>——以卷积为例,共享卷积核编码了两条强先验:<strong>shift-equivariance(平移等变性,<strong>物体平移,响应也跟着平移</strong>)</strong>
+和
+<strong>locality(局部性,<strong>特征是从局部邻域抽取的</strong>)</strong>。</li>
+</ol>
+<p>换句话说,卷积之所以适合图像,正是因为它把"图像的统计性质对平移大致不变""有意义的特征是局部的"这两条人类先验<strong>硬编码</strong>进了结构里——这本身就是强力的正则化。</p>
+<h3 id="63-激活函数-activation-functions">6.3 激活函数 (Activation
+functions)</h3>
+<p><strong>Activation function</strong>
+的选择很重要,因为它直接决定一个神经元输出的形态。Slide 12 点了几个:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>激活/机制</th>
+<th>作用与直觉</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>ReLU</strong></td>
+<td>用来缓解 <strong>vanishing gradient(梯度消失)</strong>
+问题——这是老师提到 ReLU
+时的关键点(深层网络里梯度反传时越乘越小、趋近于零,导致前面的层学不动;ReLU
+在正区间梯度恒为 1,缓解了这一点)。</td>
+</tr>
+<tr class="even">
+<td><strong>Dropout</strong></td>
+<td>一种随机正则化:它能在测试时<strong>近似模型集成 (ensemble)
+预测的几何平均 (geometric
+mean)</strong>(等价于训练了指数级多个共享权重的子网络再平均)。</td>
+</tr>
+<tr class="odd">
+<td><strong>Maxout</strong></td>
+<td>同样能在测试时近似模型集成预测的几何平均。</td>
+</tr>
+<tr class="even">
+<td><strong>GeLU</strong></td>
+<td>"桥接/结合":把 <strong>dropout
+这类随机正则化</strong>与**非线性(激活函数)**结合在一起。</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 例(Dropout 与 Assignment 1 的坑)</strong> —
+老师特意提醒:"Assignment 1 里我们让你们做
+dropout,但那个网络<strong>太小</strong>了,dropout
+<strong>看不出效果</strong>。要在<strong>大网络</strong>上你才会看到
+dropout
+的威力;我们只是想让你<strong>体验</strong>一下'如果随便丢掉一些会怎样'。"
+实践建议:PyTorch / TensorFlow
+里有一长串激活函数可选,写个小脚本、换着试,直接观察对结果的影响。</p>
+<p>⚠️ 老师口头把 dropout
+描述成"某些权重被'冻住'、值不变"——这是个<strong>不太精确的口语化说法</strong>。Dropout
+的标准定义是<strong>随机地把一部分神经元的激活值置零 (stochastically
+zeroing out
+activations)</strong>,不是冻结权重。考试请以"随机置零激活"为准(这也正是
+Slide 18 把 dropout 归到"gradient and weight filters"的原因)。</p>
+</blockquote>
+<hr />
+<h2 id="7-要素三通过误差函数正则化-regularization-via-error-function">§7
+要素三:通过<strong>误差函数</strong>正则化 (Regularization via Error
+Function)</h2>
+<p>第三个入口是你<strong>用什么来衡量"错"</strong>。误差函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ℰ</mi><annotation encoding="application/x-tex">\mathcal{E}</annotation></semantics></math>
+刻画了网络逼近的<strong>质量</strong>;换一个误差函数,梯度的方向和模型最终落点都会变,因此它也是正则化的入口。</p>
+<p>最常见的两个:<strong>回归</strong>任务一般用 <strong>mean-squared
+error(MSE,均方误差)</strong>,<strong>分类</strong>任务一般用
+<strong>cross-entropy(交叉熵)</strong>。老师提醒:文献里有关于"什么任务该配什么误差"的建议,不要乱配。</p>
+<p>slides 重点举的"非常规"误差函数是 <strong>Dice coefficient(Dice
+系数)</strong>,它常用于 <strong>segmentation(图像分割)</strong>
+任务,并且能<strong>对抗数据不平衡 (data imbalance)</strong>。</p>
+<blockquote>
+<p><strong>🔑 例(分割任务:怎么算"对得好不好")</strong> —
+老师先把任务讲清楚:"分割,就是给你一幅场景图,要你把<strong>相连、且语义相同</strong>的区域圈出来——这里是一个人、那里是一棵树,把人从背景里<strong>勾画
+(delineate)</strong>
+出来。那你怎么衡量自己圈得对不对、圈得多好?<strong>就用 Dice
+score。</strong>"</p>
+</blockquote>
+<p>Dice 系数(作为误差/评价指标)定义为:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">D</mi><mi mathvariant="normal">S</mi><mi mathvariant="normal">C</mi></mrow><mo>=</mo><mfrac><mrow><mn>2</mn><mspace width="0.167em"></mspace><mrow><mo stretchy="true" form="prefix">|</mo><mi>X</mi><mo>∩</mo><mi>Y</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>X</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>+</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>Y</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow></mfrac></mrow><annotation encoding="application/x-tex">\mathrm{DSC} = \frac{2\,|X \cap Y|}{|X| + |Y|} \tag{9}</annotation></semantics></math></p>
+<p>按 Slide
+的口径,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>X</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|X|</annotation></semantics></math>
+是<strong>正确分割</strong>的像素数、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>Y</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|Y|</annotation></semantics></math>
+是<strong>错误分割</strong>的像素数;更通用的读法是:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>
+分别为<strong>预测区域</strong>与<strong>真值区域</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>X</mi><mo>∩</mo><mi>Y</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|X\cap Y|</annotation></semantics></math>
+是二者<strong>重叠</strong>部分。直觉:<strong>两倍重叠 /
+(两者面积之和)</strong>——完全重合时
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">D</mi><mi mathvariant="normal">S</mi><mi mathvariant="normal">C</mi></mrow><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\mathrm{DSC}=1</annotation></semantics></math>,毫无重叠时为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>。它本质上和"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>(真值)减去预测、看差多少"是同一种"衡量对错"的思路,只不过更适合分割。把它当<strong>损失</strong>用时,通常优化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mrow><mi mathvariant="normal">D</mi><mi mathvariant="normal">S</mi><mi mathvariant="normal">C</mi></mrow></mrow><annotation encoding="application/x-tex">1-\mathrm{DSC}</annotation></semantics></math>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 为什么 Dice 能对抗 data
+imbalance</strong> —
+分割里常见的情形是"前景只占一小块,背景占一大片"(比如医学影像里的肿瘤)。这时如果用逐像素的
+accuracy
+或普通交叉熵,模型只要"全预测成背景"就能拿到很高的分数——它根本懒得去找前景。而
+Dice
+只看<strong>重叠占两者面积之和的比例</strong>,与背景那一大片无关,所以前景再小也逼着模型去对齐它。这就是它"combats
+data imbalance"的机理。</p>
+</blockquote>
+<p>slides 给了 TensorFlow 里的实现(理解即可,不必背):</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> DiceLoss(targets, inputs, smooth<span class="op">=</span><span class="fl">1e-6</span>):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># flatten label and prediction tensors</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    inputs  <span class="op">=</span> K.flatten(inputs)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    targets <span class="op">=</span> K.flatten(targets)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    intersection <span class="op">=</span> K.<span class="bu">sum</span>(K.dot(targets, inputs))</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    dice <span class="op">=</span> (<span class="dv">2</span><span class="op">*</span>intersection <span class="op">+</span> smooth) <span class="op">/</span> (K.<span class="bu">sum</span>(targets) <span class="op">+</span> K.<span class="bu">sum</span>(inputs) <span class="op">+</span> smooth)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">1</span> <span class="op">-</span> dice</span></code></pre></div>
+<p>读这段代码:把预测和标签拉平 → 算交集(对应分子
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>X</mi><mo>∩</mo><mi>Y</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|X\cap Y|</annotation></semantics></math>)
+→ 套式 (9) → 返回
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mrow><mi mathvariant="normal">d</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">e</mi></mrow></mrow><annotation encoding="application/x-tex">1-\mathrm{dice}</annotation></semantics></math>
+作为要最小化的损失;<code>smooth</code> 是防止分母为零的小常数。</p>
+<hr />
+<h2
+id="8-要素四通过正则项正则化-regularization-via-the-regularization-term">§8
+要素四:通过<strong>正则项</strong>正则化 (Regularization via the
+Regularization Term)</h2>
+<p>这是最"名正言顺"的入口——<strong>直接往损失里加一项
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math></strong>(就是式
+6 里那个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>⋯</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R(\cdots)</annotation></semantics></math>)。它通常<strong>不含
+target</strong>,只是对模型(典型是权重)的<strong>惩罚</strong>。</p>
+<h3 id="81-weight-decayridge-与-lasso">8.1 Weight decay、Ridge 与
+LASSO</h3>
+<p>回忆我们在回归里见过的两个经典正则项:<strong>ridge
+regression</strong> 用的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|w\|^2</annotation></semantics></math>(L2
+范数平方),<strong>LASSO</strong> 用的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msub><mo stretchy="false" form="postfix">∥</mo><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">\|w\|_1</annotation></semantics></math>(L1
+范数)。神经网络里最常用的是 <strong>weight decay(权重衰减)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mi>λ</mi><mspace width="0.167em"></mspace><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msubsup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">R(w) = \frac{1}{2}\lambda\,\|w\|_2^2 \tag{10}</annotation></semantics></math></p>
+<p>逐项读:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msubsup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\|w\|_2^2</annotation></semantics></math>
+是权重向量长度的平方(所有权重平方之和),<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+是一个<strong>控制旋钮</strong>——它决定"正则项相对于
+fidelity(保真)项有多重要"。老师把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+的作用讲得很形象:"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+设成
+0,正则就<strong>关掉</strong>了;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+调大,正则就<strong>更当回事</strong>。"</p>
+<p>为什么"惩罚权重的长度"能帮泛化?把 §3
+的蓝衬衫类比再调出来:无约束时权重"可以是任何值";加上
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\frac12\lambda\|w\|^2</annotation></semantics></math>
+这一项,就是在说"在能把训练数据拟合好的前提下,<strong>请尽量用小的权重</strong>"——这等价于偏好<strong>更简单、更平滑</strong>的函数,而简单函数更不容易去迎合训练集里的噪声。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+就是这场"拟合 vs 简单"拉锯的调节器:太小 →
+偏向死磕训练数据(易过拟合);太大 → 权重被压得太狠(易欠拟合)。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— Ridge 与 LASSO 的实务差别</strong> —
+两者都压权重,但
+L1(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msub><mo stretchy="false" form="postfix">∥</mo><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">\|w\|_1</annotation></semantics></math>)倾向于把一部分权重<strong>精确压到
+0</strong>,从而起到<strong>特征选择 (feature selection)</strong>
+的作用;L2(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|w\|^2</annotation></semantics></math>)则是把权重<strong>整体压小</strong>但一般不归零。老师课上还顺带提到:<strong>把
+L2(ridge)和 L1(LASSO)两项加在一起,就得到所谓的
+elastic-net(弹性网络)正则化</strong>——兼得两者之长。</p>
+</blockquote>
+<h3 id="82-smoothness-约束jacobian-与-frobenius-范数">8.2 Smoothness
+约束:Jacobian 与 Frobenius 范数</h3>
+<p>另一类正则项约束的不是"权重多大",而是"<strong>映射多平滑</strong>"。<strong>Smoothness(平滑性)约束</strong>的思想是:<strong>如果两个输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mn>1</mn></msub><annotation encoding="application/x-tex">x_1</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mn>2</mn></msub><annotation encoding="application/x-tex">x_2</annotation></semantics></math>
+彼此接近,它们对应的输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mi>w</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f_w(x_1)</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mi>w</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f_w(x_2)</annotation></semantics></math>
+也应当接近。</strong> 形式化为:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>f</mi><mi>w</mi></msub><mo>,</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">∥</mo><mspace width="0.167em"></mspace><msub><mi>J</mi><msub><mi>f</mi><mi>w</mi></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msubsup><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">∥</mo><mi>F</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">R(f_w, x) = \big\|\,J_{f_w}(x)\,\big\|_F^2 \tag{11}</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>J</mi><msub><mi>f</mi><mi>w</mi></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">J_{f_w}(x)</annotation></semantics></math>
+是网络输入–输出映射
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>w</mi></msub><annotation encoding="application/x-tex">f_w</annotation></semantics></math>
+在固定权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+下的
+<strong>Jacobian(雅可比矩阵,即所有输出对所有输入的一阶偏导构成的矩阵)</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mo>⋅</mo><msub><mo stretchy="false" form="postfix">∥</mo><mi>F</mi></msub></mrow><annotation encoding="application/x-tex">\|\cdot\|_F</annotation></semantics></math>
+是 <strong>Frobenius
+范数</strong>。这一项<strong>惩罚导数过大的映射</strong>——导数大意味着"输入稍动、输出剧变",正是不平滑;把它压小,输出就不会对输入的微小变化大起大落。</p>
+<p>Frobenius 范数对一个矩阵
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo>×</mo><mi>m</mi></mrow></msup></mrow><annotation encoding="application/x-tex">M \in \mathbb{R}^{n\times m}</annotation></semantics></math>
+的定义是:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>M</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>F</mi></msub><mo>=</mo><msqrt><mrow><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msup><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>m</mi><mrow><mi>j</mi><mi>k</mi></mrow></msub><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup></mrow></msqrt></mrow><annotation encoding="application/x-tex">\|M\|_F = \sqrt{\sum_{j=1}^{m}\sum_{k=1}^{n} |m_{jk}|^2} \tag{12}</annotation></semantics></math></p>
+<p>读作:<strong>把矩阵所有元素的绝对值平方求和,再开根号</strong>——就是把矩阵"拉平成一个长向量"后求它的
+L2 长度。</p>
+<blockquote>
+<p><strong>连接</strong> —
+这个正则项我们其实<strong>见过</strong>。Slide 15 明确指出:在
+"Artificial Neural Networks and Deep Learning: An introduction (III)" 的
+Slide 10,<strong>contractive autoencoder(收缩自编码器)</strong>
+用的正是这一项:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Ω</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msubsup><mrow><mo stretchy="true" form="prefix">∥</mo><mfrac><mrow><mi>∂</mi><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>∂</mi><mi>x</mi></mrow></mfrac><mo stretchy="true" form="postfix">∥</mo></mrow><mi>F</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\Omega(h) = \left\|\frac{\partial f(x)}{\partial x}\right\|_F^2</annotation></semantics></math>。收缩自编码器正是靠惩罚编码对输入的敏感度(Jacobian),逼出对扰动鲁棒的表示。所以"平滑性约束"不是新东西,而是同一把武器在不同场合的复用。</p>
+</blockquote>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>正则项</th>
+<th>形式</th>
+<th>惩罚什么</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Ridge (L2) / weight decay</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac><mi>λ</mi><msubsup><mrow><mo stretchy="true" form="prefix">|</mo><mi>w</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\frac12\lambda|w|_2^2</annotation></semantics></math></td>
+<td>权重的长度</td>
+<td>权重整体变小、更平滑</td>
+</tr>
+<tr class="even">
+<td>LASSO (L1)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mrow><mo stretchy="true" form="prefix">|</mo><mi>w</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>1</mn></msub><annotation encoding="application/x-tex">|w|_1</annotation></semantics></math></td>
+<td>权重的绝对值和</td>
+<td>稀疏化、特征选择</td>
+</tr>
+<tr class="odd">
+<td>Elastic net</td>
+<td>L1 + L2</td>
+<td>两者结合</td>
+<td>兼得稀疏与平滑</td>
+</tr>
+<tr class="even">
+<td>Smoothness</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>J</mi><msub><mi>f</mi><mi>w</mi></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">|</mo></mrow><mi>F</mi><mn>2</mn></msubsup><annotation encoding="application/x-tex">|J_{f_w}(x)|_F^2</annotation></semantics></math></td>
+<td>映射的导数(Jacobian)</td>
+<td>输入近 → 输出近,抗扰动</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="9-要素五通过优化正则化-regularization-via-optimization">§9
+要素五:通过<strong>优化</strong>正则化 (Regularization via
+Optimization)</h2>
+<p>最后一个入口是<strong>优化过程本身</strong>。在深度学习里最常用的优化算法是
+<strong>stochastic gradient
+descent(SGD,随机梯度下降)</strong>,其基本权重更新为:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><msub><mi>w</mi><mi>t</mi></msub><mo>−</mo><msub><mi>η</mi><mi>t</mi></msub><mspace width="0.167em"></mspace><msub><mi>∇</mi><mi>w</mi></msub><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>w</mi><mi>t</mi></msub><mo>,</mo><msub><mi>d</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">w_{t+1} = w_t - \eta_t \,\nabla_w L(w_t, d_t) \tag{13}</annotation></semantics></math></p>
+<p>逐项读:新权重 = 旧权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mi>t</mi></msub><annotation encoding="application/x-tex">w_t</annotation></semantics></math>
+减去<strong>学习率 (learning rate)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>η</mi><mi>t</mi></msub><annotation encoding="application/x-tex">\eta_t</annotation></semantics></math>
+乘以<strong>损失对权重的梯度</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>∇</mi><mi>w</mi></msub><mi>L</mi></mrow><annotation encoding="application/x-tex">\nabla_w L</annotation></semantics></math>,其中梯度是在训练集的一个
+<strong>mini-batch</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>t</mi></msub><annotation encoding="application/x-tex">d_t</annotation></semantics></math>
+上算的。老师的口语版:"新权重 = 上一步的权重 −
+某个函数的梯度。"它的各种扩展——<strong>Adam、RMSProp、AdaGrad</strong>——我们在
+"ANN &amp; DL: An Introduction (I)" Slides 48–53 见过。</p>
+<p>关键的组织思想(Slide 16):<strong>任何优化方法都包含三个环节——(i)
+initialization 初始化、(ii) update 更新、(iii) termination
+终止。优化层面的正则化,就从这三个"透镜"分别切入。</strong></p>
+<pre class="mermaid"><code>graph LR
+  I[&quot;① 初始化 Initialization&lt;br/&gt;从哪儿出发&quot;] --&gt; U[&quot;② 更新 Update&lt;br/&gt;怎么走&quot;]
+  U --&gt; T[&quot;③ 终止 Termination&lt;br/&gt;何时停&quot;]
+  T --&gt; Reg[&quot;三个环节各自&lt;br/&gt;都能做正则化&quot;]</code></pre>
+<h3 id="91-初始化-initialization-与预训练-pre-training">9.1 初始化
+(Initialization) 与预训练 (Pre-training)</h3>
+<p><strong>从哪儿出发,会影响你最终走到哪。</strong>(Slide 17)</p>
+<ul>
+<li><strong>权重初始选择</strong>:从某个分布里采样,并设法让<strong>各层激活的方差保持在
+1 附近</strong>,以避免激活和梯度的<strong>消失或爆炸 (vanishing or
+exploding)</strong>。</li>
+<li><strong>预训练
+(pre-training)</strong>:先在<strong>同一领域、不同任务</strong>的数据上把网络"预热",再迁移过来。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例(GPT:预训练 + 微调)</strong> — Slide 17
+的招牌例子:OpenAI 的 <strong>GPT(Generative Pre-trained
+Transformer)</strong>
+系列,先在<strong>海量网页/书籍语料</strong>上做预训练,得到的模型再在具体
+NLP 任务(文本分类、问答、文本生成)上<strong>微调
+(fine-tune)</strong>,就能展现出很强的语言理解能力。老师用作业的语境把这背后的直觉讲活了:"网络<strong>前几层</strong>学到的是<strong>通用
+(generic)</strong>
+的特征,后面的层才越来越<strong>专用</strong>。所以做领域适配时,我<strong>冻住</strong>前面那一大堆(几十亿)通用参数,只<strong>放开训练后面一小部分</strong>——也许几百万个参数,一台现代笔记本一晚上就能训完。"
+这正是"用预训练做正则化"的精髓:把通用先验<strong>继承</strong>下来,不再从零乱撞。</p>
+</blockquote>
+<p>初始化可以<strong>带或不带</strong>预训练:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>具体手段</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>不带预训练</strong></td>
+<td>(i) 随机权重初始化 (ii) 正交权重矩阵 (orthogonal) (iii)
+数据相关的初始化 (data-dependent)</td>
+</tr>
+<tr class="even">
+<td><strong>带预训练</strong></td>
+<td>(i) 贪婪逐层预训练 (greedy layer-wise) (ii) 课程学习 (curriculum
+learning) (iii) spatial contrasting (iv) subtask splitting</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="92-更新-update更新规则与梯度权重滤波">9.2 更新
+(Update):更新规则与梯度/权重滤波</h3>
+<p>更新方法分两类(Slide 18):</p>
+<p><strong>(a) 更新规则 (update rules):</strong></p>
+<ul>
+<li><strong>Momentum(动量)</strong>——见 ANN &amp; DL Intro I, slides
+48–53;</li>
+<li><strong>学习率调度 (learning rate schedules)</strong>;</li>
+<li><strong>在线批选择 (online batch selection)</strong>;</li>
+<li><strong>SGD 的替代品</strong>——L-BFGS、Hessian-free 方法等。</li>
+</ul>
+<p><strong>(b) 梯度与权重滤波 (gradient and weight
+filters):</strong></p>
+<ul>
+<li><strong>Dropout</strong>——随机地把激活置零(它在这里被归为对梯度/权重的"滤波");</li>
+<li><strong>Annealed Langevin
+noise</strong>——往<strong>梯度</strong>里加噪声;</li>
+<li><strong>Anneal SGD</strong>——用<strong>退火 (annealing)
+调度</strong>调整学习率(按指数衰减 / 线性衰减 /
+阶梯衰减逐步<strong>降低</strong>学习率),从而更充分地探索参数空间、获得更好的收敛。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 为什么"逐步降学习率"是正则化</strong> —
+直觉上,训练早期用大学习率"大步快跑"以广泛探索、跳出差的区域;后期用小学习率"小步微调"以稳稳落进一个好极小点。这种先粗后细的节奏,既防止一开始就陷进坏解,又防止后期在好解附近来回震荡——本质上是在引导优化轨迹走向泛化更好的解。</p>
+</blockquote>
+<h3 id="93-终止-termination见好就收">9.3 终止
+(Termination):见好就收</h3>
+<p><strong>在恰当的时刻停止优化,可以改善泛化</strong>(Slide
+19)——因为它<strong>缩小了"期望风险的最优解"与"经验风险的最优解"之间的差距</strong>(回忆
+§3:我们其实在用经验风险
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>L</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat L</annotation></semantics></math>
+凑合代替真正想要的期望风险
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>;训练太久会过度贴合前者)。</p>
+<p>老师把这背后的直觉讲得很好:</p>
+<blockquote>
+<p>⭐ <strong>关键直觉(early stopping)</strong> —
+"训练是一个<strong>随机过程</strong>,误差不见得<strong>一路下降</strong>。它可能到了某个点其实<strong>已经学会了</strong>,再往下练<strong>反而有害</strong>。所以你时不时<strong>存一个快照
+(snapshot)</strong>,把当前值留住,然后<strong>停</strong>。具体做法:盯着<strong>最近
+2、3 个</strong>验证指标,一看'不再改善了',就停。" 这就是 <strong>early
+stopping(早停)</strong>。</p>
+</blockquote>
+<p>终止策略分两类:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>手段</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>用验证集 (validation set)</strong></td>
+<td>(i) early stopping(早停) (ii) 验证集的选择</td>
+</tr>
+<tr class="even">
+<td><strong>不用验证集</strong></td>
+<td>(i) 固定迭代次数 (ii) optimized approximation algorithm</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展 — 验证集是什么</strong> — 把数据分成 training /
+validation / test
+三份:用训练集学权重,用<strong>验证集</strong>调超参数(学几轮、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+多大、学习率多少)并决定何时早停,最后用<strong>完全没碰过的</strong>测试集估计真实泛化。早停正是靠"验证集上的表现不再提升"来判断该收手了。</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 例(更聪明的优化:局部 vs 全局)</strong> —
+老师还点了一个有意思的现象:"有报告显示,即便你<strong>没有</strong>拿到<strong>全局最优
+(global
+optimum)</strong>,系统照样能表现很好——因为它很可能落进了某个<strong>不错的局部极小
+(local
+minimum)</strong>,而那个局部解已经代表了一个很好的结果;真正的全局最优,它<strong>也许根本到不了</strong>。"
+这提醒我们:优化的目标不是数学上的完美最小,而是泛化得好的解。</p>
+</blockquote>
+<p>slides 给了 TensorFlow 的早停回调(理解即可):</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>callback <span class="op">=</span> tf.keras.callbacks.EarlyStopping(monitor<span class="op">=</span><span class="st">&#39;loss&#39;</span>, patience<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 当 loss 连续 3 个 epoch 没有改善时,停止训练。</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> tf.keras.models.Sequential([tf.keras.layers.Dense(<span class="dv">10</span>)])</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>model.<span class="bu">compile</span>(tf.keras.optimizers.SGD(), loss<span class="op">=</span><span class="st">&#39;mse&#39;</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>history <span class="op">=</span> model.fit(np.arange(<span class="dv">100</span>).reshape(<span class="dv">5</span>, <span class="dv">20</span>), np.zeros(<span class="dv">5</span>),</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>                    epochs<span class="op">=</span><span class="dv">10</span>, batch_size<span class="op">=</span><span class="dv">1</span>, callbacks<span class="op">=</span>[callback], verbose<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="bu">len</span>(history.history[<span class="st">&#39;loss&#39;</span>])   <span class="co"># 实际只跑了 4 个 epoch</span></span></code></pre></div>
+<p><code>patience=3</code> 就是"再忍 3 轮没进步就停"——把上面的"盯最近
+2、3 个值"直接落成了代码。</p>
+<hr />
+<h2 id="10-全章串讲一张图回看五个入口">§10
+全章串讲:一张图回看五个入口</h2>
+<p>到这里,Week 8
+的整条线就闭合了。我们从"机器学习在假设空间里搜一个函数"出发(§1),认定真正要的是<strong>泛化</strong>而非记忆(§2),把训练写成"最小化
+fidelity +
+penalty"的优化问题(§3),然后用"决定权重的五个要素"作地图(§4),逐个入口看正则化怎么进来(§5–§9)。请用下面这张总图把它们收进一个画面——<strong>同一个目标(泛化),五个入口</strong>:</p>
+<pre class="mermaid"><code>mindmap
+  root((&quot;正则化&lt;br/&gt;= 任何改善&lt;br/&gt;泛化的手段&quot;))
+    ①数据 Data
+      特征提取 PCA/AE 去冗余
+      数据增强 覆盖分布
+      加噪 x+θ
+    ②架构 Architecture
+      选架构=inductive bias
+      权重共享 卷积
+      激活 ReLU/Dropout/Maxout/GeLU
+    ③误差函数 Error
+      MSE / cross-entropy
+      Dice 抗不平衡
+    ④正则项 Term
+      ridge/LASSO/weight decay
+      smoothness Jacobian
+    ⑤优化 Optimization
+      初始化+预训练 GPT
+      更新 momentum/退火
+      终止 early stopping</code></pre>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>正则化 = 任何旨在让模型泛化得更好的辅助技术(Kukačka et al.
+2017 的伞形定义)。</strong>
+它不是某一个公式,而是一类<strong>目的</strong>。</li>
+<li><strong>泛化 (generalization)</strong>
+指模型对"未见过、但来自<strong>同一分布</strong>"的数据也能给出合理结果;它的反面是<strong>过拟合
+(overfitting)</strong>——过大的网络 + 不够的数据 =
+死记硬背,训练集完美而未见数据失灵。"同分布"这个前提<strong>不能省</strong>。</li>
+<li><strong>正则化与泛化的关系(老师点名考点):</strong>
+泛化是<strong>目标</strong>,正则化是<strong>手段</strong>——通过约束模型/数据/优化来抑制记忆训练噪声,从而缩小"训练表现与未见数据表现"的差距。能写三四行展开。</li>
+<li>训练 =
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>w</mi><mo>*</mo></msup><mo>=</mo><mo>arg</mo><msub><mo>min</mo><mi>w</mi></msub><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">w^*=\arg\min_w L(w)</annotation></semantics></math>;损失写成
+<strong>expected risk</strong>(式 6),实操用 <strong>empirical
+risk</strong>(式 7)近似,它由 <strong>fidelity term
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ℰ</mi><annotation encoding="application/x-tex">\mathcal{E}</annotation></semantics></math></strong>
+与 <strong>regularization term
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math></strong>
+两部分组成。</li>
+<li><strong>直觉:正则化 =
+缩小搜索空间</strong>("找穿蓝衬衫的人");而<strong>搜索本身仍由
+optimization 完成</strong>——两者分工明确。</li>
+<li><strong>决定权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>w</mi><mo>*</mo></msup><annotation encoding="application/x-tex">w^*</annotation></semantics></math>
+的五个要素 = 五个正则化入口:① 数据 ② 架构 ③ 误差函数 ④ 正则项 ⑤
+优化。</strong> 这是全章骨架。</li>
+<li><strong>① 数据:</strong> 特征提取(PCA
+去<strong>冗余/线性相关</strong>特征 →
+表示更丰富)、数据增强(扩大对分布的<strong>覆盖</strong>,如人脸多姿态、机场刷脸的
+OOD)、加噪
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>τ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>x</mi><mo>+</mo><mi>θ</mi></mrow><annotation encoding="application/x-tex">\tau_\theta(x)=x+\theta</annotation></semantics></math>;可在
+input/hidden/target 空间、训练或测试时进行。</li>
+<li><strong>② 架构:</strong> 选定架构本身就是 <strong>inductive
+bias</strong>;<strong>权重共享</strong>(卷积 → 平移等变性 +
+局部性,降复杂度)、<strong>激活函数</strong>(ReLU
+治梯度消失;Dropout/Maxout 在测试时近似集成的几何平均;GeLU
+结合随机正则与非线性)。</li>
+<li><strong>③ 误差函数:</strong> 回归用 <strong>MSE</strong>、分类用
+<strong>cross-entropy</strong>;<strong>Dice</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mfrac><mrow><mn>2</mn><mrow><mo stretchy="true" form="prefix">|</mo><mi>X</mi><mo>∩</mo><mi>Y</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>X</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>+</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>Y</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow></mfrac></mrow><annotation encoding="application/x-tex">=\frac{2|X\cap Y|}{|X|+|Y|}</annotation></semantics></math>
+用于分割并<strong>对抗数据不平衡</strong>。</li>
+<li><strong>④ 正则项:</strong> <strong>weight decay</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msubsup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">R(w)=\frac12\lambda\|w\|_2^2</annotation></semantics></math>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+调节"拟合 vs 简单",ridge=L2、LASSO=L1、二者合为 elastic
+net);<strong>smoothness</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><msub><mi>J</mi><msub><mi>f</mi><mi>w</mi></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><msubsup><mo stretchy="false" form="postfix">∥</mo><mi>F</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">R=\|J_{f_w}(x)\|_F^2</annotation></semantics></math>(输入近→输出近,即
+contractive autoencoder 用的那一项)。</li>
+<li><strong>⑤ 优化:</strong> 三透镜 <strong>初始化 / 更新 /
+终止</strong>——初始化保持激活方差≈1、预训练(GPT
+冻通用层只训专用头);更新含 momentum、学习率退火、dropout;终止靠
+<strong>early
+stopping</strong>(借验证集"见好就收",<code>patience</code>)。</li>
+</ul>
+<hr />
+<h2 id="-考试提示-exam-tips">⭐ 考试提示 (Exam tips)</h2>
+<blockquote>
+<p>综合老师在两段录音里的明确信号 + 课程既往规律:</p>
+<ol type="1">
+<li><strong>解读公式,而非推导公式。</strong>
+老师原话:"考试时我<strong>不会</strong>让你写出方程——我会<strong>把方程给你,让你解释这里发生了什么</strong>。"
+所以请把功夫下在<strong>会读</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>arg</mo><mo>min</mo></mrow><annotation encoding="application/x-tex">\arg\min</annotation></semantics></math>、式
+(6) 期望风险、式 (10) weight decay、式 (13) SGD、Dice、Frobenius
+这些式子上,能用一两句话说清每个符号和整体含义。(与本课一贯风格一致:3
+小时手写、1 张 A4 cheat sheet、不考公式推导。)</li>
+<li><strong>Regularization ↔︎ Generalization
+的联系</strong>几乎是送分必备题——准备好写 3–4 行(目标 vs
+手段、抑制记忆、缩小训练/未见差距)。</li>
+<li><strong>没有标准答案模板。</strong>
+老师强调他<strong>读你写的内容</strong>:"把你的理解讲成一个故事,讲丰富点。"
+与其背术语,不如把直觉(蓝衬衫、篮球扣篮、字母表、机场刷脸)讲清楚。</li>
+<li><strong>与作业挂钩的考点:</strong> 老师明说"有些考题基于作业"——尤其
+regression 里的 <strong>ridge</strong>、<strong>dropout</strong>
+的行为、以及 Assignment 2 的
+RAG。"如果你没真正做过,这种题你答不上来。"</li>
+</ol>
+</blockquote>
+<hr />
+<h2 id="参考文献-references">参考文献 (References)</h2>
+<ul>
+<li>Goodfellow, I., Bengio, Y. &amp; Courville, A. (2016). <em>Deep
+Learning</em>. MIT Press.</li>
+<li>Kukačka, J., Golkov, V. &amp; Cremers, D. (2017). <em>Regularization
+for deep learning: A taxonomy</em>. Technical Report, arXiv:1710.10686
+[cs.LG]. <a
+href="https://arxiv.org/abs/1710.10686v1">https://arxiv.org/abs/1710.10686v1</a></li>
+</ul>
+<blockquote>
+<p><strong>关于来源的说明</strong> — 本指南以
+<code>Week8_regularisation.pdf</code>(20
+页)为知识范围基准,叙述、直觉与例子融合自两段课堂录音(<code>CSCI933_Week7&amp;Week8</code>
+与
+<code>CSCI933_Week8</code>)。其中蓝衬衫、篮球扣篮、人脸冗余特征、机场刷脸、字母表、GPT
+冻层、早停快照、局部 vs
+全局最优等<strong>类比与例子来自老师口述</strong>;凡 slides
+未覆盖、由本指南补入的内容(如 Dice 抗不平衡机理、L1/L2 实务差别、elastic
+net、退火即正则、验证集说明)均已用 <code>📎 拓展</code> 标出。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

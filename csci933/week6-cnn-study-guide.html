@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 6 · 卷积神经网络与深度学习 (II) — CNN</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-6--卷积神经网络与深度学习-ii--cnn">Week 6 ·
+卷积神经网络与深度学习 (II) — CNN</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>解释为什么处理图像时<strong>全连接网络 (fully connected
+MLP)</strong> 会"参数爆炸",以及 <strong>CNN</strong> 用哪两条先验(local
+connectivity + weight sharing)把它救回来;</li>
+<li>写出一维与二维<strong>卷积 (convolution)</strong>
+的定义,讲清"翻转—滑动—相乘求和"的过程,并说明机器学习里实际用的是
+<strong>cross-correlation</strong>;</li>
+<li>把<strong>滤波器 (filter / kernel)</strong>
+理解成一个"原型探测器",并解释 <strong>feature
+map</strong>、<strong>receptive field</strong>、<strong>stride</strong>
+这几个词;</li>
+<li>说出卷积带来的三大好处——<strong>sparse
+interactions</strong>、<strong>parameter
+sharing</strong>、<strong>equivariance</strong>——并讲清
+equivariance(等变)和 pooling 带来的 invariance(不变)有什么区别;</li>
+<li>解释 <strong>pooling</strong>
+在做什么、为什么能压缩计算又能抵抗微小平移,手算一个 max pooling
+例子;</li>
+<li>读懂一张 CNN 架构表(用 output-size 公式算出每层尺寸),并说出
+<strong>LeNet-5 / AlexNet / GoogLeNet / ResNet</strong>
+各自的核心贡献(尤其是 Inception module 与 skip connection)。</li>
+</ul>
+</blockquote>
+<p>上一周我们把神经网络这台机器彻底拆开了:一个<strong>神经元
+(neuron)</strong> 是"加权和 + 激活",很多神经元叠成<strong>多层感知机
+(MLP)</strong>,再用<strong>反向传播 (back-propagation)</strong>
+让它自己学出一个函数。那台机器有个隐含假设——<strong>全连接 (fully
+connected)</strong>:某一层的每个神经元,都连到上一层的<em>所有</em>神经元。</p>
+<p>这个假设对小问题没事,但一碰到图像就立刻崩。设想一张并不算大的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>200</mn><mo>×</mo><mn>200</mn></mrow><annotation encoding="application/x-tex">200\times200</annotation></semantics></math>
+彩色图片,它有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>200</mn><mo>×</mo><mn>200</mn><mo>×</mo><mn>3</mn><mo>=</mo><mn>120</mn><mo>,</mo><mn>000</mn></mrow><annotation encoding="application/x-tex">200\times200\times3 = 120{,}000</annotation></semantics></math>
+个输入值;如果第一个隐藏层只放 1000 个神经元,光这一层的权重就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>120</mn><mo>,</mo><mn>000</mn><mo>×</mo><mn>1000</mn><mo>=</mo><mn>1.2</mn></mrow><annotation encoding="application/x-tex">120{,}000 \times 1000 = 1.2</annotation></semantics></math>
+亿个。还没开始训练,参数量就已经失控,而且其中绝大多数都是浪费——图像里"猫的耳朵"这个特征,无论出现在左上角还是右下角都是同一个东西,凭什么要为每个位置各学一套权重?</p>
+<p>这一周登场的<strong>卷积神经网络 (Convolutional Neural Network,
+CNN)</strong> 正是为了解决这件事。它不是另起炉灶的新物种,而是给 MLP
+加了<strong>两条结构性约束</strong>,把"我们对图像的先验知识"直接刻进了网络设计里。讲师在课上反复强调的一句话可以当作本章的种子:</p>
+<blockquote>
+<p><strong>"CNN 说到底,就是一堆 filter,让你对输入做出一种<em>层级化
+(hierarchical)</em> 的表示。"</strong></p>
+</blockquote>
+<p>先看一张全章骨架图,再逐节填满:</p>
+<pre class="mermaid"><code>mindmap
+  root((CNN&lt;br/&gt;卷积神经网络))
+    为什么
+      全连接参数爆炸
+      视觉是层级的
+      grid-like 数据
+    两条先验
+      局部连接 receptive field
+      权值共享 weight sharing
+    核心运算
+      卷积 convolution
+      互相关 cross-correlation
+      filter 即原型探测器
+      feature map / stride
+    三大好处
+      sparse interactions
+      parameter sharing
+      equivariance 等变
+    池化 Pooling
+      max / avg / L2
+      invariance 不变
+      下采样 downsampling
+    经典架构
+      LeNet-5 1998
+      AlexNet 2012
+      GoogLeNet 2014
+      ResNet 2015</code></pre>
+<hr />
+<h2 id="1-视觉是分层的cnn-的两条先验从哪来">1. 视觉是分层的:CNN
+的两条先验从哪来</h2>
+<p>在写下任何公式之前,先理解 CNN
+为什么长这个样子——因为它的结构是从<strong>人类视觉</strong>和<strong>图像的本质</strong>里抄来的。</p>
+<h3 id="11-层级表示从线条到物体">1.1 层级表示:从线条到物体</h3>
+<p>讲师先讲了一个直觉:我们的视觉系统识别物体,不是一眼看到"猫",而是<strong>层层抽象</strong>的。最底层的神经元只对<strong>简单的局部特征</strong>敏感——一小段边缘、一个角点、一条线;这些低级特征组合起来形成<strong>形状</strong>(圆、轮廓);形状再组合成<strong>物体的部件</strong>(耳朵、眼睛);最后才拼成"猫"。</p>
+<p>这正是上一周说过的"<strong>逐层抽取特征</strong>"在视觉里的具体样子:</p>
+<pre class="mermaid"><code>graph LR
+  P[像素 Pixels] --&gt; E[边缘/线条&lt;br/&gt;低级、通用特征]
+  E --&gt; S[形状/纹理&lt;br/&gt;中级特征]
+  S --&gt; Pt[部件 Parts&lt;br/&gt;耳朵 眼睛]
+  Pt --&gt; O[物体 Object&lt;br/&gt;猫]
+  style E fill:#e8f4ff
+  style S fill:#d0e8ff
+  style Pt fill:#b0d8ff
+  style O fill:#90c8ff</code></pre>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 讲师说"低层是 generic
+features,越深越
+specialized",这其实是深度学习一个被反复验证的经验事实:训练好的
+CNN,第一层卷积核几乎总是学成各种方向的<strong>边缘检测器</strong>和<strong>颜色块</strong>(无论训练的是猫还是汽车都长得差不多),越深的层才学到与具体任务相关的、可辨认的部件。正因为低层特征是通用的,<strong>迁移学习
+(transfer learning)</strong> 才能成立——这一点 §7.5 会再讲。</p>
+</blockquote>
+<p>关键启示有两个,它们直接变成了 CNN 的两条先验:</p>
+<ol type="1">
+<li><strong>特征是局部的。</strong>
+要检测一段边缘,只需要看图像中一<strong>小块</strong>邻近像素,根本不需要连到整张图——于是有了<strong>局部连接
+(local connectivity)</strong>,也叫<strong>感受野 (receptive
+field)</strong>。</li>
+<li><strong>同一个特征可能出现在任何位置。</strong>
+"竖直边缘"这个检测器,在图像左上角和右下角应该是<strong>同一套权重</strong>——于是有了<strong>权值共享
+(weight sharing)</strong>。</li>
+</ol>
+<h3 id="12-把先验刻进网络cnn-的正式定义">1.2 把先验"刻进"网络:CNN
+的正式定义</h3>
+<p>现在可以给出 slides 上的正式说法了。<strong>CNN
+是一类特殊的多层感知机,专门用来处理具有网格状拓扑 (grid-like topology)
+的数据</strong>:</p>
+<ul>
+<li><strong>一维网格</strong>:时间序列(按固定间隔采样的信号,如股价、温度);</li>
+<li><strong>二维网格</strong>:图像(像素的二维排列)。</li>
+</ul>
+<p>它的定义性特征是:<strong>在至少一层里,用卷积 (convolution)
+代替了一般的矩阵乘法</strong>。Slides 把这件事概括成一句话——CNN
+是一种<strong>把先验信息构建进网络设计</strong>的方式,具体通过两个约束实现:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>约束</th>
+<th>全连接 MLP 怎么做</th>
+<th>CNN 怎么做</th>
+<th>带来什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>连接方式</strong></td>
+<td>全局连接,每个神经元连上一层全部</td>
+<td><strong>局部连接</strong>(receptive field),只连一小块</td>
+<td>参数大减,强制学局部特征</td>
+</tr>
+<tr class="even">
+<td><strong>权重选择</strong></td>
+<td>每条连接独立学一个权重</td>
+<td><strong>权值共享</strong>(同一 filter 扫全图)</td>
+<td>参数再大减,得到平移特性</td>
+</tr>
+</tbody>
+</table></div>
+<p>用矩阵语言看这件事会更清楚。全连接层的输入—输出关系是一次普通的矩阵乘法:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>i</mi></msub><mo>=</mo><mi>W</mi><mspace width="0.167em"></mspace><msub><mi>v</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">v_i = W\,v_{i-1}</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+是稠密(dense)的权重矩阵,每个元素都自由可学。而卷积层的输入—输出关系,写出来是这样(以一个把
+6 个输入映到 4 个隐藏神经元、滤波器长度为 6 的一维例子):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>j</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mn>6</mn></munderover><msub><mi>ω</mi><mi>i</mi></msub><mspace width="0.167em"></mspace><msub><mi>x</mi><mrow><mi>i</mi><mo>+</mo><mi>j</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><mspace width="2.0em"></mspace><mi>j</mi><mo>=</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mn>3</mn><mo>,</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">v_j = \sum_{i=1}^{6} \omega_i\, x_{i+j-1}, \qquad j = 1,2,3,4</annotation></semantics></math></p>
+<p>注意这里的玄机:<strong>同一组权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">{</mo><msub><mi>ω</mi><mi>i</mi></msub><msubsup><mo stretchy="false" form="postfix">}</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mn>6</mn></msubsup></mrow><annotation encoding="application/x-tex">\{\omega_i\}_{i=1}^{6}</annotation></semantics></math>
+被全部四个隐藏神经元共用</strong>。换句话说,卷积层对应的权重矩阵不是自由的稠密矩阵,而是一个高度受限的、对角线方向元素相同的
+<strong>Toeplitz 矩阵</strong>——绝大多数元素是
+0(局部连接),非零元素还彼此相等(权值共享)。这就是"把先验刻进网络"的数学含义:我们不是让网络自由地学一切,而是事先掐死了大部分自由度。</p>
+<blockquote>
+<p><strong>🔑 直觉(讲师的滤波器类比)</strong> —
+想象汽车音响或播放器上那排<strong>均衡器滑块 (equalizer
+sliders)</strong>:1K、4K、15K……
+每个滑块管一个频段,能放大或压低某些频率。每个滑块背后其实就是一个<strong>滤波器
+(filter)</strong>。CNN
+干的是同一件事,只不过滤波器是<em>学出来</em>的:每个 filter
+负责"放大"输入里某一种特定的模式,压制其他的。把很多个 filter
+叠起来,你就得到了同一份输入的很多种不同表示——这正是层级表示的来源。</p>
+</blockquote>
+<h3 id="13-这一章的形状">1.3 这一章的"形状"</h3>
+<p>把上面两节连起来:因为视觉是分层的、特征是局部且可复用的,CNN
+就用<strong>局部连接的卷积</strong>去抽局部特征,用<strong>多个共享权重的
+filter</strong>得到多张特征图,再用<strong>池化</strong>逐步压缩、抵抗位移。下面三节(卷积
+→ 三大好处 → 池化)把这台机器的零件逐个讲清,第 6、7
+节再把它们组装成完整网络,看历史上几个里程碑架构是怎么搭出来的。</p>
+<hr />
+<h2 id="2-卷积cnn-的核心运算">2. 卷积:CNN 的核心运算</h2>
+<p>整章只有这一个运算是真正"新"的,值得花最多笔墨。我们按"它在直觉上是什么
+→ 公式 → 机器学习里的变体 → 手算一遍"的顺序走。</p>
+<h3 id="21-直觉filter-是一个原型探测器">2.1 直觉:filter
+是一个"原型探测器"</h3>
+<p>讲师给了一个非常好用的framing:<strong>一个 filter
+就是一个你要找的"原型
+(prototype)"</strong>,而卷积就是拿这个原型在整张图上滑动,逐处问一句——</p>
+<blockquote>
+<p>"这里像不像我手上这个东西?像,响应就高;不像,响应就低。"</p>
+</blockquote>
+<p>举例:如果某个 filter 长得像"一段斜线
+╱",那么把它在图上扫一遍,得到的输出图(叫 <strong>feature
+map</strong>)就会在<strong>真的有斜线的地方</strong>亮起来,其他地方暗下去。于是一个
+filter 扫完,你就得到一张"这种斜线在哪里"的地图。换一个
+filter(比如"╲"),再扫一遍,得到另一张地图。讲师的<strong>做面条/橡皮泥</strong>类比说的也是这件事:同一团泥(输入),压过不同的模具(filter),挤出不同形状的面条(不同的特征表示);把很多模具叠起来,就得到同一份输入的很多个侧面。</p>
+<p>为什么"像不像"可以用乘法算?因为如果 filter
+和它覆盖的那块输入<strong>数值上很接近</strong>,逐元素相乘再求和会得到一个<strong>很大的正数</strong>;如果毫不相关甚至相反,乘出来就小、甚至是负的。所以<strong>对应相乘再求和</strong>这个动作,天然就是一个"相似度打分"。这也解释了为什么讲师说卷积"本质上就是一个
+<strong>correlator</strong>(相关器)"。</p>
+<h3 id="22-公式翻转滑动相乘求和">2.2 公式:翻转、滑动、相乘求和</h3>
+<p>现在把直觉写成公式。给定两个函数——输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x(n)</annotation></semantics></math>
+和<strong>核 (kernel)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ω</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\omega(n)</annotation></semantics></math>——它们的<strong>卷积</strong>定义为:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>ω</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>−</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>k</mi></munder><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>−</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>ω</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">s(n) = \sum_{k} x(k)\,\omega(n-k) = \sum_{k} x(n-k)\,\omega(k) \tag{3}</annotation></semantics></math></p>
+<p>逐字读一遍这个公式它在说什么:<strong>把核
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ω</mi><annotation encoding="application/x-tex">\omega</annotation></semantics></math>
+相对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+翻转(flip),然后沿着
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+滑动(slide);每滑到一个位置,就把重叠部分对应相乘、再全部加起来</strong>,得到该位置的一个输出值。等号两边相等体现了卷积的<strong>交换律
+(commutative)</strong>——翻转谁滑动谁都一样。</p>
+<p>在 CNN 的语境里,三个符号各有名字:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>符号</th>
+<th>名字</th>
+<th>是什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math></td>
+<td>input(输入)</td>
+<td>图像 / 信号</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ω</mi><annotation encoding="application/x-tex">\omega</annotation></semantics></math></td>
+<td><strong>kernel / filter</strong>(核 / 滤波器)</td>
+<td>要学习的权重,通常很小(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mo>×</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">3\times3</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>×</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">5\times5</annotation></semantics></math>)</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math></td>
+<td><strong>feature map</strong>(特征图)</td>
+<td>卷积的输出,"这个特征在哪"的地图</td>
+</tr>
+</tbody>
+</table></div>
+<p>推广到<strong>二维</strong>(图像),只是多了一个求和维度:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>,</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mrow><mi>k</mi><mo>,</mo><mi>l</mi></mrow></munder><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>,</mo><mi>l</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>ω</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>−</mo><mi>k</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>m</mi><mo>−</mo><mi>l</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mrow><mi>k</mi><mo>,</mo><mi>l</mi></mrow></munder><mi>ω</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>,</mo><mi>l</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>−</mo><mi>k</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>m</mi><mo>−</mo><mi>l</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">s(n,m) = \sum_{k,l} x(k,l)\,\omega(n-k,\,m-l) = \sum_{k,l} \omega(k,l)\,x(n-k,\,m-l) \tag{4}</annotation></semantics></math></p>
+<p>求和只在核的非零范围内进行——这正是"局部"的体现:核通常被定义成<strong>空间上有限</strong>的一小块,所以每个输出只由输入的一小块邻域决定。</p>
+<h3 id="23-一个关键的善意谎言其实用的是-cross-correlation">2.3
+一个关键的"善意谎言":其实用的是 cross-correlation</h3>
+<p>这是一个常被考、又容易答错的细节。式 (4)
+那个带翻转的"真·卷积"在机器学习里<strong>几乎从不真的用</strong>。实际框架(PyTorch、TensorFlow)里跑的是<strong>互相关
+(cross-correlation)</strong>——也就是<strong>不翻转核</strong>,直接对齐相乘:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>,</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mrow><mi>k</mi><mo>,</mo><mi>l</mi></mrow></munder><mi>x</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>,</mo><mi>l</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>ω</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mi>k</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>m</mi><mo>+</mo><mi>l</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">s(n,m) = \sum_{k,l} x(k,l)\,\omega(n+k,\,m+l) \tag{5}</annotation></semantics></math></p>
+<p>注意式 (5) 里是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ω</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mi>k</mi><mo>,</mo><mi>m</mi><mo>+</mo><mi>l</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\omega(n+k, m+l)</annotation></semantics></math>(加号,不翻转),而式
+(4) 里是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ω</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>−</mo><mi>k</mi><mo>,</mo><mi>m</mi><mo>−</mo><mi>l</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\omega(n-k, m-l)</annotation></semantics></math>(减号,翻转)。区别就在这一个符号。</p>
+<p>那为什么不较真?因为<strong>核是学出来的</strong>:既然
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ω</mi><annotation encoding="application/x-tex">\omega</annotation></semantics></math>
+的每个值都是训练得到的,网络完全可以自己把权重学成"翻转后"的样子,翻不翻转最终学到的功能一模一样。于是大家图省事直接用不翻转的
+cross-correlation,<strong>却仍然管它叫
+"convolution"</strong>。所以你以后看到代码里、论文里说
+convolution,心里要清楚:它技术上其实是 cross-correlation。</p>
+<h3 id="24-手算一遍滑动stride-与-feature-map">2.4 手算一遍:滑动、stride
+与 feature map</h3>
+<p>光看公式没感觉,我们跟着讲师在课上比划的那个例子手算一遍二维互相关。设核是一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mo>×</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">2\times2</annotation></semantics></math>
+的小窗
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mi>W</mi></mtd><mtd columnalign="center" style="text-align: center"><mi>X</mi></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mi>Z</mi></mtd><mtd columnalign="center" style="text-align: center"><mi>?</mi></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\begin{bmatrix}W &amp; X\\ Z &amp; ? \end{bmatrix}</annotation></semantics></math>(讲师用了一串字母,我们就照着走),输入是一片更大的网格,左上角那块记作:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">输入</mtext><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mi>A</mi></mtd><mtd columnalign="center" style="text-align: center"><mi>B</mi></mtd><mtd columnalign="center" style="text-align: center"><mi>C</mi></mtd><mtd columnalign="center" style="text-align: center"><mi>⋯</mi></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mi>X</mi></mtd><mtd columnalign="center" style="text-align: center"><mi>Y</mi></mtd><mtd columnalign="center" style="text-align: center"><mi>⋯</mi></mtd><mtd columnalign="center" style="text-align: center"></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mi>⋮</mi></mtd><mtd columnalign="center" style="text-align: center"></mtd><mtd columnalign="center" style="text-align: center"></mtd><mtd columnalign="center" style="text-align: center"></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">
+\text{输入} = \begin{bmatrix}
+A &amp; B &amp; C &amp; \cdots\\
+X &amp; Y &amp; \cdots &amp; \\
+\vdots &amp; &amp; &amp;
+\end{bmatrix}
+</annotation></semantics></math></p>
+<p><strong>第一步</strong>:把核压在输入左上角,对应相乘求和,得到输出的第
+1 个值:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mn>1</mn></msub><mo>=</mo><mi>W</mi><mo>⋅</mo><mi>A</mi><mo>+</mo><mi>X</mi><mo>⋅</mo><mi>B</mi><mo>+</mo><mi>⋯</mi></mrow><annotation encoding="application/x-tex">s_1 = W\cdot A + X\cdot B + \cdots</annotation></semantics></math></p>
+<p><strong>第二步</strong>:把核<strong>向右滑一格</strong>(这"一格"就是
+<strong>stride = 1</strong>),现在核盖住的是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo>,</mo><mi>C</mi><mo>,</mo><mi>…</mi></mrow><annotation encoding="application/x-tex">B, C, \dots</annotation></semantics></math>,再算一次得到第
+2 个值。</p>
+<p><strong>第三步</strong>:滑到行尾,核回到下一行行首,继续……直到扫完整张图。所有这些输出值排起来,就是这个
+filter 产生的一张 <strong>feature map</strong>。</p>
+<p>这里冒出两个重要概念:</p>
+<ul>
+<li><strong>Stride(步幅)</strong>:核每次滑动几格。stride = 1
+逐格扫(输出大、重叠多);stride = 2
+跳着扫(输出尺寸大约减半)。这是你在代码里自己指定的超参数。</li>
+<li><strong>多个 filter → 多张 feature
+map</strong>:讲师强调,如果某层画了 <strong>4 张 feature map,就是用了 4
+个不同的 filter</strong>;画了 12 张,就是 12 个 filter。每个 filter
+找一种特征,几个 filter 就给你输入的几种不同表示。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 输出尺寸公式(强烈建议记)</strong> —
+slides 的架构表里那些
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>28</mn><mo>×</mo><mn>28</mn></mrow><annotation encoding="application/x-tex">28\times28</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>14</mn><mo>×</mo><mn>14</mn></mrow><annotation encoding="application/x-tex">14\times14</annotation></semantics></math>
+是怎么来的?有一个一行的公式能算出任何卷积/池化层的输出边长:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">输出边长</mtext><mo>=</mo><mrow><mo stretchy="true" form="prefix">⌊</mo><mfrac><mrow><mi>W</mi><mo>−</mo><mi>F</mi><mo>+</mo><mn>2</mn><mi>P</mi></mrow><mi>S</mi></mfrac><mo stretchy="true" form="postfix">⌋</mo></mrow><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\text{输出边长} = \left\lfloor \frac{W - F + 2P}{S} \right\rfloor + 1</annotation></semantics></math>
+其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+=
+输入边长,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+=
+核(filter)边长,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>P</mi><annotation encoding="application/x-tex">P</annotation></semantics></math>
+=
+每边补的零(padding)数,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
+= stride。 拿 LeNet-5 第一层验证:输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">32\times32</annotation></semantics></math>,核
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>×</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">5\times5</annotation></semantics></math>,无
+padding(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">P=0</annotation></semantics></math>),stride
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>
+→
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>32</mn><mo>−</mo><mn>5</mn><mo>+</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>1</mn><mo>+</mo><mn>1</mn><mo>=</mo><mn>28</mn></mrow><annotation encoding="application/x-tex">(32-5+0)/1 + 1 = 28</annotation></semantics></math>,正好是表里的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>28</mn><mo>×</mo><mn>28</mn></mrow><annotation encoding="application/x-tex">28\times28</annotation></semantics></math>。下一层
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mo>×</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">2\times2</annotation></semantics></math>
+池化、stride 2 →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>28</mn><mo>−</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn><mo>+</mo><mn>1</mn><mo>=</mo><mn>14</mn></mrow><annotation encoding="application/x-tex">(28-2)/2+1 = 14</annotation></semantics></math>,正好
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>14</mn><mo>×</mo><mn>14</mn></mrow><annotation encoding="application/x-tex">14\times14</annotation></semantics></math>。整张
+LeNet
+表都能这样一路推下来。考试若让你算某层输出尺寸,套这个公式即可。</p>
+</blockquote>
+<h3 id="25-小结这一节">2.5 小结这一节</h3>
+<p>卷积 =
+用一个小核(filter)在输入上滑动,逐处做"对应相乘求和"的相似度打分,扫出一张
+feature map;ML 里实际用不翻转的 cross-correlation 但仍叫卷积;stride
+控制滑动步长,filter 个数决定 feature map
+张数。下一节我们看,正是这种"小核扫全图"的结构,带来了三个深远的好处。</p>
+<hr />
+<h2 id="3-卷积带来的三大好处">3. 卷积带来的三大好处</h2>
+<p>为什么仅仅"用卷积换掉矩阵乘法"就这么管用?Slides
+把好处归纳成三条,这三条几乎是 CNN 的全部理论卖点,极可能考概念题。</p>
+<pre class="mermaid"><code>graph TD
+  C[卷积 Convolution] --&gt; A[① 稀疏交互&lt;br/&gt;Sparse interactions]
+  C --&gt; B[② 参数共享&lt;br/&gt;Parameter sharing]
+  C --&gt; D[③ 等变表示&lt;br/&gt;Equivariant representation]
+  A --&gt; A1[更少参数&lt;br/&gt;更高统计效率]
+  B --&gt; B1[一套权重扫全图&lt;br/&gt;而非每位置一套]
+  D --&gt; D1[输入平移&lt;br/&gt;输出同样平移]</code></pre>
+<h3 id="31-稀疏交互-sparse-interactions">3.1 稀疏交互 (Sparse
+interactions)</h3>
+<p>在全连接层里,每个输出都连着<em>所有</em>输入,权重矩阵是稠密的。卷积则相反:核很小,所以<strong>每个输出只和输入里的一小块发生关系</strong>——这叫<strong>稀疏交互</strong>,也叫稀疏连接
+(sparse connectivity)、稀疏权重 (sparse weights)。</p>
+<p>好处直接而实在:<strong>需要存储和学习的参数大大减少,统计效率
+(statistical efficiency) 提高</strong>。如果输入有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+个、输出有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+个,全连接要
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>×</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">m\times n</annotation></semantics></math>
+个参数;用一个大小为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>≪</mo><mi>m</mi></mrow><annotation encoding="application/x-tex">k \ll m</annotation></semantics></math>)的核,只要
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>×</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">k\times n</annotation></semantics></math>
+甚至(因为共享)只要
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个。</p>
+<p>但稀疏会不会让网络"看不到全局"?不会——这是 slides
+强调的精妙之处:<strong>在深层 CNN
+里,深层的神经元会<em>间接地</em>连到输入的一大片</strong>。第一层每个神经元只看
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>×</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">5\times5</annotation></semantics></math>,但第二层的神经元看的是第一层的一片
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>×</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">5\times5</annotation></semantics></math>,折算回原始输入就覆盖了更大的区域;越深,这个<strong>有效感受野
+(receptive field)</strong>
+越大。于是网络用"局部连接的堆叠"高效地描述了复杂的、大范围的交互——既省参数,又不失全局视野。</p>
+<h3 id="32-参数共享-parameter-sharing">3.2 参数共享 (Parameter
+sharing)</h3>
+<p>稀疏交互说的是"连得少",参数共享说的是"连的那些还彼此相等"。<strong>与其为每个位置学一套独立的参数,我们只学一套,让它在所有位置复用</strong>——同一个
+filter 滑过整张图。</p>
+<p>为什么合理?回到 §1
+的直觉:"竖直边缘"这个检测器在图像任何位置都该是同一个,没理由左上角学一套、右下角再学一套。因为核通常远小于输入(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>≪</mo><mi>m</mi></mrow><annotation encoding="application/x-tex">k \ll m</annotation></semantics></math>),<strong>卷积因此比稠密矩阵乘法高效得多</strong>——存储省(只存一套核),计算也省。</p>
+<h3 id="33-等变表示-equivariance--注意别和不变搞混">3.3 等变表示
+(Equivariance) —— 注意别和"不变"搞混</h3>
+<p>第三个好处最微妙,也最容易考。参数共享带来一个叫<strong>对平移等变
+(equivariance to translation)</strong>
+的性质。在信号处理里,这正是大名鼎鼎的<strong>线性时不变 (Linear
+Time-Invariant, LTI)</strong>。</p>
+<p><strong>等变是什么意思?一句话:输入变,输出以同样的方式变。</strong>
+形式化一点:设变换
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math>
+把图像
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math>
+平移成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">I&#39;</annotation></semantics></math>,即
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>I</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>−</mo><mn>1</mn><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">I&#39;(x,y) = I(x-1, y)</annotation></semantics></math>(整张图右移一格)。那么——</p>
+<blockquote>
+<p><strong>先平移再卷积 = 先卷积再平移。</strong></p>
+</blockquote>
+<p>直觉上:如果你把图里的猫往右挪一格,那么"猫脸 feature
+map"上的亮点也只是跟着往右挪一格,<strong>亮点的强度和形状不变,只是位置跟着动</strong>。讲师的说法是:"无论我把输入怎么挪,我总能在(挪过去的)那个位置找到同样的响应。"
+在时间序列里同理——把一个特征在时间上延迟,它在输出里也原样延迟同样的量后出现。</p>
+<p>为什么这是好事?因为它意味着特征检测器<strong>自带平移泛化</strong>:你不需要在每个位置分别教它认猫脸,教会一次,它在所有位置都认得。</p>
+<p>⚠️ <strong>关键区分(高频考点)</strong>:等变 (equivariant) ≠ 不变
+(invariant)。</p>
+<ul>
+<li><strong>等变</strong>:输入移 →
+输出<strong>跟着移</strong>(位置信息保留)。这是<strong>卷积</strong>的性质。</li>
+<li><strong>不变</strong>:输入(微微)移 →
+输出<strong>基本不动</strong>(位置信息被丢掉)。这是下一节
+<strong>pooling</strong> 的性质。</li>
+</ul>
+<p>记法:<strong>卷积等变,池化不变</strong>。下一节马上展开。</p>
+<hr />
+<h2 id="4-池化-pooling压缩抗噪求不变">4. 池化
+Pooling:压缩、抗噪、求不变</h2>
+<p>卷积扫完得到一张 feature map 后,通常紧跟一个
+<strong>pooling(池化)</strong>
+层。这一节讲它做什么、有哪几种、以及它和卷积在"平移"上的分工。</p>
+<h3 id="41-池化在做什么">4.1 池化在做什么</h3>
+<p>讲师给的动机很朴素:feature map
+往往很大,我们想<strong>省点计算、压缩表示</strong>,最简单的办法是<strong>下采样
+(subsampling)</strong>——扔掉一些、留下一些。但不能乱扔,得"有原则地"扔。Pooling
+就是这个有原则的下采样。</p>
+<p>正式定义(slides):<strong>池化用某个邻域内输出的一个汇总统计量
+(summary statistic),替换掉该位置的输出。</strong>
+常见的几种汇总方式:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>池化类型</th>
+<th>取邻域里的……</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Max pooling</strong>(最大池化)</td>
+<td>最大值</td>
+<td>最常用;保留"最强响应"</td>
+</tr>
+<tr class="even">
+<td><strong>Average pooling</strong>(平均池化)</td>
+<td>平均值</td>
+<td>LeNet 用的就是它</td>
+</tr>
+<tr class="odd">
+<td><strong>L2-norm pooling</strong></td>
+<td>邻域的 L2 范数</td>
+<td></td>
+</tr>
+<tr class="even">
+<td><strong>加权平均</strong></td>
+<td>按到中心像素的距离加权</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 例(max pooling 手算)</strong> — 设一行 feature map 的值是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0.1</mn><mo>,</mo><mspace width="0.222em"></mspace><mn>1.0</mn><mo>,</mo><mspace width="0.222em"></mspace><mn>0.2</mn><mo>,</mo><mspace width="0.222em"></mspace><mi>…</mi><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0.1,\ 1.0,\ 0.2,\ \dots]</annotation></semantics></math>,我们用宽度
+3 的窗做 max pooling:取前三个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">{</mo><mn>0.1</mn><mo>,</mo><mn>1.0</mn><mo>,</mo><mn>0.2</mn><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\{0.1, 1.0, 0.2\}</annotation></semantics></math>
+的最大值 → 输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1.0</mn><annotation encoding="application/x-tex">1.0</annotation></semantics></math>。窗口右滑,取下一组三个的最大值,以此类推。直觉:max
+pooling
+在问"这一小片里,这个特征最强出现了多强?"——它<strong>只关心特征在不在、多强,不太关心精确在哪</strong>。</p>
+</blockquote>
+<h3 id="42-为什么池化带来对微小平移的不变性">4.2
+为什么池化带来"对微小平移的不变性"</h3>
+<p>这是池化最重要的性质,也是它和卷积分工的关键。<strong>池化让表示对输入的微小平移近似不变
+(approximately invariant to small translations)</strong>。</p>
+<p>直觉:既然 max pooling
+在一个小窗里只取最大值,那么把输入<strong>轻轻挪动一两格</strong>,只要那个最大响应还落在同一个窗里,<strong>池化的输出就不变</strong>。位置上的小抖动被"吃掉"了。</p>
+<pre class="mermaid"><code>graph LR
+  subgraph 卷积层
+  I1[输入特征] --&gt;|平移等变| F1[feature map&lt;br/&gt;亮点跟着移]
+  end
+  subgraph 池化层
+  F1 --&gt;|max pooling| P1[池化输出&lt;br/&gt;微小平移下不变]
+  end
+  style F1 fill:#e8f4ff
+  style P1 fill:#ffe8d0</code></pre>
+<p>Slides
+把这件事拔高成一句很漂亮的话:<strong>用池化,等于在网络里加入了一个很强的先验
+(a strong
+prior)——"我们要学的这个特征,本就应该对微小平移不变"</strong>。如果这个先验对你的任务成立(比如判断"图里有没有猫",猫挪几个像素当然还是猫),池化就帮你免费获得了这种鲁棒性。</p>
+<p>还有一种更进阶的玩法:<strong>对多个用不同参数学到的卷积做池化,可以学出对各种变换(不只是平移)的不变性</strong>——比如让网络对旋转、缩放也不敏感。</p>
+<h3 id="43-池化--下采样">4.3 池化 + 下采样</h3>
+<p>池化通常顺便做<strong>降尺寸</strong>:用一个比 stride 大的窗,或者让
+stride &gt; 1。例如"宽度 3、stride 2"的 max
+pooling,既取局部最大(抗平移),又把 feature map
+边长砍掉约一半(省计算)。这就是为什么 CNN 架构里 feature map
+的尺寸<strong>一层比一层小</strong>,而 feature map
+的**张数(深度)**却往往一层比一层多——空间分辨率换语义深度。</p>
+<h3 id="44-等变-vs-不变一张表收尾">4.4 等变 vs 不变:一张表收尾</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>卷积 Convolution</strong></th>
+<th><strong>池化 Pooling</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>平移性质</td>
+<td><strong>等变 (equivariant)</strong></td>
+<td>(微小平移)<strong>不变 (invariant)</strong></td>
+</tr>
+<tr class="even">
+<td>输入右移一格,输出…</td>
+<td>也右移一格</td>
+<td>基本不动</td>
+</tr>
+<tr class="odd">
+<td>保留位置信息吗</td>
+<td>保留</td>
+<td>丢弃(这正是目的)</td>
+</tr>
+<tr class="even">
+<td>直觉口号</td>
+<td>"特征在哪,我就在哪标出来"</td>
+<td>"管它具体在哪,有就行"</td>
+</tr>
+<tr class="odd">
+<td>作用</td>
+<td>抽取特征</td>
+<td>压缩 + 抗微小位移</td>
+</tr>
+</tbody>
+</table></div>
+<p>把这一行记牢:<strong>卷积负责"找",池化负责"容忍"。</strong></p>
+<hr />
+<h2 id="5-组装一个-cnn典型架构">5. 组装一个 CNN:典型架构</h2>
+<p>零件齐了(卷积、三大好处、池化),现在看它们怎么拼成一个完整的网络。Slides
+给了一个经典例子——Haykin 书里那个<strong>手写字符识别
+CNN</strong>,我们顺着它走一遍,体会"卷积—池化"交替、尺寸递减的节奏。</p>
+<p>这个网络有 <strong>4 个隐藏层 + 1
+个输出层</strong>,输入是一张字符图:</p>
+<pre class="mermaid"><code>graph LR
+  IN[输入图像] --&gt; H1
+  subgraph H1[第1隐藏层 · 卷积]
+  end
+  H1 --&gt;|&quot;4 张 24×24 feature map&lt;br/&gt;感受野 5×5&quot;| H2
+  subgraph H2[第2隐藏层 · 下采样/局部平均]
+  end
+  H2 --&gt;|&quot;4 张 12×12&lt;br/&gt;感受野 2×2&quot;| H3
+  subgraph H3[第3隐藏层 · 卷积]
+  end
+  H3 --&gt;|&quot;12 张 8×8&quot;| H4
+  subgraph H4[第4隐藏层 · 下采样/局部平均]
+  end
+  H4 --&gt;|&quot;12 张 4×4&quot;| OUT
+  subgraph OUT[输出层 · 卷积]
+  end
+  OUT --&gt;|&quot;26 个神经元&lt;br/&gt;对应 26 个字母&lt;br/&gt;感受野 4×4&quot;| Y[分类结果]</code></pre>
+<p>逐层读这张图,你能看到 CNN 的典型节奏:</p>
+<ol type="1">
+<li><strong>第 1 层(卷积)</strong>:用卷积抽局部特征,产生 <strong>4 张
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>24</mn><mo>×</mo><mn>24</mn></mrow><annotation encoding="application/x-tex">24\times24</annotation></semantics></math>
+的 feature map</strong>,每个神经元的感受野是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>×</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">5\times5</annotation></semantics></math>。"4
+张"= 用了 4 个 filter。</li>
+<li><strong>第 2 层(下采样 / 局部平均)</strong>:对上一层池化,4 张图变成
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>12</mn><mo>×</mo><mn>12</mn></mrow><annotation encoding="application/x-tex">12\times12</annotation></semantics></math></strong>(尺寸减半),感受野
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mo>×</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">2\times2</annotation></semantics></math>。</li>
+<li><strong>第 3 层(卷积)</strong>:再抽一轮更高级的特征,变成 <strong>12
+张
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>8</mn><mo>×</mo><mn>8</mn></mrow><annotation encoding="application/x-tex">8\times8</annotation></semantics></math></strong>(filter
+增多、尺寸继续缩)。</li>
+<li><strong>第 4 层(下采样)</strong>:再池化成 <strong>12 张
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>×</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">4\times4</annotation></semantics></math></strong>。</li>
+<li><strong>输出层(卷积)</strong>:<strong>26
+个神经元</strong>,每个对应一个可能的字母,感受野
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>×</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">4\times4</annotation></semantics></math>。</li>
+</ol>
+<p>这就是 slides 上"feature extraction → feature mapping →
+subsampling"三件套(§1.2
+提过)在真实网络里的样子:<strong>卷积抽特征、生成多张 feature
+map,池化做局部平均和下采样、降分辨率并降低对位移的敏感</strong>,如此交替,空间越来越小、语义越来越深,最后接上分类。几乎所有经典
+CNN 都是这个骨架的变奏——下一节我们就看这些变奏。</p>
+<hr />
+<h2 id="6-经典-cnn-架构演进四座里程碑">6. 经典 CNN
+架构演进:四座里程碑</h2>
+<p>Slides 后半段是一部"CNN 简史":LeNet → AlexNet → GoogLeNet →
+ResNet。讲师坦言这部分<strong>有点"考古"性质</strong>,但保留它是因为每个架构都贡献了一个<strong>至今仍在用的核心思想</strong>。考试时,与其背架构表里的每个数字,不如记住<strong>每个网络"开创了什么"</strong>。先看一张时间线:</p>
+<pre class="mermaid"><code>timeline
+  title CNN 架构演进与核心贡献
+  1998 : LeNet-5 (LeCun) : 第一个成功的 CNN, 跑通 MNIST
+  2012 : AlexNet (Krizhevsky/Sutskever/Hinton) : 赢 ImageNet, 引爆深度学习&lt;br/&gt;ReLU + Dropout + 数据增强
+  2014 : GoogLeNet (Szegedy 等) : Inception module&lt;br/&gt;1×1 卷积, 参数减到 1/10
+  2015 : ResNet (He 等, Microsoft) : Skip connection / 残差学习&lt;br/&gt;让&quot;超深&quot;网络可训练</code></pre>
+<p>一张对照表先建立全局印象,后面再逐个展开:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>架构</th>
+<th>年份 / 提出者</th>
+<th>数据集 / 战绩</th>
+<th>标志性贡献</th>
+<th>激活</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>LeNet-5</strong></td>
+<td>1998 · Yann LeCun</td>
+<td>MNIST 手写数字</td>
+<td>第一个实用 CNN;卷积+平均池化的范式</td>
+<td>tanh / RBF</td>
+</tr>
+<tr class="even">
+<td><strong>AlexNet</strong></td>
+<td>2012 · Krizhevsky, Sutskever, Hinton</td>
+<td>赢 ILSVRC 2012</td>
+<td>更大更深;<strong>ReLU</strong>、<strong>Dropout</strong>、<strong>数据增强</strong>、LRN</td>
+<td>ReLU</td>
+</tr>
+<tr class="odd">
+<td><strong>GoogLeNet</strong></td>
+<td>2014 · Szegedy 等</td>
+<td>赢 ILSVRC 2014(top-5 &lt; 7%)</td>
+<td><strong>Inception module</strong>;1×1 卷积;参数仅 ~6M</td>
+<td>ReLU</td>
+</tr>
+<tr class="even">
+<td><strong>ResNet</strong></td>
+<td>2015 · He 等(Microsoft)</td>
+<td>赢 ILSVRC 2015</td>
+<td><strong>Skip connection / 残差学习</strong></td>
+<td>ReLU</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>背景:<strong>ILSVRC (ImageNet Large Scale Visual Recognition
+Competition)</strong> 是 2010
+年代那场推动深度学习爆发的年度图像识别大赛,要在 ~1000
+个类别、数百万张图上分类。AlexNet 2012
+夺冠是公认的"深度学习引爆点",此后冠军清一色是 CNN,而且一年比一年深。</p>
+</blockquote>
+<h3 id="61-lenet-5-1998开山之作">6.1 LeNet-5 (1998):开山之作</h3>
+<p>Yann LeCun 的 LeNet-5 是第一个真正跑通的
+CNN,用来识别手写数字,跑在经典的 <strong>MNIST</strong>
+数据集上(顺带一提,还有
+<strong>Fashion-MNIST</strong>,把数字换成衣物图)。它的结构就是 §5
+那套"卷积—池化"交替,最后接全连接:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">In</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mn>32</mn><mo>×</mo><mn>32</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>→</mo><mtext mathvariant="normal">C1 conv</mtext><mo>→</mo><mtext mathvariant="normal">S2 pool</mtext><mo>→</mo><mtext mathvariant="normal">C3 conv</mtext><mo>→</mo><mtext mathvariant="normal">S4 pool</mtext><mo>→</mo><mtext mathvariant="normal">C5 conv</mtext><mo>→</mo><mtext mathvariant="normal">F6 FC</mtext><mo>→</mo><mtext mathvariant="normal">Out</mtext></mrow><annotation encoding="application/x-tex">\text{In}(32\times32) \to \text{C1 conv} \to \text{S2 pool} \to \text{C3 conv} \to \text{S4 pool} \to \text{C5 conv} \to \text{F6 FC} \to \text{Out}</annotation></semantics></math></p>
+<p>几个值得注意的细节:</p>
+<ul>
+<li><strong>输入要 padding 到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">32\times32</annotation></semantics></math></strong>(MNIST
+原图
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>28</mn><mo>×</mo><mn>28</mn></mrow><annotation encoding="application/x-tex">28\times28</annotation></semantics></math>),好让卷积有边距。</li>
+<li>激活用 <strong>tanh</strong>,输出层用
+<strong>RBF(径向基函数)</strong>——这是早期的选择,后来基本被 ReLU/softmax
+取代。</li>
+<li>池化是一种<strong>特殊的平均池化</strong>:输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>μ</mi><mo>×</mo><mi>c</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>b</mi></mrow><annotation encoding="application/x-tex">=(\mu \times c) + b</annotation></semantics></math>,其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
+是感受野内节点的平均值,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
+是<strong>可学习参数</strong>——也就是平均之后还乘一个系数、加一个偏置再激活,比纯平均更灵活。</li>
+</ul>
+<p>LeNet 的历史意义:它证明了"卷积 + 权值共享 +
+池化"这套范式真的能学会视觉任务,为后面一切打下模板。</p>
+<h3 id="62-alexnet-2012引爆点">6.2 AlexNet (2012):引爆点</h3>
+<p>AlexNet <strong>结构上很像 LeNet,只是更大更深</strong>,但它赢下 2012
+ImageNet、直接点燃了整个深度学习浪潮。除了规模,它带来几个影响深远的工程创新:</p>
+<ol type="1">
+<li><strong>堆叠卷积层(不再每个卷积后都跟池化)</strong>:在 C5、C6、C7
+处,AlexNet
+把<strong>多个卷积层直接叠在一起</strong>,而不是死板的"conv–pool–conv–pool"。这让网络在降尺寸之前能抽取更丰富的特征。</li>
+<li><strong>用 ReLU 取代
+tanh/sigmoid</strong>:训练快得多,缓解梯度消失(回顾 Week 5)。</li>
+<li><strong>两种正则化对抗过拟合</strong>:
+<ul>
+<li><strong>Dropout</strong>:训练时在全连接层 F8、F9
+随机"丢弃"一部分神经元,防止共适应;</li>
+<li><strong>数据增强 (data
+augmentation)</strong>:对训练图随机平移、水平翻转、改变光照,人为造出更多样本。</li>
+</ul></li>
+<li><strong>局部响应归一化 (Local Response Normalization,
+LRN)</strong>:加在 C1、C3 的 ReLU
+之后,是一种<strong>竞争性归一化</strong>——某个位置强烈激活的神经元,会<strong>抑制邻近
+feature map 上相同位置</strong>的神经元。这鼓励不同 feature map
+"各司其职"、专门化,改善泛化。(LRN 后来被 batch normalization
+取代,但思想——竞争/归一化——保留了下来。)</li>
+</ol>
+<h3 id="63-googlenet-2014inception-module">6.3 GoogLeNet
+(2014):Inception module</h3>
+<p>GoogLeNet 赢下 2014 ILSVRC(top-5 错误率 &lt; 7%),它的招牌是
+<strong>Inception module(盗梦空间模块)</strong>。最惊人的数字:它比
+AlexNet <strong>深得多,参数却少了 10 倍</strong>——约 <strong>6
+百万</strong> vs AlexNet 的 <strong>6 千万</strong>,而且效果更好。</p>
+<p>Inception 的核心思想:<strong>与其在每层纠结"该用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>×</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">1\times1</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mo>×</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">3\times3</annotation></semantics></math>
+还是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>×</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">5\times5</annotation></semantics></math>
+的卷积",不如全都用,然后把结果拼起来</strong>。一个 Inception module
+里并联了多个不同大小的卷积(和一个池化),各自处理同一份输入,再把输出<strong>沿深度方向拼接
+(concatenate)</strong>。这样网络能同时捕捉不同尺度的特征,得到更丰富的表示。</p>
+<p>要让"拼接"成立,所有分支的输出必须<strong>高、宽相同</strong>,这就要用到两个概念:</p>
+<ul>
+<li><strong>SAME padding</strong>:自动补零,使输出神经元数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mtext mathvariant="normal">ROUND</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mtext mathvariant="normal">输入数</mtext><mi>/</mi><mtext mathvariant="normal">stride</mtext><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">= \text{ROUND}(\text{输入数} / \text{stride})</annotation></semantics></math>。这样不管核多大,输出尺寸都对得齐,能拼接。(对照
+<strong>VALID padding</strong> =
+不补零,核滑出边界就停,输出会变小。)记法:slides 里
+"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mo>×</mo><mn>3</mn><mo>+</mo><mn>1</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>S</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">3\times3 + 1(S)</annotation></semantics></math>"
+表示
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mo>×</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">3\times3</annotation></semantics></math>
+卷积、stride 1、SAME padding。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>×</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">1\times1</annotation></semantics></math>
+卷积</strong>:一种"压缩 feature
+map"的技巧——它不看空间邻域,只在<strong>深度方向</strong>做线性组合,能把很多张
+feature map "塌缩"成更少的几张,从而在接昂贵的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mo>×</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">3\times3</annotation></semantics></math>/<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>×</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">5\times5</annotation></semantics></math>
+之前先降维、省计算。这是 GoogLeNet 参数能少 10 倍的关键之一。</li>
+</ul>
+<pre class="mermaid"><code>graph TD
+  X[上一层输入] --&gt; A[1×1 conv]
+  X --&gt; B[1×1 → 3×3 conv]
+  X --&gt; C[1×1 → 5×5 conv]
+  X --&gt; D[3×3 pool → 1×1 conv]
+  A --&gt; CC[沿深度拼接&lt;br/&gt;Concatenate]
+  B --&gt; CC
+  C --&gt; CC
+  D --&gt; CC
+  CC --&gt; Y[输出 feature map]
+  style CC fill:#ffe8d0</code></pre>
+<h3 id="64-resnet-2015skip-connection-让网络能超深">6.4 ResNet
+(2015):skip connection 让网络能"超深"</h3>
+<p>ResNet(微软,何恺明等)赢下 2015
+ILSVRC,解决了一个看似简单、实则要命的问题。</p>
+<p><strong>动机——退化问题 (degradation
+problem)</strong>:人们发现,网络一味加深,准确率会先<strong>饱和</strong>,然后<strong>迅速变差</strong>。关键是:这<strong>不是过拟合</strong>——因为连<strong>训练误差</strong>都变高了。按理说,更深的网络至少能把多出来的层学成"什么都不做"(恒等映射),效果不该比浅网络差;但实践中,让一堆非线性层去学"恒等映射"竟然很难,于是深网络反而训不好。</p>
+<p><strong>解法——残差学习 (residual
+learning)</strong>:与其让一组堆叠的层去直接拟合我们想要的映射
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">H(x)</annotation></semantics></math>,不如让它去拟合<strong>残差
+(residual)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>:=</mo><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>x</mi><mspace width="1.0em"></mspace><mo>⇔</mo><mspace width="1.0em"></mspace><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>x</mi></mrow><annotation encoding="application/x-tex">F(x) := H(x) - x \quad\Longleftrightarrow\quad H(x) = F(x) + x</annotation></semantics></math></p>
+<p>实现上,就是在这组层的输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">F(x)</annotation></semantics></math>
+上,<strong>直接加一条把输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+抄过来的捷径</strong>——这条捷径叫 <strong>skip connection(跳跃连接 /
+残差连接)</strong>:</p>
+<pre class="mermaid"><code>graph LR
+  X[输入 x] --&gt; W[卷积层们&lt;br/&gt;学 F&amp;#40;x&amp;#41;]
+  W --&gt; ADD((＋))
+  X --&gt;|skip connection&lt;br/&gt;恒等捷径| ADD
+  ADD --&gt; H[&quot;输出 H&amp;#40;x&amp;#41; = F&amp;#40;x&amp;#41; + x&quot;]
+  style ADD fill:#ffe8d0</code></pre>
+<p>为什么这就解决了退化?因为现在"什么都不做"变得<strong>毫不费力</strong>:网络只要把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">F(x)</annotation></semantics></math>
+学成 0,就自动得到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>x</mi></mrow><annotation encoding="application/x-tex">H(x) = x</annotation></semantics></math>
+的恒等映射。于是加深再也不会让训练误差变高,网络可以堆到上百层仍然可训练。讲师反复强调:<strong>ResNet
+你只需要带走一个词——skip connection。</strong> 就像 GoogLeNet 你只需带走
+Inception module 一样,每个里程碑都是"贡献一个新 idea"。</p>
+<hr />
+<h2 id="7-实践视角迁移学习与把图像看成张量">7.
+实践视角:迁移学习与把图像看成张量</h2>
+<p>最后一节是讲师在课堂尾声讲的实务内容,大多<strong>超出
+slides</strong>,但对做作业和真正理解 CNN 很有用,单独成节并标注。</p>
+<h3 id="71-迁移学习别从零开始">7.1 迁移学习:别从零开始</h3>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+讲师的忠告:<strong>做研究时,几乎没人从零设计、从零训练一个新架构。</strong>
+标准做法是拿一个现成的、训练好的网络(如上面那些经典架构,统称
+<strong>backbone /
+骨干网络</strong>),把它当作现成的<strong>特征提取器</strong>,在上面接几层做你自己的任务;或者对它"动点手术"、改改内部结构得到新结果。这就是<strong>迁移学习
+(transfer learning)</strong>。它之所以可行,正是 §1.1
+说的——低层卷积学到的是通用特征(边缘、纹理),换个任务照样能用。</p>
+</blockquote>
+<p>补一个历史花絮(讲师提到):在端到端深度学习成熟之前,人们常常<strong>先用
+CNN 抽特征,再把特征喂给 SVM</strong> 去分类,效果也很好。这说明 CNN
+的价值很大一部分在于它学到的<strong>特征表示</strong>本身。</p>
+<h3 id="72-图像就是张量-tensor">7.2 图像就是张量 (Tensor)</h3>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+讲师强调,神经网络说到底"就是在一层层地做矩阵乘法",而<strong>张量
+(tensor) 就是矩阵向更高维的推广</strong>。理解数据的张量形状,是用
+PyTorch / TensorFlow 的基本功:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>数据</th>
+<th>张量维度</th>
+<th>各维含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>向量</td>
+<td>1D</td>
+<td>(长度)</td>
+</tr>
+<tr class="even">
+<td>灰度图 / 矩阵</td>
+<td>2D</td>
+<td>(高, 宽)</td>
+</tr>
+<tr class="odd">
+<td>一批彩色图像</td>
+<td><strong>4D</strong></td>
+<td>(样本数, 高, 宽, 通道 RGB)</td>
+</tr>
+<tr class="even">
+<td>一批视频</td>
+<td><strong>5D</strong></td>
+<td>(样本数, 帧, 高, 宽, 通道)</td>
+</tr>
+</tbody>
+</table></div>
+<p>描述张量的三个属性:<strong>rank/维数</strong>(有几个轴)、<strong>shape</strong>(各轴长度,一个
+tuple,如
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>×</mo><mn>7</mn></mrow><annotation encoding="application/x-tex">4\times7</annotation></semantics></math>)、<strong>dtype</strong>(元素类型,如
+float32/int64)。这也解释了为什么 CNN 处理的"图像"在代码里是个 4D
+张量——一次喂一批图,每张有高、宽、和 RGB 三个通道。</p>
+<p><strong>作业小贴士(讲师特别叮嘱)</strong>:做作业前务必装
+<strong>Anaconda</strong>,并为不同框架建<strong>独立的虚拟环境</strong>(virtual
+environment)——TensorFlow 一个、PyTorch 一个,别混在一起,更别动系统自带的
+Python,否则环境冲突能把你的电脑搞乱。装框架时也别用最新版
+Python(可能还没框架支持),退一两个小版本(如 3.12)更稳。</p>
+</blockquote>
+<h3 id="73-接下来是什么">7.3 接下来是什么</h3>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 讲师预告:CNN
+主要对付<strong>网格状/二维数据(图像)</strong>;而<strong>一维序列数据</strong>(股价、天气、文本)另有专门工具——<strong>循环神经网络
+(RNN)</strong>,以及它的改进版 <strong>LSTM、GRU</strong>(解决 RNN
+记不住长程信息的问题),再往后是彻底改变格局的
+<strong>Transformer</strong>("Attention is all you
+need")。这些是后续课程内容,这里只需知道:<strong>CNN 之于图像,正如
+RNN/Transformer 之于序列。</strong></p>
+</blockquote>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>CNN 是给 MLP
+加了两条先验的特殊网络</strong>:<strong>局部连接(receptive
+field)</strong> 和 <strong>权值共享(weight
+sharing)</strong>;这两条把全连接处理图像时的"参数爆炸"压了下来,并把"特征是局部的、可在任意位置复用的"这一视觉先验刻进了网络结构。</li>
+<li><strong>卷积 =
+拿一个小核(filter)在输入上滑动,逐处做"对应相乘求和"的相似度打分</strong>,扫出一张
+feature map;filter 就是一个"原型探测器",哪里像它哪里响应高。一层用几个
+filter,就产生几张 feature map。</li>
+<li>机器学习里实际用的是<strong>不翻转的
+cross-correlation</strong>,但习惯上仍叫它
+convolution;因为核是学出来的,翻不翻转无所谓。</li>
+<li><strong>卷积的三大好处</strong>:①
+<strong>稀疏交互</strong>(每个输出只连一小块,省参数、深层间接覆盖大范围)、②
+<strong>参数共享</strong>(一套核扫全图)、③
+<strong>对平移等变</strong>(输入移,输出同样地移 = 信号处理里的
+LTI)。</li>
+<li><strong>池化用邻域的汇总统计量(最大/平均/L2)替换该处输出</strong>,作用是压缩计算
++
+下采样,并带来<strong>对微小平移的近似不变性</strong>。牢记区分:<strong>卷积等变(位置跟着动),池化不变(位置抖动被吃掉)</strong>。</li>
+<li>典型 CNN
+的节奏是<strong>卷积—池化交替</strong>:空间分辨率逐层减小、feature map
+张数(深度)逐层增多,最后接全连接做分类;输出尺寸可用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⌊</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo>−</mo><mi>F</mi><mo>+</mo><mn>2</mn><mi>P</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>S</mi><mo stretchy="false" form="postfix">⌋</mo><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\lfloor (W-F+2P)/S\rfloor + 1</annotation></semantics></math>
+算。</li>
+<li><strong>四座里程碑各记一个关键词</strong>:<strong>LeNet-5</strong>(1998,第一个实用
+CNN,跑通 MNIST)→ <strong>AlexNet</strong>(2012 引爆点:ReLU + Dropout +
+数据增强)→ <strong>GoogLeNet</strong>(2014:<strong>Inception
+module</strong> +
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>×</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">1\times1</annotation></semantics></math>
+卷积,参数只有 AlexNet 的 1/10)→
+<strong>ResNet</strong>(2015:<strong>skip connection / 残差学习</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>x</mi></mrow><annotation encoding="application/x-tex">F(x)=H(x)-x</annotation></semantics></math>,治好"越深越差"的退化问题)。</li>
+<li><strong>padding</strong>:SAME(补零,输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≈</mo><annotation encoding="application/x-tex">\approx</annotation></semantics></math>
+输入/stride,便于拼接)vs
+VALID(不补零,输出变小)。<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>×</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">1\times1</annotation></semantics></math>
+卷积</strong>用来在深度方向"塌缩" feature map、降维省算。</li>
+<li><strong>实践</strong>:研究里很少从零训练,而是拿 backbone
+做<strong>迁移学习</strong>;数据在框架里是<strong>张量</strong>(一批彩图
+= 4D:样本×高×宽×通道);CNN 管图像,序列交给 RNN/LSTM/Transformer。</li>
+</ul>
+<hr />
+<h2
+id="附考试提示结合录音与课程惯例">附:考试提示(结合录音与课程惯例)</h2>
+<ul>
+<li>本课考试为 <strong>3 小时手写、可带 1 张 A4 cheat
+sheet</strong>;按惯例<strong>不要求推导</strong>繁重公式(如 kernel/SVM
+那类),CNN
+这块更可能考<strong>概念辨析</strong>与<strong>读架构表/算尺寸</strong>。</li>
+<li><strong>极可能考的概念题</strong>:① 卷积的三大好处(sparse
+interactions / parameter sharing / equivariance)分别是什么;②
+<strong>equivariance(卷积)与
+invariance(池化)的区别</strong>——这是最经典的辨析点;③ convolution 与
+cross-correlation 的关系;④
+每个经典架构的<strong>标志性贡献</strong>(尤其 Inception module 与 skip
+connection)。</li>
+<li><strong>可能考的计算题</strong>:给定输入尺寸、核大小、stride、padding,用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⌊</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>W</mi><mo>−</mo><mi>F</mi><mo>+</mo><mn>2</mn><mi>P</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>S</mi><mo stretchy="false" form="postfix">⌋</mo><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\lfloor (W-F+2P)/S\rfloor+1</annotation></semantics></math>
+<strong>算某层输出尺寸</strong>;或数 feature map 张数 = filter
+个数。</li>
+<li>讲师明说几个经典架构"有点考古性质",<strong>重点在思想不在数字</strong>:与其背
+AlexNet 每层通道数,不如能说清"AlexNet 带来了
+ReLU/Dropout/数据增强、ResNet 带来了 skip connection"。</li>
+<li>别忘了把上一周的 <strong>ReLU、Dropout、梯度消失</strong>
+串起来——AlexNet 这一节正是它们在真实网络里的落地。</li>
+</ul>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

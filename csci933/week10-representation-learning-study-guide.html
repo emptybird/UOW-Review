@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 10 · 表示学习导论 (Representation Learning: An Introduction)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-10--表示学习导论-representation-learning-an-introduction">Week
+10 · 表示学习导论 (Representation Learning: An Introduction)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>解释什么叫
+<strong>representation(表示)</strong>、什么样的表示才"有用",并复述老师的"<strong>三个问题</strong>"统一框架(学的是什么
+/ 为什么有用 / 怎么学的);</li>
+<li>把 <strong>PCA</strong>
+当作线性基线,说清它"保留最大方差的正交方向"在干什么,以及为什么
+<strong>top-K
+特征向量是可证明最优的线性表示</strong>(Karhunen–Loève);</li>
+<li>画出 <strong>autoencoder(自编码器)</strong> 的
+encoder–bottleneck–decoder 结构,写出重构损失
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|x-\hat{x}\|^2</annotation></semantics></math>,并解释为什么它特别适合<strong>异常检测
+(anomaly detection)</strong>;</li>
+<li><strong>准确解读</strong> VAE 的
+<strong>ELBO</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℒ</mi><mo>=</mo><msub><mi>𝔼</mi><mi>q</mi></msub><mrow><mo stretchy="true" form="prefix">[</mo><mo>log</mo><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow><mo>−</mo><msub><mi>D</mi><mrow><mi>K</mi><mi>L</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo stretchy="false" form="postfix">∥</mo><mi>p</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{L}=\mathbb{E}_{q}[\log p(x|z)]-D_{KL}(q\|p)</annotation></semantics></math>,讲清重构项与
+KL 项各自的作用、<strong>reparameterization trick(重参数化技巧)</strong>
+为什么必要,以及 <strong>β-VAE</strong> 用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\beta&gt;1</annotation></semantics></math>
+换来 <strong>disentanglement(解耦)</strong> 的代价;</li>
+<li>写出 <strong>GAN</strong> 的 minimax 目标,解释 generator 与
+discriminator 的对抗博弈、什么是 <strong>mode
+collapse(模式崩溃)</strong>;</li>
+<li>描述 <strong>diffusion model (DDPM)</strong> 的前向加噪 /
+反向去噪两条 Markov 链,解释训练目标
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>ϵ</mi><mo>−</mo><msub><mi>ϵ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|\epsilon-\epsilon_\theta(x_t,t)\|^2</annotation></semantics></math>
+把"生成"变成了"有监督去噪";</li>
+<li>解释 <strong>self-supervised learning (SSL)</strong> 怎样用
+<strong>pretext task(代理任务)</strong> 和 <strong>contrastive / InfoNCE
+loss</strong> 从无标注数据里学出可迁移的特征;</li>
+<li><strong>给定一个应用场景,选出合适的表示学习方法并说明理由与权衡</strong>——这正是考试的核心题型。</li>
+</ul>
+</blockquote>
+<p>机器视觉里的质检、能生成"不存在的人脸"的模型、Stable Diffusion 与
+DALL·E、医学影像里"没多少标注也能学"的系统——这些看似毫不相干的东西,Week
+10
+把它们收进了<strong>同一个主题</strong>:我们到底怎么<strong>表示</strong>数据。老师在录音里把这件事说到了近乎信仰的程度:"<strong>It's
+all about representation at the end of the
+day.</strong>"——说到底,一切都是表示。如果你不能把原始数据表示成模型"吃得下、学得动"的形式,后面什么分类、生成、检索都无从谈起。</p>
+<p>本章是一条清晰的工具进化线,跟着 slides 的 outline
+走:先弄清<strong>什么是表示、什么样的表示有用</strong>(§1);再从你早就会的
+<strong>PCA</strong> 这个线性基线出发(§2);升级到用神经网络做非线性重构的
+<strong>autoencoder</strong>(§3);给它加上概率结构变成能"生成"的
+<strong>VAE</strong>(§4),再加一个旋钮变成能"解耦"的
+<strong>β-VAE</strong>(§5);换一条思路用对抗博弈来生成的
+<strong>GAN</strong>(§6);再换一条思路把生成变成迭代去噪的
+<strong>diffusion model</strong>(§7);最后是不需要标签、自己给自己出题的
+<strong>self-supervised learning</strong>(§8)。§9
+把六种方法横向对比、给出"该选哪个"的决策表,§10
+是老师反复强调的<strong>备考指南</strong>。整章其实就在回答一个问题的六种答法:<strong>怎样从原始数据里学出一个好的表示?</strong></p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 本章在课程里的位置</strong> — 本周(Week
+10)主题是 representation learning,是 Week 9(文本处理 /
+Transformer)之后的自然延续:前面我们一直在"把信号变成数字",本周系统地问"怎么把数字变成<em>好的</em>表示"。老师把这部分内容拆在了<strong>两次录音</strong>里讲:第一次讲到
+PCA→AE→VAE→β-VAE→GAN,第二次复盘 GAN 后接着讲 diffusion 与 SSL,然后才开始
+<strong>Week 11 的 graph neural network (GNN)</strong>。<strong>GNN
+不属于本周考核范围</strong>,本指南不展开。本章 slides
+内容偏数学,但老师反复承诺:<strong>考试不考任何推导</strong>(详见
+§10)。</p>
+</blockquote>
+<hr />
+<h2 id="1-什么是表示学习什么样的表示才有用">§1
+什么是表示学习,什么样的表示才"有用"</h2>
+<h3 id="11-从给全班同学建模说起">1.1 从"给全班同学建模"说起</h3>
+<p>老师喜欢用同一个例子贯穿全课:开学第一节课,他说要"给这个班里的每个人做测量",取一些特征——你戴多大的帽子、头围、用多长的腰带、鞋码、身高。这五个数凑成一个向量,就是对"你"这个人的一个
+<strong>representation(表示)</strong>。</p>
+<p>但他当时其实埋了两个要求,正好点出"好表示"的两个核心:</p>
+<ol type="1">
+<li><strong>唯一性 / 可区分 (uniqueness, discriminative)</strong> ——
+这个表示要能把你和别人<strong>区分</strong>开。如果我只用一个特征,全班都"是
+CSCI933
+的学生",我谁也认不出来;只有多取几个<strong>会变化的</strong>特征,人和人才区分得开。</li>
+<li><strong>可生成 (generative)</strong> ——
+如果我的表示框架足够好,我甚至能在特征空间里"凭空放一个点",解码出一个<strong>看起来就该属于这个班</strong>的"假人"。也就是说,好的表示不只是描述已有的数据,还<strong>蕴含了生成新数据的知识</strong>。</li>
+</ol>
+<p>这两点——<strong>判别</strong>与<strong>生成</strong>——是贯穿全章六种方法的两条暗线。有的方法(PCA、AE)主要服务判别/压缩,有的(VAE、GAN、diffusion)主打生成,有的(SSL)专攻"没标签也能学出可迁移的判别特征"。</p>
+<h3 id="12-表示学习的定义与动机">1.2 表示学习的定义与动机</h3>
+<p>正式地说 (S5):</p>
+<blockquote>
+<p><strong>表示学习 (Representation learning)</strong> =
+从原始数据中<strong>自动发现</strong>有用、有信息量的特征 /
+表示,使这些表示捕捉到下游任务(分类、预测、生成等)所需的<strong>本质结构
+(essential
+structure)</strong>;用学到的变换把高维、无结构的数据映射到一个<strong>模式与关系更容易被发现</strong>的形式,从而<strong>减少对人工特征工程
+(manual feature engineering) 的依赖</strong>。</p>
+</blockquote>
+<p>老师特意提醒:<strong>这个定义不是考点,别背它</strong>,是用来"内化"的。重点是理解它背后的几个动机:</p>
+<ul>
+<li><strong>原始数据不是没用,而是"夹带了垃圾"。</strong>
+老师打了个很形象的比方:原始数据里有好东西也有"会把网络搞晕的
+nonsense"。你要做的是<strong>把好的食物挑出来喂给模型,而不是把胆固醇
+(cholesterol) 也塞进去把它噎住</strong>。表示学习就是"提纯"这一步。</li>
+<li><strong>替代人工特征工程,要有"原则"。</strong> 他常问:假如你有 100
+个特征,但计算资源只够处理 25
+个,你怎么挑?<strong>不能"我喜欢你、我喜欢你"地随便选</strong>,得有一个数学上有原则的办法(比如"保留最大方差")。</li>
+<li><strong>捕捉"变化的潜在因子" (underlying factors of
+variation)。</strong>
+这个词组很关键。所谓"变化的因子",就是那些<strong>一改动就会变成另一个样本</strong>的量。回到班级例子:帽子、头围、腰带、鞋码、身高就是因子——我把身高一调,就换了个人。再比如做<strong>人脸编辑器</strong>:头发长度、鼻型、嘴型各是一个因子,调一个就改一处。后面
+§5 的 β-VAE 正是冲着"把这些因子一个一个分开"去的。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例(为什么"不平衡"逼你放弃监督学习)</strong> —
+老师抛了个真实场景:你是工厂的数据科学家,产线上做<strong>质量控制 (QC,
+quality
+control)</strong>——大量合格件、极少数次品。有人提议"用监督学习做二分类(好/坏)"。老师让大家<strong>批判这个方案</strong>。答案是:<strong>失败数据太稀缺
+(failure data is
+scarce)</strong>,正负样本严重不平衡,监督学习根本喂不饱。而且一个好工厂<em>本来</em>就该次品极少——次品和合格件五五开,反而说明这台机器跟抛硬币一样烂。所以这类问题天生属于<strong>无监督</strong>。这个例子直接引出了
+§3 用 autoencoder 做异常检测。</p>
+</blockquote>
+<h3 id="13-统一视角每种方法都在回答三个问题">1.3
+统一视角:每种方法都在回答三个问题</h3>
+<p>这是<strong>全章最该记住的一张思维导图</strong>(S6)。老师说,把这三个问题揣进兜里,你就是个好工程师——拿到任何问题都知道怎么下手:</p>
+<pre class="mermaid"><code>mindmap
+  root((表示学习&lt;br/&gt;三问))
+    1 学的是什么&lt;br/&gt;What is the representation?
+      向量 vector
+      隐变量 latent variable
+      特征图 feature map
+      嵌入 embedding
+      去噪状态 denoising state
+    2 为什么有用&lt;br/&gt;What makes it useful?
+      重构 reconstruction
+      生成 generation
+      判别 discrimination
+      预测 prediction
+      不变性 invariance
+      迁移 transfer
+    3 怎么学的&lt;br/&gt;How is it learned?
+      方差最大化 variance max (PCA)
+      重构损失 recon loss (AE)
+      ELBO (VAE / β-VAE)
+      对抗损失 adversarial (GAN)
+      去噪损失 denoising (Diffusion)
+      对比损失 contrastive (SSL)</code></pre>
+<p>第三问("怎么学的")其实就是<strong>每种方法的损失函数</strong>,而本章六种方法恰好对号入座:<strong>PCA→方差最大化,AE→重构损失,VAE/β-VAE→ELBO,GAN→对抗(minimax)损失,Diffusion→去噪损失,SSL→对比损失</strong>。后面每一节,你都可以回来对一下这张表。</p>
+<p>表示学习为什么这么"热"?因为<strong>一旦有了好表示,下游任务就变得容易</strong>:预训练的视觉
+/ 语言模型、异常检测、聚类、压缩、可视化都建在它之上
+(S7)。老师还点了一句:<strong>大语言模型本身就是一种表示学习工具</strong>——它学会了"怎么表示人类文本",于是摘要、生成、问答都顺手了。</p>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — ① 表示 = 把原始数据提纯成"判别 +
+可生成"的形式;②
+三大动机:挑出"好食物"丢掉"胆固醇"、用有原则的数学替代人工选特征、捕捉"变化的潜在因子";③
+<strong>三问框架</strong>(学什么 / 为何有用 /
+怎么学)是贯穿全章的骨架,第三问 = 损失函数。</p>
+</blockquote>
+<hr />
+<h2 id="2-pca线性基线">§2 PCA:线性基线</h2>
+<h3 id="21-复习pca-在干什么">2.1 复习:PCA 在干什么</h3>
+<p>老师从 PCA 开讲,理由很实在:"<strong>从你已经会的东西出发。</strong>"
+PCA(<strong>principal component
+analysis,主成分分析</strong>)你前几周见过,这里只快速复盘 (S8–S9):</p>
+<p>PCA 是一种<strong>线性降维 (linear dimensionality
+reduction)</strong>——把数据投影到一个<strong>更低维的子空间</strong>,同时<strong>尽量保留方差
+(variance)</strong>。它通过<strong>协方差矩阵的特征向量 (eigenvectors of
+the covariance matrix)</strong> 找到一组<strong>正交的
+(orthogonal)</strong>、方差最大的方向,这些方向就叫<strong>主成分
+(principal components)</strong>。</p>
+<p>为什么要"正交 /
+独立"?老师解释得很直白:你不希望一个特征能从另一个特征推出来。<strong>如果看你的腰带就能猜出你的身高,那这两个特征是冗余的,留一个就够了。</strong>
+我们要的是<strong>每个方向都给出别的方向给不了的信息</strong>——这就是线性代数里的"线性独立"。而"保留最大方差"对应的正是
+§1.2 那句"变化的潜在因子":方差大的方向,才是真正把样本区分开的方向。</p>
+<h3 id="22-数学定义与算法">2.2 数学定义与算法</h3>
+<p>设
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo>×</mo><mi>d</mi></mrow></msup></mrow><annotation encoding="application/x-tex">X \in \mathbb{R}^{n\times d}</annotation></semantics></math>
+是一个<strong>零均值化 (zero-centered)</strong>
+的数据矩阵(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+个样本、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>
+个特征)。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— "零均值化"和"读公式"</strong> —
+老师在课上花了点功夫教大家<strong>把符号读出来</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo>×</mo><mi>d</mi></mrow></msup></mrow><annotation encoding="application/x-tex">X\in\mathbb{R}^{n\times d}</annotation></semantics></math>
+念作"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+是一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><mi>d</mi></mrow><annotation encoding="application/x-tex">n\times d</annotation></semantics></math>
+的实数矩阵"。<strong>零均值化</strong>就是每个特征减去它的均值;如果再除以标准差,数据就被压到大致
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mo>−</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[-1,1]</annotation></semantics></math>。他强调这一步很关键——<strong>神经网络喜欢吃这种归一化的数据,你喂别的它会"噎住"
+(choke)</strong>。这也是为什么训练时到处是 normalization / layer
+norm。能把公式"读成人话"是本章的元技能,后面每个损失函数都这么读。</p>
+</blockquote>
+<p>PCA 要找一个<strong>正交矩阵 (orthonormal matrix)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>k</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>d</mi><mo>×</mo><mi>k</mi></mrow></msup></mrow><annotation encoding="application/x-tex">W_k \in \mathbb{R}^{d\times k}</annotation></semantics></math>,使投影
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mi>X</mi><msub><mi>W</mi><mi>k</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo>×</mo><mi>k</mi></mrow></msup></mrow><annotation encoding="application/x-tex">Z = XW_k \in \mathbb{R}^{n\times k}</annotation></semantics></math>
+在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+维子空间里<strong>尽量保留方差</strong>。算法四步 (S10):</p>
+<ol type="1">
+<li><strong>算协方差矩阵:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Σ</mi><mo>=</mo><mfrac><mn>1</mn><mi>n</mi></mfrac><msup><mi>X</mi><mi>⊤</mi></msup><mi>X</mi></mrow><annotation encoding="application/x-tex">\Sigma = \frac{1}{n}X^\top X</annotation></semantics></math>
+——
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>X</mi><mi>⊤</mi></msup><mi>X</mi></mrow><annotation encoding="application/x-tex">X^\top X</annotation></semantics></math>
+把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><mi>d</mi></mrow><annotation encoding="application/x-tex">n\times d</annotation></semantics></math>
+的数据变成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>×</mo><mi>d</mi></mrow><annotation encoding="application/x-tex">d\times d</annotation></semantics></math>
+的方阵(零均值化后它正比于协方差);</li>
+<li><strong>特征分解:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Σ</mi><mo>=</mo><mi>U</mi><mi>Λ</mi><msup><mi>U</mi><mi>⊤</mi></msup></mrow><annotation encoding="application/x-tex">\Sigma = U\Lambda U^\top</annotation></semantics></math>
+——
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
+的列是特征向量,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Λ</mi><annotation encoding="application/x-tex">\Lambda</annotation></semantics></math>
+是对角阵,对角线上是特征值(= 各方向解释的方差);</li>
+<li><strong>取前
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个特征向量:</strong>
+把特征值<strong>从大到小</strong>排序,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mi>k</mi></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><msub><mi>u</mi><mn>1</mn></msub><mspace width="0.222em"></mspace><msub><mi>u</mi><mn>2</mn></msub><mspace width="0.222em"></mspace><mi>…</mi><mspace width="0.222em"></mspace><msub><mi>u</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">W_k = [u_1\ u_2\ \dots\ u_k]</annotation></semantics></math>;</li>
+<li><strong>投影:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mi>X</mi><msub><mi>W</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">Z = XW_k</annotation></semantics></math>
+—— 数据从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>
+维降到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+维(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>&lt;</mo><mi>d</mi></mrow><annotation encoding="application/x-tex">k&lt;d</annotation></semantics></math>)。</li>
+</ol>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math></td>
+<td>零均值化的数据矩阵</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Σ</mi><annotation encoding="application/x-tex">\Sigma</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+的协方差矩阵</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Σ</mi><annotation encoding="application/x-tex">\Sigma</annotation></semantics></math>
+的特征向量矩阵</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Λ</mi><annotation encoding="application/x-tex">\Lambda</annotation></semantics></math></td>
+<td>特征值对角阵(解释的方差)</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>W</mi><mi>k</mi></msub><annotation encoding="application/x-tex">W_k</annotation></semantics></math></td>
+<td>前
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个特征向量(主成分)</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math></td>
+<td>投影后的低维表示</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="23-为什么是基线最优性与它的天花板">2.3
+为什么是"基线":最优性与它的天花板</h3>
+<p>PCA 之所以是基线,是因为它有一个漂亮的理论保证。老师提到了
+<strong>Karhunen–Loève 变换</strong>:如果你的预算只有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个特征向量,那么<strong>按特征值从大到小取的那前
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+个,就是你能得到的最好的线性表示——没有任何其他线性方法能比它更好地保留方差</strong>。这给了
+PCA 坚实的理论地位。</p>
+<p>但它的天花板也很明显:<strong>PCA
+是线性的</strong>。如果数据的结构是非线性的怎么办?老师点了那个"以 k
+开头"的名字——<strong>kernel PCA
+(KPCA)</strong>:先用核函数把数据<strong>升到一个高维空间,让原本非线性的结构在那里变成线性的</strong>,再在那个空间里做
+PCA。记住这个"用核技巧把非线性掰直"的思路——它和 §3 末尾"autoencoder
+像是在复杂非线性空间里做的 PCA"会呼应上。</p>
+<pre class="mermaid"><code>graph LR
+  A[&quot;原始数据 X&lt;br/&gt;n×d&quot;] --&gt; B[&quot;零均值化&lt;br/&gt;zero-center&quot;]
+  B --&gt; C[&quot;协方差矩阵&lt;br/&gt;Σ = (1/n)XᵀX&quot;]
+  C --&gt; D[&quot;特征分解&lt;br/&gt;Σ = UΛUᵀ&quot;]
+  D --&gt; E[&quot;按特征值排序&lt;br/&gt;取 top-k 向量 Wₖ&quot;]
+  E --&gt; F[&quot;投影 Z = XWₖ&lt;br/&gt;n×k 低维表示&quot;]</code></pre>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — ① PCA =
+线性降维,沿协方差矩阵的特征向量取"方差最大、相互正交"的方向;②
+算法:零均值化 → 协方差 → 特征分解 → 取 top-k → 投影;③
+<strong>Karhunen–Loève</strong>:top-k
+特征向量是线性方法里可证明最优的表示;④ 局限是线性,非线性要用
+<strong>KPCA</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="3-autoencoder用重构自己来学表示">§3
+Autoencoder:用"重构自己"来学表示</h2>
+<h3 id="31-核心思想逼着网络学出本质">3.1
+核心思想:逼着网络学出"本质"</h3>
+<p>PCA 是线性的。要在<strong>非线性</strong>世界里学表示,就轮到
+<strong>autoencoder(自编码器,AE)</strong> 了。</p>
+<p>它的定义很反直觉
+(S12):<strong>一个神经网络,学着把输入压缩成一个低维的隐表示(编码),再从这个压缩形式重建出原始输入(解码)</strong>;以<strong>无监督</strong>方式训练,目标是最小化输入与输出之间的<strong>重构误差
+(reconstruction error)</strong>。</p>
+<p>"训练一个网络来重建它自己的输入"听起来很傻——我直接把输入复制到输出不就行了?关键在那个<strong>瓶颈
+(bottleneck)</strong>:中间那层维度远小于输入。网络被逼着只能用很少的几个数,去<strong>抓住数据的本质</strong>,否则它没法在另一头把原图还原出来。老师的话:"<strong>你逼它学到数据的精华
+(essence),因为你要求它——不管你学到什么,都得用它把原图重建出来。</strong>"</p>
+<pre class="mermaid"><code>graph LR
+  subgraph Encoder[&quot;编码器 Encoder fθ&quot;]
+    X[&quot;输入 x&lt;br/&gt;(高维)&quot;] --&gt; H1[&quot;...&quot;]
+  end
+  H1 --&gt; Z[&quot;隐表示 z&lt;br/&gt;(瓶颈, 低维)&lt;br/&gt;latent code&quot;]
+  subgraph Decoder[&quot;解码器 Decoder gφ&quot;]
+    Z --&gt; H2[&quot;...&quot;] --&gt; Xhat[&quot;重构 x̂&lt;br/&gt;(高维)&quot;]
+  end
+  Xhat -.-&gt;|&quot;重构损失 ‖x − x̂‖²&quot;| X</code></pre>
+<h3 id="32-数学定义">3.2 数学定义</h3>
+<p>设输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>∈</mo><msup><mi>ℝ</mi><mi>d</mi></msup></mrow><annotation encoding="application/x-tex">x \in \mathbb{R}^d</annotation></semantics></math>
+(S13):</p>
+<ul>
+<li><strong>编码器 (encoder):</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><msub><mi>f</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z = f_\theta(x)</annotation></semantics></math>,其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>∈</mo><msup><mi>ℝ</mi><mi>k</mi></msup></mrow><annotation encoding="application/x-tex">z \in \mathbb{R}^k</annotation></semantics></math>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>&lt;</mo><mi>d</mi></mrow><annotation encoding="application/x-tex">k&lt;d</annotation></semantics></math>,参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>);</li>
+<li><strong>解码器 (decoder):</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>x</mi><mo accent="true">̂</mo></mover><mo>=</mo><msub><mi>g</mi><mi>ϕ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{x} = g_\phi(z)</annotation></semantics></math>,其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>x</mi><mo accent="true">̂</mo></mover><mo>∈</mo><msup><mi>ℝ</mi><mi>d</mi></msup></mrow><annotation encoding="application/x-tex">\hat{x}\in\mathbb{R}^d</annotation></semantics></math>(参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>);</li>
+<li><strong>目标:</strong> 最小化重构损失
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℒ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><msub><mi>g</mi><mi>ϕ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>f</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\mathcal{L}(x,\hat{x}) = \|x - \hat{x}\|^2 = \|x - g_\phi(f_\theta(x))\|^2</annotation></semantics></math></li>
+</ul>
+<p>把这个公式"读成人话":<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>x</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{x}</annotation></semantics></math>
+头上那个<strong>帽子 (hat)</strong> 表示它是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+的<strong>估计</strong>,不是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+本身;两者相减、取平方,就是误差。<strong>为什么取平方?</strong>
+老师反复强调一个口诀:<strong>平方是为了惩罚大误差 (penalize large
+errors)</strong>——见到平方就该想到这一层意思。中间的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+就是<strong>隐空间 / 隐表示 (latent
+space)</strong>,是网络对数据的内部表示。</p>
+<h3 id="33-应用工业振动数据的异常检测">3.3
+应用:工业振动数据的异常检测</h3>
+<p>现在把 §1.2 那个"次品太少、不能用监督学习"的质检问题接上
+(S16–S19)。</p>
+<p><strong>场景:</strong>
+你要监控工厂里一队机器,每台都有振动传感器,产出多元时间序列。绝大多数是正常数据,只有极少数(轴承故障、转子失衡)是真异常。标注的故障数据稀缺,监督学习不可行,你需要一个<strong>无监督</strong>方法判断机器是否异常。</p>
+<p><strong>怎么用 AE 解?</strong> 老师让学生自己想出了关键一招:</p>
+<blockquote>
+<p><strong>🔑 例(异常检测的妙处)</strong> — <strong>只用正常数据训练
+autoencoder</strong>。训练完,它对"正常"长什么样了如指掌:喂进一个正常样本,它能精准重建,<strong>重构误差很小</strong>。可一旦喂进一个异常样本,它"没见过、没有信息去重建",于是<strong>重构误差会突然变大</strong>。所以:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|x-\hat{x}\|^2</annotation></semantics></math>
+<strong>超过某个阈值 →
+判为异常</strong>。老师把这套逻辑总结成四步工作流:①
+预处理(振动信号归一化、切成时间窗);② <strong>只在正常数据上</strong>训练
+AE;③ 用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|x-\hat{x}\|^2</annotation></semantics></math>
+算异常分数;④ 误差超阈值就报警。</p>
+</blockquote>
+<p>注意这招怎么巧妙地绕开了不平衡问题:它<strong>根本不需要任何异常样本</strong>,把"分类"问题变成了"我能不能重建你"的问题。</p>
+<p><strong>架构选择</strong>很灵活 (S19):静态特征向量用 <strong>Dense
+AE</strong>;时间序列窗口里的局部模式用 <strong>Conv1D
+AE</strong>;要学序列依赖用 <strong>LSTM AE</strong>。AE 不绑定
+MLP——卷积、循环结构都可以当编码器 / 解码器。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— AE 与 PCA 的关系</strong> —
+老师在总结时点了一句很值得记的话:<strong>autoencoder
+本质上像是在一个复杂非线性空间里工作的 PCA</strong>。如果把编码器 /
+解码器都限制成线性、损失用平方误差,AE 学到的子空间其实就退化成 PCA
+的主成分子空间。换句话说,<strong>AE 是 PCA
+的非线性推广</strong>——这正好接上 §2.3"用 KPCA
+把非线性掰直"的另一条路:KPCA 靠固定的核,AE 靠可学习的神经网络。</p>
+</blockquote>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — ① AE =
+encoder→bottleneck→decoder,靠重构损失
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|x-\hat{x}\|^2</annotation></semantics></math>
+逼网络学本质(平方 = 惩罚大误差);② 隐空间 = 内部表示;③
+<strong>异常检测</strong>:只用正常数据训练,异常样本重构误差大 →
+超阈值报警,天然解决不平衡;④ AE ≈ 非线性的 PCA。</p>
+</blockquote>
+<hr />
+<h2 id="4-vae从确定的编码到概率的分布">§4
+VAE:从"确定的编码"到"概率的分布"</h2>
+<h3 id="41-动机ae-不会生成">4.1 动机:AE 不会"生成"</h3>
+<p>AE
+有个根本短板:它<strong>只会重构,不会生成</strong>。它把每个输入映射到一个<strong>固定的
+(deterministic)</strong> 隐码
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>;隐空间里"码与码之间"的地带是什么,它毫无概念。你没法在隐空间里随便采个点、解码出一个<strong>全新而合理</strong>的样本。</p>
+<p><strong>variational autoencoder(变分自编码器,VAE)</strong>
+就是来补这一刀的 (S20)。它的关键改动:<strong>编码器不再输出一个固定的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>,而是输出一个分布</strong>——具体说,输出一个<strong>均值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>μ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mu(x)</annotation></semantics></math>
+和方差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>σ</mi><mn>2</mn></msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma^2(x)</annotation></semantics></math></strong>,然后从这个分布里<strong>采样</strong>一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+交给解码器。</p>
+<p>老师解释了为什么"输出分布"就能生成:<strong>只要你描述了一个分布,你就能从它里面采样、生成新东西。</strong>
+想描述一个正态分布,有均值和方差就够了。哪怕是很怪的分布,也能用<strong>高斯混合
+(mixture of Gaussians)</strong> 拼出来。所以 VAE
+学的不是"这张图的码",而是"这类数据在隐空间里的概率分布"——这是它能生成的根本原因。他还翻出早先那个比喻:<strong>想让游戏
+AI
+模仿一个板球运动员,你只要学会他打球的"分布",就能在任意位置生成一杆合理的挥击。</strong></p>
+<h3 id="42-数学定义elbo">4.2 数学定义:ELBO</h3>
+<p>输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>∈</mo><msup><mi>ℝ</mi><mi>d</mi></msup></mrow><annotation encoding="application/x-tex">x\in\mathbb{R}^d</annotation></semantics></math>
+(S21):</p>
+<ul>
+<li><strong>编码器(近似后验):</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>ϕ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>𝒩</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mi>z</mi><mo>;</mo><mspace width="0.222em"></mspace><mi>μ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">d</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">g</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>σ</mi><mn>2</mn></msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">q_\phi(z|x) = \mathcal{N}\big(z;\ \mu(x),\ \mathrm{diag}(\sigma^2(x))\big)</annotation></semantics></math></li>
+<li><strong>先验 (prior):</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(z) = \mathcal{N}(0, I)</annotation></semantics></math>
+—— 我们<strong>希望</strong>隐空间长成一个标准正态</li>
+<li><strong>解码器(生成似然):</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p_\theta(x|z)</annotation></semantics></math></li>
+<li><strong>目标:最大化证据下界 (Evidence Lower Bound,
+ELBO):</strong></li>
+</ul>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ℒ</mi><mtext mathvariant="normal">VAE</mtext></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><munder><mrow><msub><mi>𝔼</mi><mrow><msub><mi>q</mi><mi>ϕ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">[</mo><mo>log</mo><msub><mi>p</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">]</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">重构项</mtext></munder><mo>−</mo><munder><munder><mrow><msub><mi>D</mi><mrow><mi>K</mi><mi>L</mi></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>q</mi><mi>ϕ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.222em"></mspace><mo stretchy="false" form="postfix">∥</mo><mspace width="0.222em"></mspace><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">KL 正则项</mtext></munder></mrow><annotation encoding="application/x-tex">\mathcal{L}_{\text{VAE}}(x) = \underbrace{\mathbb{E}_{q_\phi(z|x)}\big[\log p_\theta(x|z)\big]}_{\text{重构项}} - \underbrace{D_{KL}\big(q_\phi(z|x)\ \|\ p(z)\big)}_{\text{KL 正则项}}</annotation></semantics></math></p>
+<p>VAE 同时优化两个目标 (S22):</p>
+<ul>
+<li><strong>重构项(数据项):</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝔼</mi><mrow><msub><mi>q</mi><mi>ϕ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><mrow><mo stretchy="true" form="prefix">[</mo><mo>log</mo><msub><mi>p</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)]</annotation></semantics></math>
+—— 从隐样本
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+<strong>尽量准确地还原
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math></strong>。这本质上还是"重构损失",和
+AE 一脉相承。</li>
+<li><strong>KL 散度项:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>D</mi><mrow><mi>K</mi><mi>L</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>q</mi><mi>ϕ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">∥</mo><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">D_{KL}(q_\phi(z|x)\|p(z))</annotation></semantics></math>
+—— 逼<strong>编码器输出的分布贴近标准正态先验</strong>。</li>
+</ul>
+<h3 id="43-kl-散度到底在干什么4-减-x的直觉">4.3 KL 散度到底在干什么:"4
+减 X"的直觉</h3>
+<p>这是本节最容易卡住的地方,老师用了一个特别朴素的讲法。</p>
+<p>先说 <strong>KL 散度 (Kullback–Leibler divergence)</strong>
+是什么:<strong>它衡量两个分布有多不一样——是一种"距离"</strong>。给两个分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mn>1</mn></msub><annotation encoding="application/x-tex">P_1</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mn>2</mn></msub><annotation encoding="application/x-tex">P_2</annotation></semantics></math>,KL
+告诉你它们差多远。<strong>如果
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>D</mi><mrow><mi>K</mi><mi>L</mi></mrow></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">D_{KL}=0</annotation></semantics></math>,两个分布重合;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>D</mi><mrow><mi>K</mi><mi>L</mi></mrow></msub><annotation encoding="application/x-tex">D_{KL}</annotation></semantics></math>
+越大,离得越远。</strong> 我们希望
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>ϕ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">q_\phi(z|x)</annotation></semantics></math>
+贴近先验
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{N}(0,I)</annotation></semantics></math>,所以想让这个
+KL
+<strong>尽量小</strong>。小到什么程度有用?小到整个隐空间被"整形"成一个规整的标准正态——这样你才能在
+§4.1 说的那样,从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{N}(0,I)</annotation></semantics></math>
+里随便采点、解码出合理样本。</p>
+<p>那为什么目标里 KL 前面是<strong>减号</strong>?</p>
+<blockquote>
+<p><strong>🔑 例(老师的"4 减 X"类比)</strong> —
+我们要<strong>最大化</strong> ELBO,而 ELBO = 重构项 <strong>−</strong>
+KL。把它想成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>−</mo><mi>X</mi></mrow><annotation encoding="application/x-tex">4 - X</annotation></semantics></math>:这里
+4
+好比"重构得很好"的满分,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+就是
+KL。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+能在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>3</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,3]</annotation></semantics></math>
+间变。<strong>什么时候
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>−</mo><mi>X</mi></mrow><annotation encoding="application/x-tex">4-X</annotation></semantics></math>
+最大?当
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">X=0</annotation></semantics></math>
+时,得 4,最大。</strong> 所以"最大化 ELBO"自动意味着"<strong>把 KL
+压到尽量小</strong>",也就是把编码分布推向先验。一句话:<strong>减号 +
+最大化 = 逼 KL 变小 = 让隐空间贴近标准正态。</strong>
+同时那个重构项要尽量大(还原得准),两股力一起拉,VAE 既能重构又能生成。</p>
+</blockquote>
+<h3 id="44-重参数化技巧让采样可导">4.4 重参数化技巧:让"采样"可导</h3>
+<p>还有一个工程上的坎:<strong>从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>ϕ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">q_\phi(z|x)</annotation></semantics></math>
+里采样
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+这一步是不可导的</strong>,梯度没法穿过一个"随机采样"操作回传到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>。</p>
+<p><strong>reparameterization trick(重参数化技巧)</strong> 解决它
+(S23):把采样改写成
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>μ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>⊙</mo><mi>ϵ</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>ϵ</mi><mo>∼</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z = \mu(x) + \sigma(x)\odot\epsilon,\qquad \epsilon\sim\mathcal{N}(0,I)</annotation></semantics></math>
+其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>⊙</mo><annotation encoding="application/x-tex">\odot</annotation></semantics></math>
+是逐元素相乘。<strong>随机性被挪到了与参数无关的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>
+上</strong>,而
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>μ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mu(x)</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma(x)</annotation></semantics></math>
+变成确定性的、可导的部分,梯度就能顺着它们流回去,用普通的梯度下降训练了。老师宽慰大家:这个技巧
+PyTorch / TensorFlow 的 API
+早就实现好了,你<strong>要懂它为什么必要</strong>,但不用自己手写。</p>
+<pre class="mermaid"><code>graph LR
+  X[&quot;输入 x&quot;] --&gt; ENC[&quot;编码器 qφ&quot;]
+  ENC --&gt; MU[&quot;μ(x)&quot;]
+  ENC --&gt; SIG[&quot;σ(x)&quot;]
+  EPS[&quot;ε ~ N(0,I)&lt;br/&gt;(随机性在这里)&quot;] --&gt; Z
+  MU --&gt; Z[&quot;z = μ + σ ⊙ ε&quot;]
+  SIG --&gt; Z
+  Z --&gt; DEC[&quot;解码器 pθ&quot;]
+  DEC --&gt; XHAT[&quot;重构 x̂&quot;]
+  XHAT -.-&gt;|&quot;ELBO = 重构项 − KL(q‖p)&quot;| X</code></pre>
+<h3 id="45-ae-vs-vae">4.5 AE vs VAE</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>Autoencoder (AE)</th>
+<th>Variational Autoencoder (VAE)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>目标</strong></td>
+<td>精确重构</td>
+<td>学一个<strong>生成模型</strong></td>
+</tr>
+<tr class="even">
+<td><strong>编码器输出</strong></td>
+<td>确定的码
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><msub><mi>f</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z=f_\theta(x)</annotation></semantics></math></td>
+<td>概率分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>∼</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>μ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><msup><mi>σ</mi><mn>2</mn></msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z\sim\mathcal{N}(\mu(x),\sigma^2(x))</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td><strong>解码器输入</strong></td>
+<td>固定隐码</td>
+<td><strong>采样</strong>得到的隐向量</td>
+</tr>
+<tr class="even">
+<td><strong>损失</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>x</mi><mo>−</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup><annotation encoding="application/x-tex">|x-\hat{x}|^2</annotation></semantics></math></td>
+<td><strong>ELBO</strong> = 重构项 + KL 惩罚</td>
+</tr>
+<tr class="odd">
+<td><strong>能生成新样本?</strong></td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 例(VAE 生成 MNIST 手写数字)</strong> —
+<strong>MNIST</strong>
+是美国邮政的手写数字数据集(当年为了自动识别信封上的邮编、给信件分拣)。想用它做数据增强?(S31–S32)①
+把灰度图归一化到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,1]</annotation></semantics></math>;②
+训练 VAE,编码器学
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>μ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>σ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mu(x),\sigma(x)</annotation></semantics></math>,解码器从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>μ</mi><mo>+</mo><mi>σ</mi><mo>⊙</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">z=\mu+\sigma\odot\epsilon</annotation></semantics></math>
+重建;③ 从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>∼</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z\sim\mathcal{N}(0,I)</annotation></semantics></math>
+采样,解码出<strong>全新的数字</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>x</mi><mo accent="true">̂</mo></mover><mo>=</mo><msub><mi>g</mi><mi>ϕ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{x}=g_\phi(z)</annotation></semantics></math>。VAE
+的概率性保证了样本的<strong>多样性</strong>,还能在隐空间里<strong>平滑地在类别间插值</strong>。</p>
+</blockquote>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — ① VAE
+把编码器输出从"固定码"换成"分布(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>μ</mi><mo>,</mo><mi>σ</mi></mrow><annotation encoding="application/x-tex">\mu,\sigma</annotation></semantics></math>)",于是能生成;②
+<strong>ELBO = 重构项 − KL</strong>,KL
+是"分布间距离",减号+最大化逼它变小、把隐空间整形成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{N}(0,I)</annotation></semantics></math>("4
+减 X"直觉);③ <strong>重参数化</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>μ</mi><mo>+</mo><mi>σ</mi><mo>⊙</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">z=\mu+\sigma\odot\epsilon</annotation></semantics></math>
+让采样可导;④ 关键区别:AE 确定+只重构,VAE 概率+能生成。</p>
+</blockquote>
+<hr />
+<h2 id="5-β-vae把隐空间解耦开来">§5 β-VAE:把隐空间"解耦"开来</h2>
+<h3 id="51-纠缠-vs-解耦">5.1 纠缠 vs 解耦</h3>
+<p>VAE 能生成了,但还有个遗憾:它学到的那些隐因子<strong>全缠在一起
+(entangled)</strong>。你想改一处,结果整张脸都跟着变,<strong>没有一个旋钮能单独控制"头发长度"</strong>。</p>
+<p>老师用人脸编辑器把"解耦"讲透了:<strong>disentangled latent
+space(解耦隐空间)</strong>
+就是每个隐维度对应一个<strong>人类能理解的、独立的因子</strong>——这一维管头发长度,那一维管发色,另一维管"笑不笑"。你拨动其中一维,<strong>只有那一处变化,其余不变</strong>(把你的脸
+P 成长发,别人还是一眼认出是你)。反之 <strong>entangled(纠缠)</strong>
+就是所有因子糊成一团,重构没问题,但你没有"杠杆"去单独调任何一个。</p>
+<h3 id="52-怎么做给-kl-加一个-β">5.2 怎么做:给 KL 加一个 β</h3>
+<p>要鼓励解耦,只需在 ELBO 上动一个小手脚——给 KL 项<strong>加一个权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math></strong>
+(S27–S29):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ℒ</mi><mrow><mi>β</mi><mtext mathvariant="normal">-VAE</mtext></mrow></msub><mo>=</mo><msub><mi>𝔼</mi><mrow><mi>q</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">[</mo><mo>log</mo><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="prefix">|</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">]</mo><mo>−</mo><mi>β</mi><mspace width="0.167em"></mspace><msub><mi>D</mi><mrow><mi>K</mi><mi>L</mi></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mi>q</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.222em"></mspace><mo stretchy="false" form="postfix">∥</mo><mspace width="0.222em"></mspace><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="2.0em"></mspace><mi>β</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\mathcal{L}_{\beta\text{-VAE}} = \mathbb{E}_{q(z|x)}\big[\log p(x|z)\big] - \beta\, D_{KL}\big(q(z|x)\ \|\ p(z)\big),\qquad \beta&gt;1</annotation></semantics></math></p>
+<p>直觉是这样:<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\beta&gt;1</annotation></semantics></math>
+加强了"逼近先验"的压力</strong>。先验
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{N}(0,I)</annotation></semantics></math>
+各维是相互独立的,所以更大的 KL
+权重等于更用力地把隐各维<strong>推向相互独立</strong>,于是因子被一个个"挤"开,实现解耦。</p>
+<p><strong>但天下没有免费的午餐。</strong> 老师反复强调这个<strong>权衡
+(trade-off)</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
+越大,解耦越好,但你在 ELBO 里给"重构"留的比重就越小,<strong>重构保真度
+(fidelity) 下降,生成的图会变糊 (blurry)</strong>。所以:</p>
+<ul>
+<li><strong>要精确重构 / 逼真生成 → 用
+VAE</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\beta=1</annotation></semantics></math>);</li>
+<li><strong>要可解释、可控的解耦因子 → 用
+β-VAE</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\beta&gt;1</annotation></semantics></math>),代价是牺牲一些清晰度。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例(β-VAE 做人脸属性编辑)</strong> —
+你在做一个人脸编辑工具,让用户改"笑容""发色""眼镜"(S33–S34)。① 预处理
+CelebA 人脸(裁剪、缩放、归一化);② 用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\beta&gt;1</annotation></semantics></math>
+训练 β-VAE 促成解耦;③ 找出对应各个面部属性的隐维度;④
+<strong>只拨动其中一维</strong>再解码,观察单一属性的变化(比如把"笑容"那一维调大)。β-VAE
+在"可解释性和可控性压倒一切"的场景里最理想——哪怕重构质量打点折。</p>
+</blockquote>
+<pre class="mermaid"><code>graph TB
+  subgraph 纠缠 Entangled VAE
+    direction LR
+    Z1[&quot;z (各维糊在一起)&quot;] --&gt;|&quot;改任一维&quot;| F1[&quot;整张脸都变&quot;]
+  end
+  subgraph 解耦 Disentangled β-VAE
+    direction LR
+    ZA[&quot;z₁ 发型&quot;] --&gt; FA[&quot;只变发型&quot;]
+    ZB[&quot;z₂ 笑容&quot;] --&gt; FB[&quot;只变笑容&quot;]
+    ZC[&quot;z₃ 发色&quot;] --&gt; FC[&quot;只变发色&quot;]
+  end</code></pre>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — ① 解耦 =
+每个隐维管一个独立、可理解的因子,能单独调;② β-VAE 给 KL 项加权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\beta&gt;1</annotation></semantics></math>,加强"逼近独立先验"的压力来促成解耦;③
+<strong>权衡</strong>:解耦↑ 但重构保真度↓(图变糊);④ 选型:精确重构用
+VAE,可控编辑用 β-VAE。</p>
+</blockquote>
+<hr />
+<h2 id="6-gan用对抗博弈来生成">§6 GAN:用对抗博弈来生成</h2>
+<h3 id="61-直觉造假者与鉴定师的猫鼠游戏">6.1
+直觉:造假者与鉴定师的猫鼠游戏</h3>
+<p>到目前为止(AE / VAE /
+β-VAE)都靠"重构"这条线索学习。<strong>generative adversarial
+network(生成对抗网络,GAN)</strong>
+换了一条完全不同的思路:<strong>让两个网络互相博弈</strong> (S35)。</p>
+<ul>
+<li><strong>generator(生成器
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>):</strong>
+学着<strong>造假数据</strong>,目标是骗过对手;</li>
+<li><strong>discriminator(判别器
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>):</strong>
+学着<strong>分辨真假</strong>,目标是抓出赝品。</li>
+</ul>
+<p>老师把它讲成一场猫鼠游戏:生成器造一张假图,判别器说"假的";生成器想"我怎么才能骗过它",换个方式再造一张,判别器再判……如此往复,<strong>直到生成器造得太逼真,判别器再也分不清真假——只能五五开地瞎猜</strong>。到这个<strong>均衡
+(equilibrium)</strong>
+点,生成器就<strong>学到了数据的分布</strong>,成了一个真正的生成器。</p>
+<p>关键是:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+的输入只是<strong>随机噪声 (random noise)</strong>。训练过程中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+的参数不断调整,<strong>学会了把噪声转换成有意义的数据</strong>。</p>
+<pre class="mermaid"><code>graph LR
+  NOISE[&quot;随机噪声 z&lt;br/&gt;~ N(0,I)&quot;] --&gt; G[&quot;生成器 G&quot;]
+  G --&gt; FAKE[&quot;假数据 x̂ = G(z)&quot;]
+  REAL[&quot;真数据 x&quot;] --&gt; D
+  FAKE --&gt; D{&quot;判别器 D&lt;br/&gt;真 or 假?&quot;}
+  D --&gt;|&quot;真/假信号&quot;| LOSS[&quot;对抗损失&quot;]
+  LOSS -.-&gt;|&quot;更新 G 的权重&lt;br/&gt;(学着骗过 D)&quot;| G
+  LOSS -.-&gt;|&quot;更新 D 的权重&lt;br/&gt;(学着抓假)&quot;| D</code></pre>
+<h3 id="62-数学定义minimax">6.2 数学定义:minimax</h3>
+<p>GAN 的目标函数是一个<strong>极小极大 (minimax)</strong> 博弈
+(S37):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mi>G</mi></munder><mspace width="0.222em"></mspace><munder><mo>max</mo><mi>D</mi></munder><mspace width="0.222em"></mspace><mspace width="0.222em"></mspace><msub><mi>𝔼</mi><mrow><mi>x</mi><mo>∼</mo><msub><mi>p</mi><mtext mathvariant="normal">data</mtext></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">[</mo><mo>log</mo><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">]</mo><mo>+</mo><msub><mi>𝔼</mi><mrow><mi>z</mi><mo>∼</mo><msub><mi>p</mi><mi>z</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">[</mo><mo>log</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\min_{G}\ \max_{D}\ \ \mathbb{E}_{x\sim p_{\text{data}}(x)}\big[\log D(x)\big] + \mathbb{E}_{z\sim p_z(z)}\big[\log\big(1 - D(G(z))\big)\big]</annotation></semantics></math></p>
+<p>读成人话:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+是来自真实分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mtext mathvariant="normal">data</mtext></msub><annotation encoding="application/x-tex">p_{\text{data}}</annotation></semantics></math>
+的真样本;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+是来自先验
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mi>z</mi></msub><annotation encoding="application/x-tex">p_z</annotation></semantics></math>(通常
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{N}(0,I)</annotation></semantics></math>)的噪声;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G(z)</annotation></semantics></math>
+是生成器造的假货;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">D(x)\in[0,1]</annotation></semantics></math>
+是判别器认为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+为真的概率。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mo>max</mo><mi>D</mi></msub><annotation encoding="application/x-tex">\max_D</annotation></semantics></math>:</strong>
+判别器想把"真判真、假判假"的概率拉满——所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">D(x)</annotation></semantics></math>
+大、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">D(G(z))</annotation></semantics></math>
+小。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mo>min</mo><mi>G</mi></msub><annotation encoding="application/x-tex">\min_G</annotation></semantics></math>:</strong>
+生成器想让
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">D(G(z))</annotation></semantics></math>
+<strong>接近
+1</strong>(让判别器误以为假货是真的),所以要<strong>最小化</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>log</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\log(1-D(G(z)))</annotation></semantics></math>。</li>
+</ul>
+<p>训练<strong>交替进行</strong>:固定
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+训
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>,再固定
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+训
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>,如此反复,通常用随机梯度下降
+(S39)。从<strong>几何视角</strong>看 (S38):有两个分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mi>G</mi></msub><annotation encoding="application/x-tex">p_G</annotation></semantics></math>(生成器的)和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mtext mathvariant="normal">data</mtext></msub><annotation encoding="application/x-tex">p_{\text{data}}</annotation></semantics></math>(真实的),整个博弈就是不断<strong>把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mi>G</mi></msub><annotation encoding="application/x-tex">p_G</annotation></semantics></math>
+整形、推到与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mtext mathvariant="normal">data</mtext></msub><annotation encoding="application/x-tex">p_{\text{data}}</annotation></semantics></math>
+重叠</strong>;当两者几乎重合,生成器就学到了数据的底层分布。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— minimax 与博弈论</strong> —
+老师特意点出:这种 minimax 目标在<strong>博弈论 (game theory)</strong>
+里很常见,典型场景是谈判——"我要<strong>最大化我的收益、最小化你的收益</strong>"。他还提到那部电影《美丽心灵》(A
+Beautiful Mind) 的主角(John
+Nash)正是用博弈论分析这类对抗,数学家能提前预测博弈如何收场。把 GAN
+理解成"两个理性玩家的零和博弈",minimax 就不神秘了。</p>
+</blockquote>
+<h3 id="63-为什么用-gan以及它的麻烦">6.3 为什么用 GAN,以及它的麻烦</h3>
+<p><strong>优点</strong> (S40–S43):GAN
+不依赖重构精度,而是直接训练生成器去<strong>骗过判别器</strong>,因此往往生成<strong>更锐利、更逼真
+(sharper, more convincing)</strong>
+的图像。在"真实感压倒可解释性"的创意场景(生成抽象画、生成根本不存在的人脸)里,它比
+VAE(常常糊)、AE(根本不能生成)更合适。老师感慨:GAN
+能生成"看着就是个真人、却从没在世上存在过"的脸。</p>
+<p><strong>但训练 GAN 出了名地不稳定</strong>,最典型的毛病是
+<strong>mode collapse(模式崩溃)</strong>:</p>
+<blockquote>
+<p><strong>🔑 例(老师的癫痫脑电 GAN 翻车实录)</strong> —
+老师讲了自己一个真实项目:癫痫<strong>发作 (seizure)</strong>
+源于脑深处,可以用头皮电极记录脑电波来预测。难点是——<strong>正常脑电海量,而"发作波"极其稀缺</strong>(病人在医院躺一个月可能什么都没发生,回家反而又犯了)。数据太少,没法训练。于是他让一个硕士生<strong>用
+GAN 生成假的发作脑电波</strong>。结果训练时 GAN <strong>崩溃 (collapse)
+了</strong>:它陷入一个<strong>循环</strong>,翻来覆去只生成那么几种形态、不断重复,看起来在"生成新东西",其实没有。这就是
+mode collapse——<strong>网络没收敛,在原地打转</strong>。补救手段有
+<strong>DCGAN</strong>(用卷积、batch norm、LeakyReLU
+稳住训练)等;评估则用 <strong>Inception Score (IS)</strong> 和
+<strong>FID (Fréchet Inception Distance)</strong>(S43, S75–S76)。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— GAN 评估指标(附录)</strong> —
+<strong>FID</strong> 衡量真实图与生成图在 Inception-v3
+特征空间里两个分布的距离,<strong>越低越好</strong>,同时反映保真度和多样性,是图像合成最常用的指标;<strong>IS</strong>
+看分类器对生成图打标签有多自信(质量)以及标签分布有多分散(多样性),<strong>越高越好</strong>,是早期
+GAN 论文的基准指标。</p>
+</blockquote>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — ① GAN = 生成器(造假)vs
+判别器(鉴假)的对抗博弈,均衡时
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+五五开、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+学到数据分布;② minimax 目标
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>min</mo><mi>G</mi></msub><msub><mo>max</mo><mi>D</mi></msub><mi>𝔼</mi><mrow><mo stretchy="true" form="prefix">[</mo><mo>log</mo><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow><mo>+</mo><mi>𝔼</mi><mrow><mo stretchy="true" form="prefix">[</mo><mo>log</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\min_G\max_D \mathbb{E}[\log D(x)]+\mathbb{E}[\log(1-D(G(z)))]</annotation></semantics></math>;③
+优点是<strong>锐利逼真</strong>、无需重构;④
+缺点是<strong>训练不稳、易模式崩溃</strong>(脑电翻车案例),DCGAN
+稳训练,FID/IS 做评估。</p>
+</blockquote>
+<hr />
+<h2 id="7-diffusion-model把生成变成去噪">§7 Diffusion
+Model:把"生成"变成"去噪"</h2>
+<h3 id="71-动机前面这些模型都有短板">7.1 动机:前面这些模型都有短板</h3>
+<p>GAN 锐利但难训。能不能<strong>既稳定、又高保真</strong>?这就是
+<strong>diffusion model(扩散模型)</strong>
+的切入点。老师先把前面几位的短板列了一遍 (S48):AE 不能生成、重构糊;VAE
+能生成但先验太简单导致糊;β-VAE 拿保真度换解耦;GAN
+锐利但训练不稳、模式崩溃、还没有似然。而 <strong>diffusion
+提供:稳定的、基于似然的训练 + 高保真多样的输出 +
+扎实的概率框架。</strong></p>
+<h3 id="72-核心思想加噪一条链去噪一条链">7.2
+核心思想:加噪一条链,去噪一条链</h3>
+<p>具体说,这里讲的是 <strong>DDPM(Denoising Diffusion Probabilistic
+Model,Ho et al.
+2020)</strong>(S46)。一句话抓住它:<strong>学着把"逐步加噪"这个过程反过来,从而生成数据。</strong>
+两条 Markov 链:</p>
+<ul>
+<li><strong>前向过程(扩散 / 加噪,forward / diffusion):</strong>
+从一张干净图
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mn>0</mn></msub><annotation encoding="application/x-tex">x_0</annotation></semantics></math>
+出发,<strong>一步步加高斯噪声</strong>,直到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>T</mi></msub><annotation encoding="application/x-tex">x_T</annotation></semantics></math>
+变成近乎纯噪声。这个过程是<strong>固定的、已知的</strong>(你自己定的噪声时间表)。</li>
+<li><strong>反向过程(生成 / 去噪,reverse / generation):</strong>
+从纯噪声
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>T</mi></msub><mo>∼</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x_T\sim\mathcal{N}(0,I)</annotation></semantics></math>
+出发,用一个<strong>训练好的神经网络一步步去噪</strong>,把它还原成一张真实图像。</li>
+</ul>
+<p>老师把"表示学习视角"点了出来:<strong>模型学到的是一串"去噪表示"——每个带噪状态
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>t</mi></msub><annotation encoding="application/x-tex">x_t</annotation></semantics></math>
+都含有关于原图
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mn>0</mn></msub><annotation encoding="application/x-tex">x_0</annotation></semantics></math>
+的部分信息。</strong></p>
+<pre class="mermaid"><code>graph LR
+  X0[&quot;x₀&lt;br/&gt;干净图&quot;] --&gt;|&quot;+ε₁&quot;| X1[&quot;x₁&quot;] --&gt;|&quot;+ε₂&quot;| X2[&quot;x₂&quot;] --&gt;|&quot;...&quot;| XT[&quot;x_T&lt;br/&gt;≈纯噪声&quot;]
+  XT -.-&gt;|&quot;去噪 εθ(x_t,t)&quot;| X2b[&quot;x₂&quot;] -.-&gt; X1b[&quot;x₁&quot;] -.-&gt; X0b[&quot;x₀&lt;br/&gt;生成的图&quot;]
+  XT --- L1[&quot;▲ 前向: 固定加噪 (已知)&quot;]
+  X0b --- L2[&quot;▼ 反向: 学习去噪 (神经网络)&quot;]</code></pre>
+<h3 id="73-数学前向反向训练目标">7.3 数学:前向、反向、训练目标</h3>
+<p><strong>前向单步加噪</strong> (S50):
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>𝒩</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>;</mo><mspace width="0.222em"></mspace><msqrt><mrow><mn>1</mn><mo>−</mo><msub><mi>β</mi><mi>t</mi></msub></mrow></msqrt><mspace width="0.167em"></mspace><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>β</mi><mi>t</mi></msub><mi>I</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">q(x_t\mid x_{t-1}) = \mathcal{N}\big(x_t;\ \sqrt{1-\beta_t}\,x_{t-1},\ \beta_t I\big)</annotation></semantics></math>
+其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>β</mi><mi>t</mi></msub><annotation encoding="application/x-tex">\beta_t</annotation></semantics></math>
+是<strong>噪声方差时间表 (noise variance schedule)</strong>,控制第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+步加多少噪。一个漂亮的性质是<strong>可以一步直接从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mn>0</mn></msub><annotation encoding="application/x-tex">x_0</annotation></semantics></math>
+采到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>t</mi></msub><annotation encoding="application/x-tex">x_t</annotation></semantics></math></strong>:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>=</mo><msqrt><msub><mover><mi>α</mi><mo accent="true">‾</mo></mover><mi>t</mi></msub></msqrt><mspace width="0.167em"></mspace><msub><mi>x</mi><mn>0</mn></msub><mo>+</mo><msqrt><mrow><mn>1</mn><mo>−</mo><msub><mover><mi>α</mi><mo accent="true">‾</mo></mover><mi>t</mi></msub></mrow></msqrt><mspace width="0.167em"></mspace><mi>ϵ</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>ϵ</mi><mo>∼</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x_t = \sqrt{\bar\alpha_t}\,x_0 + \sqrt{1-\bar\alpha_t}\,\epsilon,\qquad \epsilon\sim\mathcal{N}(0,I)</annotation></semantics></math>
+记号:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>α</mi><mi>t</mi></msub><mo>=</mo><mn>1</mn><mo>−</mo><msub><mi>β</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">\alpha_t = 1-\beta_t</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>α</mi><mo accent="true">‾</mo></mover><mi>t</mi></msub><mo>=</mo><msubsup><mo>∏</mo><mrow><mi>s</mi><mo>=</mo><mn>1</mn></mrow><mi>t</mi></msubsup><msub><mi>α</mi><mi>s</mi></msub></mrow><annotation encoding="application/x-tex">\bar\alpha_t = \prod_{s=1}^{t}\alpha_s</annotation></semantics></math>(累积乘积)。随着
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+增大,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>t</mi></msub><annotation encoding="application/x-tex">x_t</annotation></semantics></math>
+越来越像标准正态。</p>
+<p><strong>反向单步去噪</strong> (S51):用神经网络参数化这个转移
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>∣</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>𝒩</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>;</mo><mspace width="0.222em"></mspace><msub><mi>μ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>Σ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p_\theta(x_{t-1}\mid x_t) = \mathcal{N}\big(x_{t-1};\ \mu_\theta(x_t,t),\ \Sigma_\theta(x_t,t)\big)</annotation></semantics></math>
+网络收到带噪样本
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>t</mi></msub><annotation encoding="application/x-tex">x_t</annotation></semantics></math>
+和时间步
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>,预测"往干净方向挪一步该怎么挪"。</p>
+<p><strong>训练目标(噪声预测)</strong> (S52)——本节的灵魂:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℒ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>𝔼</mi><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>,</mo><mspace width="0.167em"></mspace><mi>t</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>ϵ</mi></mrow></msub><mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">[</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">∥</mo><mspace width="0.167em"></mspace><mi>ϵ</mi><mo>−</mo><msub><mi>ϵ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msup><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">]</mo><mo>,</mo><mspace width="2.0em"></mspace><mi>ϵ</mi><mo>∼</mo><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{L}(\theta) = \mathbb{E}_{x_0,\,t,\,\epsilon}\Big[\big\|\,\epsilon - \epsilon_\theta(x_t,t)\,\big\|^2\Big],\qquad \epsilon\sim\mathcal{N}(0,I)</annotation></semantics></math>
+读成人话:训练时<strong>我们恰好知道加进去的噪声
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>
+是多少</strong>;网络
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϵ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\epsilon_\theta(x_t,t)</annotation></semantics></math>
+的任务就是<strong>把这个噪声预测出来</strong>。老师的金句:"<strong>如果噪声能被预测出来,它就能被去掉。</strong>"
+于是生成 = 反复地"预测噪声 → 减掉噪声"。</p>
+<blockquote>
+<p><strong>🔑 关键洞察</strong> — <strong>Diffusion
+把"生成建模"变成了一个"有监督的去噪问题"</strong>
+(S52)。这正是它训练稳定的根源:不像 GAN
+那样靠对抗反馈(容易打架、崩溃),它有一个<strong>明确的回归目标</strong>(预测已知的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>),就像普通监督学习一样踏实。</p>
+</blockquote>
+<h3 id="74-应用与现状">7.4 应用与现状</h3>
+<blockquote>
+<p><strong>🔑 例(高保真人脸生成)</strong> — 为艺术家 /
+游戏开发者生成照片级人像(S55–S57):① 用 CelebA-HQ / FFHQ
+数据集,缩放归一化;② 训练:对训练图加
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+步高斯噪声,训练网络在第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+步<strong>预测噪声</strong>;③
+生成:从随机噪声出发,逐步施加学到的反向过程,合成一张新脸。Diffusion
+在"要极高质量 + 可控"的场景里胜出:GAN 可能崩、VAE 常糊,<strong>diffusion
+在真实感与可控性之间取得最佳平衡</strong>。</p>
+</blockquote>
+<p>老师补充了现状 (S58):diffusion
+已是高保真图像生成的<strong>主流</strong>,缺点是<strong>采样慢</strong>(要走很多步),但
+<strong>DDIM、Latent Diffusion</strong> 等已大幅提速,如今是
+<strong>Stable Diffusion、DALL·E 2</strong>
+背后的引擎。它也能做<strong>条件生成</strong>(给定"年轻、微笑的女性"这种描述)。</p>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — ① DDPM = 前向固定加噪(Markov
+链,时间表
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>β</mi><mi>t</mi></msub><annotation encoding="application/x-tex">\beta_t</annotation></semantics></math>)+
+反向学习去噪两条链;② 前向可一步直采
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>=</mo><msqrt><msub><mover><mi>α</mi><mo accent="true">‾</mo></mover><mi>t</mi></msub></msqrt><msub><mi>x</mi><mn>0</mn></msub><mo>+</mo><msqrt><mrow><mn>1</mn><mo>−</mo><msub><mover><mi>α</mi><mo accent="true">‾</mo></mover><mi>t</mi></msub></mrow></msqrt><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">x_t=\sqrt{\bar\alpha_t}x_0+\sqrt{1-\bar\alpha_t}\epsilon</annotation></semantics></math>;③
+训练目标 = <strong>预测噪声</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>ϵ</mi><mo>−</mo><msub><mi>ϵ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|\epsilon-\epsilon_\theta(x_t,t)\|^2</annotation></semantics></math>,把生成变成<strong>有监督去噪</strong>(故稳定);④
+高保真、稳定但采样慢;Stable Diffusion / DALL·E 2 的内核。</p>
+</blockquote>
+<hr />
+<h2 id="8-self-supervised-learning没有标签也能学">§8 Self-Supervised
+Learning:没有标签也能学</h2>
+<h3 id="81-动机标签太贵">8.1 动机:标签太贵</h3>
+<p>前面 VAE / GAN / diffusion 都在攻"生成"。<strong>self-supervised
+learning(自监督学习,SSL)</strong>
+攻的是另一个痛点:<strong>深度模型最吃大规模标注数据,但标签昂贵、耗时、领域专属</strong>,很多领域(医学、卫星影像)根本没多少标注
+(S59)。</p>
+<p>SSL
+的洞见:<strong>从无标注数据里,通过解一个"自己给自己出的题"(pretext /
+proxy task),把结构学出来</strong> (S60)。它产出一个<strong>特征提取器
+(feature
+extractor)</strong>,可以迁移到分类、分割等下游任务——而且这种预训练编码器常常<strong>比纯监督的还强</strong>。</p>
+<h3 id="82-直觉你怎么认出背影里的朋友">8.2
+直觉:你怎么认出背影里的朋友</h3>
+<p>老师用了两个特别接地气的比喻把 SSL 讲活了:</p>
+<blockquote>
+<p><strong>🔑 例(拳头 &amp; 朋友的背影)</strong> — ①
+我把手攥成<strong>拳头</strong>看一眼,记住"这是拳头";然后我把它<strong>挠一下、稍微变个形</strong>,再看——我还是认得"这是拳头"。<strong>我能认出这个小变化后还是同一个东西,正说明我学到了"拳头"的本质特征。</strong>
+②
+你有个老朋友,远远看见一个<strong>背影</strong>走在路上,你就认出"那是他"——你学到的是他的<strong>步态、身形</strong>这些不变特征,哪怕没看正脸、没人给你贴标签"这是你朋友"。SSL
+就是这么干的:给它同一个对象的若干"变体",它得学会"这些都是同一个",这逼它抽出本质特征。</p>
+</blockquote>
+<p>把比喻翻译成机制:对一个样本做<strong>两种随机增广
+(augmentation)</strong>(旋转、裁剪、改光照……)得到两个"视图",它们<strong>本该被认成同一个东西</strong>(正样本对);而来自<strong>别的样本</strong>的视图则是负样本。网络要学会<strong>把正样本对在隐空间里拉近、把负样本推远</strong>——这就是
+<strong>contrastive learning(对比学习)</strong>。</p>
+<h3 id="83-数学infonce-对比损失">8.3 数学:InfoNCE 对比损失</h3>
+<p>形式化 (S61):对一批输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">{</mo><msub><mi>x</mi><mi>i</mi></msub><msubsup><mo stretchy="false" form="postfix">}</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></msubsup></mrow><annotation encoding="application/x-tex">\{x_i\}_{i=1}^{N}</annotation></semantics></math>,对每个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>i</mi></msub><annotation encoding="application/x-tex">x_i</annotation></semantics></math>
+施加两种增广:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>x</mi><mi>i</mi><mn>1</mn></msubsup><mo>=</mo><msub><mi>t</mi><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><msubsup><mi>x</mi><mi>i</mi><mn>2</mn></msubsup><mo>=</mo><msub><mi>t</mi><mn>2</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>;</mo><mspace width="2.0em"></mspace><msubsup><mi>z</mi><mi>i</mi><mn>1</mn></msubsup><mo>=</mo><msub><mi>f</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>x</mi><mi>i</mi><mn>1</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><msubsup><mi>z</mi><mi>i</mi><mn>2</mn></msubsup><mo>=</mo><msub><mi>f</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>x</mi><mi>i</mi><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x_i^1 = t_1(x_i),\quad x_i^2 = t_2(x_i);\qquad z_i^1 = f_\theta(x_i^1),\quad z_i^2 = f_\theta(x_i^2)</annotation></semantics></math>
+其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>θ</mi></msub><annotation encoding="application/x-tex">f_\theta</annotation></semantics></math>
+是<strong>共享编码器</strong>。第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+对的 <strong>InfoNCE 损失</strong>:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ℒ</mi><mi>i</mi></msub><mo>=</mo><mo>−</mo><mo>log</mo><mfrac><mrow><mo>exp</mo><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">m</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>z</mi><mi>i</mi><mn>1</mn></msubsup><mo>,</mo><msubsup><mi>z</mi><mi>i</mi><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>τ</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><mrow><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">[</mo><mo>exp</mo><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">m</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>z</mi><mi>i</mi><mn>1</mn></msubsup><mo>,</mo><msubsup><mi>z</mi><mi>j</mi><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>τ</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo>+</mo><msub><mn>𝟙</mn><mrow><mo stretchy="true" form="prefix">[</mo><mi>j</mi><mo>≠</mo><mi>i</mi><mo stretchy="true" form="postfix">]</mo></mrow></msub><mo>exp</mo><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">m</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>z</mi><mi>i</mi><mn>1</mn></msubsup><mo>,</mo><msubsup><mi>z</mi><mi>j</mi><mn>1</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>τ</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">]</mo></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>ℒ</mi><mtext mathvariant="normal">InfoNCE</mtext></msub><mo>=</mo><mfrac><mn>1</mn><mi>N</mi></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><msub><mi>ℒ</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">\mathcal{L}_i = -\log\frac{\exp\!\big(\mathrm{sim}(z_i^1,z_i^2)/\tau\big)}{\displaystyle\sum_{j=1}^{N}\Big[\exp\!\big(\mathrm{sim}(z_i^1,z_j^2)/\tau\big) + \mathbb{1}_{[j\neq i]}\exp\!\big(\mathrm{sim}(z_i^1,z_j^1)/\tau\big)\Big]},\qquad \mathcal{L}_{\text{InfoNCE}} = \frac{1}{N}\sum_{i=1}^{N}\mathcal{L}_i</annotation></semantics></math></p>
+<p>读成人话:<strong>分子</strong>是正样本对的相似度(拉近),<strong>分母</strong>把所有负样本的相似度也加进来(推远);整体像一个
+<strong>softmax</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">m</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mrow><msup><mi>a</mi><mi>⊤</mi></msup><mi>b</mi></mrow><mrow><mo stretchy="false" form="postfix">∥</mo><mi>a</mi><mo stretchy="false" form="postfix">∥</mo><mo stretchy="false" form="postfix">∥</mo><mi>b</mi><mo stretchy="false" form="postfix">∥</mo></mrow></mfrac></mrow><annotation encoding="application/x-tex">\mathrm{sim}(a,b)=\frac{a^\top b}{\|a\|\|b\|}</annotation></semantics></math>
+是<strong>余弦相似度</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math>
+是<strong>温度 (temperature)</strong> 缩放(还记得 Week 9 attention 里
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><annotation encoding="application/x-tex">\sqrt{d_k}</annotation></semantics></math>
+也是温度吗?同一个味道)。最小化它,就是在训练网络"认出两个增广其实同源"。InfoNCE
+= <strong>info</strong>rmation <strong>n</strong>oise
+<strong>c</strong>ontrastive <strong>e</strong>stimation。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>i</mi></msub><annotation encoding="application/x-tex">x_i</annotation></semantics></math></td>
+<td>输入样本</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>x</mi><mi>i</mi><mn>1</mn></msubsup><mo>,</mo><msubsup><mi>x</mi><mi>i</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">x_i^1, x_i^2</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>i</mi></msub><annotation encoding="application/x-tex">x_i</annotation></semantics></math>
+的两个增广视图</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>θ</mi></msub><annotation encoding="application/x-tex">f_\theta</annotation></semantics></math></td>
+<td>共享编码器</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>z</mi><mi>i</mi><mn>1</mn></msubsup><mo>,</mo><msubsup><mi>z</mi><mi>i</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">z_i^1, z_i^2</annotation></semantics></math></td>
+<td>编码后的表示</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">m</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathrm{sim}(a,b)</annotation></semantics></math></td>
+<td>余弦相似度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>a</mi><mi>⊤</mi></msup><mi>b</mi><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>a</mi><mo stretchy="true" form="postfix">|</mo></mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>b</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">a^\top b/(|a||b|)</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math></td>
+<td>温度缩放参数</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mn>𝟙</mn><mrow><mo stretchy="true" form="prefix">[</mo><mi>j</mi><mo>≠</mo><mi>i</mi><mo stretchy="true" form="postfix">]</mo></mrow></msub><annotation encoding="application/x-tex">\mathbb{1}_{[j\neq i]}</annotation></semantics></math></td>
+<td>排除正样本自身的指示函数</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>训练流程</strong> (S63, S66):① 采一批无标注样本;②
+每个样本做两次增广;③ 过共享编码器得
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>z</mi><mn>1</mn></msup><mo>,</mo><msup><mi>z</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">z^1,z^2</annotation></semantics></math>;④
+归一化、算两两相似度;⑤ 用 InfoNCE
+<strong>拉近正样本、推远负样本</strong>;⑥ 反向传播更新编码器。</p>
+<pre class="mermaid"><code>graph TB
+  X[&quot;无标注样本 xᵢ&quot;] --&gt; T1[&quot;增广 t₁&lt;br/&gt;(如旋转)&quot;]
+  X --&gt; T2[&quot;增广 t₂&lt;br/&gt;(如裁剪)&quot;]
+  T1 --&gt; E1[&quot;共享编码器 fθ&quot;]
+  T2 --&gt; E2[&quot;共享编码器 fθ&quot;]
+  E1 --&gt; Z1[&quot;z¹ᵢ&quot;]
+  E2 --&gt; Z2[&quot;z²ᵢ&quot;]
+  Z1 &amp; Z2 --&gt; L[&quot;InfoNCE: 正样本拉近&lt;br/&gt;其他样本(负)推远&quot;]
+  X2[&quot;别的样本 xⱼ&quot;] -.-&gt;|负样本| L</code></pre>
+<h3 id="84-应用与预训练骨干的价值">8.4 应用与"预训练骨干"的价值</h3>
+<blockquote>
+<p><strong>🔑 例(医学影像)</strong> — 医院有海量 X
+光、MRI,但<strong>绝大多数没标注</strong>(专家标注又贵又慢,还有隐私顾虑)。做法
+(S64–S67):先用 SSL
+在大量<strong>无标注</strong>影像上预训练一个特征提取器,再在一小批<strong>有标注</strong>子集上微调,做下游分类(如肿瘤检测)。好处:<strong>用上了所有数据(不只标注那部分)</strong>、提升泛化、学到的表示可复用到分割
+/ 检索等多种任务。卫星影像同理。</p>
+</blockquote>
+<p>老师特别点明 SSL
+最实用的产物:<strong>一个训练好的网络就成了优质的特征提取器 / 骨干
+(backbone)</strong>。下次遇到相似但不完全相同的问题,你可以拿它当骨干,<strong>在上面再叠一个小网络,用你手头那点小标注数据训练</strong>——大网络抽通用特征,小网络抽用于区分你那点数据的精细特征。这正是你从
+Hugging Face 下载预训练编码器来用的逻辑。</p>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> — ① SSL
+从<strong>无标注</strong>数据里靠<strong>代理任务</strong>学表示,省下昂贵标签;②
+对比学习:同一样本的两个增广是正样本(拉近),别的样本是负样本(推远),用
+<strong>InfoNCE</strong>(余弦相似度 + 温度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math>);③
+"认出拳头 / 背影"= 学到不变的本质特征;④
+产物是<strong>可迁移的预训练骨干</strong>,先 SSL
+预训练再小数据微调(医学影像)。</p>
+</blockquote>
+<hr />
+<h2 id="9-怎么选六种方法横向对比">§9 怎么选:六种方法横向对比</h2>
+<p>到这里,你的"工具箱"里有六件家伙了。老师做整章 slides
+的真正用意,就是帮你建立**"看问题的特征 → 映射到合适的模型"**
+的能力。先看一张主对比表(综合 S44 / S54):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>模型</th>
+<th>有编码器?</th>
+<th>概率性?</th>
+<th>能生成?</th>
+<th>损失类型</th>
+<th>一句话强项</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>PCA</strong></td>
+<td>(线性投影)</td>
+<td>✗</td>
+<td>✗</td>
+<td>方差最大化</td>
+<td>线性、可解释的基线</td>
+</tr>
+<tr class="even">
+<td><strong>AE</strong></td>
+<td>✓ 确定</td>
+<td>✗</td>
+<td>✗</td>
+<td>重构损失
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>x</mi><mo>−</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup><annotation encoding="application/x-tex">|x-\hat x|^2</annotation></semantics></math></td>
+<td>快速、可解释的嵌入;异常检测</td>
+</tr>
+<tr class="odd">
+<td><strong>VAE</strong></td>
+<td>✓ 概率</td>
+<td>✓</td>
+<td>✓</td>
+<td>ELBO(重构 + KL)</td>
+<td>结构化隐空间、能生成</td>
+</tr>
+<tr class="even">
+<td><strong>β-VAE</strong></td>
+<td>✓ 概率</td>
+<td>✓</td>
+<td>✓</td>
+<td>加权
+ELBO(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>⋅</mo></mrow><annotation encoding="application/x-tex">\beta\cdot</annotation></semantics></math>KL)</td>
+<td><strong>解耦</strong>、可控属性</td>
+</tr>
+<tr class="odd">
+<td><strong>GAN</strong></td>
+<td>✗(从噪声生成)</td>
+<td>✓(隐式)</td>
+<td>✓</td>
+<td>minimax 对抗损失</td>
+<td><strong>锐利逼真</strong>的图像合成</td>
+</tr>
+<tr class="even">
+<td><strong>Diffusion</strong></td>
+<td>✗</td>
+<td>✓</td>
+<td>✓</td>
+<td>去噪
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>ϵ</mi><mo>−</mo><msub><mi>ϵ</mi><mi>θ</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup><annotation encoding="application/x-tex">|\epsilon-\epsilon_\theta|^2</annotation></semantics></math></td>
+<td><strong>高保真 + 稳定训练</strong>(采样慢)</td>
+</tr>
+<tr class="odd">
+<td><strong>SSL</strong></td>
+<td>✓(编码器)</td>
+<td>—</td>
+<td>✗(主判别)</td>
+<td>对比 / InfoNCE</td>
+<td><strong>标签高效</strong>、可迁移骨干</td>
+</tr>
+</tbody>
+</table></div>
+<p>再看一张"<strong>该选哪个</strong>"的决策表(S68),这是考试最爱的角度:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>你的目标</th>
+<th>选</th>
+<th>为什么</th>
+<th>局限</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>压缩 / 去噪 / 异常检测</td>
+<td><strong>AE</strong></td>
+<td>简单的隐码</td>
+<td>并非真正生成</td>
+<td>传感器异常检测</td>
+</tr>
+<tr class="even">
+<td>结构化生成</td>
+<td><strong>VAE</strong></td>
+<td>概率隐空间</td>
+<td>样本可能糊</td>
+<td>数字生成</td>
+</tr>
+<tr class="odd">
+<td>解耦、可控因子</td>
+<td><strong>β-VAE</strong></td>
+<td>鼓励因子分解</td>
+<td>保真度权衡</td>
+<td>属性 / 人脸编辑</td>
+</tr>
+<tr class="even">
+<td>锐利图像</td>
+<td><strong>GAN</strong></td>
+<td>高感知真实感</td>
+<td>训练不稳定</td>
+<td>图像合成</td>
+</tr>
+<tr class="odd">
+<td>高保真生成</td>
+<td><strong>Diffusion</strong></td>
+<td>稳定、多样</td>
+<td>采样慢</td>
+<td>文生图</td>
+</tr>
+<tr class="even">
+<td>标签高效特征</td>
+<td><strong>SSL</strong></td>
+<td>用无标注数据</td>
+<td>依赖代理任务</td>
+<td>医学影像预训练</td>
+</tr>
+</tbody>
+</table></div>
+<pre class="mermaid"><code>graph TD
+  Q0{&quot;任务是什么?&quot;} --&gt; Q1{&quot;要生成新样本?&quot;}
+  Q1 --&gt;|否| Q2{&quot;要可解释/&lt;br/&gt;压缩?&quot;}
+  Q2 --&gt;|&quot;判别特征,有海量无标注数据&quot;| SSL[&quot;SSL&lt;br/&gt;对比学习&quot;]
+  Q2 --&gt;|&quot;压缩 / 异常检测&quot;| AE[&quot;Autoencoder&quot;]
+  Q2 --&gt;|&quot;线性、要可解释基线&quot;| PCA[&quot;PCA&quot;]
+  Q1 --&gt;|是| Q3{&quot;最看重什么?&quot;}
+  Q3 --&gt;|&quot;可控 / 可解释因子&quot;| BVAE[&quot;β-VAE&quot;]
+  Q3 --&gt;|&quot;结构化隐空间 + 能采样&quot;| VAE[&quot;VAE&quot;]
+  Q3 --&gt;|&quot;锐利逼真(能接受难训)&quot;| GAN[&quot;GAN&quot;]
+  Q3 --&gt;|&quot;最高保真 + 稳定&quot;| DIFF[&quot;Diffusion&quot;]</code></pre>
+<blockquote>
+<p><strong>🗝️ 本节关键回顾</strong> —
+记牢三组对照:<strong>能不能生成</strong>(AE/SSL
+不行,VAE/β-VAE/GAN/Diffusion
+行);<strong>有没有编码器</strong>(GAN/Diffusion
+没有,从噪声直接生成);<strong>损失各是什么</strong>(回到 §1.3
+三问的第三问)。选型 = 把"问题特征"映射到"模型强项",这正是 §10
+的考法。</p>
+</blockquote>
+<hr />
+<h2 id="10-备考指南老师亲口反复强调">§10 备考指南(老师亲口反复强调)</h2>
+<p>老师在两次课上花了<strong>大量时间</strong>讲考试,这些是直接的得分信息,务必当成本章的一部分来记。</p>
+<p><strong>考试形式与规则:</strong></p>
+<ul>
+<li><strong>纸笔考试,3 小时,约 4 道大题</strong>;占总成绩
+<strong>50%</strong>(卷面按 100 分算,再映射到 50%)。</li>
+<li><strong>可带一张 A4
+纸</strong>(单张,不是本子)进考场,<strong>正反面</strong>随便写,自己整理
+notes——目的是让你<strong>不必死记</strong>。老师调侃别叫它 "cheat
+sheet",叫 "health
+sheet"。但他也告诫:<strong>别全指望那张纸</strong>,考场上翻不到会慌;该上手的还是要烂熟于心。</li>
+<li><strong>不许写代码;不用计算器</strong>(他不在乎你算到 2.45 还是
+2.55,"large number / small number"
+量级对就行);<strong>答案限定在课上讲过的模型</strong>,别去搬没教过的花活。</li>
+<li>每题答 <strong>3–4
+句</strong>,<strong>别写长篇大论</strong>(没时间),也别只写一行;给够信息让他判断"你到底懂不懂"。</li>
+</ul>
+<p><strong>题型(最关键):</strong></p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 这就是考题长什么样</strong> —
+老师说他出题就是**"把 slides
+反过来"<strong>:不是让你<em>推导</em>,而是给你一个</strong>场景**,让你做<strong>设计决策</strong>。两类母题:</p>
+<ol type="1">
+<li><strong>场景选型</strong>:"你是数据科学家,要做
+X,你选什么模型?为什么?有什么权衡 / 风险?"——比如 §3
+的异常检测(为什么不用监督?)、§6 的艺术生成(为什么 GAN 而不是
+diffusion?反过来也能问)。</li>
+<li><strong>解读损失函数</strong>:给你一个目标函数,问"<strong>这一项在干什么?去掉它会怎样?把它调大
+/ 调小会怎样?</strong>"——比如 VAE 的 KL 项(§4.3)、β-VAE 的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>(§5.2)。</li>
+</ol>
+<p>老师还举了个<strong>跨章的范例</strong>(回扣前几周的
+regularization):有人要做回归,纠结用 <strong>Ridge 还是
+Lasso</strong>?你要能讲出:普通回归对权重大小没有约束;<strong>Ridge(L2)</strong>
+约束权重大小、防止过大、降模型复杂度;<strong>Lasso(L1)</strong>
+会把一些权重<strong>压成
+0</strong>,从而<strong>隐式做特征选择</strong>(本来理想是 L0 数非零元,但
+L0 难优化,用 L1 近似)。看到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mn>1</mn></msub><mo>=</mo><mn>0</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>w</mi><mn>2</mn></msub><mo>=</mo><mn>0.5</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>w</mi><mn>3</mn></msub><mo>=</mo><mn>1.5</mn></mrow><annotation encoding="application/x-tex">w_1=0,\ w_2=0.5,\ w_3=1.5</annotation></semantics></math>,你要能说"特征
+1 没用、特征 3 最重要"。<strong>这种"解读 +
+取舍"的语言,就是他要的答案。</strong></p>
+</blockquote>
+<p><strong>怎么准备每一种方法</strong>(S70,老师的官方学习法)——对每个模型家族,盯住五点:</p>
+<ol type="1">
+<li>学到的是<strong>什么表示</strong>;</li>
+<li>用<strong>什么目标函数</strong>训练;</li>
+<li>引入了<strong>什么假设 / 权衡</strong>;</li>
+<li>适合<strong>什么应用场景</strong>;</li>
+<li>和<strong>邻近方法</strong>怎么比。</li>
+</ol>
+<p><strong>自测题(S71,答案都在本指南里):</strong></p>
+<ol type="1">
+<li>标注异常稀缺时,为什么 autoencoder 适合做异常检测?(→ §3.3)</li>
+<li>VAE 为什么需要 KL 散度项?(→ §4.3)</li>
+<li>为什么 GAN 可能比 VAE 生成更锐利的图?(→ §6.3)</li>
+<li>为什么 SSL 在医学影像里有吸引力?(→ §8.4)</li>
+</ol>
+<p>老师最后那句安慰也送给你:"<strong>3
+小时很充裕,别慌——一慌就全忘了。冷静下来,东西都会回来。</strong>"</p>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>表示学习用"学到的变换"取代人工特征工程</strong>,目标是从原始数据里提纯出既能<strong>判别</strong>又能(在某些方法里)<strong>生成</strong>的表示;任何方法都在回答三问——<strong>学什么
+/ 为何有用 / 怎么学(=损失函数)</strong>。</li>
+<li><strong>PCA</strong>
+是线性基线:沿协方差矩阵特征向量取方差最大的正交方向,top-K 由
+<strong>Karhunen–Loève</strong> 保证是最优线性表示;非线性要靠
+<strong>KPCA</strong>。</li>
+<li><strong>Autoencoder</strong> 用 encoder–bottleneck–decoder
+和重构损失
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|x-\hat{x}\|^2</annotation></semantics></math>
+学紧凑隐码;<strong>只用正常数据训练</strong>,靠"异常样本重构误差大"做<strong>异常检测</strong>,天然绕开类别不平衡。</li>
+<li><strong>VAE</strong> 把编码器输出换成分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>μ</mi><mo>,</mo><mi>σ</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\mu,\sigma)</annotation></semantics></math>,于是能生成;训练最大化
+<strong>ELBO = 重构项 − KL</strong>,KL 把隐空间整形成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{N}(0,I)</annotation></semantics></math>("4
+减 X"直觉),<strong>重参数化</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>μ</mi><mo>+</mo><mi>σ</mi><mo>⊙</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">z=\mu+\sigma\odot\epsilon</annotation></semantics></math>
+让采样可导。</li>
+<li><strong>β-VAE</strong> 给 KL 加权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\beta&gt;1</annotation></semantics></math>,把隐因子<strong>解耦</strong>成可单独调节的旋钮(人脸编辑),代价是<strong>重构保真度下降</strong>。</li>
+<li><strong>GAN</strong> 是生成器与判别器的 <strong>minimax</strong>
+对抗:均衡时判别器分不清真假、生成器学到数据分布;产<strong>锐利逼真</strong>的图,但<strong>训练不稳、易模式崩溃</strong>(脑电翻车案例)。</li>
+<li><strong>Diffusion (DDPM)</strong> 用"前向加噪 +
+反向去噪"两条链,训练目标是<strong>预测噪声</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>ϵ</mi><mo>−</mo><msub><mi>ϵ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|\epsilon-\epsilon_\theta(x_t,t)\|^2</annotation></semantics></math>,把生成变成<strong>有监督去噪</strong>——稳定、高保真,但采样慢(Stable
+Diffusion / DALL·E 2 的内核)。</li>
+<li><strong>SSL</strong>
+用代理任务从<strong>无标注</strong>数据学表示,<strong>对比学习 /
+InfoNCE</strong>
+把同源增广拉近、异源推远,产出<strong>可迁移的预训练骨干</strong>,在标签稀缺的医学影像里尤其有用。</li>
+<li><strong>方法选择取决于任务</strong>:压缩 /
+异常→AE,结构化生成→VAE,可控解耦→β-VAE,锐利图像→GAN,高保真→Diffusion,标签高效→SSL。<strong>这套"场景→模型→理由→权衡"的判断,就是考试的核心。</strong></li>
+</ul>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

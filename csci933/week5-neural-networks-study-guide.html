@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 5 · 人工神经网络与深度学习导论 (I)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-5--人工神经网络与深度学习导论-i">Week 5 ·
+人工神经网络与深度学习导论 (I)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>解释为什么一句话可以概括整个神经网络:它是一个<strong>函数逼近器
+(function approximator)</strong>;</li>
+<li>画出并写出<strong>单个神经元 (neuron)</strong>
+的数学模型,并说清楚"去掉激活函数后它就退化成线性回归"这件事;</li>
+<li>区分 threshold、logistic (sigmoid)、ReLU、softmax 四种
+<strong>activation
+function</strong>,并说出各自的用途与"好激活函数"的性质;</li>
+<li>区分 single-layer / multilayer feedforward / recurrent
+三类<strong>网络架构</strong>,并解释多层为什么能逐层抽取特征;</li>
+<li>从直觉(盲人下山)到公式(Taylor 展开、方向导数)推导<strong>梯度下降
+(gradient descent)</strong>,并手算一维例子;</li>
+<li>解释 <strong>perceptron</strong>
+如何用一个超平面做二分类,以及它"线性不可分就无能为力"的局限;</li>
+<li>讲清 <strong>back-propagation</strong> 的两趟(forward /
+backward)流程、<strong>credit assignment
+problem</strong>,并跟着链式法则推出 output 神经元与 hidden
+神经元的权重更新公式;</li>
+<li>说出 momentum、Nesterov、AdaGrad、RMSProp、Adam 这些
+<strong>optimizer</strong> 各自改进了基础梯度下降的哪一点。</li>
+</ul>
+</blockquote>
+<p>机器学习走到这里,我们已经会用 regression 拟合实数、用 classification
+划分类别、用 kernel/SVM
+把线性不可分的数据"掰直"。这一章要登场的神经网络,初看像是另起炉灶的庞然大物,但讲师在课上反复敲黑板的一句话,其实把整章浓缩成了一颗种子:</p>
+<blockquote>
+<p><strong>"A neural network is a function approximator.
+如果你这一章只记住一件事,就记住这句。"</strong></p>
+</blockquote>
+<p>所有机器学习都在做同一件事——<strong>学一个从输入空间到输出空间的映射
+(a function that maps one space to
+another)</strong>:从特征到类别、从特征到实数、从一种语言到另一种语言。神经网络的特别之处不在于它做的是别的事,而在于它是一个<strong>万能
+(universal)</strong>
+的函数逼近器:只要够大,它能逼近几乎任何形状的函数。本章就是要把这台机器拆开,看清它由什么零件构成(neuron、activation)、怎么搭起来(architecture)、又怎么通过数据自己调整成你要的那个函数(gradient
+descent + back-propagation)。</p>
+<p>下面这张图是整章的骨架,先看个全貌,再逐节填满:</p>
+<pre class="mermaid"><code>mindmap
+  root((神经网络&lt;br/&gt;函数逼近器))
+    神经元 Neuron
+      加权和 Σωx
+      偏置 bias
+      激活函数 φ
+    激活函数
+      Threshold
+      Logistic/Sigmoid
+      ReLU
+      Softmax
+    架构 Architecture
+      单层前馈
+      多层前馈 MLP
+      循环 Recurrent
+    学习 Learning
+      监督/非监督/强化
+      代价函数 Cost
+      梯度下降 GD
+    Perceptron
+      超平面分类
+      线性可分
+    反向传播 Backprop
+      前向/反向两趟
+      信用分配问题
+      Delta 规则
+    优化器 Optimizers
+      Momentum / NAG
+      AdaGrad / RMSProp / Adam</code></pre>
+<hr />
+<h2 id="1-从大脑到机器神经网络是什么">1.
+从大脑到机器:神经网络是什么</h2>
+<p><strong>为什么会有神经网络?</strong>
+因为我们想造一台"像大脑那样工作"的机器。课本(Haykin
+2009)给的定义有两层意思,值得拆开看。</p>
+<p>第一句是工程视角:<strong>神经网络 (neural network)
+是一个大规模并行的分布式处理器,由许多简单的处理单元组成,天然倾向于储存经验知识并供以后使用</strong>。注意这里的两个关键词——"许多简单单元"和"并行":单个单元蠢得很(只会算个加权和),但成千上万个并联起来,就能涌现出复杂的能力。这和你脑子里那
+860
+亿个神经元是一个道理:没有哪个神经元懂中文,但它们合起来让你读懂了这句话。</p>
+<p>第二句是它"像大脑"的两个具体方面:</p>
+<ol type="1">
+<li><strong>知识是网络从环境中通过一个学习过程 (learning process)
+获得的</strong>——不是程序员写死的规则,而是看数据自己学出来的;</li>
+<li><strong>神经元之间连接的强度,叫做 synaptic
+weights(突触权重),被用来储存学到的知识</strong>。</li>
+</ol>
+<p>第二点极其重要,后面会反复用到:<strong>一个训练好的网络,它"学到的东西"全部藏在权重里</strong>。讲师打了个很实在的比方——当我们说"训练一个神经网络",本质上就是在找那一堆权重该取什么值;训练完之后,你把这些权重连同网络结构打包压缩,搬到另一台机器上装好,它立刻就能替你干活。学习
+= 调权重,知识 = 权重,这条等式请刻在脑子里。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+一个诚实的悖论:训练神经网络用的是
+back-propagation,可神经科学家在真实大脑里<strong>从来没找到</strong>反向传播这个机制——人脑的学习方式和它完全不同。那为什么还用它?讲师的回答很工程师:"如果它走起来像鸭子、叫起来像鸭子,那它就是鸭子。"
+反向传播在大脑里没有对应物,但它<strong>有效</strong>,于是我们就用它。这也提醒你:神经网络"模拟大脑"更多是历史灵感,而非严格仿真。</p>
+</blockquote>
+<hr />
+<h2 id="2-神经元的解剖一个加权和--一次挤压">2. 神经元的解剖:一个加权和 +
+一次挤压</h2>
+<p>整个网络的最小积木是
+<strong>neuron(神经元)</strong>,一个<strong>信息处理单元
+(information-processing unit)</strong>。它只做三件事,对应三个零件:</p>
+<ol type="1">
+<li><strong>Synapses / 连接链路 (connecting
+links)</strong>:每条链路有自己的<strong>权重 (weight)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\omega_{kj}</annotation></semantics></math>。输入信号
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>j</mi></msub><annotation encoding="application/x-tex">x_j</annotation></semantics></math>
+进入神经元
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+的第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+条突触时,会被乘上这条突触的权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\omega_{kj}</annotation></semantics></math>。下标读法:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\omega_{kj}</annotation></semantics></math>
+= "流向神经元
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>、来自输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>"的权重。</li>
+<li><strong>Adder / 加法器</strong>:把所有被加权的输入信号求和。</li>
+<li><strong>Activation function / 激活函数(又叫 squashing
+function,挤压函数)</strong>:限制神经元输出的幅度,把它"挤"到某个有限范围内。</li>
+</ol>
+<p>此外还有一个<strong>偏置 (bias)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mi>k</mi></msub><annotation encoding="application/x-tex">b_k</annotation></semantics></math>,它对加法器的输出做一次平移,抬高或压低送进激活函数的净输入。</p>
+<p>把这三步写成数学,就是本章第一组要记牢的公式。先算加权和(课本叫
+<strong>linear combiner output</strong>,线性组合器输出):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>k</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>x</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_k = \sum_{j=1}^{m} \omega_{kj}\, x_j</annotation></semantics></math></p>
+<p>再加偏置、过激活函数得到输出:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>k</mi></msub><mo>=</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>u</mi><mi>k</mi></msub><mo>+</mo><msub><mi>b</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y_k = \phi(u_k + b_k)</annotation></semantics></math></p>
+<p>中间那个"加完偏置、还没过激活函数"的量很关键,有个专门的名字叫<strong>诱导局部场
+(induced local field)</strong> 或激活电位:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>k</mi></msub><mo>=</mo><msub><mi>u</mi><mi>k</mi></msub><mo>+</mo><msub><mi>b</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">v_k = u_k + b_k</annotation></semantics></math></p>
+<p>所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>k</mi></msub><mo>=</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y_k = \phi(v_k)</annotation></semantics></math>。用一句话读出来:<strong>神经元先把输入做一次加权求和,平移一个偏置得到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>k</mi></msub><annotation encoding="application/x-tex">v_k</annotation></semantics></math>,再用激活函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
+把它挤压成输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>k</mi></msub><annotation encoding="application/x-tex">y_k</annotation></semantics></math>。</strong></p>
+<pre class="mermaid"><code>flowchart LR
+  x1[&quot;x₁&quot;] --&gt;|&quot;× ω_{k1}&quot;| S((&quot;Σ 加法器&quot;))
+  x2[&quot;x₂&quot;] --&gt;|&quot;× ω_{k2}&quot;| S
+  xm[&quot;xₘ&quot;] --&gt;|&quot;× ω_{km}&quot;| S
+  b[&quot;bias b_k&quot;] --&gt; S
+  S --&gt;|&quot;v_k 诱导局部场&quot;| Phi[&quot;φ(·) 激活函数&quot;]
+  Phi --&gt; y[&quot;输出 y_k&quot;]</code></pre>
+<p><strong>一个让公式更整洁的小技巧:把 bias 吸收进权重。</strong>
+偏置看起来像个"额外项",处理起来烦。我们可以新增一条特殊的突触:让它的输入恒为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>=</mo><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">x_0 = +1</annotation></semantics></math>,权重恰好等于偏置
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mrow><mi>k</mi><mn>0</mn></mrow></msub><mo>=</mo><msub><mi>b</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">\omega_{k0} = b_k</annotation></semantics></math>。这样偏置就变成了求和的一部分,公式从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">j=0</annotation></semantics></math>
+开始累加:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>k</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mi>m</mi></munderover><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>x</mi><mi>j</mi></msub><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>y</mi><mi>k</mi></msub><mo>=</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">v_k = \sum_{j=0}^{m} \omega_{kj}\, x_j, \qquad y_k = \phi(v_k)</annotation></semantics></math></p>
+<p>这不是耍花招,而是一个会贯穿全书的约定:从此<strong>偏置就是"那个输入永远是
+1 的权重"</strong>,推导时不用再单独伺候它。</p>
+<h3 id="这颗神经元你其实早就认识">这颗神经元,你其实早就认识</h3>
+<p>讲师在课上演了一出"别慌"的戏:他让学生盯着
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>k</mi></msub><mo>=</mo><msub><mi>x</mi><mn>1</mn></msub><msub><mi>ω</mi><mn>1</mn></msub><mo>+</mo><msub><mi>x</mi><mn>2</mn></msub><msub><mi>ω</mi><mn>2</mn></msub><mo>+</mo><mi>⋯</mi><mo>+</mo><msub><mi>x</mi><mi>m</mi></msub><msub><mi>ω</mi><mi>m</mi></msub><mo>+</mo><mi>b</mi></mrow><annotation encoding="application/x-tex">v_k = x_1\omega_1 + x_2\omega_2 + \cdots + x_m\omega_m + b</annotation></semantics></math>
+看三分钟,问"这像什么?" 答案是——<strong>这就是线性回归 (linear
+regression)</strong>。还记得 Week 3 的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><msup><mi>𝛚</mi><mrow><mspace width="-0.167em"></mspace><mi>⊤</mi></mrow></msup><mi>𝐱</mi><mo>+</mo><mi>b</mi></mrow><annotation encoding="application/x-tex">y = \boldsymbol{\omega}^{\!\top}\mathbf{x} + b</annotation></semantics></math>
+吗?一模一样。</p>
+<p>这给了我们一个极其重要的认识,也是本章和前几周的接口:</p>
+<blockquote>
+<p><strong>去掉激活函数,一个神经元就是一次线性回归;激活函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
+才是让神经网络"脱胎换骨"的地方。</strong></p>
+</blockquote>
+<p>讲师甚至说:作业里要你"用一个单层神经网络实现回归",怎么做?在代码里写
+<code>activation = None</code>(不加激活)就行,神经元退化成回归。是激活函数引入的<strong>非线性
+(non-linearity)</strong>,才让网络能把数据映射到一个更丰富的空间,从而表达回归表达不了的复杂函数。所以下一节,我们必须认真对待激活函数。</p>
+<blockquote>
+<p><strong>🔑 例 (Worked example) — 手算一颗神经元(slides
+S15)</strong></p>
+<p>设一个神经元有 3 个输入加 1 个偏置:</p>
+<ul>
+<li>权重:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mn>10</mn></msub><mo>=</mo><msub><mi>b</mi><mn>1</mn></msub><mo>=</mo><mn>0.5</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>ω</mi><mn>11</mn></msub><mo>=</mo><mn>0.4</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>ω</mi><mn>12</mn></msub><mo>=</mo><mn>0.6</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>ω</mi><mn>13</mn></msub><mo>=</mo><mn>0.2</mn></mrow><annotation encoding="application/x-tex">\omega_{10}=b_1=0.5,\ \omega_{11}=0.4,\ \omega_{12}=0.6,\ \omega_{13}=0.2</annotation></semantics></math></li>
+<li>输入:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>=</mo><mn>1</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>x</mi><mn>1</mn></msub><mo>=</mo><mn>1.2</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mn>2.0</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>x</mi><mn>3</mn></msub><mo>=</mo><mn>1.8</mn></mrow><annotation encoding="application/x-tex">x_0=1,\ x_1=1.2,\ x_2=2.0,\ x_3=1.8</annotation></semantics></math></li>
+<li>激活函数:logistic sigmoid,斜率参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><mn>0.2</mn></mrow><annotation encoding="application/x-tex">a=0.2</annotation></semantics></math></li>
+</ul>
+<p><strong>第一步,算诱导局部场
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mn>1</mn></msub><annotation encoding="application/x-tex">v_1</annotation></semantics></math></strong>(注意
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">x_0=1</annotation></semantics></math>
+把偏置带进来了):
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mn>1</mn></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mn>3</mn></munderover><msub><mi>ω</mi><mrow><mn>1</mn><mi>j</mi></mrow></msub><msub><mi>x</mi><mi>j</mi></msub><mo>=</mo><mn>1</mn><mo>×</mo><mn>0.5</mn><mo>+</mo><mn>0.4</mn><mo>×</mo><mn>1.2</mn><mo>+</mo><mn>0.6</mn><mo>×</mo><mn>2.0</mn><mo>+</mo><mn>0.2</mn><mo>×</mo><mn>1.8</mn><mo>=</mo><mn>0.5</mn><mo>+</mo><mn>0.48</mn><mo>+</mo><mn>1.2</mn><mo>+</mo><mn>0.36</mn><mo>=</mo><mn>2.54</mn></mrow><annotation encoding="application/x-tex">v_1 = \sum_{j=0}^{3}\omega_{1j}x_j = 1{\times}0.5 + 0.4{\times}1.2 + 0.6{\times}2.0 + 0.2{\times}1.8 = 0.5+0.48+1.2+0.36 = 2.54</annotation></semantics></math></p>
+<p><strong>第二步,过激活函数:</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mn>1</mn></msub><mo>=</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mi>a</mi><mspace width="0.167em"></mspace><msub><mi>v</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>=</mo><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>0.2</mn><mo>×</mo><mn>2.54</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>=</mo><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>0.508</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>≈</mo><mn>0.624</mn></mrow><annotation encoding="application/x-tex">y_1 = \phi(v_1) = \frac{1}{1+\exp(-a\,v_1)} = \frac{1}{1+\exp(-0.2\times 2.54)} = \frac{1}{1+\exp(-0.508)} \approx 0.624</annotation></semantics></math></p>
+<p>这类题"没有秘密,就是代数字"——讲师建议你自己换几组数试试,培养手感。这也是考试里完全可能出现的计算题类型。</p>
+</blockquote>
+<hr />
+<h2 id="3-激活函数非线性的灵魂">3. 激活函数:非线性的灵魂</h2>
+<p>上一节留了个悬念:激活函数到底重要在哪?这一节给出四个常用选择,并说清"好的激活函数"该长什么样。</p>
+<h3 id="31-四种常见激活函数">3.1 四种常见激活函数</h3>
+<p><strong>① Threshold function(阈值函数,又称 Heaviside /
+阶跃函数)</strong> — 最古老、最简单的一个。输入过了 0 就输出 1,否则输出
+0:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mn>1</mn></mtd><mtd columnalign="left" style="text-align: left"><mi>v</mi><mo>≥</mo><mn>0</mn></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mn>0</mn></mtd><mtd columnalign="left" style="text-align: left"><mi>v</mi><mo>&lt;</mo><mn>0</mn></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">\phi(v)=\begin{cases}1 &amp; v\ge 0\\[2pt] 0 &amp; v&lt;0\end{cases}</annotation></semantics></math></p>
+<p>其中诱导局部场
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>k</mi></msub><mo>=</mo><msubsup><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></msubsup><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><msub><mi>x</mi><mi>j</mi></msub><mo>+</mo><msub><mi>b</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">v_k=\sum_{j=1}^m \omega_{kj}x_j + b_k</annotation></semantics></math>。它的麻烦是在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">v=0</annotation></semantics></math>
+处不连续、<strong>不可导 (not
+differentiable)</strong>——而我们马上要靠"求导"来学习,所以这是个硬伤。</p>
+<p><strong>② Logistic function(逻辑斯蒂函数,是 Sigmoid 的一种)</strong>
+— 一条优雅的 S 形曲线,把整个实数轴平滑地压到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(0,1)</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mi>a</mi><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac></mrow><annotation encoding="application/x-tex">\phi(v)=\frac{1}{1+\exp(-a v)}</annotation></semantics></math></p>
+<p>斜率参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
+决定 S
+形的陡峭程度(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
+越大越接近阶跃)。和阈值函数最关键的区别:<strong>logistic
+处处可导</strong>。正因如此它能用于梯度学习,曾经是神经网络的默认选择。</p>
+<p><strong>③ ReLU(Rectified Linear Unit,修正线性单元)</strong> — 自 Nair
+&amp; Hinton (2010) 提出后红极一时,如今深度网络的主力:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mi>v</mi></mtd><mtd columnalign="left" style="text-align: left"><mi>v</mi><mo>&gt;</mo><mn>0</mn></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mn>0</mn></mtd><mtd columnalign="left" style="text-align: left"><mi>v</mi><mo>&lt;</mo><mn>0</mn></mtd></mtr></mtable></mrow><mspace width="1.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mtext mathvariant="normal">即 </mtext><mspace width="0.333em"></mspace></mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\phi(v)=\begin{cases}v &amp; v&gt;0\\[2pt]0 &amp; v&lt;0\end{cases}\quad(\text{即 } \max(0,v))</annotation></semantics></math></p>
+<p>它输出是输入的非线性函数:负的全压成
+0,正的原样放行。简单、计算快、还缓解了深层网络的梯度问题。讲师顺带提了一句:提出
+ReLU 的 <strong>Geoffrey Hinton</strong>
+是神经网络的"教父"之一,在最冷清、没人给经费的年代仍坚持研究,后来拿了诺贝尔奖。</p>
+<p><strong>④ Softmax(软最大)</strong> —
+当输出要表达"属于哪一类"的概率时用它。它把一组输入挤压成一组和为 1
+的值,<strong>等价于一个类别概率分布 (categorical probability
+distribution)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>k</mi></msub><mo>=</mo><mfrac><mrow><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></munderover><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac></mrow><annotation encoding="application/x-tex">y_k=\frac{\exp(v_k)}{\sum_{k=1}^{K}\exp(v_k)}</annotation></semantics></math></p>
+<p>形状像
+logistic,但通常用在多分类任务的输出层,给输出一个概率解释——哪一类的值最大,就判给哪一类。讲师强调:<strong>多分类
+(multi-way classification) 就找 softmax</strong>。</p>
+<h3 id="32-四者对比">3.2 四者对比</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>激活函数</th>
+<th>公式</th>
+<th>输出范围</th>
+<th>可导?</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Threshold</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>𝟏</mn><mrow><mo stretchy="true" form="prefix">[</mo><mi>v</mi><mo>≥</mo><mn>0</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\mathbf 1[v\ge 0]</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\{0,1\}</annotation></semantics></math></td>
+<td>❌ 否</td>
+<td>早期 perceptron,理论说明</td>
+</tr>
+<tr class="even">
+<td><strong>Logistic/Sigmoid</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac displaystyle="true"><mn>1</mn><mrow><mn>1</mn><mo>+</mo><msup><mi>e</mi><mrow><mo>−</mo><mi>a</mi><mi>v</mi></mrow></msup></mrow></mfrac><annotation encoding="application/x-tex">\dfrac{1}{1+e^{-av}}</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(0,1)</annotation></semantics></math></td>
+<td>✅ 是</td>
+<td>二分类输出、早期隐藏层</td>
+</tr>
+<tr class="odd">
+<td><strong>ReLU</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\max(0,v)</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">[</mo><mn>0</mn><mo>,</mo><mi>∞</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">[0,\infty)</annotation></semantics></math></td>
+<td>✅ 是(0 处除外)</td>
+<td>深层网络隐藏层(主力)</td>
+</tr>
+<tr class="even">
+<td><strong>Softmax</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac displaystyle="true"><msup><mi>e</mi><msub><mi>v</mi><mi>k</mi></msub></msup><mrow><msub><mo>∑</mo><mi>k</mi></msub><msup><mi>e</mi><msub><mi>v</mi><mi>k</mi></msub></msup></mrow></mfrac><annotation encoding="application/x-tex">\dfrac{e^{v_k}}{\sum_k e^{v_k}}</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(0,1)</annotation></semantics></math>
+且和为 1</td>
+<td>✅ 是</td>
+<td>多分类输出层</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="33-什么才算好的激活函数">3.3 什么才算"好"的激活函数</h3>
+<p>slides S14 列了几条性质,每一条背后都有理由:</p>
+<ul>
+<li><strong>必须非线性 (non-linear)。</strong>
+这是底线。讲师说得最重:<strong>没有激活函数,整个神经网络就等价于一次线性回归</strong>——叠多少层都没用,因为线性函数的复合还是线性函数。是非线性让网络能解决复杂问题。</li>
+<li><strong>导数要漂亮 (nice derivatives)。</strong>
+因为学习靠求导(下一节就懂),导数好算、不为零,学习才顺。这正是
+logistic、ReLU 打败 threshold 的原因。</li>
+<li><strong>有界输入要给出有界输出 (bounded input → bounded
+output)。</strong> 这条是控制论(control
+theory)的智慧:如果输入有界而输出能跑到无穷,系统就会<strong>不稳定
+(unstable)</strong>。"有界输入、有界输出"才是你想要的稳定系统。</li>
+<li><strong>选激活函数既是科学也是艺术 (science and art)。</strong>
+没有万能答案,多半靠实验。想深入可读 Ramachandran et al. (2017) 和
+Mhaskar &amp; Micchelli (1994)。</li>
+<li><strong>配上合适的 cost function,激活函数才让训练成为可能。</strong>
+二者是搭档,缺一不可。</li>
+</ul>
+<p>记住这条主线:<strong>神经元 = 线性回归 +
+一个非线性挤压;挤压必须非线性、可导、有界,网络才既强大又能训练、还稳定。</strong></p>
+<hr />
+<h2 id="4-网络架构把神经元组装起来">4. 网络架构:把神经元组装起来</h2>
+<p>单个神经元只是线性回归。真正的威力来自<strong>怎么把它们连起来
+(network architecture)</strong>。slides 给了三种基本架构。</p>
+<h3 id="41-三种基本架构">4.1 三种基本架构</h3>
+<p><strong>① Single-layer feedforward(单层前馈网络)</strong> —
+最简单:一层输入源节点 (source nodes)
+直接投射到一层输出神经元。注意"单层"指的是<strong>计算层只有输出这一层</strong>(输入节点不算一层,因为它们不做计算)。信号一路向前,不回头。</p>
+<p><strong>② Multilayer feedforward(多层前馈网络)</strong> —
+在输入和输出之间插入一或多个<strong>隐藏层 (hidden
+layer)</strong>。每一层的输出作为下一层的输入,逐层向前。两个要点:</p>
+<ul>
+<li><strong>加入隐藏层让网络能从输入中抽取更高阶的统计特征 (higher-order
+statistics)</strong>;</li>
+<li>若每层的每个节点都连到下一层的每个节点,就叫<strong>全连接 (fully
+connected)</strong>。</li>
+</ul>
+<p><strong>③ Recurrent network(循环网络)</strong> —
+与前馈不同,循环网络引入<strong>反馈
+(feedback)</strong>:输出会绕回输入(多层时反馈甚至可以跨层)。反馈环路加上非线性激活,让网络能建模<strong>非线性动态系统
+(nonlinear dynamic systems)</strong>。讲师提到循环网络在 Transformer
+出现后已不那么流行,但仍值得了解(Week 6 会细讲)。</p>
+<pre class="mermaid"><code>flowchart LR
+  subgraph A[&quot;单层前馈&quot;]
+    a1((in)) --&gt; a2((out))
+  end
+  subgraph B[&quot;多层前馈 MLP&quot;]
+    b1((in)) --&gt; b2((hidden)) --&gt; b3((out))
+  end
+  subgraph C[&quot;循环 Recurrent&quot;]
+    c1((in)) --&gt; c2((neuron)) --&gt; c3((out))
+    c3 -. 反馈 .-&gt; c2
+  end</code></pre>
+<h3 id="42-为什么多层如此关键逐层抽取特征">4.2
+为什么"多层"如此关键:逐层抽取特征</h3>
+<p>这是讲师花了大力气讲、却<strong>没写在 slides
+上</strong>的精华,务必理解。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 视觉的类比:边缘 → 平面 →
+物体</strong></p>
+<p>当数据一层层往前流,<strong>每一层都在把输入表达成不同形式的特征</strong>。这和心理学/心理物理学里关于"人怎么看东西"的主流理论惊人地一致:我们的视觉也是<strong>分层
+(layered)</strong> 的。</p>
+<ul>
+<li><strong>低层视觉</strong>先抽取<strong>边缘
+(edges)</strong>、线条;</li>
+<li>这些边缘在<strong>下一层</strong>组合成<strong>平面、表面</strong>;</li>
+<li>再往上组合成<strong>立体、物体</strong>;</li>
+<li>直到最高层,我们才"认出"那是一张桌子或一张脸。</li>
+</ul>
+<p>这叫数据的<strong>层级表示 (hierarchical
+representation)</strong>:从低层特征逐级抽象到高层语义。神经网络被认为以类似方式工作——layer
+1 抽低层特征,layer 2 抽更有意义的特征,越深越抽象。<strong>这正是深度网络
+(deep networks) 有效的核心原因之一。</strong></p>
+</blockquote>
+<p>这个"层级"视角还解释了一个实用到不能再实用的技巧——<strong>迁移学习
+(transfer learning)</strong>:</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 冻结骨干 (freezing the
+backbone)</strong></p>
+<p>假设我训练了一个网络识别<strong>人脸</strong>,它的低层已经学会了"圆脸、五官、四肢"这类<strong>通用
+(common)</strong>
+特征。现在我想让它识别<strong>猫</strong>——猫和人共享很多低层特征(都有眼睛、鼻子、嘴)。我何必从零开始?</p>
+<p>做法:把已经学好通用特征的<strong>低层冻结
+(freeze)</strong>(设为不可训练),只让靠近输出的、负责"专门化
+(specialization)"的高层重新在猫的数据上训练。低层那部分被复用的网络,常被称为<strong>骨干
+(backbone)</strong>。这样,我训人脸时学到的本事,直接拿来训猫——省时省力。能这么做的根本原因,就是上面那条:<strong>网络是层级表示的,低层通用、高层专用。</strong></p>
+</blockquote>
+<h3 id="43-架构--一种先验归纳偏置">4.3 架构 = 一种先验(归纳偏置)</h3>
+<p>讲师在收尾时点了一句很深的话(对应 Week 6
+的引子):<strong>你选择多少层、每层多少神经元,本身就是在给网络注入一种归纳偏置
+(inductive bias),一种先验
+(prior)</strong>。它不改变"网络能逼近各种函数"这个事实,但决定了它能把<strong>哪一类函数逼近得好</strong>。换句话说:理论上神经网络能逼近任何函数,问题永远是"逼近得<strong>多好</strong>",而架构就是你对答案形状的一次押注。</p>
+<hr />
+<h2 id="5-学习的本质梯度下降">5. 学习的本质:梯度下降</h2>
+<p>零件齐了、架构搭好了,网络一开始的权重是随机的、输出是一堆乱码。<strong>怎么让它自己调整成你要的函数?</strong>
+这一节讲学习的总引擎——<strong>梯度下降 (gradient descent)</strong>。</p>
+<h3 id="51-先分清三种学习">5.1 先分清三种学习</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>学习类型</th>
+<th>给什么</th>
+<th>目标</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Supervised(监督)</strong></td>
+<td>输入向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐱</mi><annotation encoding="application/x-tex">\mathbf x</annotation></semantics></math>
++ 目标
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math></td>
+<td>给定输入,预测输出</td>
+</tr>
+<tr class="even">
+<td><strong>Reinforcement(强化)</strong></td>
+<td>动作的奖励/惩罚</td>
+<td>选动作,最大化累计回报 (payoff)</td>
+</tr>
+<tr class="odd">
+<td><strong>Unsupervised(非监督)</strong></td>
+<td>只有数据本身</td>
+<td>发现数据的好的内部表示</td>
+</tr>
+</tbody>
+</table></div>
+<p>本章主线是<strong>监督学习</strong>。一个监督训练样本 = 输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐱</mi><annotation encoding="application/x-tex">\mathbf x</annotation></semantics></math>
++ 目标输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>。再细分:<strong>回归
+(regression)</strong> 的目标是实数(或实数向量),<strong>分类
+(classification)</strong>
+的目标是类别标签。无论哪种,我们都要学一个带权重的映射</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝛚</mi><mo>,</mo><mi>𝐱</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y=f(\boldsymbol\omega,\mathbf x)</annotation></semantics></math></p>
+<p>并让预测与真实值之间的<strong>误差(也叫 loss 或 cost
+function)最小</strong>。slides 给出的代价函数写法是</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝛚</mi><mo>,</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><mspace width="0.167em"></mspace><mi>𝔼</mi><mspace width="0.167em"></mspace><mo>log</mo><msub><mi>p</mi><mtext mathvariant="normal">model</mtext></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>y</mi><mo>∣</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">J(\boldsymbol\omega,b) = -\,\mathbb{E}\,\log p_{\text{model}}(y\mid x)</annotation></semantics></math></p>
+<p>读出来:<strong>它是"负的条件对数似然 (negative conditional
+log-likelihood)"在训练数据上的期望</strong>,也就是训练数据分布与模型分布之间的<strong>交叉熵
+(cross-entropy)</strong>。直觉:模型给真实答案的概率越高,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>log</mo><mi>p</mi></mrow><annotation encoding="application/x-tex">\log p</annotation></semantics></math>
+越大,负号一翻、代价越小——所以最小化它,就是逼模型把高概率押在正确答案上。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+讲师还从概率视角点了一句:网络"学会数据"到底学到了什么?<strong>学到了数据的分布
+(distribution)。</strong> 而要学到分布,样本必须<strong>又多又杂 (many
+and
+varied)</strong>:同一张脸,戴眼镜、不戴、各个角度都见过,才算建起了这张脸的分布;只见过一个角度,换个样子它就不认识了。</p>
+</blockquote>
+<h3 id="52-盲人下山梯度下降的直觉">5.2 盲人下山:梯度下降的直觉</h3>
+<p>代价函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math>
+怎么最小化?讲师给了一个本章最好用的画面:</p>
+<blockquote>
+<p><strong>想象你是个盲人,站在一条山谷曲线上,要走到谷底,但你看不见全局地形。你唯一能做的,是感受脚下的</strong>坡度
+(slope)<strong>:哪边往下,就朝哪边迈一小步。一步步下坡,最终落到谷底。</strong></p>
+</blockquote>
+<p>一位学生补了个更妙的类比:<strong>就像一个球从山坡滚下去</strong>——它自然往低处滚,和物理里"系统趋向最小能量"是一回事。把球放在曲面任意位置,松手,它滚到谷底停下。这就是梯度下降的全部精神。</p>
+<p>"坡度"在数学上就是<strong>导数 (derivative)</strong>。对一维函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y=f(x)</annotation></semantics></math>,导数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f&#39;(x)</annotation></semantics></math>
+给出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+在点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+的斜率,它告诉我们:输入动一小步,输出会怎么变(这来自 Taylor 展开):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>+</mo><mi>ϵ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>≈</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>ϵ</mi><mi>f</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f(x+\epsilon)\approx f(x)+\epsilon f&#39;(x)</annotation></semantics></math></p>
+<p>由此可推出一个朴素但关键的事实:沿着<strong>导数符号的反方向</strong>走一小步,函数值会下降:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mi>x</mi><mo>−</mo><mi>ϵ</mi><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">n</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>f</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo>&lt;</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="1.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>ϵ</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 足够小</mtext></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f\big(x-\epsilon\,\mathrm{sign}(f&#39;(x))\big) &lt; f(x)\quad(\epsilon \text{ 足够小})</annotation></semantics></math></p>
+<p>所以"下坡"=
+朝梯度反方向走。这个技巧叫<strong>梯度下降</strong>,也叫<strong>最速下降
+(steepest descent)</strong>,可追溯到 <strong>Cauchy(柯西),1847
+年</strong>——比神经网络早了一个世纪,本是信号处理、优化里的老工具。</p>
+<blockquote>
+<p><strong>🔑 例 (Worked example) — 一维梯度下降(slides
+S24)</strong></p>
+<p>取
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">f(x)=\tfrac12 x^2</annotation></semantics></math>,步长
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi><mo>=</mo><mn>0.1</mn></mrow><annotation encoding="application/x-tex">\epsilon=0.1</annotation></semantics></math>,导数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>x</mi></mrow><annotation encoding="application/x-tex">f&#39;(x)=x</annotation></semantics></math>。更新规则
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mtext mathvariant="normal">new</mtext></msub><mo>=</mo><mi>x</mi><mo>−</mo><mi>ϵ</mi><mi>f</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x_{\text{new}}=x-\epsilon f&#39;(x)</annotation></semantics></math>。</p>
+<p><strong>从左边
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">x=-1</annotation></semantics></math>
+出发:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">f&#39;(-1)=-1</annotation></semantics></math>,
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mtext mathvariant="normal">new</mtext></msub><mo>=</mo><mo>−</mo><mn>1</mn><mo>−</mo><mn>0.1</mn><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><mn>0.9</mn></mrow><annotation encoding="application/x-tex">x_{\text{new}}=-1-0.1\times(-1)=-0.9</annotation></semantics></math>
+检验:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>0.9</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0.405</mn><mo>&lt;</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">f(-0.9)=0.405 &lt; f(-1)=0.5</annotation></semantics></math>
+✅ 下降了,而且
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>0.9</mn></mrow><annotation encoding="application/x-tex">-0.9</annotation></semantics></math>
+在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">-1</annotation></semantics></math>
+的<strong>右边</strong>,正朝谷底(原点)走。</p>
+<p><strong>从右边
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mn>1.5</mn></mrow><annotation encoding="application/x-tex">x=1.5</annotation></semantics></math>
+出发:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1.5</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>1.5</mn></mrow><annotation encoding="application/x-tex">f&#39;(1.5)=1.5</annotation></semantics></math>,
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mtext mathvariant="normal">new</mtext></msub><mo>=</mo><mn>1.5</mn><mo>−</mo><mn>0.1</mn><mo>×</mo><mn>1.5</mn><mo>=</mo><mn>1.35</mn></mrow><annotation encoding="application/x-tex">x_{\text{new}}=1.5-0.1\times 1.5=1.35</annotation></semantics></math>
+检验:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1.5</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>1.125</mn><mo>,</mo><mspace width="0.222em"></mspace><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1.35</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0.911</mn></mrow><annotation encoding="application/x-tex">f(1.5)=1.125,\ f(1.35)=0.911</annotation></semantics></math>
+✅
+下降了,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1.35</mn><annotation encoding="application/x-tex">1.35</annotation></semantics></math>
+在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1.5</mn><annotation encoding="application/x-tex">1.5</annotation></semantics></math>
+的<strong>左边</strong>,同样朝谷底走。</p>
+<p>注意:无论从左还是从右,同一条公式都把你推向谷底——这就是梯度下降的魅力。</p>
+</blockquote>
+<h3 id="53-从一维到多维梯度偏导方向导数">5.3
+从一维到多维:梯度、偏导、方向导数</h3>
+<p>真实网络有成千上万个权重,函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+的输入是一个向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝐱</mi><mo>=</mo><mo stretchy="false" form="prefix">{</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>x</mi><mi>m</mi></msub><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\mathbf x=\{x_1,x_2,\dots,x_m\}</annotation></semantics></math>。一维的导数要升级成<strong>梯度
+(gradient)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mi>f</mi></mrow><annotation encoding="application/x-tex">\nabla f</annotation></semantics></math>——把每个方向的偏导数排成一个向量:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">[</mo><mfrac><mrow><mi>∂</mi><mi>f</mi></mrow><mrow><mi>∂</mi><msub><mi>x</mi><mn>1</mn></msub></mrow></mfrac><mo>,</mo><mspace width="0.222em"></mspace><mfrac><mrow><mi>∂</mi><mi>f</mi></mrow><mrow><mi>∂</mi><msub><mi>x</mi><mn>2</mn></msub></mrow></mfrac><mo>,</mo><mspace width="0.222em"></mspace><mi>…</mi><mo>,</mo><mspace width="0.222em"></mspace><mfrac><mrow><mi>∂</mi><mi>f</mi></mrow><mrow><mi>∂</mi><msub><mi>x</mi><mi>m</mi></msub></mrow></mfrac><mo stretchy="true" form="postfix">]</mo></mrow><mrow><mspace width="-0.167em"></mspace><mi>⊤</mi></mrow></msup></mrow><annotation encoding="application/x-tex">\nabla f(\mathbf x)=\left[\frac{\partial f}{\partial x_1},\ \frac{\partial f}{\partial x_2},\ \dots,\ \frac{\partial f}{\partial x_m}\right]^{\!\top}</annotation></semantics></math></p>
+<ul>
+<li><strong>偏导数 (partial derivative)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac displaystyle="true"><mrow><mi>∂</mi><mi>f</mi></mrow><mrow><mi>∂</mi><msub><mi>x</mi><mi>i</mi></msub></mrow></mfrac><annotation encoding="application/x-tex">\dfrac{\partial f}{\partial x_i}</annotation></semantics></math>:只让变量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>i</mi></msub><annotation encoding="application/x-tex">x_i</annotation></semantics></math>
+变、其余不动时,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+变化多快。("只对一个维度求导",所以叫"偏")</li>
+<li><strong>方向导数 (directional derivative)</strong>:沿任意单位向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐮</mi><annotation encoding="application/x-tex">\mathbf u</annotation></semantics></math>
+方向上的斜率。它等于
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝐱</mi><mo>+</mo><mi>α</mi><mi>𝐮</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f(\mathbf x+\alpha\mathbf u)</annotation></semantics></math>
+对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\alpha=0</annotation></semantics></math>
+处的导数。</li>
+</ul>
+<p>用<strong>链式法则 (chain rule)</strong>
+可以算出方向导数的漂亮形式:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mi>∂</mi><mrow><mi>∂</mi><mi>α</mi></mrow></mfrac><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝐱</mi><mo>+</mo><mi>α</mi><mi>𝐮</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msup><mi>𝐮</mi><mrow><mspace width="-0.167em"></mspace><mi>⊤</mi></mrow></msup><mi>∇</mi><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><mi>𝐮</mi><msub><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msub><mspace width="0.167em"></mspace><mo stretchy="false" form="postfix">∥</mo><mi>∇</mi><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="true" form="postfix">)</mo></mrow><msub><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msub><mo>cos</mo><mi>θ</mi></mrow><annotation encoding="application/x-tex">\frac{\partial}{\partial\alpha}f(\mathbf x+\alpha\mathbf u)=\mathbf u^{\!\top}\nabla f(\mathbf x)=\|\mathbf u\|_2\,\|\nabla f(\mathbf x)\|_2\cos\theta</annotation></semantics></math></p>
+<p>我们想让
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+<strong>下降得最快</strong>,就要让这个方向导数最小。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>cos</mo><mi>θ</mi></mrow><annotation encoding="application/x-tex">\cos\theta</annotation></semantics></math>
+在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi><mo>=</mo><msup><mn>180</mn><mo>∘</mo></msup></mrow><annotation encoding="application/x-tex">\theta=180^\circ</annotation></semantics></math>
+时取最小值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">-1</annotation></semantics></math>,也就是当
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐮</mi><annotation encoding="application/x-tex">\mathbf u</annotation></semantics></math>
+与梯度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\nabla f(\mathbf x)</annotation></semantics></math>
+<strong>正好反向</strong>时。于是得到多维梯度下降的更新公式(本章核心之一):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝐱</mi><mi>′</mi><mo>=</mo><mi>𝐱</mi><mo>−</mo><mi>ϵ</mi><mspace width="0.167em"></mspace><mi>∇</mi><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="2.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>ϵ</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 是步长 / 学习率</mtext></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathbf x&#39; = \mathbf x - \epsilon\,\nabla f(\mathbf x)\qquad(\epsilon \text{ 是步长 / 学习率})</annotation></semantics></math></p>
+<p>一句话:<strong>朝负梯度方向走一步,就是下降最快的走法。</strong></p>
+<h3 id="54-两个会再遇到的现实问题">5.4 两个会再遇到的现实问题</h3>
+<ul>
+<li><strong>步长 (step size) 怎么选?</strong>
+讲师建议"自适应":一开始离谷底远,可以迈大步(有信心);快到了就放慢、迈小步,免得冲过头。这正是后面
+optimizer 要解决的事。</li>
+<li><strong>曲面不会总这么光滑。</strong>
+真实误差曲面坑坑洼洼,会有<strong>局部极小 (local
+minimum)</strong>。但有个反直觉的好消息:<strong>实验发现,即使梯度下降卡在局部极小,神经网络通常仍然好用</strong>——因为它是万能函数逼近器,卡住时的权重往往也已经把函数逼近得够好了。(讲师强调这是经验现象,他没见过严格的理论证明。)</li>
+</ul>
+<hr />
+<h2 id="6-感知机最简单的神经网络">6. 感知机:最简单的神经网络</h2>
+<p>有了"神经元"和"梯度下降"两件武器,我们先看最简单的一种网络——<strong>感知机
+(perceptron)</strong>,它是从单神经元迈向多层网络的桥。</p>
+<p>感知机就是一个用阈值做判决的神经元:权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mi>i</mi></msub><mspace width="0.222em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\omega_i\ (i=1,\dots,m)</annotation></semantics></math>、输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>i</mi></msub><annotation encoding="application/x-tex">x_i</annotation></semantics></math>、外部偏置
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>。它的任务是把输入分到两类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mn>1</mn></msub><annotation encoding="application/x-tex">C_1</annotation></semantics></math>
+或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mn>2</mn></msub><annotation encoding="application/x-tex">C_2</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><mo>+</mo><mn>1</mn><mo>⇒</mo><mrow><mtext mathvariant="normal">判为 </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>C</mi><mn>1</mn></msub><mo>,</mo><mspace width="2.0em"></mspace><mi>y</mi><mo>=</mo><mo>−</mo><mn>1</mn><mo>⇒</mo><mrow><mtext mathvariant="normal">判为 </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>C</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">y=+1 \Rightarrow \text{判为 } C_1,\qquad y=-1 \Rightarrow \text{判为 } C_2</annotation></semantics></math></p>
+<p>它怎么分?<strong>感知机在特征空间里画了一个超平面
+(hyperplane),把空间切成两半:</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><msub><mi>ω</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sum_{i=1}^{m}\omega_i x_i + b = 0</annotation></semantics></math></p>
+<p>平面一侧输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">+1</annotation></semantics></math>,另一侧输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">-1</annotation></semantics></math>。在二维里,这个"超平面"就是一条直线;高维里是一张平面。训练时,<strong>每来一个样本就调一次权重</strong>,用的是<strong>误差修正规则
+(error-correction rule)</strong>,也叫<strong>感知机收敛算法 (perceptron
+convergence algorithm)</strong>:判错了就把分界线朝正确方向推一点。</p>
+<pre class="mermaid"><code>flowchart LR
+  IN[&quot;输入 x (特征空间)&quot;] --&gt; H[&quot;超平面 Σωᵢxᵢ + b = 0&quot;]
+  H --&gt;|&quot;&gt; 0 → y = +1&quot;| C1[&quot;类别 C₁&quot;]
+  H --&gt;|&quot;&lt; 0 → y = −1&quot;| C2[&quot;类别 C₂&quot;]</code></pre>
+<p><strong>感知机的致命局限:只能处理线性可分。</strong> slides S29
+画了两种数据:</p>
+<ul>
+<li><strong>线性可分 (linearly
+separable)</strong>:存在一条直线/一个超平面能干净地分开两类——感知机能搞定;</li>
+<li><strong>线性不可分 (linearly
+non-separable)</strong>:两类数据犬牙交错,没有任何一条直线能分开(经典例子是
+XOR)——单个感知机<strong>彻底无能为力</strong>。</li>
+</ul>
+<p>这正是历史上神经网络第一次"寒冬"的导火索,也是我们<strong>必须走向多层</strong>的根本动力:把一层挡不住的复杂性,交给多层去拆解。这就引出了本章的高潮。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — Week 4 的 kernel/SVM
+其实是应对线性不可分的<strong>另一条路</strong>:把数据投影到更高维空间,让它在新空间里变得线性可分。而神经网络选的是<strong>另一条路</strong>:用多层非线性变换,自己把空间"掰直"。两条路解决的是同一个痛点。</p>
+</blockquote>
+<hr />
+<h2 id="7-多层感知机与反向传播">7. 多层感知机与反向传播</h2>
+<h3 id="71-多层感知机-mlp-的三个特征">7.1 多层感知机 (MLP)
+的三个特征</h3>
+<p><strong>多层感知机 (Multilayer Perceptron, MLP)</strong>
+在输入与输出之间放了一或多个隐藏层。它有三个基本特征(Haykin 2009):</p>
+<ol type="1">
+<li>每个神经元都含一个<strong>非线性且可导 (nonlinear and
+differentiable)</strong> 的激活函数(——回想第 3
+节,"非线性"给表达力,"可导"给可训练性,两个要求在这里合流);</li>
+<li>网络含一或多个<strong>对输入输出都隐藏的层</strong>(hidden
+layers);</li>
+<li>网络高度连接,连接强度由突触权重决定。</li>
+</ol>
+<p>每个隐藏/输出神经元做<strong>两件计算</strong>:①
+前向时,把输入和权重算成一个连续非线性输出;②
+反向时,估计<strong>梯度向量</strong>(误差曲面的梯度),供训练用。这里还有两句点睛:</p>
+<ul>
+<li><strong>隐藏神经元是"特征侦测器" (feature
+detectors)</strong>:它们发现训练数据的显著特征,把输入<strong>非线性地变换到一个新空间(特征空间)</strong>——这正是第
+4.2 节"逐层抽特征"的微观版本。</li>
+<li>训练是一种<strong>误差修正学习</strong>,要给每个内部神经元<strong>分配功劳或过错
+(assign blame or credit)</strong>,这就是著名的<strong>信用分配问题
+(credit assignment problem)</strong>。<strong>Back-propagation 正是为
+MLP 解决信用分配问题的算法。</strong></li>
+</ul>
+<h3 id="72-训练的总策略与两趟流程">7.2 训练的总策略与两趟流程</h3>
+<p>把策略串起来(slides S33、S51):MLP
+是<strong>万能函数逼近器</strong>;用误差修正学习训练它,等价于<strong>最小化一个函数</strong>——即网络输出与期望输出之间失配所对应的<strong>误差曲面
+(error surface)</strong>;最小化用<strong>梯度下降</strong>;而
+<strong>back-propagation 就是梯度下降在 MLP 上的高效实现</strong>。</p>
+<p>具体地,反向传播每次迭代分<strong>两趟 (two passes)</strong>:</p>
+<pre class="mermaid"><code>flowchart LR
+  X[&quot;输入 x&quot;] --&gt;|&quot;① Forward pass&lt;br/&gt;权重固定,信号逐层前传&quot;| OUT[&quot;网络输出 y&quot;]
+  OUT --&gt; CMP{&quot;与期望 d 比较&lt;br/&gt;误差 e = d − y&quot;}
+  CMP --&gt;|&quot;② Backward pass&lt;br/&gt;误差逐层反传,逐层修正权重&quot;| W[&quot;更新所有权重 ω&quot;]
+  W -.-&gt;|&quot;下一次迭代&quot;| X</code></pre>
+<ul>
+<li><strong>Forward pass(前向):</strong>
+权重<strong>固定</strong>,输入信号逐层向前传播,在输出端得到响应。每个神经元算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">v_j(n)=\sum_i \omega_{ji}(n)\,y_i(n)</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y_j(n)=\phi(v_j(n))</annotation></semantics></math>。</li>
+<li><strong>Backward pass(反向):</strong>
+把输出误差和期望比较,<strong>误差信号逐层反向传播</strong>,逐层修正权重。</li>
+</ul>
+<p>讲师的大白话版:<strong>"我把输入喂进去 → 得到一个预测 → 和正确答案比
+→ 有误差 → 那么,是哪个权重该为这个误差负责?把它揪出来改掉。"</strong>
+这个"谁负责"就是信用分配问题,而反向传播就是回答它的机器。</p>
+<h3 id="73-跟着链式法则推一遍本章最硬的骨头">7.3
+跟着链式法则推一遍(本章最硬的骨头)</h3>
+<p>目标:求出每个权重该改多少,即<strong>修正量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Δ</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\Delta\omega_{ji}(n)</annotation></semantics></math></strong>。先定义这一趟用到的量。</p>
+<p><strong>误差信号</strong>(输出神经元
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>,期望
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>j</mi></msub><annotation encoding="application/x-tex">d_j</annotation></semantics></math>,实际
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>j</mi></msub><annotation encoding="application/x-tex">y_j</annotation></semantics></math>):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>d</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mi>y</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">e_j(n)=d_j(n)-y_j(n)</annotation></semantics></math></p>
+<p><strong>瞬时误差能量</strong>与所有输出神经元的<strong>总瞬时误差</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><msubsup><mi>e</mi><mi>j</mi><mn>2</mn></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="2.0em"></mspace><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mrow><mi>j</mi><mo>∈</mo><mi>C</mi></mrow></munder><msub><mi>E</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><munder><mo>∑</mo><mrow><mi>j</mi><mo>∈</mo><mi>C</mi></mrow></munder><msubsup><mi>e</mi><mi>j</mi><mn>2</mn></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">E_j(n)=\tfrac12 e_j^2(n),\qquad E(n)=\sum_{j\in C}E_j(n)=\tfrac12\sum_{j\in C}e_j^2(n)</annotation></semantics></math></p>
+<p>(顺带分清:误差在 <strong>batch 模式</strong>下累计所有样本再更新,在
+<strong>on-line / 随机 (stochastic)</strong>
+模式下来一个样本更一次。)</p>
+<p>修正量应正比于
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>E</mi><annotation encoding="application/x-tex">E</annotation></semantics></math>
+对该权重的偏导
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac displaystyle="true"><mrow><mi>∂</mi><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>∂</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><annotation encoding="application/x-tex">\dfrac{\partial E(n)}{\partial \omega_{ji}(n)}</annotation></semantics></math>——它指出在权重空间里该往哪个方向搜索。难点是这个偏导不好直接算,于是请出<strong>链式法则</strong>,把它拆成一串"我们有办法算"的小偏导:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mi>∂</mi><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>∂</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>=</mo><mfrac><mrow><mi>∂</mi><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>∂</mi><msub><mi>e</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>⋅</mo><mfrac><mrow><mi>∂</mi><msub><mi>e</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>∂</mi><msub><mi>y</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>⋅</mo><mfrac><mrow><mi>∂</mi><msub><mi>y</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>∂</mi><msub><mi>v</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>⋅</mo><mfrac><mrow><mi>∂</mi><msub><mi>v</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>∂</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac></mrow><annotation encoding="application/x-tex">\frac{\partial E(n)}{\partial \omega_{ji}(n)}=\frac{\partial E(n)}{\partial e_j(n)}\cdot\frac{\partial e_j(n)}{\partial y_j(n)}\cdot\frac{\partial y_j(n)}{\partial v_j(n)}\cdot\frac{\partial v_j(n)}{\partial \omega_{ji}(n)}</annotation></semantics></math></p>
+<p>逐项算(每一项都来自前面的定义):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>小偏导</th>
+<th>来源</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∂</mi><mi>E</mi><mi>/</mi><mi>∂</mi><msub><mi>e</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">\partial E/\partial e_j</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo>=</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><msubsup><mi>e</mi><mi>j</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">E=\tfrac12 e_j^2</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mi>j</mi></msub><annotation encoding="application/x-tex">e_j</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∂</mi><msub><mi>e</mi><mi>j</mi></msub><mi>/</mi><mi>∂</mi><msub><mi>y</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">\partial e_j/\partial y_j</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mi>j</mi></msub><mo>=</mo><msub><mi>d</mi><mi>j</mi></msub><mo>−</mo><msub><mi>y</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">e_j=d_j-y_j</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">-1</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∂</mi><msub><mi>y</mi><mi>j</mi></msub><mi>/</mi><mi>∂</mi><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">\partial y_j/\partial v_j</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>j</mi></msub><mo>=</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y_j=\phi(v_j)</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\phi&#39;(v_j)</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∂</mi><msub><mi>v</mi><mi>j</mi></msub><mi>/</mi><mi>∂</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\partial v_j/\partial \omega_{ji}</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>j</mi></msub><mo>=</mo><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><msub><mi>y</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">v_j=\sum_i \omega_{ji}y_i</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>i</mi></msub><annotation encoding="application/x-tex">y_i</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table></div>
+<p>乘起来:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mi>∂</mi><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>∂</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>=</mo><mo>−</mo><mspace width="0.167em"></mspace><msub><mi>e</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\frac{\partial E(n)}{\partial \omega_{ji}(n)}=-\,e_j(n)\,\phi&#39;(v_j(n))\,y_i(n)</annotation></semantics></math></p>
+<h3 id="74-delta-规则与局部梯度">7.4 Delta 规则与局部梯度</h3>
+<p>修正量取负梯度方向、乘上<strong>学习率 (learning rate)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>η</mi><annotation encoding="application/x-tex">\eta</annotation></semantics></math>,这叫
+<strong>delta 规则 (delta rule)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Δ</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><mi>η</mi><mfrac><mrow><mi>∂</mi><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>∂</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>=</mo><mi>η</mi><mspace width="0.167em"></mspace><munder><munder><mrow><msub><mi>e</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mo accent="true">⏟</mo></munder><mrow><msub><mi>δ</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></munder><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>η</mi><mspace width="0.167em"></mspace><msub><mi>δ</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\Delta\omega_{ji}(n)=-\eta\frac{\partial E(n)}{\partial \omega_{ji}(n)}=\eta\,\underbrace{e_j(n)\,\phi&#39;(v_j(n))}_{\textstyle \delta_j(n)}\,y_i(n)=\eta\,\delta_j(n)\,y_i(n)</annotation></semantics></math></p>
+<p>中间那一团有个名字,<strong>局部梯度 (local gradient)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><menclose notation="box"><mrow><mspace width="0.278em"></mspace><msub><mi>δ</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>e</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.278em"></mspace></mrow></menclose><annotation encoding="application/x-tex">\boxed{\;\delta_j(n)=e_j(n)\,\phi&#39;(v_j(n))\;}</annotation></semantics></math></p>
+<p>它是"该神经元的误差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mi>j</mi></msub><annotation encoding="application/x-tex">e_j</annotation></semantics></math>"乘以"它激活函数的导数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\phi&#39;(v_j)</annotation></semantics></math>"。于是权重修正量
+= <strong>学习率 × 局部梯度 × 输入</strong>,干净漂亮:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Δ</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>η</mi><mspace width="0.167em"></mspace><msub><mi>δ</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\Delta\omega_{ji}(n)=\eta\,\delta_j(n)\,y_i(n)</annotation></semantics></math></p>
+<p><strong>但是——这里藏着全章最关键的一道坎。</strong>
+对<strong>输出神经元</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mi>j</mi></msub><mo>=</mo><msub><mi>d</mi><mi>j</mi></msub><mo>−</mo><msub><mi>y</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">e_j=d_j-y_j</annotation></semantics></math>
+好算,因为我们手里有期望
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>j</mi></msub><annotation encoding="application/x-tex">d_j</annotation></semantics></math>
+和实际
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>j</mi></msub><annotation encoding="application/x-tex">y_j</annotation></semantics></math>。可对<strong>隐藏神经元</strong>,<strong>根本没有给定的期望
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>j</mi></msub><annotation encoding="application/x-tex">d_j</annotation></semantics></math></strong>,误差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mi>j</mi></msub><annotation encoding="application/x-tex">e_j</annotation></semantics></math>
+无从直接算起。怎么办?</p>
+<h3 id="75-隐藏神经元把误差反传回来">7.5
+隐藏神经元:把误差"反传"回来</h3>
+<p>答案就是"反向传播"这个名字的由来:<strong>隐藏神经元
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+的误差,要从它右边、跟它相连的那些输出神经元
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+那里"借"过来。</strong> 推导(slides
+S54–57)的结论是,隐藏神经元的局部梯度为</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><menclose notation="box"><mrow><mspace width="0.278em"></mspace><msub><mi>δ</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><munder><mo>∑</mo><mi>k</mi></munder><msub><mi>δ</mi><mi>k</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.278em"></mspace></mrow></menclose><annotation encoding="application/x-tex">\boxed{\;\delta_j(n)=\phi&#39;(v_j(n))\sum_{k}\delta_k(n)\,\omega_{kj}(n)\;}</annotation></semantics></math></p>
+<p>直觉读法:隐藏神经元
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+该负多少责,等于它激活函数的导数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\phi&#39;(v_j)</annotation></semantics></math>,乘上<strong>它右边每个神经元
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+的局部梯度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>δ</mi><mi>k</mi></msub><annotation encoding="application/x-tex">\delta_k</annotation></semantics></math>,按连接权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\omega_{kj}</annotation></semantics></math>
+加权求和</strong>——也就是把下游的"锅"按连接强度分摊回来。这正是误差"逐层往回流"的数学形式。</p>
+<blockquote>
+<p>📎 <strong>推导梗概(供有兴趣者)</strong> —
+对隐藏神经元,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mi>j</mi></msub><mo>=</mo><mo>−</mo><mfrac displaystyle="true"><mrow><mi>∂</mi><mi>E</mi></mrow><mrow><mi>∂</mi><msub><mi>y</mi><mi>j</mi></msub></mrow></mfrac><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\delta_j=-\dfrac{\partial E}{\partial y_j}\phi&#39;(v_j)</annotation></semantics></math>。其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac displaystyle="true"><mrow><mi>∂</mi><mi>E</mi></mrow><mrow><mi>∂</mi><msub><mi>y</mi><mi>j</mi></msub></mrow></mfrac><annotation encoding="application/x-tex">\dfrac{\partial E}{\partial y_j}</annotation></semantics></math>
+要穿过所有下游输出节点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>:由
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo>=</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><msub><mo>∑</mo><mi>k</mi></msub><msubsup><mi>e</mi><mi>k</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">E=\tfrac12\sum_k e_k^2</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mi>k</mi></msub><mo>=</mo><msub><mi>d</mi><mi>k</mi></msub><mo>−</mo><msub><mi>ϕ</mi><mi>k</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>k</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">e_k=d_k-\phi_k(v_k)</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>k</mi></msub><mo>=</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><msub><mi>y</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">v_k=\sum_j\omega_{kj}y_j</annotation></semantics></math>,链式法则给出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac displaystyle="true"><mrow><mi>∂</mi><mi>E</mi></mrow><mrow><mi>∂</mi><msub><mi>y</mi><mi>j</mi></msub></mrow></mfrac><mo>=</mo><mo>−</mo><msub><mo>∑</mo><mi>k</mi></msub><msub><mi>δ</mi><mi>k</mi></msub><mspace width="0.167em"></mspace><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\dfrac{\partial E}{\partial y_j}=-\sum_k \delta_k\,\omega_{kj}</annotation></semantics></math>,代回即得上式。</p>
+</blockquote>
+<h3 id="76-完整的权重更新规则">7.6 完整的权重更新规则</h3>
+<p>把两种情形合在一起,就是反向传播的最终更新公式(slides S58):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow><mtext mathvariant="normal">new</mtext></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msubsup><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow><mtext mathvariant="normal">old</mtext></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mi>η</mi><mspace width="0.167em"></mspace><msub><mi>e</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">输出神经元</mtext></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mi>η</mi><mspace width="0.167em"></mspace><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><munder><mo>∑</mo><mi>k</mi></munder><msub><mi>δ</mi><mi>k</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">隐藏神经元</mtext></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">\omega_{ji}^{\text{new}}(n)=\omega_{ji}^{\text{old}}(n)+
+\begin{cases}
+\eta\,e_j(n)\,\phi&#39;(v_j(n))\,y_i(n) &amp; \text{输出神经元}\\[8pt]
+\eta\,\phi&#39;(v_j(n))\displaystyle\sum_k\delta_k(n)\,\omega_{kj}(n)\,y_i(n) &amp; \text{隐藏神经元}
+\end{cases}</annotation></semantics></math></p>
+<p>两行的区别只在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>δ</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\delta_j</annotation></semantics></math>
+怎么来:输出层直接用误差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>e</mi><mi>j</mi></msub><annotation encoding="application/x-tex">e_j</annotation></semantics></math>,隐藏层把下游的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>δ</mi><mi>k</mi></msub><annotation encoding="application/x-tex">\delta_k</annotation></semantics></math>
+加权传回。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>输出神经元</th>
+<th>隐藏神经元</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>误差从哪来</td>
+<td>直接:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mi>j</mi></msub><mo>=</mo><msub><mi>d</mi><mi>j</mi></msub><mo>−</mo><msub><mi>y</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">e_j=d_j-y_j</annotation></semantics></math></td>
+<td>间接:从下游
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>δ</mi><mi>k</mi></msub><annotation encoding="application/x-tex">\delta_k</annotation></semantics></math>
+反传</td>
+</tr>
+<tr class="even">
+<td>局部梯度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>δ</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\delta_j</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>e</mi><mi>j</mi></msub><mspace width="0.167em"></mspace><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">e_j\,\phi&#39;(v_j)</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><msub><mo>∑</mo><mi>k</mi></msub><msub><mi>δ</mi><mi>k</mi></msub><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\phi&#39;(v_j)\sum_k \delta_k\omega_{kj}</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>更新量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Δ</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\Delta\omega_{ji}</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>η</mi><mspace width="0.167em"></mspace><msub><mi>δ</mi><mi>j</mi></msub><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">\eta\,\delta_j\,y_i</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>η</mi><mspace width="0.167em"></mspace><msub><mi>δ</mi><mi>j</mi></msub><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">\eta\,\delta_j\,y_i</annotation></semantics></math>(同形式)</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>考试视角</strong> —
+讲师明确说过:他给出这些方程,是为了让你<strong>看懂这个过程怎么运转</strong>,不是要你死记硬背、更不是要你凭空默写推导。所以复习重点应是:<strong>能读懂每个符号、能讲清两趟流程和信用分配、知道
+output 与 hidden
+两种更新为何不同</strong>;而不是把整页推导背下来。(他特别强调过这点的是
+Week 4 的 kernel/SVM:"不会要求你写那些方程"。)</p>
+</blockquote>
+<hr />
+<h2 id="8-让梯度下降跑得更快优化器">8. 让梯度下降跑得更快:优化器</h2>
+<p>基础梯度下降有个毛病:<strong>收敛慢</strong>,还容易在崎岖的误差曲面上卡住。怎么提升一个学习系统?slides
+S59 给了三条路:① 改进结构(比如加层);② 改进初始化(构造稀疏性);③
+<strong>用更强的学习算法(改进梯度下降本身)</strong>。第三条路上的产物,就是各种<strong>优化器
+(optimizer)</strong>——基础梯度下降的"进化版"。下面按"它们各自修了哪个
+bug"来理解。</p>
+<p><strong>① 基础梯度下降 / SGD</strong> — 出发点:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>=</mo><mi>∇</mi><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>ω</mi><mi>t</mi></msub><mo>=</mo><msub><mi>ω</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>−</mo><mi>η</mi><mspace width="0.167em"></mspace><msub><mi>g</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">g_t=\nabla f(\omega_{t-1}),\qquad \omega_t=\omega_{t-1}-\eta\,g_t</annotation></semantics></math></p>
+<p>毛病:收敛慢,易卡在局部极小或在"峡谷"里来回震荡。</p>
+<p><strong>② Classical Momentum(经典动量)</strong> —
+给它加"惯性":不只看当前梯度,还累积过去的梯度方向(就像滚下山的球攒了速度):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>m</mi><mi>t</mi></msub><mo>=</mo><mi>μ</mi><mspace width="0.167em"></mspace><msub><mi>m</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>g</mi><mi>t</mi></msub><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>ω</mi><mi>t</mi></msub><mo>=</mo><msub><mi>ω</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>−</mo><mi>η</mi><mspace width="0.167em"></mspace><msub><mi>m</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">m_t=\mu\,m_{t-1}+g_t,\qquad \omega_t=\omega_{t-1}-\eta\,m_t</annotation></semantics></math></p>
+<p>好处:<strong>在梯度方向一致的维度上加速</strong>(同向叠加),<strong>在剧烈震荡的维度上减速</strong>(正负抵消)。讲师的话:让你"带着速度穿过误差曲面,临近谷底再慢下来"。</p>
+<p><strong>③ Nesterov Accelerated Gradient (NAG)</strong> —
+比动量更聪明一点:<strong>先按动量"预走一步",再在预测的新位置上算梯度</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>=</mo><mi>∇</mi><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>−</mo><mi>η</mi><mi>μ</mi><mspace width="0.167em"></mspace><msub><mi>m</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>m</mi><mi>t</mi></msub><mo>=</mo><mi>μ</mi><mspace width="0.167em"></mspace><msub><mi>m</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>g</mi><mi>t</mi></msub><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>ω</mi><mi>t</mi></msub><mo>=</mo><msub><mi>ω</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>−</mo><mi>η</mi><mspace width="0.167em"></mspace><msub><mi>m</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">g_t=\nabla f(\omega_{t-1}-\eta\mu\,m_{t-1}),\qquad m_t=\mu\,m_{t-1}+g_t,\qquad \omega_t=\omega_{t-1}-\eta\,m_t</annotation></semantics></math></p>
+<p>经验上,在困难的优化目标上它优于基础 GD
+和经典动量(无严格数学证明,纯属实验所得)。</p>
+<p><strong>④ AdaGrad(自适应梯度)</strong> —
+思路从"动量"换成"按维度调学习率":用<strong>所有历史梯度的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+范数</strong>去除学习率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>η</mi><annotation encoding="application/x-tex">\eta</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mi>t</mi></msub><mo>=</mo><msub><mi>n</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msubsup><mi>g</mi><mi>t</mi><mn>2</mn></msubsup><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>ω</mi><mi>t</mi></msub><mo>=</mo><msub><mi>ω</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>−</mo><mfrac><mi>η</mi><mrow><msqrt><msub><mi>n</mi><mi>t</mi></msub></msqrt><mo>+</mo><mi>ϵ</mi></mrow></mfrac><mspace width="0.167em"></mspace><msub><mi>g</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">n_t=n_{t-1}+g_t^2,\qquad \omega_t=\omega_{t-1}-\frac{\eta}{\sqrt{n_t}+\epsilon}\,g_t</annotation></semantics></math></p>
+<p>效果:<strong>已经变化很多的维度,学习放慢;只动过一点点的维度,学习加速</strong>——从而稳住对常见特征的表示,又能快速学到罕见特征。<strong>缺点:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>t</mi></msub><annotation encoding="application/x-tex">n_t</annotation></semantics></math>
+只增不减,分母越滚越大,梯度被压到趋近 0,学习提前"熄火"。</strong></p>
+<p><strong>⑤ RMSProp</strong> — 专治 AdaGrad
+的"熄火":把"累加历史梯度"换成<strong>指数加权的滑动平均</strong>(给旧梯度打折扣),分母就不会无限膨胀:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mi>t</mi></msub><mo>=</mo><mi>ν</mi><mspace width="0.167em"></mspace><msub><mi>n</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>ν</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msubsup><mi>g</mi><mi>t</mi><mn>2</mn></msubsup><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>ω</mi><mi>t</mi></msub><mo>=</mo><msub><mi>ω</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>−</mo><mfrac><mi>η</mi><mrow><msqrt><msub><mi>n</mi><mi>t</mi></msub></msqrt><mo>+</mo><mi>ϵ</mi></mrow></mfrac><mspace width="0.167em"></mspace><msub><mi>g</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">n_t=\nu\,n_{t-1}+(1-\nu)\,g_t^2,\qquad \omega_t=\omega_{t-1}-\frac{\eta}{\sqrt{n_t}+\epsilon}\,g_t</annotation></semantics></math></p>
+<p><strong>⑥ Adam(Adaptive Moment Estimation)</strong> —
+集大成者:<strong>动量(一阶矩)+
+范数自适应(二阶矩)二合一</strong>,并用"衰减的均值"替代经典动量里"衰减的和",再做偏差校正
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>m</mi><mo accent="true">̂</mo></mover><mi>t</mi></msub><mo>,</mo><msub><mover><mi>n</mi><mo accent="true">̂</mo></mover><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">\hat m_t,\hat n_t</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>m</mi><mi>t</mi></msub><mo>=</mo><mi>μ</mi><msub><mi>m</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>μ</mi><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>g</mi><mi>t</mi></msub><mo>,</mo><mspace width="1.0em"></mspace><msub><mover><mi>m</mi><mo accent="true">̂</mo></mover><mi>t</mi></msub><mo>=</mo><mfrac><msub><mi>m</mi><mi>t</mi></msub><mrow><mn>1</mn><mo>−</mo><msup><mi>μ</mi><mi>t</mi></msup></mrow></mfrac><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>n</mi><mi>t</mi></msub><mo>=</mo><mi>ν</mi><msub><mi>n</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>ν</mi><mo stretchy="true" form="postfix">)</mo></mrow><msubsup><mi>g</mi><mi>t</mi><mn>2</mn></msubsup><mo>,</mo><mspace width="1.0em"></mspace><msub><mover><mi>n</mi><mo accent="true">̂</mo></mover><mi>t</mi></msub><mo>=</mo><mfrac><msub><mi>n</mi><mi>t</mi></msub><mrow><mn>1</mn><mo>−</mo><msup><mi>ν</mi><mi>t</mi></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">m_t=\mu m_{t-1}+(1-\mu)g_t,\quad \hat m_t=\frac{m_t}{1-\mu^t},\quad n_t=\nu n_{t-1}+(1-\nu)g_t^2,\quad \hat n_t=\frac{n_t}{1-\nu^t}</annotation></semantics></math>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mi>t</mi></msub><mo>=</mo><msub><mi>ω</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>−</mo><mfrac><mi>η</mi><mrow><msqrt><msub><mover><mi>n</mi><mo accent="true">̂</mo></mover><mi>t</mi></msub></msqrt><mo>+</mo><mi>ϵ</mi></mrow></mfrac><mspace width="0.167em"></mspace><msub><mover><mi>m</mi><mo accent="true">̂</mo></mover><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">\omega_t=\omega_{t-1}-\frac{\eta}{\sqrt{\hat n_t}+\epsilon}\,\hat m_t</annotation></semantics></math></p>
+<p>(把二阶矩从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+换成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+范数,就得到变体 <strong>AdaMax</strong>。)Adam
+是今天的默认首选之一。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>优化器</th>
+<th>关键思想</th>
+<th>解决了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>SGD</strong></td>
+<td>朝负梯度走一步</td>
+<td>(基线)简单但慢、易震荡</td>
+</tr>
+<tr class="even">
+<td><strong>Momentum</strong></td>
+<td>累积梯度,加惯性</td>
+<td>一致方向加速、震荡方向减速</td>
+</tr>
+<tr class="odd">
+<td><strong>Nesterov (NAG)</strong></td>
+<td>先预走再算梯度</td>
+<td>比动量更准,难目标上更优</td>
+</tr>
+<tr class="even">
+<td><strong>AdaGrad</strong></td>
+<td>按历史梯度范数自适应学习率</td>
+<td>罕见特征学得快;但会熄火</td>
+</tr>
+<tr class="odd">
+<td><strong>RMSProp</strong></td>
+<td>滑动平均代替累加</td>
+<td>修好 AdaGrad 的熄火</td>
+</tr>
+<tr class="even">
+<td><strong>Adam / AdaMax</strong></td>
+<td>动量 + 范数自适应 + 偏差校正</td>
+<td>综合最优,常用默认</td>
+</tr>
+</tbody>
+</table></div>
+<p>为什么要这么多花样?回到第 5.4
+节那张坑洼的误差曲面:这些优化器都在想办法<strong>又快又准地穿过崎岖地形、跳出局部极小</strong>——在"速度"和"精度"之间找平衡。好消息是,TensorFlow
+/ PyTorch 把它们全部封装好了,你只需一行指定用哪个。</p>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>神经网络的一句话本质:它是一个万能函数逼近器 (universal
+function
+approximator)</strong>——学一个从输入空间到输出空间的映射;够大就能逼近几乎任何函数,问题只在"逼近得多好"。</li>
+<li><strong>单个神经元 = 加权和 + 偏置 +
+激活函数</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>k</mi></msub><mo>=</mo><mi>ϕ</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><msub><mi>x</mi><mi>j</mi></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">y_k=\phi\big(\sum_j \omega_{kj}x_j\big)</annotation></semantics></math>(偏置已吸收为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">x_0=1</annotation></semantics></math>
+的权重)。<strong>去掉激活函数,它就退化成线性回归;非线性激活才是神经网络威力的来源。</strong></li>
+<li><strong>激活函数</strong>要非线性、可导、有界:threshold(不可导,已淘汰)、logistic/sigmoid(可导)、ReLU(深层主力)、softmax(多分类输出给概率)。</li>
+<li><strong>网络越深,特征越抽象</strong>:每层把输入变换到新的特征空间,从低层(边缘)到高层(物体)形成<strong>层级表示</strong>;这也支撑了冻结骨干的迁移学习。架构本身是一种<strong>归纳偏置</strong>。</li>
+<li><strong>学习 = 最小化代价函数 =
+梯度下降</strong>:朝负梯度方向走小步(盲人下山 / 球滚下坡);更新式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝐱</mi><mi>′</mi><mo>=</mo><mi>𝐱</mi><mo>−</mo><mi>ϵ</mi><mi>∇</mi><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathbf x&#39;=\mathbf x-\epsilon\nabla f(\mathbf x)</annotation></semantics></math>。Cauchy
+1847 年的老技术。</li>
+<li><strong>Perceptron</strong> 用超平面
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∑</mo><msub><mi>ω</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sum\omega_i x_i+b=0</annotation></semantics></math>
+做二分类,但<strong>只能处理线性可分</strong>;线性不可分(如
+XOR)逼我们走向多层。</li>
+<li><strong>Back-propagation = 梯度下降在 MLP
+上的高效实现</strong>,分<strong>前向 /
+反向两趟</strong>,核心是用链式法则解决<strong>信用分配问题</strong>。局部梯度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mi>j</mi></msub><mo>=</mo><msub><mi>e</mi><mi>j</mi></msub><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\delta_j=e_j\phi&#39;(v_j)</annotation></semantics></math>(输出层)或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mi>j</mi></msub><mo>=</mo><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><msub><mo>∑</mo><mi>k</mi></msub><msub><mi>δ</mi><mi>k</mi></msub><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\delta_j=\phi&#39;(v_j)\sum_k\delta_k\omega_{kj}</annotation></semantics></math>(隐藏层);权重更新
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Δ</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mo>=</mo><mi>η</mi><mspace width="0.167em"></mspace><msub><mi>δ</mi><mi>j</mi></msub><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">\Delta\omega_{ji}=\eta\,\delta_j\,y_i</annotation></semantics></math>。</li>
+<li><strong>优化器</strong>是梯度下降的进化:Momentum/NAG
+加惯性,AdaGrad/RMSProp 自适应学习率,Adam
+集大成——都为了又快又准地穿过崎岖误差曲面。</li>
+</ul>
+<hr />
+<h2 id="附考试提示来自录音">附:考试提示(来自录音)</h2>
+<ul>
+<li>考试形式:<strong>3 小时手写闭卷</strong>,可带<strong>一页 A4 手写
+cheat sheet</strong>(restricted,不是 open book)。</li>
+<li>讲师对公式的态度:<strong>给方程是为了让你理解过程,不是要你默写推导</strong>。本章请把力气花在"看懂符号
++ 讲清流程(前向/反向、信用分配、output vs hidden)+
+会手算小例子(单神经元、一维梯度下降)"上。</li>
+<li>可手算的题型值得练熟:<strong>神经元前向计算</strong>(§2
+例)、<strong>一维梯度下降迭代</strong>(§5 例)。</li>
+<li>Week 6(Deep Learning II)会接着讲<strong>CNN(卷积、feature
+map、pooling)、RNN、张量</strong>等——本章的"函数逼近器 +
+架构即先验"正是它的引子。</li>
+</ul>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>
