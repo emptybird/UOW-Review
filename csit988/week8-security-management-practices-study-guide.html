@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>第八周 · 安全管理实践 (Security Management Practices)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="第八周--安全管理实践-security-management-practices">第八周 ·
+安全管理实践 (Security Management Practices)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>解释 <strong>benchmarking(标杆/对标)</strong>
+是什么,它能回答什么问题、<em>不能</em>回答什么问题,以及它的三大固有局限。</li>
+<li>区分 benchmark 的<strong>两大类别</strong>:<strong>due care / due
+diligence(应尽关注 / 尽职审慎)</strong> 与 <strong>best/recommended
+practices(最佳/推荐实践)</strong>,并说清 due care 与 due diligence
+的精确差别及其法律含义。</li>
+<li>用 6
+个判断问题决定<strong>某条推荐实践是否适用于你的组织</strong>,并解释
+<strong>baselining(基线化)</strong> 与 benchmarking 的关系。</li>
+<li>描述一个 <strong>InfoSec performance measurement
+program(信息安全绩效度量计划)</strong> 的核心组成:三类度量、NIST SP
+800-55 的成功要素、度量 vs 指标的区别、Kovacich 的 WH 问题。</li>
+<li>说明如何<strong>指定、收集、优先排序、设定目标、实施和汇报</strong>信息安全度量,并复述
+NIST 的 6 阶段实施流程。</li>
+<li>解释 <strong>accreditation(认可)</strong> 与
+<strong>certification(认证)</strong> 的差别,讲清 2009 年美国政府从
+C&amp;A 转向 <strong>Risk Management Framework (RMF)</strong>
+的来龙去脉,并背出 RMF 的六个步骤。——<em>讲师特别提到 RMF
+六步是必须记住的内容。</em></li>
+</ul>
+</blockquote>
+<p>上一周我们回答的是"<strong>照着什么蓝本去做安全</strong>"——blueprint、framework、各种
+security model(访问控制模型、Bell-LaPadula/Biba、ISO 27000、NIST
+800、COBIT、COSO)。那一周讲的是**"参照物"**:你手里有了一堆现成的模型可以模仿、采纳、改造。</p>
+<p>但是光有蓝本还不够。任何一个高管都会立刻追问两个更现实的问题:<strong>"我们做得到底好不好?"</strong>
+和 <strong>"怎么证明给别人看?"</strong>
+一家公司投入了人力物力建安全体系,管理层(以及客户、监管机构)想要的是<strong>确据
+(assurance)</strong>——确据组织正在朝"用既定投入换取最大价值"这个<strong>价值主张
+(value proposition)</strong>
+努力,确据管理实践的质量是可被衡量、可被对比的。本章就是讲<strong>怎么把"安全做得好不好"这件看似虚无缥缈的事,变成可比较、可度量、可被第三方认可的东西</strong>。</p>
+<p>本章的内在脉络是一条很自然的线:<strong>先和别人比</strong>(benchmarking:对标同行与行业标准)→
+<strong>再和自己比</strong>(baselining:和自己的历史表现比)→
+<strong>然后把"好不好"量化成数字</strong>(performance
+measurement:设计一整套度量计划)→
+<strong>最后请权威来背书</strong>(certification &amp;
+accreditation:让第三方认可你达标)。从"对比"到"度量"再到"认可",难度逐级上升,但都在回答同一个问题:<strong>你怎么知道、并证明你的安全是有效的?</strong></p>
+<pre class="mermaid"><code>graph LR
+  V[&quot;价值主张&lt;br/&gt;用既定投入换最大价值&lt;br/&gt;+ 管理层要确据&quot;] --&gt; B[&quot;① 和别人比&lt;br/&gt;Benchmarking&quot;]
+  V --&gt; BL[&quot;② 和自己比&lt;br/&gt;Baselining&quot;]
+  B &amp; BL --&gt; PM[&quot;③ 量化成数字&lt;br/&gt;Performance Measurement&quot;]
+  PM --&gt; CA[&quot;④ 请权威背书&lt;br/&gt;Certification &amp;&lt;br/&gt;Accreditation&quot;]
+  style V fill:#f7ecd9
+  style B fill:#e8eef7
+  style BL fill:#e8eef7
+  style PM fill:#dfeede
+  style CA fill:#f3e1ef</code></pre>
+<hr />
+<h2 id="1-benchmarking站在同行的肩膀上">1.
+Benchmarking:站在同行的肩膀上</h2>
+<h3 id="11-为什么需要对标">1.1 为什么需要对标</h3>
+<p>回忆上周的一个核心词:<strong>blueprint(蓝图)</strong>——一份"描述现有控制、指出还需补哪些控制"的文档。问题是,蓝图从哪来?讲师给了两条路。<strong>第一条</strong>是从现成的安全模型与实践里取材,比如
+ISO 27000 系列、NIST SP 800
+系列。<strong>第二条</strong>,也是本章的主角,是去<strong>看和你处境相似的组织走过的路</strong>:他们怎么应对类似局面?达成了什么?策略是什么?表现如何?把这些当作搭建自己蓝图的"垫脚石
+(stepping stone)"。</p>
+<p>用第二种方法时,你做的事就叫
+<strong>benchmarking(对标)</strong>:<strong>遵循一个相似组织的推荐做法或现有做法,或者遵循某个行业制定的标准
+(industry-developed
+standard)</strong>。它的直觉很朴素——别人趟过的坑,你不必再趟一遍。</p>
+<h3 id="12-对标能做什么不能做什么关键区分">1.2
+对标能做什么、不能做什么(关键区分)</h3>
+<p>这里有一句<strong>讲师反复强调、极易考</strong>的话:</p>
+<blockquote>
+<p><strong>Benchmarking 能帮你确定"应该考虑<em>哪些</em>控制 (which
+controls)",但<em>无法</em>告诉你这些控制"该<em>怎么</em>实施 (how to
+implement)"。</strong></p>
+</blockquote>
+<p>为什么会有这个天花板?因为<strong>每个组织都是独一无二的</strong>。对一家公司行之有效的做法,未必精确适合另一家;所以现实中你常常需要<strong>从好几个公认实践里各取一部分</strong>,再改造
+(modify / adapt)
+成自己的版本。对标给你的是"清单方向",不是"施工说明"。把这一点记牢,后面讲
+baselining 和 limitations 时会反复呼应。</p>
+<blockquote>
+<p>🔑 <strong>一句话记忆</strong> — Benchmarking 回答
+<strong>"WHICH"(选哪些控制)</strong>,不回答
+<strong>"HOW"(怎么落地)</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="2-两大类-benchmark">2. 两大类 benchmark</h2>
+<p>在信息安全里,benchmark
+分成<strong>两大类别</strong>——别混淆,这是常考的分类题:</p>
+<pre class="mermaid"><code>graph TD
+  BM[&quot;Benchmarks&lt;br/&gt;(两大类别)&quot;] --&gt; C1[&quot;类别一&lt;br/&gt;Due Care + Due Diligence&lt;br/&gt;(应尽关注 + 尽职审慎)&quot;]
+  BM --&gt; C2[&quot;类别二&lt;br/&gt;Best / Recommended Practices&lt;br/&gt;(最佳 / 推荐实践)&quot;]
+  C2 --&gt; G[&quot;子类:Gold Standard&lt;br/&gt;(金标准 = 业界&#39;最强中的最强&#39;)&quot;]
+  style C1 fill:#e8eef7
+  style C2 fill:#dfeede
+  style G fill:#f7ecd9</code></pre>
+<p>注意讲师特意提醒的两个"组队"关系:<strong>due care 和 due diligence
+合起来算一类</strong>;<strong>best practices / recommended
+practices(也叫 best security
+practices)算另一类</strong>,其中"最最顶尖、被公认为'best of the
+best'"的那一小撮,有个专名叫 <strong>gold
+standard(金标准)</strong>。下面分别讲透。</p>
+<h3 id="21-类别一due-care-与-due-diligence--法律自保的最低线">2.1
+类别一:Due Care 与 Due Diligence —— 法律自保的最低线</h3>
+<p>先说<strong>为什么会有这一类</strong>。出于法律原因,某些组织(尤其是掌握客户/患者敏感信息的行业:<strong>医疗、银行、法律、以及任何处理个人数据的领域</strong>)被<strong>强制要求达到一个法定的最低安全水平</strong>。一旦将来出事打官司,组织需要拿出证据,证明自己**"做了任何一个审慎的组织
+(any prudent organization)
+在类似处境下都会做的事"**。这条"审慎组织都会做"的最低线,就是
+<strong>standard of due care(应尽关注标准)</strong>。</p>
+<p>那 <strong>due diligence</strong>
+又是什么?讲师把两者的差别讲得很清楚,用一句话锁死:</p>
+<blockquote>
+<p><strong>Due care 是"采用"了最低安全水平;due diligence
+是"实施并<em>持续维护</em>"这些控制,确保它们在一段时间内<em>持续</em>提供所需的保护。</strong></p>
+</blockquote>
+<p>换句话说:</p>
+<ul>
+<li><strong>Due care(应尽关注)</strong> —— 你<strong>采纳
+(adopt)</strong> 了那个最低标准。回答的是"你有没有装上该装的东西"。</li>
+<li><strong>Due diligence(尽职审慎)</strong> —— 你<strong>实施
+(implement) 并维护 (maintain)</strong>
+这些控制,并保证它们<strong>在持续地、长期地</strong>起作用。回答的是"你有没有让它一直好用"。</li>
+</ul>
+<p>为什么这个区分重要?因为<strong>法律后果</strong>:<strong>一旦组织未能确立并维持
+due care 与 due diligence,且能被证明在信息保护上存在过失
+(negligent),它就会暴露在法律责任 (legal liability) 之下。</strong>
+装了防护但任其失效,和从没装过,在法庭上可能同样糟糕。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 一个生活化类比:<strong>due
+care</strong>
+像是你给家里装了烟雾报警器(达到了"审慎住户都会做"的最低线);<strong>due
+diligence</strong>
+则是你每隔几个月检查一次、按时换电池(持续维护,确保它真出事时能响)。只装不管,失火时报警器没电,你依然算"过失"。</p>
+</blockquote>
+<blockquote>
+<p>🔑 <strong>例</strong> —
+一家医院按法规为患者电子病历部署了加密和访问控制(<strong>due
+care</strong>)。但三年里从未更新过加密算法、也没复查过谁还留着访问权限。某天一名早已离职的员工凭旧账号导走了病历——医院虽"装了"控制,却没"维护"控制,<strong>未尽
+due diligence</strong>,在诉讼中被判存在过失。</p>
+</blockquote>
+<p>讲师还补了一句很实际的话:一个组织的信息安全环境通常<strong>庞大而复杂</strong>,不可能一次性在所有类别都上到推荐实践的最高水平,有些组织甚至财力上做不到。所以<strong>与其在一个领域砸钱堆出"最先进"、却让其他领域裸奔</strong>,不如<strong>先确保所有领域都达到一个合理的安全水平</strong>,保护好信息资产之后,再逐个领域往最高标准提升。这正是
+due care(全面达标)优先于 best practice(单点拔尖)的逻辑。</p>
+<h3 id="22-类别二best--recommended-practices--追求卓越">2.2 类别二:Best
+/ Recommended Practices —— 追求卓越</h3>
+<p>如果说 due care 是"地板"(法律最低线),那 <strong>best
+practices</strong> 就是"天花板"附近的东西。定义:</p>
+<ul>
+<li><strong>Recommended business practices(推荐业务实践)</strong> ——
+<strong>寻求在信息保护上提供<em>卓越</em> (superior)
+表现</strong>的安全努力。</li>
+<li><strong>Best security practices(最佳安全实践)</strong> ——
+那些<strong>被认为处于业界<em>最佳</em> (among the best in the
+industry)</strong> 的安全努力。</li>
+<li>两个词常被交替使用;而其中公认的"最强中的最强",就是前面说的
+<strong>gold standard</strong>。</li>
+</ul>
+<p>best practices
+的几个特征要记住:它们<strong>在"信息可访问性"和"充分保护"之间取得平衡</strong>(安全不能锁死业务),并<strong>体现财务上的责任感
+(fiscal
+responsibility)</strong>(不乱烧钱)。但讲师提醒一个常被忽略的点:<strong>采用了
+best practices
+的公司,未必在每个领域都做到最好</strong>——它可能只在某一个领域建立了极高质量的安全,其他领域只是达到了"保护所有信息所需的最低质量标准"。所以"best
+practice 公司"≠"样样第一"。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Due Care / Due Diligence</strong></th>
+<th><strong>Best / Recommended Practices</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>定位</td>
+<td>法律自保的<strong>最低线</strong>(地板)</td>
+<td>追求<strong>卓越表现</strong>(天花板)</td>
+</tr>
+<tr class="even">
+<td>驱动力</td>
+<td>法律责任、避免被判过失</td>
+<td>竞争优势、行业领先</td>
+</tr>
+<tr class="odd">
+<td>内部细分</td>
+<td>due care = 采纳最低标准</td>
+<td>best = 业界最佳水平</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>due diligence = 持续维护</td>
+<td>gold standard = "最强中的最强"</td>
+</tr>
+<tr class="odd">
+<td>覆盖</td>
+<td>强调<strong>所有领域都合理达标</strong></td>
+<td>可能只在<strong>个别领域</strong>拔尖</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="23-怎么挑6-个判断问题">2.3 怎么挑:6 个判断问题</h3>
+<p>选哪条推荐实践来落地,对很多组织都是个难题。讲师先区分两种处境:</p>
+<ul>
+<li><strong>受监管的行业</strong>(被法律、标准、政府或行业监督约束的)——<strong>必须</strong>满足相应的监管或行业指南,没得选。</li>
+<li><strong>其他组织</strong>——政府和行业指南是<strong>极好的信息来源</strong>,可以据此挑选适合自己的推荐实践。</li>
+</ul>
+<p>但"一条实践适合别人,不代表适合你"。讲师给出 6 个判断问题(slide
+10),核心就一句:<strong>这条实践来自的那个"目标组织 (target
+organization)",和你像不像?</strong></p>
+<pre class="mermaid"><code>graph TD
+  Q[&quot;这条 recommended practice&lt;br/&gt;适合我吗?&quot;] --&gt; Q1[&quot;① 你的组织像不像&lt;br/&gt;它的目标组织?&quot;]
+  Q --&gt; Q2[&quot;② 你和目标在&lt;br/&gt;同一行业吗?&quot;]
+  Q --&gt; Q3[&quot;③ 你面临的挑战&lt;br/&gt;和目标相似吗?&quot;]
+  Q --&gt; Q4[&quot;④ 组织结构&lt;br/&gt;相似吗?&quot;]
+  Q --&gt; Q5[&quot;⑤ 你能投入的资源&lt;br/&gt;够它要求的吗?&quot;]
+  Q --&gt; Q6[&quot;⑥ 威胁环境&lt;br/&gt;相似吗?&quot;]
+  style Q fill:#f7ecd9</code></pre>
+<p>讲师对每一条都给了直觉,值得记:</p>
+<ol type="1">
+<li><strong>像不像目标组织?</strong> ——
+一条推荐实践只有在"你的组织和它来源的组织相似"时才有意义。</li>
+<li><strong>同行业吗?</strong> ——
+在制造业很灵的策略,搬到非营利组织或零售业可能毫无用处。</li>
+<li><strong>挑战相似吗?</strong> ——
+如果你连一个能运转的信息安全计划都还没有,而某条实践默认"你已经有了",那它对你不适用。</li>
+<li><strong>结构相似吗?</strong> ——
+为"高度集中的风险管理架构"设计的实践,不适合一个用"松散联邦式单元"做风险管理的组织。</li>
+<li><strong>资源够吗?</strong> ——
+一条要求的资金超出你承受能力的实践,价值非常有限。</li>
+<li><strong>威胁环境相似吗?</strong> ——
+很多年代久远、已经过时的推荐实践(讲师举例:过去几十年针对网络/互联网连接的不少做法)根本应付不了当前的威胁环境。</li>
+</ol>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 讲师顺带点了一句行业现实:在
+AI
+辅助搜索工具时代,<strong>"找到"安全设计信息已经是最容易的部分</strong>;难的是<strong>从海量信息里筛选
+(sorting
+through)</strong>,这要耗费的不只是时间,还有人力。最终目标不是抄一条实践,而是<strong>得到一套方法论
+(methodology)</strong>,据此搭出契合你具体处境的
+framework,再发展成包含策略、教育培训、技术控制的 blueprint。</p>
+</blockquote>
+<h3 id="24-对标的三大局限常考">2.4 对标的三大局限(常考)</h3>
+<p>讲师明确列了 benchmarking 的三个固有问题,务必记住:</p>
+<pre class="mermaid"><code>graph LR
+  L1[&quot;局限一&lt;br/&gt;组织间不交流&quot;] --&gt; R1[&quot;攻击被视为&#39;失败&#39;,&lt;br/&gt;能瞒就瞒 → 行业学不到教训&quot;]
+  L2[&quot;局限二&lt;br/&gt;没有两个组织完全相同&quot;] --&gt; R2[&quot;规模/构成/管理哲学/文化/&lt;br/&gt;技术基础/安全预算 都可能天差地别&quot;]
+  L3[&quot;局限三&lt;br/&gt;推荐实践是&#39;移动靶&#39;&quot;] --&gt; R3[&quot;几年前发生的事,&lt;br/&gt;不一定告诉你下一步该做什么&quot;]
+  style L1 fill:#f3e1ef
+  style L2 fill:#f3e1ef
+  style L3 fill:#f3e1ef</code></pre>
+<ol type="1">
+<li><strong>最大的障碍:组织之间不互相交流。</strong>
+一次成功的攻击,往往被组织视为<strong>自身的失败 (organizational
+failure)</strong>,出于在市场和利益相关者面前的形象考虑,能瞒就瞒。结果是<strong>整个行业一起受损</strong>——宝贵的教训没被记录、没被传播、没被评估。讲师也给了缓解之道:越来越多安全管理员加入
+<strong>ISSA、ISACA</strong>
+这样的专业协会与社团,在不公开身份的前提下分享经历;行业组织也赞助"信息共享"活动;还有人在安全期刊上<strong>匿名发表</strong>事件的"精华版"(隐去能识别身份的细节)。这种"<strong>发表经验教训
+(publication of lessons
+learned)</strong>"是对"面对面直接对话"的一种替代。</li>
+<li><strong>没有两个组织完全相同。</strong>
+哪怕在同一市场提供同类产品/服务的两家公司,也可能在<strong>规模、构成、管理哲学、组织文化、技术基础设施、安全预算</strong>上差异巨大。讲师点出关键:<strong>安全在本质上是一个管理与人的问题,而非纯技术问题</strong>——如果它只是技术问题,把别处成功的技术照搬过来就能解决,但事实并非如此,影响安全的变量在任意两家组织之间都可能天差地别。所以组织最该向同行求取的,是<strong>能帮自己作战略判断的教训</strong>,而不是"该上哪个具体技术"。</li>
+<li><strong>推荐实践是一个移动靶 (moving target)。</strong>
+它在不断演化。<strong>知道几年前发生了什么,不一定告诉你下一步该做什么。</strong>
+没错,不为过去的攻击做准备的人会再次挨打;但<strong>只防住过去,也保护不了你面对未来。</strong>
+所以安全计划必须持续更新,纳入新的威胁、新的方法技术、新的策略指南、新的教育培训手段和新技术。</li>
+</ol>
+<hr />
+<h2 id="3-baselining和过去的自己比">3. Baselining:和过去的自己比</h2>
+<p>讲完"和别人比",自然引出一个相关却不同的概念:<strong>baselining(基线化)</strong>——<strong>和过去的自己比,或和一个内部设定的标准比</strong>。</p>
+<p><strong>Baseline(基线)</strong> 是某个<strong>性能度量 (performance
+metric)</strong> 的一个<strong>值或剖面 (a value or
+profile)</strong>,用来作为<strong>对照基准</strong>,衡量这个度量后来发生的变化。讲师给了一个贯穿全节的例子:<strong>一个组织每周经历的外部攻击次数</strong>。</p>
+<blockquote>
+<p>🔑 <strong>例(讲师贯穿全节的例子)</strong> —
+组织先用一段时间统计每周外部攻击的次数,算出一个<strong>每周平均值</strong>,把它定为<strong>初始基线
+(initial
+baseline)</strong>。这个值成为日后所有度量的<strong>参照点</strong>。往后,组织把"当前每周攻击数"和这个基线比:数字在涨还是在跌?进而看出自己的安全努力到底<strong>起了什么作用</strong>。</p>
+</blockquote>
+<p>所以一句话:<strong>baselining
+就是"对照一个已确立的内部值/标准来度量"的过程。</strong>
+在信息安全里,对安全活动和安全事件做基线度量,目的就是把组织<strong>当前的安全表现</strong>,和它<strong>过去的表现</strong>、或<strong>设定为目标的表现水平</strong>做对比。讲师补了一个很实用的衔接点:<strong>组织第一次风险评估
+(initial risk assessment)
+收集到的信息,往往就成为日后比较的基线</strong>;而且 baselining
+<strong>可以为"内部对标 (internal
+benchmarking)"提供基础</strong>——和别人比是外部对标,和自己的历史比就是内部对标。</p>
+<pre class="mermaid"><code>graph LR
+  RA[&quot;首次风险评估&lt;br/&gt;Initial Risk Assessment&quot;] --&gt;|采集数据| BASE[&quot;建立基线 Baseline&lt;br/&gt;(如:每周攻击平均值)&quot;]
+  BASE --&gt;|日后对照| NOW[&quot;当前表现&quot;]
+  NOW --&gt; J{&quot;在涨还是在跌?&lt;br/&gt;安全努力起作用了吗?&quot;}
+  BASE -.提供基础.-&gt; IB[&quot;内部对标&lt;br/&gt;Internal Benchmarking&quot;]
+  style BASE fill:#f7ecd9</code></pre>
+<h3 id="31-自评-12-问people--processes--technology">3.1 自评 12
+问:people / processes / technology</h3>
+<p>讲师介绍了一份很实用的"基线自评"工具:<strong>12
+个自评问题,分成三组——people(人员)、processes(流程)、technology(技术)</strong>。这三组<strong>大致(loosely)对应</strong>上周讲过的
+NIST
+三大领域:<strong>managerial(管理)、operational(运营)、technical(技术)</strong>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 讲师提到这 12 个问题最初由
+<strong>Gartner Group</strong> 总结。Gartner 是面向 IT
+行业企业的研究与咨询服务提供商,帮组织制定技术战略、规划与预算并选型。</p>
+</blockquote>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>组别 (≈ NIST 领域)</th>
+<th>自评问题(回答"是/否"来暴露差距)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>People</strong>(人员,≈ managerial)</td>
+<td>• 对所有能接触敏感数据/区域/接入点的员工做背景调查了吗?<br>•
+普通员工<strong>认得出</strong>一个安全问题吗?<br>•
+他们<strong>会选择上报</strong>吗?<br>•
+他们<strong>知道</strong>该向哪些正确的人上报吗?</td>
+</tr>
+<tr class="even">
+<td><strong>Processes</strong>(流程,≈ operational)</td>
+<td>•
+企业安全策略<strong>至少每年更新</strong>、员工就变更受过教育、且被<strong>一致地强制执行</strong>吗?<br>•
+企业有没有遵循<strong>补丁/更新管理与评估流程</strong>来排序和处置新漏洞?<br>•
+离职员工的账号在<strong>离职时被立即删除</strong>了吗?<br>•
+新项目的<strong>整个生命周期各阶段</strong>都有安全组代表参与吗?</td>
+</tr>
+<tr class="odd">
+<td><strong>Technology</strong>(技术,≈ technical)</td>
+<td>•
+<strong>每一条</strong>通往互联网的路径都被一台<strong>正确配置的防火墙</strong>保护了吗?<br>•
+笔记本和远程系统上的敏感数据<strong>加密</strong>了吗?<br>•
+你<strong>定期用漏洞分析工具</strong>扫描系统和网络找暴露面吗?<br>•
+所有工作站和服务器都部署了<strong>恶意软件扫描工具</strong>吗?</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+讲师提到,技术组里的"防火墙"和"加密"会在**接下来两讲的保护机制(protection
+mechanisms)**里详细展开——这里先埋个伏笔。</p>
+</blockquote>
+<hr />
+<h2 id="4-performance-measurement把好不好变成数字">4. Performance
+Measurement:把"好不好"变成数字</h2>
+<p>和别人比、和自己比之后,最硬核的一步来了:<strong>把信息安全的成本、收益、表现真正度量出来。</strong></p>
+<h3 id="41-它真的可以被度量破除迷思">4.1 它真的可以被度量(破除迷思)</h3>
+<p>讲师先破除一个常见迷思:<strong>一些 CISO
+声称信息安全的成本、收益和表现"几乎无法度量"。这是错的——只要遵循一套扎实、可靠的方法论,它们是可度量的。</strong>
+高管经常逼问 CISO
+三个问题:"这个安全控制要花多少钱?""它管用吗?",甚至更刺耳的"为什么这套控制不管用?"。要回答这些,就必须<strong>设计并持续运行一个基于有效绩效指标
+(effective performance metrics) 的信息安全绩效管理程序</strong>。</p>
+<h3 id="42-定义与三类度量">4.2 定义与三类度量</h3>
+<p><strong>InfoSec performance management(信息安全绩效管理)</strong>
+的定义要背准:</p>
+<blockquote>
+<p><strong>设计、实施并管理"所收集的数据元素(称为 measurements 或
+metrics)"之使用,以确定整个安全计划的有效性 (effectiveness)
+的过程。</strong></p>
+</blockquote>
+<p>而 <strong>performance measurements(绩效度量)</strong>
+本身,是<strong>指示安全对策或控制(无论技术的还是管理的)是否有效的数据点
+(data points),或由这些数据计算出来的趋势 (computed
+trends)</strong>。它的用途是支撑管理决策:增强问责、提升 InfoSec
+职能的有效性,并通过对关键绩效数据的收集、分析与汇报,帮组织把 InfoSec
+的表现与目标,和<strong>组织整体使命 (mission)</strong> 对齐。</p>
+<p>组织通常用<strong>三类度量</strong>(常考的分类,务必记牢):</p>
+<pre class="mermaid"><code>graph TD
+  T[&quot;三类 InfoSec 度量&quot;] --&gt; T1[&quot;① 策略执行的有效性&lt;br/&gt;effectiveness of executing&lt;br/&gt;infosec policy(最常见是 ISSP)&quot;]
+  T --&gt; T2[&quot;② 服务交付的有效性/效率&lt;br/&gt;effectiveness &amp;/or efficiency&lt;br/&gt;of delivering infosec services&quot;]
+  T --&gt; T3[&quot;③ 事件的影响&lt;br/&gt;impact of an incident /&lt;br/&gt;security event on org &amp; mission&quot;]
+  style T1 fill:#e8eef7
+  style T2 fill:#dfeede
+  style T3 fill:#f3e1ef</code></pre>
+<ol type="1">
+<li><strong>度量"信息安全策略执行的有效性"</strong> —— 最常见的是针对
+<strong>ISSP(issue-specific security policies,议题专项安全策略)</strong>
+的执行情况。</li>
+<li><strong>度量"信息安全服务交付的有效性和/或效率"</strong> ——
+既包括<strong>管理类服务</strong>(如安全培训),也包括<strong>技术类服务</strong>(如安装杀毒软件)。</li>
+<li><strong>度量"某次事件或安全事件对组织及其使命的影响"</strong>。</li>
+</ol>
+<h3 id="43-nist-sp-800-55-r1度量计划的指导文件">4.3 NIST SP 800-55
+R1:度量计划的指导文件</h3>
+<p>本章反复引用的主参考文件是 <strong>NIST SP 800-55 Revision
+1,《Performance Measurement Guide for Information
+Security》</strong>。讲师解释了为什么:在今天受监管的环境里,<strong>光"声称"自己安全已经不够了</strong>——组织必须<strong>用文档证明</strong>自己采取了有效步骤来控制风险,以此记录自己的
+due diligence。</p>
+<p>该文件给了两组要记的清单:</p>
+<p><strong>(a) 开发与实施度量计划时必须考虑的因素(slide
+19):</strong></p>
+<ul>
+<li>度量必须产出<strong>可量化信息 (quantifiable
+information)</strong>——百分比、平均值、数字。</li>
+<li>支撑度量的<strong>数据必须容易获得 (readily
+obtainable)</strong>。</li>
+<li><strong>只有可重复的 (repeatable)</strong>
+信息安全流程才应被纳入度量。</li>
+<li>度量必须<strong>对追踪绩效、引导资源投放有用</strong>。</li>
+</ul>
+<p><strong>(b) 度量计划成功的 4 个关键因素(slide 20):</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>成功因素</th>
+<th>讲师的解释</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>① <strong>强有力的高层管理支持</strong></td>
+<td>不只对计划成功关键,对计划的<strong>实施</strong>也关键。</td>
+</tr>
+<tr class="even">
+<td>② <strong>务实的安全策略与流程</strong></td>
+<td>应明确 InfoSec
+管理结构、界定关键职责,为可靠度量进度与合规打基础。</td>
+</tr>
+<tr class="odd">
+<td>③ <strong>可量化的绩效度量</strong></td>
+<td>基于 InfoSec 绩效目标设计,数据应易获得、可实施。</td>
+</tr>
+<tr class="even">
+<td>④ <strong>结果导向的度量分析</strong></td>
+<td>把经验教训用于改进现有控制、规划未来控制以应对新需求。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="44-metrics-还是-measurements以及-kovacich-的-wh-问题">4.4
+Metrics 还是 Measurements?以及 Kovacich 的 WH 问题</h3>
+<p>讲师澄清了两个常被混用的词:</p>
+<ul>
+<li><strong>Metrics(指标)</strong> ——
+把<strong>统计与定量的数学分析方法</strong>,应用到"度量 InfoSec
+计划的活动与结果"这件事上;通常指<strong>更细粒度、更详细的度量</strong>。</li>
+<li><strong>Measurements(度量)</strong> ——
+指<strong>聚合的、更高层级的结果</strong>。</li>
+</ul>
+<p>很多组织里两者<strong>可互换使用</strong>;在本课程里也当作可互换。</p>
+<p>在开始<strong>设计、收集、使用</strong>度量之前,CISO
+应当能回答一组关键问题。讲师引用了 <strong>Gerald Kovacich</strong>
+在《The Information Systems Security Officer's
+Guide》里提出的问题——本质就是一组 <strong>WH 问题</strong>:</p>
+<pre class="mermaid"><code>mindmap
+  root((收集统计前&lt;br/&gt;CISO 必答&lt;br/&gt;WH 问题))
+    Why 为什么要收集?
+    What 收集哪些具体统计?
+    How 怎么收集?
+    When 什么时候收集?
+    Who 谁来收集?
+    Where 在流程的哪个点收集?</code></pre>
+<p>记忆法:<strong>Why / What / How / When / Who / Where
+——"为什么、收什么、怎么收、何时收、谁来收、在哪收"。</strong>
+讲师强调:一旦"<strong>测什么 (what)</strong>"定了,剩下的 <strong>how /
+when / where / who</strong> 才需要逐一解决。</p>
+<h3 id="45-搭建度量计划价值cmmi与-nist-的两大活动">4.5
+搭建度量计划:价值、CMMI、与 NIST 的两大活动</h3>
+<p>一个度量计划必须能<strong>向组织证明自身价值</strong>。按 SP 800-55
+Rev 1,使用 InfoSec 绩效度量的<strong>好处</strong>包括:</p>
+<ul>
+<li>增强 InfoSec 绩效的<strong>问责性 (accountability)</strong>;</li>
+<li>提升 InfoSec 活动的<strong>有效性</strong>;</li>
+<li><strong>证明对法律、规则、法规的合规</strong>;</li>
+<li>为<strong>资源分配决策</strong>提供可量化的输入。</li>
+</ul>
+<p>支撑"过程改进与绩效度量"的著名参考之一是 <strong>CMMI</strong>:</p>
+<blockquote>
+<p><strong>CMMI = Capability Maturity Model
+Integration(能力成熟度模型集成)</strong>。它是一个过程级的改进、培训与评估项目;参考出版物是《CMMI
+Distilled》;由 <strong>CMMI Institute</strong> 管理(该机构是
+<strong>ISACA 的子公司</strong>);最初在
+<strong>CMU(卡内基梅隆大学)</strong> 开发。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 讲师顺带重温了
+<strong>ISACA</strong>:一个聚焦 <strong>IT 治理 (IT governance)</strong>
+的国际专业协会,提供大量信息技术治理与信息安全方向的认证项目。CMMI
+Institute 是它的子公司——把这条关系记住,考点经常把 CMMI、CMMI
+Institute、ISACA、CMU 串在一起。</p>
+</blockquote>
+<p>另一个本课<strong>重点引用</strong>的方法,就是 <strong>NIST SP 800-55
+Rev 1</strong> 本身。它的度量开发流程分<strong>两大活动</strong>:</p>
+<ol type="1">
+<li><strong>识别并定义当前的 InfoSec 计划</strong>(现状盘点);</li>
+<li><strong>开发并选择具体度量</strong>,用以衡量安全控制的<strong>实施
+(implementation)、有效性 (effectiveness)、效率 (efficiency) 与影响
+(impact)</strong>。</li>
+</ol>
+<h3 id="46-指定度量specifying">4.6 指定度量(Specifying)</h3>
+<p>度量过程里<strong>最关键的任务之一,是评估并量化"要测什么"</strong>。讲师区分了两种工作量:</p>
+<ul>
+<li><strong>InfoSec 的规划与组织活动</strong> ——
+可能只需要<strong>时间估算 (time estimates)</strong>。</li>
+<li><strong>评估"生产任务/项目任务"投入的努力</strong> ——
+需要<strong>更细的度量</strong>,这通常意味着某种<strong>时间报告系统
+(time reporting system)</strong>,纸质或自动化皆可。</li>
+</ul>
+<p>从生产统计里收集的度量,<strong>很大程度上取决于系统数量和这些系统的用户数量</strong>——系统或用户一变,维持同等服务水平所需的努力也会变。有的组织只追踪这两个值;有的需要更细的度量,例如:<strong>新增用户数、访问控制变更数、被移除/重新授权的用户数、访问控制违规数、安全意识简报场次、按类别统计的事件数、被防火墙过滤/拦截的恶意代码实例数</strong>等等。讲师也提醒:<strong>光是数清生产环境里有多少计算系统,本身可能就是一项耗时的工程。</strong></p>
+<h3 id="47-收集度量collecting四个子决策">4.7
+收集度量(Collecting):四个子决策</h3>
+<p>"测什么"答完之后,<strong>how / when / where / who</strong>
+就该上场了。讲师把"收集"环节拆成四个要点:</p>
+<pre class="mermaid"><code>graph TD
+  C[&quot;收集 InfoSec 度量&quot;] --&gt; A[&quot;① 开发取向&lt;br/&gt;Macro vs Micro&quot;]
+  C --&gt; B[&quot;② 优先级排序与选择&lt;br/&gt;Prioritization &amp; Selection&quot;]
+  C --&gt; D[&quot;③ 设定绩效目标&lt;br/&gt;Performance Targets&quot;]
+  C --&gt; E[&quot;④ 开发模板&lt;br/&gt;Development Template&quot;]
+  style C fill:#f7ecd9</code></pre>
+<p><strong>① Macro-focus vs Micro-focus(宏观 vs 微观取向)。</strong>
+建程序时的首要优先事项之一,是决定度量是宏观还是微观聚焦:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Macro-focus(宏观)</strong></th>
+<th><strong>Micro-focus(微观)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>关注对象</td>
+<td><strong>整个安全计划</strong>的整体表现</td>
+<td><strong>单个控制</strong>或一组控制的表现</td>
+</tr>
+<tr class="even">
+<td>用途</td>
+<td>看大局是否健康</td>
+<td>看某个具体控制好不好</td>
+</tr>
+</tbody>
+</table></div>
+<p>也可以在一次有限评估里<strong>同时用宏观和微观</strong>度量。讲师强调一句话:<strong>度量必须明确绑定到组织具体的
+InfoSec
+目标与目的上</strong>——只为"收集数据"而收集数据,纯属浪费宝贵资源;度量计划应由组织的<strong>具体需求</strong>驱动,而不是任何单个经理的一时兴起。</p>
+<p><strong>② Prioritization &amp; Selection(优先级排序与选择)。</strong>
+因为"<strong>能度量什么,才管理得好什么</strong>",所以单个指标的优先级,应当和它所度量的流程的优先级<strong>保持一致</strong>。做法可以是:简单的
+<strong>low / medium / high 三档排序</strong>,或更精细的<strong>加权打分
+(weighted scale)</strong>——按每个度量在整体 InfoSec
+计划中的重要性、整体风险缓解目标、以及系统的关键程度来赋值。可用的度量有成百上千,但<strong>只有那些与适当优先级活动相关的,才应被纳入</strong>——因为开发、实施、收集、分析、汇报数据的人力资源总是有限的。</p>
+<p><strong>③ Establishing Performance Targets(设定绩效目标)。</strong>
+绩效目标让"安全计划成功"有了可定义的标准。讲师给了一组对照鲜明的例子:</p>
+<blockquote>
+<p>🔑 <strong>例(易测 vs 难测)</strong> — <strong>容易测的:</strong>
+"100% 员工完成 InfoSec
+培训"——你只需记录哪些员工受训了,数一下人数、算个百分比即可。许多 InfoSec
+度量目标都设成 <strong>100%
+这个目标值</strong>。<strong>难测的:</strong>
+"装了防火墙之后,组织信息的安全性<em>相对提升</em>了多少?"——这种衡量相对有效性/效率/影响的度量,<strong>主观得多,需要管理层来评估</strong>其目的与价值,无法像数考勤一样简单量化。</p>
+</blockquote>
+<p>这个对照恰恰点出信息安全绩效度量的一个<strong>根本难题:到底怎么定义"有效的安全"?什么时候才算
+InfoSec 是有效的?</strong>
+讲师坦言研究者至今没有定论:有人主张"成功避免损失"就是最好的度量,但反方说<strong>避免损失可能只是运气或其他非程序因素</strong>,任何有效的度量都必须是<strong>可证明的
+(provable)</strong>。这个两难尚未被完全解决。</p>
+<p><strong>④ Measurements Development Template(度量开发模板)。</strong>
+NIST
+建议<strong>用标准化格式记录绩效度量</strong>,以确保度量的开发、定制、收集、汇报活动<strong>可重复
+(repeatable)</strong>。一个常见做法,就是开发一份<strong>自定义模板</strong>来记录将要使用的绩效度量。讲师还指出
+slide 32 给了一张<strong>候选度量 (candidate measurements)</strong>
+示例表,例如:"投入 InfoSec
+的预算占组织信息系统预算的百分比""被授权外人成功获取未授权访问的远程接入点百分比""在组织规定时限内修复的漏洞百分比""完成年度应急计划测试的系统百分比"等等——<strong>它们的共同点就是'可量化'</strong>;具体如何计算与使用,详见
+NIST SP 800-55 Rev 1。</p>
+<h3 id="48-实施implementingnist-的-6-阶段流程">4.8
+实施(Implementing):NIST 的 6 阶段流程</h3>
+<p>度量一旦开发出来,就必须被<strong>实施并整合进日常的 InfoSec
+管理运营</strong>。讲师强调一个原则:<strong>绝大多数度量不能"只收集一次"就完事</strong>——它是<strong>持续的、不断改进的运营</strong>,所有度量数据的收集都应成为全组织的<strong>标准操作流程
+(SOP)</strong>
+的一部分。(<strong>例外</strong>:少数活动只需一次性收集,比如做正式成本-收益分析时识别成本,或
+C&amp;A
+场景——讲师举例:员工入职时收集一次证书与资质即可,不必每年再问一遍。)</p>
+<p>按 SP 800-55 Rev 1,绩效度量的实施是一个<strong>6
+阶段流程</strong>(对应 slide 34 的 Figure 7-2):</p>
+<pre class="mermaid"><code>graph LR
+  P1[&quot;① 准备数据收集&lt;br/&gt;识别/定义/开发/选择度量&quot;] --&gt; P2[&quot;② 收集数据并分析&lt;br/&gt;聚合、整合,与目标对比&quot;]
+  P2 --&gt; P3[&quot;③ 识别纠正措施&lt;br/&gt;制定路线图、排序、选最优&quot;]
+  P3 --&gt; P4[&quot;④ 开发商业论证&lt;br/&gt;Business Case&quot;]
+  P4 --&gt; P5[&quot;⑤ 获取资源&lt;br/&gt;走预算周期、拿到资源&quot;]
+  P5 --&gt; P6[&quot;⑥ 应用纠正措施&lt;br/&gt;实施补救、闭合差距&quot;]
+  P6 -.持续改进.-&gt; P1
+  style P1 fill:#e8eef7
+  style P6 fill:#dfeede</code></pre>
+<p>逐阶段(讲师口述):①<strong>准备收集</strong>——识别、定义、开发、选择度量;②<strong>收集并分析结果</strong>——收集、聚合、整合度量数据,把度量与目标对比;③<strong>识别纠正措施</strong>——制定路线图来闭合阶段②发现的差距,确定纠正措施的排序(按整体风险缓解目标排优先级)并选出最合适的;④<strong>开发商业论证
+(business
+case)</strong>;⑤<strong>获取资源</strong>——走预算周期,拿到实施阶段③补救措施所需的资源;⑥<strong>应用纠正措施</strong>——在安全计划或控制中落地推荐的纠正措施,真正闭合差距。然后回到①,<strong>形成持续改进的闭环</strong>。</p>
+<h3 id="49-汇报reporting数字要有上下文">4.9
+汇报(Reporting):数字要有上下文</h3>
+<p>最后一环是<strong>汇报</strong>。讲师的核心观点:<strong>单纯把收集到的度量列出来,往往无法传达它的意义。</strong></p>
+<blockquote>
+<p>🔑 <strong>例</strong> —
+一张"每天恶意代码攻击次数"的折线图,只能传达一个基本事实。但如果汇报机制不能提供<strong>上下文
+(context)</strong>——比如同期互联网上<strong>新出现的恶意代码变种数量</strong>——那这个度量就达不到它本来的目的(你不知道攻击变多是因为你更脆弱,还是因为全网威胁本来就在激增)。</p>
+</blockquote>
+<p>因此汇报时要做两类决策:<strong>(1)</strong>
+相关联的指标<strong>怎么呈现</strong>——用饼图、折线图还是柱状图?用什么颜色代表什么结果?<strong>(2)</strong>
+CISO 还必须考虑:这些结果<strong>该发给谁 (to whom)、怎么递送 (how
+delivered)</strong>。讲师补充:CISO
+通常在与关键高管同僚的会议上汇报这类报告;<strong>很少建议把复杂、微妙的、基于指标的报告广播给一大群普通用户或外行</strong>——除非关键要点已被妥善铺垫、并嵌入更完整的上下文(如通讯稿或新闻发布)。</p>
+<hr />
+<h2 id="5-certification--accreditation请权威来背书">5. Certification
+&amp; Accreditation:请权威来背书</h2>
+<p>把安全"做好"并"量化"之后,还剩最后一块:<strong>让有权威的第三方认可你确实达标。</strong>
+这就是 <strong>C&amp;A(certification and accreditation)</strong>。</p>
+<h3 id="51-两个词的精确定义极易混淆">5.1 两个词的精确定义(极易混淆)</h3>
+<pre class="mermaid"><code>graph LR
+  CERT[&quot;Certification(认证)&lt;br/&gt;对系统的技术 + 非技术保护策略&lt;br/&gt;做一次&lt;b&gt;全面评估&lt;/b&gt;,&lt;br/&gt;看它是否满足某套特定要求&quot;] --&gt;|先认证| ACC[&quot;Accreditation(认可)&lt;br/&gt;由管理官员&lt;b&gt;授权&lt;/b&gt;一个 IT 系统&lt;br/&gt;去处理/存储/传输信息,&lt;br/&gt;担保其质量足够&quot;]
+  style CERT fill:#dfeede
+  style ACC fill:#e8eef7</code></pre>
+<ul>
+<li><strong>Accreditation(认可)</strong> —— <strong>授权 (authorization)
+一个 IT 系统去处理、存储或传输信息</strong>。它由<strong>管理官员
+(management official)</strong>
+签发,作为"系统质量足够好"的担保手段,并促使管理者和技术人员在给定的技术约束、运营约束和使命要求下,找出确保安全的最佳方法。<strong>——注意:认可是"批准上线"的那个动作。</strong></li>
+<li><strong>Certification(认证)</strong> ——
+对某个特定系统的<strong>技术性与非技术性保护策略,做一次全面评估
+(comprehensive assessment)</strong>,看它是否满足某一套特定要求 (a
+particular set of requirements)。</li>
+</ul>
+<p>两者的关系:一个系统可以被<strong>认证</strong>为满足某套标准;但在被允许去处理某类特定信息(比如按数据分类方案划分的某级机密文档)之前,还必须由适当权威<strong>认可</strong>(批准),且要在可接受的风险水平下。组织追求
+C&amp;A,是为了<strong>赢得竞争优势,或向客户提供确据与信心</strong>。</p>
+<blockquote>
+<p>🔑 <strong>例(讲师的类比)</strong> — 你在 UOW
+拿到的学位也是被<strong>认可 (accredited)</strong> 的——由
+<strong>ACS(澳大利亚计算机协会)</strong>
+认可。这相当于一份"质量证据",而学校也努力达到 ACS
+所要求的标准。认可这件事到处都在发生,不止信息安全领域。</p>
+</blockquote>
+<h3 id="52-从-ca-到-rmf2009-年的转向">5.2 从 C&amp;A 到 RMF:2009
+年的转向</h3>
+<p>讲师讲了一段重要的历史脉络(这部分的"为什么"在 slide
+37,"是什么"在转写里补全):</p>
+<pre class="mermaid"><code>timeline
+  title C&amp;A 方法的演进
+  2009 之前 : 美国联邦信息系统&lt;br/&gt;按 OMB 要求必须做 C&amp;A&lt;br/&gt;(正式的认证与认可活动)
+  2009 : 美国政府通过 NIST&lt;br/&gt;根本性改变 C&amp;A 方法&lt;br/&gt;使政府与业界对齐
+  转向后 : 焦点从&quot;正式 C&amp;A 活动&quot;&lt;br/&gt;转为&quot;风险管理生命周期方法&quot;&lt;br/&gt;SP 800-37 Rev 1 → RMF</code></pre>
+<ul>
+<li><strong>2009 年之前</strong>,美国联邦信息系统(按美国管理与预算办公室
+OMB 的要求)<strong>必须做
+C&amp;A</strong>。无论由联邦机构还是私营企业执行,<strong>认可</strong>都意在证明:管理层已定义了一个可接受的风险水平,且所投入的资源能把风险降到该水平。</li>
+<li><strong>2009 年</strong>,美国政府通过 NIST
+<strong>根本性地改变了对联邦信息系统 C&amp;A
+的处理方式</strong>,使政府与业界<strong>对齐
+(alignment)</strong>。<strong>焦点从"正式的 C&amp;A
+活动",转向了"风险管理生命周期方法 (risk-management life cycle
+approach)"。</strong> 随着 <strong>NIST SP 800-37 Rev 1</strong>(《Guide
+for Applying the Risk Management
+Framework…》)的发布,做法转为一种**基于风险管理的"评估与授权 (assessment
+and authorization)"**过程——其背后很大程度上由 <strong>2002
+年的《联邦信息安全管理法案》(FISMA, Federal Information Security
+Management Act)</strong> 驱动。</li>
+</ul>
+<h3 id="53-rmf-六步讲师点名要记">5.3 RMF 六步(讲师点名要记)</h3>
+<p>由 SP 800-37 引出的统一框架叫 <strong>RMF(Risk Management
+Framework,风险管理框架)</strong>,它以 <strong>NIST SP
+800-39</strong>(《Managing Information Security
+Risk》)里的"安全生命周期"为核心,是一个<strong>六步循环</strong>:</p>
+<pre class="mermaid"><code>graph LR
+  S1[&quot;① Categorize 分类&lt;br/&gt;按影响分析对系统/信息分类&lt;br/&gt;FIPS 199 / SP 800-60&quot;] --&gt; S2[&quot;② Select 选择&lt;br/&gt;按分类选一套基线控制,&lt;br/&gt;按风险裁剪补充&quot;]
+  S2 --&gt; S3[&quot;③ Implement 实施&lt;br/&gt;部署控制,描述如何应用&quot;]
+  S3 --&gt; S4[&quot;④ Assess 评估&lt;br/&gt;用评估程序检验控制是否&lt;br/&gt;正确实施、按预期运行&quot;]
+  S4 --&gt; S5[&quot;⑤ Authorize 授权&lt;br/&gt;基于风险判定授权系统运行&lt;br/&gt;SP 800-37&quot;]
+  S5 --&gt; S6[&quot;⑥ Monitor 监控&lt;br/&gt;持续监控控制有效性、&lt;br/&gt;记录变更、报告安全状态&quot;]
+  S6 -.持续改进闭环.-&gt; S5
+  style S1 fill:#e8eef7
+  style S4 fill:#dfeede
+  style S5 fill:#dfeede
+  style S6 fill:#f3e1ef</code></pre>
+<p>记忆口诀:<strong>Categorize → Select → Implement → Assess → Authorize
+→ Monitor(分类 → 选择 → 实施 → 评估 → 授权 →
+监控)</strong>。逐步含义(讲师口述):</p>
+<ol type="1">
+<li><strong>Categorize(分类)</strong> ——
+基于影响分析,对信息系统及其处理/传输的信息进行分类(参考 FIPS 199、SP
+800-60)。</li>
+<li><strong>Select(选择)</strong> ——
+基于安全分类,为系统选一套初始的<strong>基线安全控制</strong>,再根据组织的风险评估与本地条件进行<strong>裁剪与补充
+(tailoring &amp; supplementing)</strong>。</li>
+<li><strong>Implement(实施)</strong> ——
+实施安全控制,并描述这些控制在系统及其运行环境中如何被应用。</li>
+<li><strong>Assess(评估)</strong> ——
+用适当的评估程序,判定控制被<strong>正确实施、按预期运行、并产生满足系统安全要求的预期结果</strong>的程度。</li>
+<li><strong>Authorize(授权)</strong> ——
+基于"系统运行对组织运营、个人、其他组织乃至国家造成的风险"的判定,以及"该风险可接受"的决定,授权系统运行(参考
+SP 800-37)。</li>
+<li><strong>Monitor(监控)</strong> ——
+持续监控安全控制,包括评估控制有效性、记录系统及其环境的变更、做安全影响分析、向指定官员报告系统安全状态。</li>
+</ol>
+<blockquote>
+<p>🔑 <strong>关键考点</strong> — <strong>RMF 的第④步 Assess 和第⑤步
+Authorize,正是取代了过去联邦信息系统所用的 certification 与
+accreditation(C&amp;A)。</strong> 可以理解为:assess ≈ 原来的
+certification,authorize ≈ 原来的 accreditation。</p>
+</blockquote>
+<h3 id="54-认可认证不是永久的">5.4 认可/认证不是永久的</h3>
+<p>最后一个重点:<strong>accreditation 和 certification
+都不是一劳永逸的</strong>——正如 due care 与 due diligence
+需要持续维护一样。大多数认可/认证流程都要求<strong>每隔几年重新认可或重新认证
+(re-accreditation / recertification),通常每 3–5 年一次</strong>。而像
+RMF 这样的方法<strong>被设计成遵循"持续改进 (continuous
+improvement)"</strong>——这正是为什么图里第⑥步 Monitor
+之后又回到第⑤步,形成闭环。讲师点出其用意:<strong>防止组织"为了过 C&amp;A
+周期猛冲一阵,过完就松懈,临近下个周期再临时抱佛脚"</strong>,从而避免周期之间出现安全空窗。</p>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>Benchmarking(对标)是"和别人比"</strong>:遵循相似组织的做法或行业标准。它能告诉你<strong>该考虑<em>哪些</em>控制
+(WHICH)</strong>,但<strong>无法告诉你怎么<em>实施</em>
+(HOW)</strong>——因为没有两个组织完全相同。</li>
+<li><strong>Benchmark 分两大类</strong>:<strong>①due
+care(采纳最低安全线)+ due
+diligence(实施并<em>持续维护</em>这些控制)</strong>,合为一类,是法律自保的地板,未尽则可能被判<strong>过失、承担法律责任</strong>;<strong>②best/recommended
+practices(追求卓越表现)</strong>,其顶尖者称 <strong>gold
+standard</strong>。</li>
+<li><strong>选推荐实践用 6
+个问题判断"目标组织和你像不像"</strong>(行业/挑战/结构/资源/威胁环境);对标有<strong>三大局限</strong>:组织间不交流(攻击被当失败隐瞒)、没有两家组织相同、推荐实践是不断演化的<strong>移动靶</strong>。</li>
+<li><strong>Baselining(基线化)是"和过去的自己比"</strong>:对照一个已确立的内部值(如每周攻击平均值)来度量;<strong>首次风险评估的数据常成为基线</strong>,并为<strong>内部对标</strong>提供基础。配套有
+<strong>12 题自评</strong>,分 <strong>people / processes /
+technology</strong> 三组(≈ NIST 管理/运营/技术)。</li>
+<li><strong>信息安全的成本、收益、表现<em>是</em>可度量的</strong>;<strong>InfoSec
+绩效管理 =
+设计/实施/管理"度量"的使用,以确定整个安全计划的有效性</strong>。有<strong>三类度量</strong>:策略执行有效性、服务交付有效性/效率、事件影响。</li>
+<li><strong>NIST SP 800-55 R1</strong>
+是主参考:度量须<strong>可量化、数据易得、流程可重复、对引导资源有用</strong>;<strong>4
+个成功要素</strong>=高层支持 + 务实策略流程 + 可量化度量 +
+结果导向分析。收集前 CISO 要答 Kovacich 的 <strong>WH
+问题(why/what/how/when/who/where)</strong>;<strong>CMMI</strong>(ISACA
+子公司管理、CMU 开发)是另一著名过程改进参考。</li>
+<li><strong>度量工作流</strong>:指定(测什么)→ 收集(macro 看全局 vs micro
+看单控;按 low/med/high 或加权排序;设目标,100%
+易测、相对有效性难测需管理层判断;用标准模板保证可重复)→ 实施(<strong>6
+阶段闭环</strong>:准备→收集分析→识别纠正→商业论证→获取资源→应用纠正)→
+汇报(<strong>数字必须配上下文</strong>,并决定发给谁、怎么发)。</li>
+<li><strong>Accreditation(认可)= 管理官员<em>授权</em>一个 IT
+系统去处理/存储/传输信息</strong>;<strong>Certification(认证)=
+对系统技术与非技术控制做<em>全面评估</em>,看是否满足某套要求</strong>。先认证、后认可。</li>
+<li><strong>2009 年起,美国联邦系统用 RMF 取代了传统 C&amp;A</strong>(由
+FISMA 2002 驱动、SP 800-37 引出、以 SP 800-39 为核心)。<strong>RMF
+六步:Categorize → Select → Implement → Assess → Authorize →
+Monitor</strong>;其中 <strong>Assess + Authorize 正是取代了
+certification +
+accreditation</strong>。认可/认证<strong>非永久</strong>,通常每
+<strong>3–5
+年</strong>重做一次,并被设计成<strong>持续改进</strong>的闭环。</li>
+</ul>
+<hr />
+<p><em>来源:CSIT988/CSIT488 Week 8 lecture slides(L08,41 张)与 Week 8
+课堂录音转写。标注 📎 的内容为超出 slides 的补充解释/讲师口头举例(如
+Gartner Group、ACS 认可学位的类比、ISACA 与 CMMI
+的关系等),用于建立直觉与背景;考试范围以 slides 为准。下一讲(L09–L10)进入
+risk management,会出现需要计算器的计算题。</em></p>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

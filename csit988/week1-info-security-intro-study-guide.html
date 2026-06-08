@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 1 · 信息安全导论与核心特性 (Introduction & Key Characteristics of Information Security)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-1--信息安全导论与核心特性-introduction--key-characteristics-of-information-security">Week
+1 · 信息安全导论与核心特性 (Introduction &amp; Key Characteristics of
+Information Security)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>解释为什么信息安全是"全员责任",并说出三个 <strong>communities of
+interest</strong> 各自的角色;</li>
+<li>区分 <strong>security</strong>、<strong>information security
+(InfoSec)</strong> 以及它的几个专门领域 (physical / operations /
+communications / cyber / network security);</li>
+<li>用 <strong>CNSS / McCumber Cube</strong>
+这个框架去审视一个安全方案,并判断一个三元组是不是模型里的一个"格子
+(cell)";</li>
+<li>准确定义并用例子区分 <strong>CIA</strong> 三要素 (confidentiality,
+integrity, availability);</li>
+<li>解释扩展特性 <strong>privacy</strong>,以及 <strong>IAAA</strong>
+四步链 (identification → authentication → authorization →
+accountability),并说清它们之间的因果关系;</li>
+<li>用恰当的术语回答 slide 19 的四道辨析题。</li>
+</ul>
+</blockquote>
+<p>本章对应 <strong>Lecture 01 — Introduction and
+Overview</strong>,是整门 <strong>CSIT988/488 Security, Ethics and
+Professionalism</strong>(教材:Whitman &amp; Mattord, <em>Management of
+Information Security</em>)的地基。整门课讲的是
+<strong>信息安全的"管理"</strong>——规划、策略、风险管理、保护机制、法律与伦理——而要管理一样东西,先得说清它到底是什么、由哪些部分组成、用什么语言去描述它的"好与坏"。这一章就是在搭这套语言:谁来负责安全(communities
+of interest)、安全到底指什么(security
+的定义与分类)、用什么框架去分析它(CNSS
+模型)、以及衡量"信息是否安全"的那些具体特性(CIA 加上 privacy 和
+IAAA)。后面每一讲都会反复用到这里的词。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+真实录音里,本讲前半段是"课程介绍"(评估方式、考试、Moodle 等),slides
+从"安全概念"才开始。本指南聚焦<strong>会进考试和作业的概念内容</strong>;评估安排请以
+subject outline 为准。只把对复习最关键的两点放在这:① <strong>assignment
+1 是 week 4 的 10 分钟在线小测 (quiz,
+5%)</strong>,讲师明确说"往年小测里出过 <strong>CNSS model</strong>
+的题";② <strong>期末考可带几页手写 A4 cheat
+sheet</strong>(张数稍后通知,约 3–5
+页),因为这门课"概念多、要背的多"——这正是本系列 Cram 模式的用武之地。</p>
+</blockquote>
+<hr />
+<h2 id="1-为什么信息安全是每个人的事三个-communities-of-interest">1.
+为什么信息安全是"每个人"的事:三个 Communities of Interest</h2>
+<p>先问一个问题:保护一家公司的信息,是谁的活儿?</p>
+<p>很多人的直觉答案是"IT
+部门的人"。这个直觉在三十年前是对的——那时候计算机被关在数据中心的机房里,信息处理是<strong>集中式
+(centralized)</strong>
+的,守住那几个机房、管好那几台机器,信息基本就安全了,这确实主要是技术人员的责任。但讲师强调:<strong>过去三十年技术从"一个数据中心"扩散到了业务的每一个角落</strong>。如今是
+AI、IoT、云计算的时代,信息随着员工出差而流动,业务边界不再静止。于是
+computer security 演化成了范围更广的 <strong>information security
+(InfoSec)</strong>——它保护的不只是计算机里的数据,还包括人的知识。保护信息这件事,因此变得复杂得多,也不再是某个小团队能独立完成的了。</p>
+<p>这就引出本章第一个核心概念。一家组织在做信息安全的<strong>预算和规划决策</strong>时,牵涉的人远不止技术经理。讲师把决策者分成三类,称为
+<strong>communities of interest(利益共同体 / 关注群体)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>Community of interest</th>
+<th>是谁</th>
+<th>在安全里扮演的角色 (slide 3)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>InfoSec community</strong></td>
+<td>信息安全领域的经理与专业人员</td>
+<td><strong>保护</strong>组织的信息资产,抵御它面临的各种威胁</td>
+</tr>
+<tr class="even">
+<td><strong>IT community</strong></td>
+<td>IT 领域的经理与专业人员(网络、数据库等)</td>
+<td><strong>支撑</strong>业务目标——提供并维护与组织需求相匹配的 IT</td>
+</tr>
+<tr class="odd">
+<td><strong>General business community</strong></td>
+<td>组织里 IT 之外的其余管理者与专业人员(CEO、CFO、HR、各业务部门)</td>
+<td><strong>表达并传达</strong>组织的政策与目标,并向前两个群体<strong>分配资源</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>这里有个容易混淆、但讲师特意点明的层次关系:<strong>InfoSec
+团队通常嵌在 IT 部门内部</strong>,所以 IT community 是更大的"超集"(IT
+里还有网络、数据库等等);而 general business community 则在 IT
+之外。三者不是平级并列的三块,而是"安全 ⊂ IT,业务在旁边出钱定方向"。</p>
+<pre class="mermaid"><code>graph TB
+  subgraph Business[&quot;General Business Community（业务/高管：CEO、CFO、HR…）&quot;]
+    direction TB
+    subgraph IT[&quot;IT Community（IT 部门）&quot;]
+      InfoSec[&quot;InfoSec Community&lt;br/&gt;（信息安全团队，CISO 领导）&quot;]
+    end
+  end
+  InfoSec --&gt;|&quot;请求：买防火墙 / 招人&quot;| IT
+  IT --&gt;|&quot;批 IT 资源 / 转交&quot;| Business
+  Business --&gt;|&quot;拨款、定政策、定目标&quot;| IT</code></pre>
+<p>为什么这三类人必须坐到一起、"建设性地辩论 (constructive debate)
+直到达成共识"?讲师用了一个会在整门课反复出现的角色来说明——<strong>CISO
+(Chief Information Security
+Officer,首席信息安全官)</strong>,他是公司信息安全计划的总负责人。</p>
+<blockquote>
+<p><strong>🔑 例 (Worked example)</strong> — CISO
+想加固安全,但他<strong>不能单干</strong>:</p>
+<ul>
+<li>他想<strong>买一台新防火墙、再招人来维护它</strong> → 这笔采购得先过
+<strong>IT 部门</strong>(他们支不支持这个方案?),再上报到
+<strong>业务高层</strong>(CEO/CFO 批不批这笔钱?)。</li>
+<li>他想<strong>装一批 CCTV 摄像头</strong> → 这又牵扯到 IT
+之外:会不会<strong>违反公司政策</strong>?会不会<strong>侵犯员工的隐私
+(privacy)</strong>?于是必须和 HR、法务等业务部门一起谈。</li>
+</ul>
+<p>一个"纯技术"的安全动作,落地时几乎总要三个 community
+协同。这就是为什么信息安全是全员的事:<strong>InfoSec 出方案,IT
+给技术支撑,业务出钱、定政策、担责任。</strong></p>
+</blockquote>
+<p>每个 community
+还必须理解一个共同的底层认识:信息安全本质上是在<strong>识别
+(identify)、度量 (measure)、缓解 (mitigate)</strong>
+现代业务环境中操作信息资产所带来的<strong>风险
+(risk)</strong>——这句话是后面"风险管理"两讲 (L09/L10) 的伏笔。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)—
+一个高频考点陷阱</strong>:讲师特别警告,"<strong>三个 communities of
+interest</strong>"是<strong>本课程特有的划分</strong>,目的是把概念讲清楚。ChatGPT
+/ Gemini 可能给你<strong>不一样的分类、甚至说有 5
+个</strong>。往年真有学生写了"5 个 communities of
+interest",一眼就能看出<strong>不是课程内容</strong>。<strong>考试请严格按课程的
+3 个来答</strong>——这正体现了讲师反复说的:用 AI
+拓展理解可以,但基本概念必须以课堂为准(也呼应作业里对 AI
+编造内容的严厉态度)。</p>
+</blockquote>
+<hr />
+<h2 id="2-到底什么是安全从-security-到-information-security">2.
+到底什么是"安全"?从 Security 到 Information Security</h2>
+<p>我们一直在说"安全",但这个词太宽泛了,得给它一个能用的定义。</p>
+<p>最朴素地说,<strong>to be
+secure(处于安全状态)就是被保护、免于风险</strong>——免于损失 (loss)、损坏
+(damage)、未经授权的修改 (unwanted modification) 或其他危害
+(hazard)。把它说得更正式一点,slide 4 给的定义是:</p>
+<blockquote>
+<p><strong>Security(安全)</strong> = "the quality or state of being
+secure—to be free from danger"(处于安全、免于危险的性质或状态)。</p>
+</blockquote>
+<p>讲师补了一个很好的直觉类比:想想 <strong>national
+security(国家安全)</strong>——它是一套<strong>多层 (multi-layer)</strong>
+的体系,保护国家的主权、资产、资源和人民。组织的安全也一样:没有哪一招能一劳永逸,合适的安全水平<strong>靠多种策略同时、组合地实施
+(several strategies undertaken simultaneously or in
+combination)</strong> 才能达到。这个"多层防御"的思想会贯穿整门课。</p>
+<p>正因为"安全"很宽,它分成若干<strong>专门领域 (specialized
+areas)</strong>。理解它们的边界,有助于你之后判断某个保护机制到底在管什么:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>专门领域</th>
+<th>保护对象</th>
+<th>例子 / 备注(讲师补充)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Physical security</strong></td>
+<td>人、实物资产、工作场所</td>
+<td>防火(火警/灭火/消防流程)、防地震等自然灾害、防未授权的物理闯入</td>
+</tr>
+<tr class="even">
+<td><strong>Operations security</strong></td>
+<td>组织<strong>持续运转</strong>的能力</td>
+<td>让业务活动不被中断、不被破坏地进行</td>
+</tr>
+<tr class="odd">
+<td><strong>Communications security</strong></td>
+<td>组织的通信(媒介、技术、内容)</td>
+<td>也包括用这些工具达成目标的能力</td>
+</tr>
+<tr class="even">
+<td><strong>Cyber security</strong>(≈ computer security)</td>
+<td>计算机化的信息处理系统及其数据</td>
+<td>"cyber"
+是近几十年才出现的新词,<strong>定义至今未完全统一</strong>,略显模糊</td>
+</tr>
+<tr class="odd">
+<td><strong>Network security</strong></td>
+<td>语音/数据、网络组件、连接与流量内容</td>
+<td>是 communications security 与 cyber security
+的<strong>交集子集</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>在这些之上,就是本课的主角 <strong>information security
+(InfoSec)</strong>。slide 5 的定义值得逐句读:</p>
+<blockquote>
+<p><strong>InfoSec</strong> =
+用来保护<strong>敏感业务信息</strong>免遭<strong>修改
+(modification)、扰乱 (disruption)、破坏 (destruction)、窥探
+(inspection)</strong>
+的一整套流程与工具;它聚焦于保护信息及其<strong>关键要素——confidentiality,
+integrity,
+availability</strong>——以及使用、存储、传输这些信息的系统与硬件,手段包括
+<strong>policy(策略)、technology(技术)、training &amp;
+awareness(培训与意识)</strong>。</p>
+</blockquote>
+<p>注意这里已经埋了两条主线:① 信息的关键要素就是马上要细讲的
+<strong>CIA</strong>;② 保护手段有三类(policy / technology /
+education),这正好是下一节 CNSS 模型的第三个维度。InfoSec
+不只是"装软件",而是覆盖了 computer security、data security、network
+security,并把 <strong>policy</strong>
+放在所有部分<strong>重叠的中心</strong>——</p>
+<pre class="mermaid"><code>graph TD
+  P[&quot;📜 Policy（策略——所有部分的交叠中心）&quot;]
+  P --- MS[&quot;Management of Security&quot;]
+  P --- CS[&quot;Computer Security&quot;]
+  P --- DS[&quot;Data Security&quot;]
+  P --- NS[&quot;Network Security&quot;]</code></pre>
+<p>之所以 policy
+在正中央,是因为它<strong>统管一切</strong>:技术也好、流程也好,最终都要由策略来规定和约束。这也是为什么整门课会专门用一讲
+(L05) 讲 policy——讲师说"policy 控制一切"。</p>
+<blockquote>
+<p><strong>本节连接</strong>:我们已经知道"谁来管"(三个
+community)和"管什么"(InfoSec
+及其领域)。但面对一个真实的安全方案,怎么<strong>系统地</strong>检查它有没有漏洞?这就需要一个分析框架。</p>
+</blockquote>
+<hr />
+<h2 id="3-一个分析框架cnss-security-modelmccumber-cube">3.
+一个分析框架:CNSS Security Model(McCumber Cube)</h2>
+<blockquote>
+<p>⚠️ <strong>重点</strong>:讲师明说往年 quiz
+出过这个模型的题,而且他有一道"最爱的题型"就出自这里(见本节末)。务必吃透。</p>
+</blockquote>
+<p>slide 5
+已经告诉我们,保护信息要照顾它的"关键要素",还要用"多种手段"。问题是:这些要素、手段,再加上"信息处在什么状态",维度一多就容易顾此失彼。<strong>CNSS
+模型</strong>就是用来把这些维度组织起来、不漏掉任何组合的框架。</p>
+<p>它的来历:<strong>CNSS = Committee on National Security
+Systems</strong>,是美国一个为国家安全系统制定政策的机构。它在文件
+<strong>NSTISSI No. 4011</strong>(<em>National Training Standard for
+InfoSec Professionals</em>)里提出了一个全面的信息安全模型,以提出者
+<strong>John McCumber</strong> 命名,叫 <strong>McCumber
+Cube(麦克姆伯立方体)</strong>。它被当作理解信息安全方方面面的<strong>标准参照</strong>,覆盖三个维度:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>名称</th>
+<th>三个取值</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>维度一</td>
+<td><strong>Information characteristics</strong>(信息特性)</td>
+<td>Confidentiality / Integrity / Availability(即
+<strong>CIA</strong>)</td>
+</tr>
+<tr class="even">
+<td>维度二</td>
+<td><strong>Information location / states</strong>(信息所处状态)</td>
+<td><strong>Storage</strong>(存储)/ <strong>Processing</strong>(处理)/
+<strong>Transmission</strong>(传输)</td>
+</tr>
+<tr class="odd">
+<td>维度三</td>
+<td><strong>Security control categories</strong>(安全控制手段)</td>
+<td><strong>Policy</strong> / <strong>Education</strong> /
+<strong>Technology</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>每个维度 3 个取值,三维交叉,就得到一个 <strong>3 × 3 × 3 = 27</strong>
+个小格 (cells) 的立方体。<strong>每一个 cell
+都是三个维度的一个交点</strong>,代表"要确保信息安全,就必须被处理到"的一个具体方面。</p>
+<pre class="mermaid"><code>graph LR
+  subgraph D1[&quot;维度1: 信息特性 (CIA)&quot;]
+    C[Confidentiality]
+    I[Integrity]
+    A[Availability]
+  end
+  subgraph D2[&quot;维度2: 信息状态&quot;]
+    S[Storage]
+    Pr[Processing]
+    T[Transmission]
+  end
+  subgraph D3[&quot;维度3: 控制手段&quot;]
+    Po[Policy]
+    Ed[Education]
+    Te[Technology]
+  end
+  D1 -. &quot;× 任取一个&quot; .- D2
+  D2 -. &quot;× 任取一个&quot; .- D3
+  D3 -. &quot;= 一个 cell（共 27 个）&quot; .- D1</code></pre>
+<p><strong>这个框架怎么用?</strong>
+当你要设计或审查一个信息安全方案时,逐个检查 27 个 cell,看每个 cell
+是否被三个 community 妥善覆盖了——它本质是一张"查漏地图 (identify
+gaps)"。</p>
+<blockquote>
+<p><strong>🔑 例 (Worked example)</strong> — 取 cell =
+(<strong>Technology</strong> × <strong>Integrity</strong> ×
+<strong>Storage</strong>):
+这个格子问的是:"用<strong>技术</strong>手段,保护<strong>存储中</strong>信息的<strong>完整性</strong>,我们做了什么?"
+一个对应的控制就是 <strong>host intrusion detection system
+(主机入侵检测系统)</strong>:当某个关键文件被修改时,它会<strong>告警安全管理员</strong>。
+再换一个格子 = (<strong>Education</strong> × <strong>Integrity</strong>
+×
+<strong>Storage</strong>):同样是保护存储中信息的完整性,但手段换成"教育"——那就要<strong>培训员工</strong>,让他们懂得如何保护存储数据的完整性。
+你可以把 27 个格子逐一这样问一遍,这就是模型的用法。</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 讲师最爱的题型(很可能进考试!)</strong> —
+给你一个<strong>三元组 (triple)</strong>,问"它是不是 CNSS
+模型里的一个合法 cell?" 关键判据:<strong>一个合法 cell
+必须从每个维度各取恰好一个取值</strong>。</p>
+<ul>
+<li><code>(Technology, Integrity, Storage)</code> → ✅
+合法(每维各一个)。</li>
+<li><code>(Confidentiality, Integrity, Availability)</code> → ❌
+<strong>不是</strong>
+cell!三个全来自维度一,缺了"状态"和"手段"两个维度。</li>
+<li><code>(Availability, Processing, Transmission)</code> → ❌
+<strong>不是</strong> cell!Processing 和 Transmission
+都来自维度二(状态),重复了,缺了"手段"维度。
+记牢:<strong>每个维度出且仅出一个代表</strong>,才是 cell。</li>
+</ul>
+</blockquote>
+<p><strong>模型的弱点 (slide 9)</strong> —— 也是常考的辨析点:</p>
+<ol type="1">
+<li>它虽然覆盖了三个维度,却<strong>只字未提指导控制如何落地的 guidelines
+与
+policies</strong>,而这些对一个有效的安全方案恰恰不可或缺。换句话说,它的<strong>主要用途是"找出覆盖的空白
+(identify gaps)",而不是教你怎么把方案高效地跑起来</strong>。</li>
+<li>当<strong>只从单一视角</strong>去看它时会暴露第二个弱点:实践中,真正彻底的风险削减,需要<strong>三类控制
+(policy, education, technology) 全部到位,且由三个 community
+共同创建与推行</strong>——单靠一类、单靠一方都不够。</li>
+</ol>
+<blockquote>
+<p><strong>本节连接</strong>:CNSS 的第一个维度就是
+CIA。它在这里只是被点名,但 CIA
+是衡量"信息安全不安全"的根本标尺,值得单独、仔细地讲——这就是下一节。</p>
+</blockquote>
+<hr />
+<h2 id="4-信息的核心特性cia-三要素">4. 信息的核心特性:CIA 三要素</h2>
+<p>CNSS 维度一里的三个特性,合称 <strong>C.I.A.
+triangle</strong>,是信息安全<strong>最基础、最原始</strong>的三个特性。讲师强调:这是计算机化信息处理刚出现时大家公认的三大要素;随着系统变复杂,光有
+CIA 已<strong>不够</strong>,才又扩展出
+privacy、identification、authentication、authorization、accountability(下一节讲)。先把这三个地基打牢。</p>
+<pre class="mermaid"><code>mindmap
+  root((信息关键特性))
+    CIA 三要素
+      Confidentiality 机密性
+      Integrity 完整性
+      Availability 可用性
+    扩展特性
+      Privacy 隐私
+      IAAA
+        Identification
+        Authentication
+        Authorization
+        Accountability</code></pre>
+<h3 id="41-confidentiality机密性">4.1 Confidentiality(机密性)</h3>
+<p><strong>Confidentiality</strong> 确保<strong>只有拥有足够权限
+(sufficient privileges)
+的人</strong>才能访问特定信息;换句话说,<strong>把访问权限制在"需要知道"的人手里,挡住不该知道的人</strong>。一旦未授权的人能看到信息,机密性就被<strong>破坏
+(broken)</strong> 了。</p>
+<p>这里有个常被误解的点,讲师讲得很透:<strong>机密 ≠
+完全保密</strong>。它的意思是"未经授权者无法访问",而不是"谁都看不到"。</p>
+<blockquote>
+<p><strong>🔑 例</strong> —</p>
+<ul>
+<li>别人<strong>未经你允许读了你的邮件</strong> →
+违反机密性;别人<strong>未经允许看了你 Moodle 上的作业成绩</strong> →
+违反机密性。</li>
+<li>讲师正在用 <strong>Zoom</strong>
+上课,内容通过互联网广播,但频道是受限的:<strong>不是本课学生就进不来</strong>——对外人而言它是机密的,对你(已认证的本课学生)它是开放的。这恰好诠释了定义:"只有足够权限的人可访问",你有权限,外人没有。</li>
+</ul>
+</blockquote>
+<p>机密性在涉及<strong>个人信息</strong>(员工、客户,医疗行业里的病人)时尤其重要。<strong>泄露
+(disclosure)</strong> 可能是故意的,也可能是无意的:</p>
+<ul>
+<li>把机密邮件<strong>误发</strong>给组织外的人;</li>
+<li>处理重要文件时<strong>只丢弃、不销毁</strong>——有人会去翻垃圾桶
+(dumpster diving)
+复原信息(侦探片里常有的桥段),所以公司必须有<strong>如何正确销毁文件</strong>的策略;</li>
+<li>黑客<strong>攻入数据库窃取</strong>客户姓名、地址、信用卡号。</li>
+</ul>
+<p>保护机密性的<strong>措施 (slide 11)</strong>:<strong>information
+classification(信息分级,如 top secret / confidential / public)、secure
+storage(安全存储)、general security
+policies(通用安全策略)、education(教育信息保管人和终端用户)、cryptography
+/ encryption(密码学 / 加密)</strong>。</p>
+<h3 id="42-integrity完整性">4.2 Integrity(完整性)</h3>
+<p><strong>Integrity</strong> 是信息处于<strong>完整 (whole)、齐全
+(complete)、未被破坏 (uncorrupted)</strong>
+的性质——也就是信息的<strong>准确性、一致性、可信度</strong>。当信息遭到<strong>腐坏
+(corruption)、损坏 (damage)、破坏 (destruction)</strong>
+或其他对其真实状态的扰乱时,完整性就受到威胁。腐坏可能发生在信息被<strong>录入、存储、传输</strong>的任何环节。</p>
+<p>讲师特别澄清:破坏完整性<strong>未必是恶意的</strong>。</p>
+<blockquote>
+<p><strong>🔑 例</strong> —</p>
+<ul>
+<li><strong>恶意</strong>:很多病毒 (viruses) 和蠕虫 (worms)
+就是设计来<strong>故意篡改/破坏数据</strong>、让它不可用的。</li>
+<li><strong>非恶意</strong>:程序
+bug、或<strong>传输介质里的噪声</strong>也会让数据失真。比如开车用
+<strong>GPS</strong>,信号来自卫星、穿过开放的物理环境,途中混入噪声,你收到的信息就可能与原始信息<strong>略有不同</strong>——这同样是完整性被破坏,只不过<strong>不是恶意行为</strong>。</li>
+</ul>
+</blockquote>
+<h3 id="43-availability可用性">4.3 Availability(可用性)</h3>
+<p><strong>Availability</strong>
+指<strong>授权用户</strong>能在需要时、以<strong>所需格式 (required
+format)</strong>、<strong>无干扰无阻碍地 (without interference or
+obstruction)</strong>
+访问到信息。定义里的"用户"既可以是<strong>人</strong>,也可以是<strong>另一个计算机系统</strong>。</p>
+<p>关键点:<strong>可用性不等于"对任何人都可用",只对授权用户可用</strong>。</p>
+<blockquote>
+<p><strong>🔑 例</strong> —
+把它想成一座<strong>研究图书馆</strong>:进馆或取阅某些藏品需要出示身份证明;一旦获准进入,馆员就应当能<strong>定位并取用</strong>所需资源。对应到课程:你有权用
+<strong>Moodle</strong>,登录后就能看到
+lectures、workshops、announcements——这就是"信息对你可用"。非本课学生看不到,<strong>并不算可用性被破坏</strong>(信息还在,只是只对授权者开放)。但如果
+<strong>Moodle
+宕机、连授权的你都打不开作业信息</strong>,那才是<strong>可用性被破坏</strong>。</p>
+</blockquote>
+<p>下表把三者并排,便于考前快速回忆:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>特性</th>
+<th>一句话定义</th>
+<th>被破坏 =</th>
+<th>典型例子(讲师)</th>
+<th>典型保护手段</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Confidentiality</strong></td>
+<td>只有授权者能访问</td>
+<td>未授权者看到了</td>
+<td>偷看你的 Moodle 成绩;黑客窃取信用卡号</td>
+<td>分级、加密、策略、教育、安全存储</td>
+</tr>
+<tr class="even">
+<td><strong>Integrity</strong></td>
+<td>信息完整、未被篡改</td>
+<td>信息被改了(恶意或意外)</td>
+<td>病毒篡改数据;GPS 信号噪声</td>
+<td>校验、哈希、入侵检测</td>
+</tr>
+<tr class="odd">
+<td><strong>Availability</strong></td>
+<td>授权者需要时能用</td>
+<td>授权者用不了</td>
+<td>Moodle 宕机打不开作业</td>
+<td>冗余、备份、抗中断设计</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="5-超越-cia扩展特性-privacy-与-iaaa">5. 超越 CIA:扩展特性 Privacy
+与 IAAA</h2>
+<p>随着系统变复杂,CIA
+已不足以覆盖所有需求,于是引入扩展特性:<strong>privacy</strong> 以及合称
+<strong>IAAA</strong> 的 <strong>identification → authentication →
+authorization →
+accountability</strong>。一个有用的直觉(讲师在答疑时给的):<strong>CIA
+是信息本身的"基础特性",IAAA 更像是一套"过程
+(process)"</strong>——你如何认人、验人、授权、并留痕追责。</p>
+<h3 id="51-privacy隐私">5.1 Privacy(隐私)</h3>
+<p><strong>Privacy</strong>
+确保:组织收集、使用、存储的信息,<strong>只能用于收集时向数据所有者 (data
+owner)
+声明过的目的</strong>。也就是说,数据的主人<strong>清楚地知道</strong>自己的信息会被用在哪、何时、如何被披露。</p>
+<p>讲师强调这是个<strong>很微妙 (subtle)</strong> 的概念:<strong>privacy
+不等于"免于被观察 (freedom from
+observation)"</strong>,而是"信息只会以你知情的方式被使用"。</p>
+<blockquote>
+<p><strong>🔑 例(社交媒体)</strong> — 你在 Facebook/Instagram
+发了一张在某高档餐厅的照片。这<strong>不代表你失去了隐私</strong>:你<strong>主动</strong>想公开"我来过这家餐厅"这件事。但照片<strong>之外</strong>的信息——你和<strong>谁</strong>一起吃、这顿花了<strong>多少钱</strong>——你并不想公开,那部分仍是你的隐私。隐私管的是"哪些信息、以什么方式被使用",由你知情并同意。</p>
+</blockquote>
+<p>注意 privacy 与 confidentiality 容易混(见 slide 19 第 1
+题):confidentiality 关心"<strong>谁能访问</strong>",privacy
+关心"信息被<strong>用于什么目的、是否经数据主人知情</strong>"。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 讲师提示 <strong>assignment
+2(个人报告)的题目之一可能与 privacy
+有关</strong>,并鼓励大家就此多做独立研究。复习时值得把 privacy
+想深一层。</p>
+</blockquote>
+<h3 id="52-iaaa一条环环相扣的链">5.2 IAAA:一条环环相扣的链</h3>
+<p>这四个特性最好<strong>当成一条链</strong>来理解,因为它们有严格的先后与因果:<strong>先认出你是谁
+→ 再证明你确实是你 → 才决定你能做什么 →
+同时把一切记下来以便追责。</strong></p>
+<pre class="mermaid"><code>flowchart LR
+  ID[&quot;①Identification 识别&lt;br/&gt;你声称你是谁&lt;br/&gt;(学号/邮箱/用户名)&quot;]
+  AU[&quot;②Authentication 认证&lt;br/&gt;证明你真是你&lt;br/&gt;(密码/MFA/生物特征)&quot;]
+  AZ[&quot;③Authorization 授权&lt;br/&gt;你被允许做什么&lt;br/&gt;(读/写/改/删)&quot;]
+  AC[&quot;④Accountability 问责&lt;br/&gt;行为可追溯到你&lt;br/&gt;(audit logs)&quot;]
+  ID --&gt; AU
+  AU --&gt; AZ
+  AZ --&gt; AC</code></pre>
+<p><strong>① Identification(识别)</strong> ——
+系统能<strong>认出单个用户</strong>时,就具备了识别特性。它是访问受保护资源的<strong>第一步</strong>,通常靠
+<strong>username 或其他 ID</strong>。
+要点(讲师):识别信息必须<strong>唯一</strong>地指向你——<strong>学号、邮箱</strong>就是好例子;而<strong>出生日期、姓名、住址</strong>虽然属于你的私人信息,却<strong>不是识别信息</strong>,因为别人可能和你重名、同生日、同住址,<strong>不唯一</strong>。</p>
+<p><strong>② Authentication(认证)</strong> ——
+控制机制<strong>证明用户确实拥有他所声称的身份</strong>。你在 Moodle
+输完学号(识别)后,还得<strong>证明你就是本人</strong>:输密码、过多因素认证。
+讲师重点讲了 <strong>multi-factor authentication
+(MFA,多因素认证)</strong>——把以下三类"因子"组合起来:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>因子类型</th>
+<th>含义</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Something you know</strong></td>
+<td>你<strong>知道</strong>的</td>
+<td>密码、PIN、口令 (passphrase)</td>
+</tr>
+<tr class="even">
+<td><strong>Something you have</strong></td>
+<td>你<strong>拥有</strong>的</td>
+<td>手机(收一次性验证码 OTP)、密码学硬件</td>
+</tr>
+<tr class="odd">
+<td><strong>Something you are</strong></td>
+<td>你<strong>本身是</strong>的</td>
+<td>生物特征:指纹、声音、人脸</td>
+</tr>
+</tbody>
+</table></div>
+<p>(slide 16 还举了用<strong>密码学证书 (cryptographic certificates)
+建立 SSL 连接</strong>作为认证例子。后面会有一讲专门讲生物认证等。)</p>
+<p><strong>③ Authorization(授权)</strong> ——
+<strong>在认证之后</strong>发生,定义这个已被验明身份的用户<strong>能做什么</strong>:访问、修改、删除某项信息资产。</p>
+<blockquote>
+<p><strong>🔑 例</strong> — 在 Moodle
+上,讲师以<strong>教师</strong>身份登录的权限 ≠
+学生权限:他能<strong>创建作业</strong>,你只能<strong>提交</strong>;你看不到别人的作业、也删不了任何提交。同一个系统,因授权不同而能做的事不同。数据库里的读/写/建/删权限方案也是同理。</p>
+</blockquote>
+<p><strong>④ Accountability(问责 / 可追责)</strong> ——
+控制机制能保证<strong>每一项操作都可归因到某个具名的人或自动化进程</strong>。最典型的实现就是
+<strong>audit logs(审计日志)</strong>,记录用户在系统上的活动。</p>
+<blockquote>
+<p><strong>🔑 例</strong> — 你登录过
+Moodle,日志就在那;事后你<strong>无法抵赖</strong>说"我没看过通知/我没登录"。讲师也举例:他若改了某人成绩,日志在,他也<strong>赖不掉</strong>——这就是问责。</p>
+</blockquote>
+<p>为什么必须四步连成一条链?讲师给了点睛之笔:<strong>没有
+authentication,就很难做到 accountability。</strong></p>
+<blockquote>
+<p><strong>🔑 例(反面)</strong> —
+<strong>公用电脑</strong>:很多人共用、无需认证就能上。一旦有人访问了恶意网站,<strong>很难追溯到底是谁</strong>——因为缺了"认证"这一环,问责就断了。这正说明四步缺一不可。</p>
+</blockquote>
+<h3 id="53-四个过程特性横向对比">5.3 四个"过程"特性横向对比</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>特性</th>
+<th>回答的问题</th>
+<th>时机</th>
+<th>实现/例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Identification</strong></td>
+<td>你<strong>声称</strong>是谁?</td>
+<td>第一步</td>
+<td>学号、邮箱、用户名</td>
+</tr>
+<tr class="even">
+<td><strong>Authentication</strong></td>
+<td>你<strong>真的</strong>是你吗?</td>
+<td>识别之后</td>
+<td>密码、MFA(know/have/are)、SSL 证书</td>
+</tr>
+<tr class="odd">
+<td><strong>Authorization</strong></td>
+<td>你被允许<strong>做什么</strong>?</td>
+<td>认证之后</td>
+<td>Moodle 教师 vs 学生权限;数据库读写权</td>
+</tr>
+<tr class="even">
+<td><strong>Accountability</strong></td>
+<td>这事是<strong>谁干的</strong>?</td>
+<td>全程留痕</td>
+<td>Audit logs;共享账号会让追责变难</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="6-slide-19-辨析题四问思路">6. Slide 19 辨析题:四问思路</h2>
+<p>讲师把这四道题留作 homework,说"不强制,但能加深理解"。它们几乎就是
+CIA/隐私/IAAA 部分的标准考点,这里给出抓手:</p>
+<ol type="1">
+<li><strong>Confidentiality vs Privacy</strong> — Confidentiality
+关注"<strong>谁能访问</strong>信息";Privacy
+关注"信息是否<strong>只用于数据主人知情/同意的目的</strong>"。前者是"挡住未授权者",后者是"按约定用途使用并知会本人"。(回忆
+§5.1 的餐厅照片例子。)</li>
+<li><strong>Identification vs Authentication</strong> —
+讲师说这道相对简单。Identification
+是"<strong>你声称是谁</strong>"(给出学号/用户名);Authentication
+是"<strong>证明你确实是你</strong>"(输密码/过
+MFA)。前者<strong>声明</strong>身份,后者<strong>核实</strong>身份。</li>
+<li><strong>Authentication vs Authorization</strong> — Authentication
+验明"你是谁",Authorization
+在此之后决定"你<strong>能做什么</strong>"。先认证、后授权,顺序不能反。</li>
+<li><strong>Privacy 与 Accountability 是矛盾的吗?</strong> ——
+讲师给的答案是 <strong>不矛盾,但很微妙</strong>。表面看,privacy
+要"保护你的活动信息",accountability
+要"把一切记录在案",似乎对立;但二者可以共存(例如:日志只在合规、知情、限定用途下用于追责,而非随意公开)。这题讲师明确鼓励<strong>自己做独立研究</strong>,适合写进
+cheat sheet。</li>
+</ol>
+<hr />
+<h2 id="7-从安全到管理what-is-management">7. 从安全到管理:What is
+Management?</h2>
+<blockquote>
+<p>📎 <strong>说明</strong> — slides 20–23
+属于本讲,但<strong>真实录音里讲师因时间关系把"管理"部分顺延到了下一讲
+(L02)</strong>,原话大意是"还剩几页关于 management
+的,留到下次"。因此本节<strong>主要依据
+slides</strong>,缺少课堂的口头举例(intuition
+会比前面几节薄一些);要看展开的讲解,请配合 Week 2 的录音。</p>
+</blockquote>
+<p>为什么一门"信息安全"课要讲"管理"?因为本课讲的是信息安全的<strong>管理</strong>——而管理有它自己的通用语言:目标、资源、角色、领导、解决问题。把这套语言先立起来,后面"规划、策略、风险管理"才有落点。</p>
+<p><strong>Management(管理)</strong> =
+<strong>用一组给定的资源去达成目标</strong>的过程。<strong>Manager(管理者)</strong>
+=
+通过<strong>协调他人的工作活动</strong>、与人合作并借助他人来达成组织目标的人。管理者扮演三类<strong>角色
+(managerial roles)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>管理角色</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Informational role(信息角色)</strong></td>
+<td>收集、处理、运用那些会影响目标达成的信息</td>
+</tr>
+<tr class="even">
+<td><strong>Interpersonal role(人际角色)</strong></td>
+<td>与上级、下属、外部利益相关者等互动</td>
+</tr>
+<tr class="odd">
+<td><strong>Decisional role(决策角色)</strong></td>
+<td>在多种备选方案中抉择,化解冲突、两难与挑战</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Leadership(领导) 与 Management(管理) 的区别(slide
+22)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>Leadership(领导力)</th>
+<th>Management(管理)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>定义</td>
+<td><strong>影响他人</strong>、赢得他们<strong>自愿的配合</strong>,通过提供目的、方向与激励来达成目标</td>
+<td><strong>administer(调度)</strong> 组织的资源</td>
+</tr>
+<tr class="even">
+<td>着力点</td>
+<td>让员工<strong>愿意</strong>去完成目标</td>
+<td>用好人、财、物等资源</td>
+</tr>
+</tbody>
+</table></div>
+<p>领导者的<strong>行为类型</strong>有三种:<strong>autocratic(独裁型)、democratic(民主型)、laissez-faire(放任型)</strong>。高效的领导者通常是这三者的<strong>组合</strong>,并随情境切换。</p>
+<p><strong>解决问题的通用方法 (slide 23)</strong> ——
+不论问题大小,同一套流程都适用,可作为解决许多运营问题的蓝本:</p>
+<pre class="mermaid"><code>flowchart LR
+  S1[&quot;Step 1&lt;br/&gt;识别并定义问题&quot;]
+  S2[&quot;Step 2&lt;br/&gt;收集事实、做出假设&quot;]
+  S3[&quot;Step 3&lt;br/&gt;提出可能的解决方案&quot;]
+  S4[&quot;Step 4&lt;br/&gt;分析比较各方案&quot;]
+  S5[&quot;Step 5&lt;br/&gt;选择、实施并评估方案&quot;]
+  S1 --&gt; S2
+  S2 --&gt; S3
+  S3 --&gt; S4
+  S4 --&gt; S5</code></pre>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>信息安全是全员责任</strong>,决策牵涉三个 <strong>communities
+of
+interest</strong>:<strong>InfoSec</strong>(保护资产)、<strong>IT</strong>(支撑业务、是
+InfoSec 的超集)、<strong>general
+business</strong>(出钱、定政策、担责)——三者须协同达成共识。<strong>考试只认课程的"3
+个",别被 AI 带成 5 个。</strong></li>
+<li><strong>Security =
+免于风险/危险的状态</strong>,靠<strong>多层、多策略组合</strong>实现;它分为
+physical / operations / communications / cyber / network 等专门领域,而
+<strong>InfoSec</strong> 统摄数据、网络、计算机安全,并以 <strong>policy
+为交叠中心</strong>。</li>
+<li><strong>CNSS / McCumber Cube</strong>
+是审查安全方案、<strong>查找覆盖空白</strong>的框架:三维 = 信息特性
+(CIA) × 信息状态 (storage/processing/transmission) × 控制手段
+(policy/education/technology),共 <strong>27 个
+cell</strong>;<strong>合法 cell
+必须每维各取恰好一个</strong>。它的弱点是<strong>不涉及指导落地的
+policy/guideline</strong>、且需三类控制由三个 community 共同推行。</li>
+<li><strong>CIA
+三要素</strong>:<strong>Confidentiality</strong>(只有授权者能访问,≠
+完全保密)、<strong>Integrity</strong>(完整未被篡改,破坏可恶意可意外)、<strong>Availability</strong>(授权者需要时能用,≠
+对所有人可用)。</li>
+<li><strong>扩展特性</strong>:<strong>Privacy</strong> =
+信息只按数据主人知情的目的使用(≠ 免于被观察),与 confidentiality
+不同;<strong>IAAA</strong> 是一条链 ——
+<strong>Identification</strong>(声称是谁)→
+<strong>Authentication</strong>(证明是你,含 MFA 的 know/have/are)→
+<strong>Authorization</strong>(能做什么)→
+<strong>Accountability</strong>(可追责,靠 audit
+logs);<strong>没有认证就难以问责。</strong></li>
+<li><strong>管理面</strong>:Management = 用资源达成目标;管理者有
+informational / interpersonal / decisional
+三种角色;<strong>Leadership(影响人、求自愿配合)≠
+Management(调度资源)</strong>,领导风格分 autocratic / democratic /
+laissez-faire;解决问题有固定 5 步法。</li>
+</ul>
+<hr />
+<blockquote>
+<p>✅ <strong>复习用法</strong> — 配合本目录的 <code>.html</code>(公式与
+Mermaid 图已渲染,直接在浏览器看)。想自测可让我用本指南生成
+<strong>flashcards + 自测题 (Review 模式)</strong>;考前想压缩成一页
+A4,可生成 <strong>cheat sheet (Cram 模式)</strong>——尤其建议把 §3
+的"CNSS 是不是合法 cell"判据、§4 的 CIA 对比表、§5 的 IAAA 链与 MFA
+三因子带进考场。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

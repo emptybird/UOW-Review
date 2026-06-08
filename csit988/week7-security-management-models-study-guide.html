@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>第七周 · 安全管理模型 (Security Management Models)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="第七周--安全管理模型-security-management-models">第七周 ·
+安全管理模型 (Security Management Models)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>区分
+<strong>blueprint(蓝图)</strong>、<strong>framework(框架)</strong> 与
+<strong>security model(安全模型)</strong>
+三个常被混用的术语,并说明它们之间的层级关系。</li>
+<li>解释为什么 <strong>access control(访问控制)</strong>
+是信息安全管理的核心,并完整复述它的四个过程 (IAAA) 与三大原则。</li>
+<li>用<strong>三种不同的视角</strong>(按特性、按运营影响、按授权方式)对访问控制进行分类,并能判断一个具体控制属于哪一类。</li>
+<li>解释 <strong>MAC / 非自主 / DAC</strong>
+三类授权模型的差别,并理解数据分类 (data classification) 与人员安全许可
+(security clearance) 如何配合 MAC 工作。</li>
+<li>复述 <strong>Bell-LaPadula</strong> 与 <strong>Biba</strong>
+两个模型的规则(no read-up/no write-down vs no read-down/no
+write-up),并解释它们为什么"互为镜像"。——<em>讲师明确说这是他最爱出的考题之一。</em></li>
+<li>说明 <strong>ISO 27000 系列、NIST SP 800 系列、COBIT、COSO</strong>
+这几大管理模型各自解决什么问题、由谁制定、适用于什么场景。</li>
+</ul>
+</blockquote>
+<p>上一周我们讲的是"如何把信息安全这件事<strong>组织起来</strong>"——把
+InfoSec 部门安插进公司(Wood
+的五种摆放方式)、安全计划的组成、岗位头衔、以及如何落地 SETA
+培训。那一周回答的是"<strong>谁来做、放在哪做</strong>"。</p>
+<p>但是把人和部门安排好之后,马上会冒出一个更尖锐的问题:<strong>具体照着什么蓝本去做?</strong>
+没有人愿意从一张白纸开始发明一整套安全体系——既慢又容易出错,还无法向客户证明自己"合规"。于是行业里逐渐沉淀出大量<strong>现成的标准、框架与模型</strong>:有的来自政府(美国国防部、NIST),有的来自国际标准组织(ISO/IEC),有的来自审计与治理行业(ISACA、COSO)。本章就是一张"地图",带你认识这些可供"参照、模仿、采纳"的蓝本,并重点讲透其中最核心的一块——<strong>访问控制
+(access control)</strong>。</p>
+<p>本章的内在脉络是这样一条线:<strong>先搞清术语</strong>(蓝图/框架/模型到底谁是谁)→
+<strong>深入访问控制</strong>(信息安全管理里最反复出现、最重要的一块)→
+<strong>看安全架构模型</strong>(把抽象规则落到系统里:TCSEC、Bell-LaPadula、Biba……)→
+<strong>最后回到管理层面的大框架</strong>(ISO、NIST、COBIT、COSO)。每一节都为下一节埋下问题,跟着走即可。</p>
+<hr />
+<h2 id="1-先把术语理顺模型方法论蓝图框架">1.
+先把术语理顺:模型、方法论、蓝图、框架</h2>
+<p>很多同学一上来就被 model / framework / blueprint / methodology
+这几个词绕晕,因为它们意思相近又层层嵌套。我们先把它们拆开。</p>
+<p>一个 <strong>InfoSec model(信息安全模型)</strong>
+本质上是一套<strong>用来参照或比较的标准
+(standard)</strong>。它的价值不在于"必须照搬",而在于给你一个"起跳点
+(stepping-off point)"——你可以模仿 (emulate) 它、采纳 (adopt)
+它,也可以只取其中几块来改造。</p>
+<p>为什么不直接照抄?因为讲师反复强调一句话:<strong>"对一个组织管用的东西,未必精确地适合另一个组织。"</strong>
+每个信息安全环境都是独一无二的——一家做军工的公司和一家卖快餐的连锁店,需要的安全程度天差地别。所以现实中你常常需要从<strong>好几个框架里各取一部分</strong>,拼出适合自己的那一套。</p>
+<p>这里出现了第一个关键词
+<strong>methodology(方法论)</strong>:它指的是<strong>完成某项任务的一种正式、被公认的做法</strong>,通常由某个组织或某领域的专家群体推荐或背书。选择一套
+InfoSec 方法论的常见途径,就是去<strong>采纳 (adopt) 或改造 (adapt)
+一个现成的安全模型</strong>。</p>
+<p>那么 blueprint 和 framework
+又是什么?讲师给了一个很清晰的"嵌套"说法,我们用一句话先记住,再展开:</p>
+<blockquote>
+<p><strong>Framework 是 blueprint 的"提纲";blueprint
+是把提纲填满的"详细施工图";security model
+则是别人给你的一份"通用施工图模板"。</strong></p>
+</blockquote>
+<p>逐个说清楚:</p>
+<ul>
+<li><strong>Blueprint(蓝图)</strong>:它<strong>描述组织中已经存在的控制
+(existing controls)</strong>,并<strong>指出还需要补上哪些控制 (necessary
+controls)</strong>。蓝图是高度组织化、针对你这家公司量身定制的。</li>
+<li><strong>Framework(框架)</strong>:它是那份"更详尽、更针对本组织的蓝图"的<strong>提纲
+(outline)</strong>——勾勒出整体结构和路径,是后续所有安全控制(策略
+(policy)、SETA、技术控制等)在<strong>设计、选择、实施</strong>时的依据。</li>
+<li><strong>Security
+model(安全模型)</strong>:它是某个<strong>服务型组织对外提供的一份通用蓝图
+(generic blueprint)</strong>。有的模型是<strong>专有的
+(proprietary)</strong>,要花一大笔钱才能拿到(后面会看到 ISO
+的标准就很贵);有的则相对便宜甚至免费(NIST 的就免费)。</li>
+</ul>
+<p>一个<strong>好用的模型</strong>应当具备四个特征:<strong>灵活
+(flexible)、可扩展 (scalable)、稳健 (robust)、足够详细 (sufficiently
+detailed)</strong>。</p>
+<p>整个过程串起来就是:<strong>社区先设计一个可行的安全计划 (security
+plan) → 然后实施一个管理模型来执行并维护它 → 这通常从创建或验证一个
+framework 开始 → 接着发展出描述现有控制、识别所需控制的
+blueprint。</strong></p>
+<pre class="mermaid"><code>graph TD
+  M[&quot;Security Model&lt;br/&gt;(通用模板,别人提供)&quot;] --&gt;|参照 / 改造| F
+  F[&quot;Framework&lt;br/&gt;(提纲:结构 + 路径)&quot;] --&gt;|填充细节| B
+  B[&quot;Blueprint&lt;br/&gt;(详细施工图:&lt;br/&gt;现有控制 + 待补控制)&quot;] --&gt; C1[&quot;InfoSec 策略 (policy)&quot;]
+  B --&gt; C2[SETA 教育培训]
+  B --&gt; C3[技术控制]
+  style M fill:#e8eef7
+  style F fill:#dfeede
+  style B fill:#f7ecd9</code></pre>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+一个生活化的类比:盖房子时,<strong>framework</strong>
+像是建筑师给的"户型提纲"(几室几厅、承重墙在哪),<strong>blueprint</strong>
+是把水电管线、插座位置都标清楚的完整图纸,而 <strong>security
+model</strong>
+则像是一本"标准户型图集"——你从图集里挑一个接近的,再改成自己家的样子。</p>
+</blockquote>
+<hr />
+<h2 id="2-访问控制信息安全管理的心脏">2.
+访问控制:信息安全管理的心脏</h2>
+<p>讲师特别提醒:<strong>access control
+会在后续课程里被反复、从不同角度地讲到</strong>——这一节先把地基打牢。</p>
+<h3 id="21-访问控制是什么管住进入可信区域的人">2.1
+访问控制是什么:管住进入"可信区域"的人</h3>
+<p><strong>Access control(访问控制)</strong>
+的目标是<strong>规范用户进入组织"可信区域 (trusted
+areas)"的准入</strong>。这里的"可信区域"有两层含义,千万别只想到一层:</p>
+<ul>
+<li><strong>逻辑访问 (logical
+access)</strong>:进入信息系统(登录、读取数据库……)。</li>
+<li><strong>物理访问 (physical
+access)</strong>:进入组织的实体设施(机房、办公区……)。</li>
+</ul>
+<p>访问控制靠三样东西共同维持:<strong>policies(策略)</strong> +
+<strong>programs(执行这些策略的程序)</strong> +
+<strong>technologies(强制执行策略的技术)</strong>。</p>
+<h3 id="22-四个过程iaaa顺序不能乱">2.2 四个过程:IAAA(顺序不能乱)</h3>
+<p>访问控制的一般应用由四个过程组成,行业里简称
+<strong>IAAA</strong>。讲师强调一个常考点:<strong>这四步必须按顺序进行,不能颠倒</strong>——</p>
+<pre class="mermaid"><code>graph LR
+  I[&quot;① Identification&lt;br/&gt;识别&quot;] --&gt; A1[&quot;② Authentication&lt;br/&gt;认证&quot;]
+  A1 --&gt; A2[&quot;③ Authorization&lt;br/&gt;授权&quot;]
+  A2 --&gt; A3[&quot;④ Accountability&lt;br/&gt;问责&quot;]</code></pre>
+<ul>
+<li><strong>Identification(识别)</strong>:获取请求访问者<strong>声称的身份</strong>(例如输入用户名)。</li>
+<li><strong>Authentication(认证)</strong>:<strong>确认</strong>这个身份属实(例如核对密码)。——你不可能在识别之前先认证。</li>
+<li><strong>Authorization(授权)</strong>:确定一个<strong>已被认证</strong>的实体在该区域内<strong>能做哪些操作</strong>。——你不可能在认证之前先授权。</li>
+<li><strong>Accountability(问责)</strong>:<strong>记录</strong>被授权个体的活动(日志)。——它只能发生在前三步全部完成之后。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 记忆要点</strong> —
+四步的逻辑依赖是单向的:<strong>"你是谁?"→"真的是你吗?"→"你能干什么?"→"你干了什么,有据可查。"</strong>
+任何一步都建立在前一步的结果之上,所以顺序天然不可乱。</p>
+</blockquote>
+<h3 id="23-三大原则最小权限按需知密职责分离">2.3
+三大原则:最小权限、按需知密、职责分离</h3>
+<p>如果说 IAAA 是"四个过程",那么访问控制还建立在<strong>三个核心原则 (3
+key principles)</strong>
+之上。它们的共同目的:<strong>只让有真正业务需要的人,接触到信息资产。</strong></p>
+<p><strong>① Least Privilege(最小权限)</strong> —
+组织成员只能在<strong>完成本职工作所必需的最短时间内</strong>,访问<strong>最少量的信息</strong>。它隐含了"按需知密",并把权限严格限制在岗位职责所需的层级上。</p>
+<blockquote>
+<p><strong>🔑 例</strong> —
+如果某项任务只需要<strong>读取</strong>数据,那就只给该用户<strong>只读
+(read-only)</strong> 权限,而不给创建、更新、删除这类更高权限。</p>
+</blockquote>
+<p><strong>② Need to Know(按需知密)</strong> —
+把用户的访问限制在<strong>完成当前具体任务所需的特定信息</strong>上,而<strong>不是</strong>笼统地按"工作大类"开放。这条原则与<strong>数据分类
+(data classification)</strong> 关系最密切。</p>
+<blockquote>
+<p><strong>🔑 例</strong> —
+一位经理需要修改<strong>某几名员工</strong>的薪资标准,那就给他读取并更新<strong>这几名员工</strong>薪资数据的权限;但他<strong>不应该</strong>能看到其他员工的薪资——因为那与当前任务无关。</p>
+</blockquote>
+<p><strong>③ Separation of Duties(职责分离)</strong> —
+把重要任务<strong>拆开</strong>,让<strong>不止一个人</strong>对其完成负责。</p>
+<blockquote>
+<p><strong>🔑 例(讲师原例)</strong> — 在应付账款 (accounts payable)
+场景里:一个人负责<strong>建立供应商</strong>,另一个人负责<strong>发起付款请求</strong>,第三个人负责<strong>批准付款</strong>。为什么要这么麻烦?因为如果把整个流程交给一个人,他一个人就能违反安全策略、破坏机密性/完整性/可用性,而且<strong>还能在无人问责的情况下作案</strong>。把链条拆开,就大幅降低了单人作恶的可能。</p>
+</blockquote>
+<pre class="mermaid"><code>mindmap
+  root((访问控制 Access Control))
+    四个过程 IAAA
+      Identification 识别
+      Authentication 认证
+      Authorization 授权
+      Accountability 问责
+    三大原则
+      Least Privilege 最小权限
+      Need to Know 按需知密
+      Separation of Duties 职责分离</code></pre>
+<h3 id="24-给访问控制分类三种互不冲突的视角">2.4
+给访问控制分类:三种互不冲突的视角</h3>
+<p>接下来是本章最容易考"辨析题"的部分。请注意:<strong>对访问控制有三种不同的分类方式,它们是三个互相独立的"镜头",同一个控制在不同镜头下会有不同标签。</strong></p>
+<h4
+id="视角一按固有特性-inherent-characteristics分--6-类">视角一:按"固有特性
+(inherent characteristics)"分 —— 6 类</h4>
+<p>这一视角问的是:<strong>这个控制在事件的哪个阶段、起什么作用?</strong>
+共有六类:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>类别</th>
+<th>含义</th>
+<th>直观理解</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Preventative(预防性)</strong></td>
+<td>帮助组织<strong>避免</strong>事件发生</td>
+<td>门锁、门禁——别让坏事发生</td>
+</tr>
+<tr class="even">
+<td><strong>Deterrent(威慑性)</strong></td>
+<td><strong>吓阻、劝退</strong>潜在事件</td>
+<td>"本区域有监控"的告示牌——让人不敢动手</td>
+</tr>
+<tr class="odd">
+<td><strong>Detective(检测性)</strong></td>
+<td>在事件<strong>发生时</strong>检测/识别它</td>
+<td>入侵检测系统、报警器</td>
+</tr>
+<tr class="even">
+<td><strong>Corrective(纠正性)</strong></td>
+<td><strong>补救</strong>情况、<strong>减轻</strong>事件造成的损害</td>
+<td>隔离受感染主机</td>
+</tr>
+<tr class="odd">
+<td><strong>Recovery(恢复性)</strong></td>
+<td>把运行状态<strong>恢复到正常</strong></td>
+<td>从备份还原数据</td>
+</tr>
+<tr class="even">
+<td><strong>Compensating(补偿性)</strong></td>
+<td>弥补其他控制的<strong>不足</strong></td>
+<td>用额外审计弥补某项缺陷</td>
+</tr>
+</tbody>
+</table></div>
+<h4
+id="视角二按运营影响-operational-impact分--3-类nist-sp-系列推荐">视角二:按"运营影响
+(operational impact)"分 —— 3 类(NIST SP 系列推荐)</h4>
+<p>这一视角由 <strong>NIST SP
+系列</strong>提出,问的是:<strong>这个控制影响组织运营的哪个层面?</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>类别</th>
+<th>含义</th>
+<th>谁在用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Management(管理类)</strong></td>
+<td>覆盖由<strong>战略规划者</strong>设计的安全<strong>流程</strong>,被例行用来设计、实施、监控其他控制系统</td>
+<td>战略 / 治理层</td>
+</tr>
+<tr class="even">
+<td><strong>Operational(运营类)</strong></td>
+<td>处理安全的<strong>运营职能</strong>,已融入组织<strong>可重复的日常流程</strong></td>
+<td>运营 / 执行层</td>
+</tr>
+<tr class="odd">
+<td><strong>Technical(技术类)</strong></td>
+<td>支撑安全计划的<strong>战术部分</strong>,作为<strong>反应式机制</strong>应对组织的即时技术需求</td>
+<td>技术 / 战术层</td>
+</tr>
+</tbody>
+</table></div>
+<h4
+id="把两个视角叠在一起看对应-slide-11-的表格">把两个视角叠在一起看(对应
+slide 11 的表格)</h4>
+<p>讲师特别讲解了课本里那张表:它把控制<strong>同时</strong>按"特性"(列)和"运营影响"(行)摆开,于是<strong>每个控制往往同时拥有两个标签</strong>。几个他点名的例子,正好帮你校准理解:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>示例控制</th>
+<th>按特性</th>
+<th>按运营影响</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>大门、围栏、保安 (gates, fences, guards)</td>
+<td>Preventative</td>
+<td>Operational</td>
+</tr>
+<tr class="even">
+<td>数据备份 (data backups)</td>
+<td>Recovery</td>
+<td>Technical</td>
+</tr>
+<tr class="odd">
+<td>策略 (policy)</td>
+<td>Deterrent</td>
+<td>Management</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 要点</strong> —
+看到"分类"题时先问自己:<strong>题目用的是哪个镜头?</strong>
+同一个"数据备份",在特性镜头下是 Recovery,在运营镜头下是
+Technical——两个答案都对,因为问的不是同一件事。</p>
+</blockquote>
+<h4
+id="视角三按授权程度-degree-of-authority分--mac--非自主--dac">视角三:按"授权程度
+(degree of authority)"分 —— MAC / 非自主 / DAC</h4>
+<p>这是三种视角里最"硬核"、最常单独出题的一种。它问的是:<strong>访问权限到底由谁说了算?</strong>
+这条线索引出了下面 2.5–2.7 三小节要详谈的三个模型。</p>
+<pre class="mermaid"><code>graph TD
+  AC[&quot;按授权程度分类&quot;] --&gt; MAC[&quot;Mandatory Access Control&lt;br/&gt;(MAC,强制)&lt;br/&gt;系统/分类方案说了算&quot;]
+  AC --&gt; ND[&quot;Nondiscretionary&lt;br/&gt;(非自主)&lt;br/&gt;中央权威说了算&quot;]
+  AC --&gt; DAC[&quot;Discretionary Access Control&lt;br/&gt;(DAC,自主)&lt;br/&gt;数据拥有者自己说了算&quot;]</code></pre>
+<h3 id="25-mac强制访问控制--数据分类--人员许可">2.5 MAC:强制访问控制 +
+数据分类 + 人员许可</h3>
+<p><strong>Mandatory Access Control(MAC,强制访问控制)</strong>
+如其名——访问规则是被<strong>系统强制</strong>的,<strong>结构化地围绕一套"数据分类方案
+(data classification
+scheme)"<strong>展开:既给每一份信息打分,也给每一个用户打分,这些评分叫做</strong>敏感度等级
+(sensitivity levels)</strong> 或分类等级。一旦实施
+MAC,<strong>用户和数据拥有者对访问的控制权都很有限</strong>——不是你想给谁看就给谁看,而是系统按分类强制裁定。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 注意 <strong>MAC
+在计算机科学里是个多义缩写</strong>:在信息安全里它是 Mandatory Access
+Control;但在密码学里 MAC 指 <strong>Message Authentication
+Code(消息认证码)</strong>,是一种认证机制。本课提到 MAC
+时一律指<strong>强制访问控制</strong>。</p>
+</blockquote>
+<p>要让 MAC
+跑起来,需要两套相互配合的分类体系:<strong>给数据分类</strong> +
+<strong>给人分级(安全许可)</strong>。</p>
+<p><strong>(a) 数据分类模型 (Data Classification Model)</strong></p>
+<p>军方是数据分类最资深、投入最大的用户。讲师以美国军方的<strong>五级分类方案</strong>(依据行政命令
+Executive Order 12958)为例:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>美军 5 级(从低到高)</th>
+<th>一旦泄露的后果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Unclassified(非密)</strong></td>
+<td>一般可自由对公众发布,基本无威胁</td>
+</tr>
+<tr class="even">
+<td><strong>Sensitive but Unclassified, SBU(敏感但非密)</strong></td>
+<td>丢失/误用/未授权访问会损害美国国家利益,常标注为 "For official use
+only"</td>
+</tr>
+<tr class="odd">
+<td><strong>Confidential(机密)</strong></td>
+<td>未授权披露<strong>可能</strong>损害国家安全</td>
+</tr>
+<tr class="even">
+<td><strong>Secret(秘密)</strong></td>
+<td>披露可能造成<strong>严重 (serious) 损害</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Top Secret(绝密)</strong></td>
+<td>披露可能造成<strong>异常严重 (exceptionally grave)
+损害</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>但讲师马上指出:<strong>绝大多数组织根本不需要军方这种精细度。</strong>
+一家制造企业或连锁餐厅,用一套简单方案就够了。<strong>数据拥有者 (data
+owner)
+必须为自己负责的信息资产分类,并定期复核</strong>(很多商业组织规定<strong>至少每年</strong>复核一次)。一个典型的简化方案只有三到四级,例如:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>商业版示例(4 级)</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Public(公开)</strong></td>
+<td>面向公众发布,如广告、新闻稿</td>
+</tr>
+<tr class="even">
+<td><strong>For official use only(仅供公务)</strong></td>
+<td>不对外发布,但也不特别敏感,如部分内部沟通</td>
+</tr>
+<tr class="odd">
+<td><strong>Sensitive(敏感)</strong></td>
+<td>一旦泄露会令组织难堪或损失市场份额的重要信息</td>
+</tr>
+<tr class="even">
+<td><strong>Classified(涉密)</strong></td>
+<td>关键且机密,泄露会严重危及组织福祉</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>(b) 人员安全许可结构 (Personnel Security Clearance
+Structure)</strong></p>
+<p>光给数据分级还不够,还得给<strong>人</strong>分级。每个信息资产的使用者都被赋予一个<strong>授权等级
+(authorization
+level)</strong>,标明他能访问到哪一级分类的信息。做法通常是把人<strong>指派到具名角色</strong>(数据录入员、开发程序员、InfoSec
+分析师、CIO
+等),角色再对应相应的安全许可,从而与数据分类<strong>并行配套</strong>。</p>
+<p>但这里有个讲师强调的关键叠加:<strong>need-to-know 凌驾于 clearance
+之上</strong>。</p>
+<blockquote>
+<p><strong>🔑 例(常考)</strong> —
+即便你持有"绝密"许可,你也<strong>不能</strong>仅仅因为某份文件"落在你的许可范围内"就去看它——你还必须有<strong>与业务相关的知密需要</strong>。这正是用
+need-to-know 原则来兜底,确保信息的机密性。</p>
+</blockquote>
+<p><strong>(c) 信息资产的全生命周期管理</strong></p>
+<p>管理一项信息资产要覆盖它的<strong>存储、分发、便携性、销毁</strong>等全过程。几条具体做法:</p>
+<ul>
+<li>任何非 unclassified/public
+的文件都必须<strong>清楚标注</strong>其密级——分类文档应在<strong>每页的页眉页脚</strong>都印上密级(如
+"Top Secret"、"Confidential")。</li>
+<li>涉密文件只能由授权者访问,硬拷贝要<strong>锁进柜子</strong>;携带时要遮盖、放进上锁的文件袋。</li>
+<li>销毁要谨慎:常需<strong>双人签字核验</strong>后,用<strong>碎纸、焚烧或专业销毁服务</strong>处理。</li>
+<li>策略要确保涉密信息<strong>绝不</strong>被随手丢进垃圾桶或回收区,否则会被
+<strong>dumpster diving(翻垃圾/垃圾搜寻)</strong>
+的人捡走从而泄密。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+讲师调侃说:侦探片里侦探翻垃圾桶找线索,对侦探是"破案进展",但对被调查的那家组织,这恰恰是必须防住的泄密途径。</p>
+</blockquote>
+<p><strong>(d) 基于格的访问控制 (Lattice-Based Access
+Control)</strong></p>
+<p>它是 <strong>MAC 的一个变体</strong>:给用户分配一个<strong>授权矩阵
+(matrix of
+authorizations)</strong>,针对不同的访问区域,授权等级可以不同——取决于该用户对每一组信息资产所持的分类授权。这个<strong>格
+(lattice)</strong> 结构里既有<strong>主体 (subjects)</strong>
+也有<strong>客体
+(objects)</strong>,每一对"主体/客体"之间的边界都被清晰地划定。</p>
+<blockquote>
+<p><strong>🔑 例(讲师原例)</strong> — 在一个格里,低端是
+Unclassified,箭头表示"可向下访问"的蕴含关系。假设你被赋予两个属性
+<code>{Top Secret, UFO}</code>,你就能访问所有<strong>属性是它子集</strong>的文档(如
+<code>{Secret, UFO}</code>、<code>{Confidential}</code>、<code>{Unclassified}</code>)。但你<strong>访问不了</strong>
+<code>{Top Secret, RISK}</code> 这类文档——尽管都含 "Top
+Secret",两条线在格里是<strong>相互独立</strong>的分支。只有当你同时持有三个属性
+<code>{Top Secret, UFO, RISK}</code>
+时,才能访问全部。<strong>这说明"密级高"并不自动等于"什么都能看",还要看属性维度是否匹配。</strong></p>
+</blockquote>
+<h3 id="26-非自主访问控制rbac-与基于任务">2.6 非自主访问控制:RBAC
+与基于任务</h3>
+<p><strong>Nondiscretionary Access Control(非自主访问控制)</strong>
+的特点是:权限由组织里的<strong>一个中央权威 (central authority)</strong>
+统一决定,而不是由数据拥有者自行决定。它有两种常见形态:</p>
+<ul>
+<li><strong>Role-Based Access
+Control(RBAC,基于角色)</strong>:权限绑定到用户在组织里<strong>扮演的角色</strong>。</li>
+<li><strong>Task-Based(基于任务)</strong>:权限绑定到某项<strong>具体的任务或职责</strong>,可基于维护在主体或客体上的清单。</li>
+</ul>
+<p>它最大的好处是<strong>好维护</strong>。讲师讲得很实在:人来人往时,如果给每个<strong>人</strong>单独授权再单独撤销,会累死管理员;而把权限<strong>绑在角色/任务上</strong>,管理员只需在某人<strong>进入该角色</strong>时让他自动继承对应权限,<strong>离开角色</strong>时解除关联即可撤权。</p>
+<blockquote>
+<p><strong>🔑 例(讲师原例)</strong> —
+普通用户(B、C、D)可能只能"访问网络、编辑用户文件";而拥有 <strong>system
+admin</strong>
+角色的人则能"编辑系统文件、读取所有系统配置文件"。授权随角色走,而非随人走。</p>
+</blockquote>
+<h3 id="27-自主访问控制-dac-与基于规则">2.7 自主访问控制 (DAC)
+与基于规则</h3>
+<p><strong>Discretionary Access Control(DAC,自主访问控制)</strong> 与
+MAC 正相反:它<strong>由数据用户自行决定 (at the discretion/option of the
+data
+user)</strong>。用户可以开放无限制的访问,也可以只把资源开放给特定的个人或群体。<strong>大多数个人电脑操作系统</strong>(包括
+Microsoft Windows)都基于 DAC 模型设计。</p>
+<blockquote>
+<p><strong>🔑 例(讲师原例)</strong> — 在 Windows
+里,你想把某个文件夹共享给网络上的同事,你可以在共享设置里<strong>点名</strong>列出允许访问的具体用户——这个"谁能看由我这个文件主人说了算"的过程,就是
+DAC。</p>
+</blockquote>
+<p><strong>Rule-Based Access
+Control(基于规则的访问控制)</strong>:访问依据中央权威指定的<strong>一组规则</strong>来授予。它既可以归入
+DAC(当个体用户/系统拥有者为自己系统的其他用户制定规则时),其灵活性也使它能在不同模型下实现。</p>
+<h3 id="28-其他形式">2.8 其他形式</h3>
+<p>访问控制是个发展很快的领域,除上述外还有(本课仅点名、不展开):<strong>content-dependent
+access control(基于内容的访问控制)</strong>、<strong>constrained user
+interfaces(受限用户界面)</strong>、<strong>temporal/time-based
+isolation(基于时间的隔离)</strong>。</p>
+<blockquote>
+<p><strong>本节小结表 —— 三种授权模型对比</strong></p>
+</blockquote>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>MAC(强制)</strong></th>
+<th><strong>Nondiscretionary(非自主)</strong></th>
+<th><strong>DAC(自主)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>谁说了算</td>
+<td>系统 + 数据分类方案</td>
+<td>中央权威</td>
+<td>数据拥有者本人</td>
+</tr>
+<tr class="even">
+<td>用户控制权</td>
+<td>很有限</td>
+<td>由角色/任务决定</td>
+<td>高,自行决定</td>
+</tr>
+<tr class="odd">
+<td>典型形态</td>
+<td>数据分类、人员许可、Lattice</td>
+<td>RBAC、基于任务</td>
+<td>Windows 文件共享、基于规则</td>
+</tr>
+<tr class="even">
+<td>适用场景</td>
+<td>军方/高密级环境</td>
+<td>角色清晰、人员流动频繁的组织</td>
+<td>个人电脑、协作共享</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="3-安全架构模型把抽象规则落进系统">3.
+安全架构模型:把抽象规则落进系统</h2>
+<p>学完"权限由谁说了算",下一个问题自然是:<strong>这些规则在真实系统里怎么落地、又怎么被评估为可信?</strong>
+这就是 <strong>Security Architecture Models(安全架构模型)</strong>
+要回答的。</p>
+<p>这些模型<strong>演示 InfoSec 的实现方式</strong>,帮助组织通过"适配
+(adaptation)"快速改进。要点是:<strong>正式模型一般不会被直接搬进可用的实现</strong>,而是为实现提供<strong>基本思路</strong>;当一个具体实现声明自己"基于某个正式模型"时,会获得<strong>可信度、可靠性和更好的结果</strong>。它们的载体形态各异:有的实现在<strong>硬件/软件</strong>里,有的体现为<strong>策略与实践</strong>,有的两者皆有;有的聚焦<strong>机密性
+(confidentiality)</strong>,有的聚焦<strong>完整性
+(integrity)</strong>。</p>
+<p>讲师把本节模型分成两组,这个二分是理解全节的关键:</p>
+<pre class="mermaid"><code>graph TD
+  SAM[&quot;安全架构模型&quot;] --&gt; EV[&quot;评估模型 (Evaluation)&lt;br/&gt;用来评判一个系统够不够安全&quot;]
+  SAM --&gt; DE[&quot;演示模型 (Demonstration)&lt;br/&gt;演示如何在系统里保护 CIA&quot;]
+  EV --&gt; E1[TCSEC / TCB]
+  EV --&gt; E2[ITSEC]
+  EV --&gt; E3[Common Criteria]
+  DE --&gt; D1[Bell-LaPadula 机密性]
+  DE --&gt; D2[Biba 完整性]
+  DE --&gt; D3[&quot;其他:Clark-Wilson、Brewer-Nash…&quot;]</code></pre>
+<h3 id="31-评估模型之一tcsec-与可信计算基-tcb">3.1 评估模型之一:TCSEC
+与可信计算基 (TCB)</h3>
+<p><strong>TCSEC(Trusted Computer System Evaluation
+Criteria,可信计算机系统评估准则)</strong> 是美国<strong>国防部
+(DoD)</strong>
+制定的标准,定义了<strong>评估计算机系统访问控制的准则</strong>。它属于一大套被统称为
+<strong>Rainbow Series(彩虹系列)</strong>
+的标准——因为每份文档用不同颜色编码区分;其中 TCSEC 又名 <strong>"Orange
+Book(橙皮书)"</strong>,被视为该系列的基石。它在 <strong>2005
+年</strong>被一套叫 <strong>Common Criteria</strong>
+的标准取代,但作为"遗产方法",其术语与概念仍是从业者应当熟悉的。</p>
+<p>TCSEC 定义了核心概念 <strong>TCB(Trusted Computing
+Base,可信计算基)</strong>:<strong>所有负责强制执行安全策略的硬件、固件与软件的总和</strong>。注意这里的"安全策略"指的是<strong>系统的配置规则</strong>(rules
+of configuration),而不是第 5 周讲的那种管理层指导文件。TCB
+通常包含<strong>操作系统内核</strong>以及一组指定的安全工具(如用户登录子系统)。TCB
+的有效性,取决于它内部的控制机制和系统管理员的配置。</p>
+<p>TCB 内部有一个概念性对象 <strong>Reference
+Monitor(引用监视器)</strong>:它是<strong>管理访问控制</strong>的那一块,<strong>仲裁所有主体对客体的访问
+(mediates all access to objects by
+subjects)</strong>。系统管理员必须能够<strong>审计或定期复查</strong>引用监视器,确保它有效运行且未被未授权篡改。</p>
+<pre class="mermaid"><code>graph TD
+  subgraph US[&quot;用户空间 User Space&quot;]
+    UP[用户进程 User Processes]
+  end
+  subgraph KS[&quot;内核空间 Kernel Space&quot;]
+    K[OS Kernel]
+    subgraph TCB[&quot;TCB 可信计算基&quot;]
+      RM[&quot;Reference Monitor&lt;br/&gt;仲裁一切访问&quot;]
+    end
+  end
+  UP --&gt;|访问请求| RM
+  RM --&gt;|批准/拒绝| K</code></pre>
+<p><strong>Covert Channels(隐蔽信道)</strong> 是 TCB
+面临的最大挑战之一:它们是<strong>隐藏在计算机系统内、未授权或非预期的通信方法</strong>。两种类型:</p>
+<ul>
+<li><strong>Storage
+channel(存储信道)</strong>:通过<strong>修改一个存储对象</strong>来通信。</li>
+<li><strong>Timing
+channel(时序信道)</strong>:通过<strong>管理事件之间的相对时序</strong>来传递信息(例如:桶之间停顿长=1,停顿短=0)。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)—
+讲师的几个精彩例子,帮你建立直觉:</strong></p>
+<ul>
+<li><strong>路由器闪灯</strong>:有研究发现某些网络路由器面板上的指示灯,闪烁竟与正在传输的数据内容同步——于是灯光<strong>无意中</strong>泄露了数据(典型存储信道/旁路)。</li>
+<li><strong>CPU 旁路攻击 (side-channel attack)</strong>:攻击者通过监听
+CPU 运算时的细微声音、或观测时钟/功耗行为,猜测它在处理 bit 0 还是 bit
+1。密码学里安全常常归结为"密钥最后一位是 0 还是
+1",这种极小的泄露就可能撬动整个系统的安全。</li>
+<li><strong>隐写术
+(steganography)</strong>:把一个对象藏进另一个对象。福尔摩斯小说里就有"取每行第
+3 个词的第 4
+个字母拼成密语"的桥段;数字时代更进一步——把文本藏进图片的<strong>最低有效位
+(LSB, least significant bit)</strong>:改动每个像素 RGB
+值的最后一位,肉眼看不出颜色变化,但把这些位拼起来就能还原出隐藏信息。文本、图片还能藏进
+MP3、视频里。这正是"存储信道"的现实形态,也曾被恐怖分子用于隐蔽通信(如在报纸广告里藏头)。</li>
+</ul>
+</blockquote>
+<h3 id="32-评估模型之二之三itsec-与-common-criteria">3.2
+评估模型之二、之三:ITSEC 与 Common Criteria</h3>
+<p><strong>ITSEC(Information Technology System Evaluation
+Criteria)</strong> 是一套<strong>国际</strong>评估准则,与 TCSEC
+非常相似。在 ITSEC 下,<strong>评估目标 (Targets of Evaluation,
+ToE)</strong>
+会与详细的安全功能规范作比对,得出对系统功能性的评估,并配合<strong>全面的渗透测试
+(penetration testing)</strong>。它后来基本被 Common Criteria 取代。</p>
+<p><strong>Common Criteria(CC,信息技术安全评估通用准则)</strong>
+是计算机安全认证的<strong>国际标准</strong>,编号 <strong>ISO/IEC
+15408</strong>。它被广泛视为 <strong>TCSEC 与 ITSEC
+二者的共同后继</strong>,调和了各家标准之间的差异;多数政府已停用旧标准转而采用
+CC。它是多国(澳大利亚、新西兰、加拿大、法国、德国、日本、荷兰、西班牙、英国、美国)共同努力的成果。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>评估模型</th>
+<th>范围</th>
+<th>关键词</th>
+<th>现状</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>TCSEC</strong></td>
+<td>美国 DoD</td>
+<td>Orange Book / Rainbow Series / TCB</td>
+<td>2005 年被 CC 取代,概念仍重要</td>
+</tr>
+<tr class="even">
+<td><strong>ITSEC</strong></td>
+<td>国际</td>
+<td>Target of Evaluation (ToE) + 渗透测试</td>
+<td>大体被 CC 取代</td>
+</tr>
+<tr class="odd">
+<td><strong>Common Criteria</strong></td>
+<td>国际 (ISO/IEC 15408)</td>
+<td>TCSEC + ITSEC 的后继,多国共建</td>
+<td>当前主流</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="33-演示模型重点bell-lapadula-与-biba">3.3
+演示模型(重点!):Bell-LaPadula 与 Biba</h3>
+<blockquote>
+<p><strong>⚠️ 讲师原话:"关于 Bell-LaPadula 和 Biba
+的规则,是我最爱出的考题之一。" 这一小节务必吃透。</strong></p>
+</blockquote>
+<p>这两个模型<strong>乍看相似,实则强制的是相反方向的保护</strong>。理解它们的差别,是对
+CIA 系统进行推理的基本功。</p>
+<p><strong>Bell-LaPadula (BLP) —— 机密性 (Confidentiality)
+模型</strong></p>
+<p>目标:<strong>防止敏感信息泄漏到更低的安全级别。</strong> 想象军方分级
+Unclassified → Confidential → Secret → Top
+Secret。核心思想是:<strong>信息只能向上流动,绝不向下。</strong>
+两条著名规则:</p>
+<ul>
+<li><strong>No
+Read-Up(不可向上读)</strong>:主体不能读取<strong>更高</strong>密级的数据。例:Confidential
+许可者读不了 Top Secret 文档。</li>
+<li><strong>No
+Write-Down(不可向下写)</strong>:主体不能把数据写到<strong>更低</strong>的级别。例:Top
+Secret 许可者不能写进 Confidential 文件。</li>
+</ul>
+<blockquote>
+<p>为什么 no write-down
+这么重要?<strong>它防止数据泄露</strong>——没有它,一个绝密用户就能读到敏感信息、再把它复制进低密级文件,机密性就破了。</p>
+</blockquote>
+<p><strong>Biba —— 完整性 (Integrity) 模型</strong></p>
+<p>它关心的不是保密,而是数据的<strong>可信度/完整性</strong>:防止<strong>不可靠、低质量</strong>的信息<strong>污染</strong>高完整性数据。有趣的是,Biba
+的规则<strong>恰好把 BLP 反过来</strong>:</p>
+<ul>
+<li><strong>No
+Read-Down(不可向下读)</strong>:主体不能读取<strong>更低</strong>完整性级别的数据。例:高可信进程不应读取不可信数据,以免被污染。</li>
+<li><strong>No
+Write-Up(不可向上写)</strong>:主体不能写入<strong>更高</strong>完整性级别。例:低完整性用户不能修改高完整性系统文件。</li>
+</ul>
+<blockquote>
+<p>直觉:低完整性数据可能已被损坏或植入恶意内容,所以必须阻止它<strong>向上</strong>影响高完整性的主体。</p>
+</blockquote>
+<pre class="mermaid"><code>graph TB
+  subgraph BLP[&quot;Bell-LaPadula(护机密)&quot;]
+    direction TB
+    H1[&quot;High 高密级 (Top Secret)&quot;]
+    L1[&quot;Low 低密级 (Confidential)&quot;]
+    H1 -. &quot;✗ No Write-Down&lt;br/&gt;不可向下写&quot; .-&gt; L1
+    L1 -. &quot;✗ No Read-Up&lt;br/&gt;不可向上读&quot; .-&gt; H1
+  end
+  subgraph BIBA[&quot;Biba(护完整性)&quot;]
+    direction TB
+    H2[&quot;High 高完整性&quot;]
+    L2[&quot;Low 低完整性&quot;]
+    L2 -. &quot;✗ No Write-Up&lt;br/&gt;不可向上写&quot; .-&gt; H2
+    H2 -. &quot;✗ No Read-Down&lt;br/&gt;不可向下读&quot; .-&gt; L2
+  end</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Bell-LaPadula (BLP)</strong></th>
+<th><strong>Biba</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>保护的是</td>
+<td><strong>机密性 Confidentiality</strong>(保密)</td>
+<td><strong>完整性 Integrity</strong>(保正确)</td>
+</tr>
+<tr class="even">
+<td>规则</td>
+<td><strong>No Read-Up + No Write-Down</strong></td>
+<td><strong>No Read-Down + No Write-Up</strong></td>
+</tr>
+<tr class="odd">
+<td>一句话记忆</td>
+<td><strong>"堵住泄漏 (stops the leaks)"</strong></td>
+<td><strong>"堵住污染 (stops the corruption)"</strong></td>
+</tr>
+<tr class="even">
+<td>信息流方向</td>
+<td>只许向上(高密级吸收)</td>
+<td>只许向下(高完整性不被低质污染)</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 终极记忆法(讲师给的)</strong> —
+两个模型几乎是彼此的<strong>镜像</strong>:BLP 是"no read-up / no
+write-down",Biba 是"no read-down / no
+write-up"。一个<strong>堵泄漏</strong>,一个<strong>堵污染</strong>。考试看到规则,先问自己"这是在保密还是在保正确",方向立刻定下来。</p>
+</blockquote>
+<h3 id="34-其他演示模型点名了解">3.4 其他演示模型(点名了解)</h3>
+<ul>
+<li><strong>Clark-Wilson 完整性模型</strong>:建立在<strong>变更控制
+(change control)</strong>
+原则之上(而非完整性等级),为<strong>商业环境</strong>设计。它构建一套"主体—程序—客体"关系,使<strong>主体无法直接访问客体</strong>(必须经由受控程序)。</li>
+<li><strong>Brewer-Nash 模型(俗称 Chinese
+Wall,中国墙)</strong>:用于<strong>防止两方之间的利益冲突 (conflict of
+interest)</strong>。
+<blockquote>
+<p><strong>🔑 例(讲师原例)</strong> —
+一家律所要同时代理一起车祸里互相起诉的双方当事人。为防利益冲突,同一名律师不能同时接触双方的私密信息。Brewer-Nash
+要求用户<strong>先在两组冲突数据里选一组</strong>,选了之后就<strong>再也不能访问另一组</strong>。"中国墙"的比喻正来自长城——一道墙把两边隔开,你站定一边就过不去另一边。</p>
+</blockquote></li>
+<li><strong>Graham-Denning 访问控制模型</strong> 与
+<strong>Harrison-Ruzzo-Ullman 模型</strong>:仅点名,不展开。</li>
+</ul>
+<hr />
+<h2 id="4-安全管理模型治理层面的大框架">4.
+安全管理模型:治理层面的大框架</h2>
+<p>前面讲的是"技术/架构层面"的模型;现在升到<strong>管理与治理层面</strong>——组织整体该照着哪套标准来建设和评估信息安全。讲师调侃:"提供安全管理模型的咨询公司,大概和模型本身一样多。"我们只看最主流的几个。</p>
+<h3 id="41-iso-27000-系列最被广泛引用的管理模型">4.1 ISO 27000
+系列:最被广泛引用的管理模型</h3>
+<p>它的全名是 <strong>Information Technology — Code of Practice for
+Information Security
+Management</strong>,是被引用和讨论最多的安全模型之一。它的"身世"有一条值得记住的演变线:</p>
+<pre class="mermaid"><code>graph LR
+  A[&quot;BS 7799&lt;br/&gt;(英国 British Standard)&quot;] --&gt;|2000 被 ISO/IEC 采纳| B[&quot;ISO/IEC 17799&lt;br/&gt;(国际标准)&quot;]
+  B --&gt;|2005 修订| C[&quot;ISO/IEC 17799:2005&quot;]
+  C --&gt;|2007 更名| D[&quot;ISO/IEC 27002&lt;br/&gt;(与 27001 对齐)&quot;]
+  style A fill:#e8eef7
+  style D fill:#dfeede</code></pre>
+<p>所以"<strong>ISO 27000
+系列</strong>"在本课主要指<strong>两份文档</strong>,分工明确:</p>
+<ul>
+<li><strong>ISO/IEC
+27002</strong>:聚焦各安全领域的<strong>较宽泛概述</strong>——告诉你"有哪些控制、应关注什么"。在
+<strong>2022 修订版</strong>里列出 <strong>93
+个控制</strong>,归为<strong>四大主题
+(themes)</strong>:<strong>people(人员)、organizational(组织)、technological(技术)、physical(物理)</strong>,并给控制加了多种属性以便归类。它<strong>本身不是用于认证的标准</strong>。</li>
+<li><strong>ISO/IEC 27001</strong>:告诉你<strong>如何实施
+27002</strong>,以及如何建立一套 <strong>ISMS(Information Security
+Management
+System,信息安全管理体系)</strong>。它更适合<strong>作为评估/认证工具</strong>,组织可据此<strong>取得认证</strong>、向客户和利益相关者证明自己遵循国际标准。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 为什么很多小公司"只闻其名"?</strong>
+讲师特别点出:ISO 标准是<strong>专有且昂贵</strong>的。以 2022 版为例,买
+ISO 27001 约需 <strong>124 瑞士法郎</strong>,ISO 27002 约 <strong>208
+瑞士法郎</strong>。对大企业不算什么,但小型组织要"合规"就得先<strong>掏钱买标准</strong>再照着实施。这也正是下面
+NIST 系列受欢迎的原因之一——<strong>免费</strong>。</p>
+</blockquote>
+<h3 id="42-nist-sp-800-系列免费经久被广泛评审">4.2 NIST SP 800
+系列:免费、经久、被广泛评审</h3>
+<p>美国 <strong>NIST(National Institute of Standards and
+Technology)</strong> 的<strong>计算机安全资源中心 (CSRC)</strong>
+提供大量<strong>免费</strong>的信息安全管理文档。美国政府之所以倾向用它而非
+ISO,因为它有两大优势:</p>
+<ol type="1">
+<li><strong>公开免费 (publicly available at no charge)</strong>;</li>
+<li><strong>问世已久、经政府与业界专业人士广泛评审</strong>——形成了"征求公众/政府/业界意见
+→ 发布初版 → 定期复审修订"的良性反馈循环。</li>
+</ol>
+<p>其中与本课最相关的是 <strong>SP 800 系列(Special
+Publications)</strong>,自 1990 年 12 月起发布,是 NIST
+发布计算机/网络/信息安全指南、建议与参考资料的主渠道。讲师列出的、与
+InfoSec 管理高度相关的文档:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>文档编号</th>
+<th>主题</th>
+<th>与本课的关联</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>SP 800-12 Rev.1</strong></td>
+<td>信息安全导论 (2017)</td>
+<td>入门基石手册</td>
+</tr>
+<tr class="even">
+<td><strong>SP 800-14</strong></td>
+<td>安全 IT 系统的通用安全原则与实践 (1996)</td>
+<td>安全蓝图的最佳实践来源</td>
+</tr>
+<tr class="odd">
+<td><strong>SP 800-18 Rev.1</strong></td>
+<td>联邦系统安全计划开发指南 (2006)</td>
+<td>安全规划(前几周)</td>
+</tr>
+<tr class="even">
+<td><strong>SP 800-30 Rev.1</strong></td>
+<td>风险评估实施指南 (2012)</td>
+<td>风险管理(recess 后)</td>
+</tr>
+<tr class="odd">
+<td><strong>SP 800-34 Rev.1</strong></td>
+<td>联邦系统应急计划指南 (2010)</td>
+<td>应急计划(第 3 周)</td>
+</tr>
+<tr class="even">
+<td><strong>SP 800-37 Rev.1</strong></td>
+<td>风险管理框架应用指南 (2010)</td>
+<td>风险管理</td>
+</tr>
+<tr class="odd">
+<td><strong>SP 800-39</strong></td>
+<td>管理信息安全风险 (2011)</td>
+<td>风险管理</td>
+</tr>
+<tr class="even">
+<td><strong>SP 800-53 Rev.4</strong></td>
+<td>联邦系统安全与隐私控制 (2013)</td>
+<td>控制族</td>
+</tr>
+<tr class="odd">
+<td><strong>SP 800-55 Rev.1</strong></td>
+<td>信息安全绩效度量指南 (2008)</td>
+<td>绩效度量(后续课)</td>
+</tr>
+<tr class="even">
+<td><strong>SP 800-61 Rev.2</strong></td>
+<td>计算机安全事件处理指南 (2012)</td>
+<td>事件响应/应急</td>
+</tr>
+<tr class="odd">
+<td><strong>SP 800-100</strong></td>
+<td>信息安全手册:管理者指南 (2017)</td>
+<td>综合管理手册</td>
+</tr>
+<tr class="even">
+<td><strong>SP 800-184</strong></td>
+<td>网络安全事件恢复指南 (2016)</td>
+<td>灾难恢复/业务连续性</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>💡 <strong>作业提示(讲师原话)</strong> —
+他在作业说明里<strong>明确鼓励引用 NIST
+文档</strong>,作为加深理解和支撑论点的参考来源。</p>
+</blockquote>
+<p>下面几份重点文档稍作展开:</p>
+<p><strong>SP 800-12 Rev.1 — 信息安全导论</strong>:是日常 InfoSec
+管理的优秀参考,适合作为零基础者的起点;内容含 10
+个部分(导论、信息安全要素、产业与政府部门的关键角色与职责、威胁与脆弱性概述、信息安全策略、风险管理、保证
+(assurance)、系统支持与运营中的安全考量、密码学、控制族)。它还列出了构成
+NIST 安全模型基础的 <strong>20 个控制族 (control families)</strong>:</p>
+<blockquote>
+<p>Access Control · Awareness and Training · Audit and Accountability ·
+Assessment, Authorization &amp; Monitoring · Configuration Management ·
+Contingency Planning · Identification and Authentication · Individual
+Participation · Incident Response · Maintenance · Media Protection ·
+Privacy Authorization · Physical and Environmental Protection · Planning
+· Program Management · Personnel Security · Risk Assessment · System and
+Services Acquisition · System and Communications Protection · System and
+Information Integrity</p>
+</blockquote>
+<p>这 20 个控制族里,很多正是本课各周的主题(应急计划=第 3
+周、识别与认证+审计问责将在"保护机制"一讲、风险评估在第 9
+周……),可见本课与 NIST 模型高度对应。</p>
+<p><strong>SP 800-14 —
+通用安全原则与实践</strong>:描述可用于开发安全蓝图的最佳实践与哲学性原则,扩展了
+800-12 的内容,共记载 <strong>8 个要点 (8 points)</strong> 与 <strong>33
+条原则 (33 principles)</strong>。其中 8
+个要点务必记住(常作为"安全治理基本观念"出现):</p>
+<pre class="mermaid"><code>mindmap
+  root((SP 800-14&lt;br/&gt;8 个要点))
+    1 安全要支撑组织使命
+    2 安全是稳健管理不可分割的一部分
+    3 安全应当具成本效益
+    4 系统拥有者的安全责任超出本组织边界
+    5 安全责任与问责应明确化
+    6 安全需要全面且整合的方法
+    7 安全应被定期重新评估
+    8 安全受社会因素制约</code></pre>
+<p>(33 条原则在 slides
+中以表格列出,讲师建议直接查阅原文档,此处不逐条罗列。)</p>
+<p><strong>SP 800-18 Rev.1 —
+安全计划开发指南</strong>:虽以美国联邦系统为目标,但被国际广泛采用。它为各种规模的应用提供评估、设计、实施控制与计划的详细方法,并<strong>附有主要应用安全计划的模板</strong>。和任何这种体量的出版物一样,<strong>它必须按你自己组织的需要去定制
+(customize)</strong>。</p>
+<p><strong>SP 800-30 Rev.1 —
+风险评估指南</strong>:为建立有效的风险管理计划奠定基础,既给定义也给实操指导,帮助组织更好地管理
+IT
+相关风险;按"整体风险管理过程"与"准备—实施—沟通风险评估"组织成三章。</p>
+<h3 id="43-cobitit-治理视角的控制框架">4.3 COBIT:IT
+治理视角的控制框架</h3>
+<p><strong>COBIT(Control Objectives for Information and Related
+Technology)</strong> 提供关于实施健全控制与控制目标的建议,既可用于
+InfoSec,也可作为衡量其他控制模型的"标尺"。它由
+<strong>ISACA(信息系统审计与控制协会)</strong> 与 <strong>ITGI(IT
+治理研究院)</strong> 于 <strong>1992 年(1990 年代)</strong> 创建,最新版
+<strong>COBIT 5 于 2012 年发布</strong>。</p>
+<p>COBIT 提出 <strong>34 个高层目标 (high-level
+objectives)</strong>,覆盖 <strong>215 个控制目标 (control
+objectives)</strong>。COBIT 5 的骨架是 <strong>5 项原则 (principles) + 7
+个使能因素 (enablers)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th><strong>5 项原则 (Principles)</strong></th>
+<th><strong>7 个使能因素 (Enablers)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1. 满足利益相关者需求</td>
+<td>1. 原则、政策与框架 <em>(首要使能因素,引导其余 6 个)</em></td>
+</tr>
+<tr class="even">
+<td>2. 端到端覆盖整个企业</td>
+<td>2. 流程 (Processes)</td>
+</tr>
+<tr class="odd">
+<td>3. 应用单一、整合的框架</td>
+<td>3. 组织结构</td>
+</tr>
+<tr class="even">
+<td>4. 采用整体性方法</td>
+<td>4. 文化、伦理与行为</td>
+</tr>
+<tr class="odd">
+<td>5. 将治理与管理分离</td>
+<td>5. 信息 (Information)</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>6. 服务、基础设施与应用</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>7. 人员、技能与胜任力</td>
+</tr>
+</tbody>
+</table></div>
+<p>虽然 COBIT 本是 <strong>IT
+治理</strong>框架,但它能为信息安全提供支撑——把 COBIT 评估纳入 IT
+治理的组织,在信息安全风险管理运营上准备得更充分。</p>
+<h3 id="44-coso从财务舞弊防控延伸出的内控框架">4.4
+COSO:从财务舞弊防控延伸出的内控框架</h3>
+<p><strong>COSO(Committee of Sponsoring Organizations of the Treadway
+Commission)</strong> 是 <strong>1985
+年</strong>成立的私营部门倡议,<strong>主要目标是识别导致"舞弊性财务报告
+(fraudulent financial
+reporting)"的因素,并提出降低其发生率的建议</strong>。COSO
+确立了一套关于<strong>内部控制 (internal control)</strong>
+的共同定义、标准与准则,供企业和组织据以评估自己的控制系统。</p>
+<p>COSO 框架由<strong>五个相互关联的组成部分</strong>构成:</p>
+<pre class="mermaid"><code>graph LR
+  CE[&quot;① 控制环境&lt;br/&gt;Control Environment&quot;] --&gt; RA[&quot;② 风险评估&lt;br/&gt;Risk Assessment&quot;]
+  RA --&gt; CA[&quot;③ 控制活动&lt;br/&gt;Control Activities&quot;]
+  CA --&gt; IC[&quot;④ 信息与沟通&lt;br/&gt;Information &amp; Communication&quot;]
+  IC --&gt; MO[&quot;⑤ 监控&lt;br/&gt;Monitoring&quot;]
+  MO -.持续反馈.-&gt; CE</code></pre>
+<blockquote>
+<p><strong>🔑 区分 COBIT vs COSO</strong> — COBIT 偏 <strong>IT
+治理</strong>(IT 控制与控制目标),COSO
+偏<strong>企业内部控制</strong>(源头是防财务舞弊)。两者都是"基于控制
+(control-based)"的模型,常被一起提及。</p>
+</blockquote>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>术语层级</strong>:<strong>framework 是 blueprint
+的提纲,blueprint 是为本组织量身定制的详细控制图,security model
+则是服务型组织提供的通用蓝图模板</strong>;模型应当灵活、可扩展、稳健、足够详细。</li>
+<li><strong>访问控制是核心</strong>:它规范用户进入"可信区域"(逻辑 +
+物理),由<strong>四个过程
+IAAA</strong>(识别→认证→授权→问责,顺序不可乱)和<strong>三大原则</strong>(最小权限、按需知密、职责分离)支撑。</li>
+<li><strong>三种分类视角并行存在</strong>:按<strong>特性</strong>分 6
+类(预防/威慑/检测/纠正/恢复/补偿)、按 <strong>NIST 运营影响</strong>分 3
+类(管理/运营/技术)、按<strong>授权程度</strong>分 3
+类(MAC/非自主/DAC);同一控制在不同视角下有不同标签。</li>
+<li><strong>MAC</strong>
+由系统按<strong>数据分类</strong>+<strong>人员安全许可</strong>强制裁定(军方
+5 级 / 商业 3–4 级,且 <strong>need-to-know 凌驾于 clearance</strong>
+之上),Lattice-based 是其变体;<strong>非自主</strong>由中央权威按角色
+(RBAC) 或任务决定;<strong>DAC</strong> 由数据拥有者自行决定(如 Windows
+文件共享)。</li>
+<li><strong>安全架构模型分两组</strong>:<strong>评估模型</strong>(TCSEC/橙皮书
+→ 引出 TCB、reference monitor、covert channels;ITSEC;Common Criteria =
+ISO/IEC 15408,两者的后继)与<strong>演示模型</strong>(Bell-LaPadula、Biba
+等)。</li>
+<li><strong>务必记牢(讲师最爱考)</strong>:<strong>Bell-LaPadula 护机密 →
+no read-up + no write-down(堵泄漏);Biba 护完整性 → no read-down + no
+write-up(堵污染)</strong>,两者互为镜像。</li>
+<li><strong>管理层大框架</strong>:<strong>ISO 27000 系列</strong>(BS
+7799→17799→27002;27001 讲实施+ISMS+认证,专有且昂贵)、<strong>NIST SP 800
+系列</strong>(免费、经广泛评审,800-12/14/18/30 是重点,800-14 有 8 要点
+33 原则)、<strong>COBIT</strong>(IT 治理,5 原则 7 使能因素,34/215
+目标)、<strong>COSO</strong>(源自防财务舞弊,内控 5 组件)。</li>
+</ul>
+<hr />
+<p><em>来源:CSIT988/CSIT488 Week 7 lecture slides (L07, 50 张) 与 Week 7
+课堂录音转写。标注 📎 的内容为超出 slides
+的补充解释/讲师口头举例,用于建立直觉,考试范围以 slides 为准。</em></p>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

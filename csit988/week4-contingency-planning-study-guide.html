@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 4 · Planning for Contingencies(应急规划)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-4--planning-for-contingencies应急规划">Week 4 · Planning
+for Contingencies(应急规划)</h1>
+<blockquote>
+<p><em>CSIT988/CSIT488 — Security, Ethics and Professionalism · A/Prof
+Khoa Nguyen · Autumn 2026</em></p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>解释为什么组织需要 <strong>Contingency
+Planning(CP,应急规划)</strong>,以及它要保护的核心信息特性是什么</li>
+<li>说出 CP 的四大组件 <strong>BIA → IRP → DRP →
+BCP</strong>,并解释它们为什么必须按这个顺序、在什么时机被激活</li>
+<li>区分 <strong>BIA(业务影响分析)</strong> 与 <strong>Risk
+Management(风险管理)</strong> 的根本假设差异</li>
+<li>复述 NIST 推荐的 <strong>7 步 CP 文档开发流程</strong>,以及参与 CP
+的 <strong>四个团队</strong> 各自的职责</li>
+<li>用 Pipkin 的 <strong>三类事件指标(possible / probable /
+definite)</strong> 判断一个事件是否构成 incident</li>
+<li>描述事件响应的三个阶段(<strong>detection → reaction →
+recovery</strong>),并解释 incident 何时升级(escalate)为 disaster</li>
+<li>比较灾难恢复的 <strong>hot / warm / cold site</strong>
+及共享方案,并说出四种数据备份策略</li>
+</ul>
+</blockquote>
+<hr />
+<p>想象你经营的一切——客户数据、订单系统、邮件服务器——某天早上突然全部瘫痪:可能是一场火灾,可能是一次勒索软件攻击,也可能只是机房水管爆裂。<strong>技术驱动业务(technology
+drives business)</strong>,所以技术一旦中断,业务就会逼近停摆(come to a
+standstill)。问题不是"会不会发生",而是"发生时你有没有一份能照着执行的计划"。本章讲的就是这份计划:如何为**意料之外的不利事件(unexpected
+adverse events)**做准备、侦测、反应、并从中恢复。</p>
+<p>讲师在课上引用了一个让人印象深刻的数字(来自 Hartford
+保险公司):<strong>平均超过 40%
+没有灾难计划的企业,在一次重大损失(火灾、入室盗窃、风暴)之后会倒闭。</strong>
+这就是本章存在的理由——一份计划往往是企业活下来和死掉的分界线。</p>
+<p>本章的主线很清晰:先理解 CP
+是什么(§1–§2),再看谁来做、按什么流程做(§3),然后逐一深入它的四大组件——<strong>BIA(§4)、IRP(§5,本章最大的一块)、DRP(§6)、BCP(§7)</strong>,最后讲整体的时序与测试(§8)。</p>
+<hr />
+<h2 id="1-为什么需要-contingency-planning">§1 为什么需要 Contingency
+Planning?</h2>
+<p>先把"谁来管这件事"说清楚,因为它解释了 CP
+的整个组织气质。规划一个意料之外的不利事件,<strong>不是 IT
+部门一家的事</strong>。它需要三个**利益共同体(communities of
+interest)**的代表共同参与:</p>
+<ul>
+<li><strong>General business management(一般业务管理层)</strong></li>
+<li><strong>Information technology (IT) management(IT
+管理层)</strong></li>
+<li><strong>Information security (InfoSec)
+management(信息安全管理层)</strong></li>
+</ul>
+<p>为什么三方都要在场?因为他们会一起<strong>评估组织的整个技术基础设施</strong>,并用组织的<strong>使命陈述(mission
+statement)<strong>和</strong>当前组织目标</strong>来驱动规划——也就是说,CP
+不是技术练习,而是服务于业务存续的战略行为。更关键的一点:计划必须得到<strong>一般业务管理层的正式批准与积极支持(sanctioned
+and actively supported)</strong>,否则它只是一份没人买单的文档。</p>
+<blockquote>
+<p>📎 <strong>拓展(回顾 Week 3)</strong> —
+上一讲我们学过组织有三个层级的规划:<strong>strategic
+planning(战略规划,通常 5 年以上)、tactical planning(战术规划,1–5
+年)、operational planning(运营规划,支撑日常运作)</strong>。CP
+正是把这套"为信息安全做规划"的思想落到"为意外事件做规划"的具体应用上。</p>
+</blockquote>
+<p>权威背书来自美国 <strong>NIST(National Institute of Standards and
+Technology,美国国家标准与技术研究院)</strong>。它的原话(slides
+原文,值得记住其精神)是:因为信息系统资源对组织的成功至关重要,所以这些系统提供的服务必须能够"无过度中断"地有效运行;CP
+通过建立完善的**计划、流程和技术措施(plans, procedures, and technical
+measures)**来支撑这一要求,使系统在服务中断后能尽快、尽可能有效地恢复。</p>
+<p>记住这条贯穿全章的线索:在所有意外事件中,<strong>最容易受损的信息特性是可用性(availability)</strong>。火灾烧掉机房,数据可能还在(confidentiality、integrity
+未必受损),但你访问不到它了——这就是为什么 CP
+的核心是"恢复运行",而不是"防止泄露"。</p>
+<hr />
+<h2 id="2-cp-的基本概念与四大组件">§2 CP 的基本概念与四大组件</h2>
+<h3 id="21-什么是-cp">2.1 什么是 CP</h3>
+<p><strong>Contingency Planning(CP,应急规划)</strong>
+的定义有两层,务必都记住:</p>
+<ul>
+<li><strong>它是什么</strong>:对意外事件的整体规划,涵盖四个动作——**preparing
+for(准备)、detecting(侦测)、reacting to(反应)、recovering
+from(恢复)**那些威胁信息资源与资产安全的事件。</li>
+<li><strong>它的主要目标(main
+goal)</strong>:在意外事件之后,以<strong>最小的成本和最小的中断(minimum
+cost and
+disruption)</strong>,把组织<strong>恢复到正常运作模式(restoration to
+normal modes of operation)</strong>。</li>
+</ul>
+<p>讲师的通俗版本是:"让一切在合理的时间内回到原来的样子,不能拖太久。"
+注意这里两个限定词——<strong>最小成本</strong>和<strong>合理时间</strong>——它们之后会反复出现在每一个决策里(比如选
+hot site 还是 cold site,就是成本与恢复速度的权衡)。</p>
+<h3 id="22-四大组件bia--irp--drp--bcp">2.2 四大组件:BIA → IRP → DRP →
+BCP</h3>
+<p>这是本章的骨架。CP
+由四个组件构成,而且<strong>有严格的逻辑顺序</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>组件</th>
+<th>全称</th>
+<th>关注什么</th>
+<th>一句话记忆</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>BIA</strong></td>
+<td>Business Impact Analysis(业务影响分析)</td>
+<td>哪些功能/系统对组织最关键</td>
+<td>准备工作,CP 和风险管理共用</td>
+</tr>
+<tr class="even">
+<td><strong>IRP</strong></td>
+<td>Incident Response Plan(事件响应计划)</td>
+<td>对事件的<strong>即时响应</strong></td>
+<td>任何坏事先按 incident 处理</td>
+</tr>
+<tr class="odd">
+<td><strong>DRP</strong></td>
+<td>Disaster Recovery Plan(灾难恢复计划)</td>
+<td>在**原址(primary site)**恢复运行</td>
+<td>incident 太大就升级成 disaster</td>
+</tr>
+<tr class="even">
+<td><strong>BCP</strong></td>
+<td>Business Continuity Plan(业务连续性计划)</td>
+<td>在**备用站点(alternate site)**建立运行</td>
+<td>原址短期回不来,就异地续命</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>为什么必须是这个顺序?</strong>
+这是理解整章的关键,讲师专门强调过:</p>
+<ol type="1">
+<li><strong>BIA
+必须先做</strong>——因为只有先知道"哪些业务功能最关键、各种攻击会造成多大影响",才谈得上制定后面三个计划。BIA
+是 CP 和 <strong>Risk Management</strong> 共用的准备活动(Risk Management
+在 Week 9–10 讲)。</li>
+<li><strong>任何不利事件,默认先当作 incident 处理</strong>,启动
+<strong>IRP</strong>——"除非且直到响应团队判定它是一场
+disaster"。这是一个非常关键的原则:坏事发生时第一反应永远是"这是一起
+incident"。</li>
+<li><strong>当事件的规模与严重程度大到无法再按 incident
+控制</strong>,它就被<strong>升级(escalate)为 disaster</strong>,此时启动
+<strong>DRP</strong>,聚焦在<strong>原址</strong>恢复运行。</li>
+<li><strong>如果原址短期内无法恢复</strong>(损害太严重、长期影响组织运作),<strong>BCP</strong>
+就会<strong>与 DRP
+并行(concurrently)<strong>启动,让业务在</strong>预先准备好的备用站点</strong>继续运转,直到组织能恢复原址、或选定新的主站点。</li>
+</ol>
+<p>下面这张图把这条"事件如何在四个计划间流动"的主线画出来——这正是 slides
+12、44–46 那几张只有图、没有字的幻灯片想表达的东西:</p>
+<pre class="mermaid"><code>flowchart TD
+    A[意外不利事件发生] --&gt; B{先做 BIA&lt;br/&gt;已预先完成:知道哪些功能最关键}
+    B --&gt; C[默认当作 INCIDENT 处理&lt;br/&gt;启动 IRP]
+    C --&gt; D{能否控制/快速恢复?}
+    D --&gt;|能| E[IRP 内解决&lt;br/&gt;侦测→反应→恢复→复盘]
+    D --&gt;|不能,规模/损害过大| F[ESCALATE 升级为 DISASTER&lt;br/&gt;启动 DRP:在原址恢复]
+    F --&gt; G{原址能否快速恢复?}
+    G --&gt;|能| H[DRP 在原址重建技术设施与运营]
+    G --&gt;|不能,原址不可用| I[BCP 与 DRP 并行&lt;br/&gt;在备用站点续命]
+    I --&gt; J[组织恢复原址 或 选定新主站点]</code></pre>
+<blockquote>
+<p><strong>🔑 直觉:把它想成医院分诊</strong> —
+病人进门(意外事件),先按"急诊
+incident"处理(IRP);如果发现是危及生命的重大创伤,升级为"重症
+disaster"(DRP);如果连这家医院都救不了、大楼还塌了,就转院到备用医院继续抢救(BCP)。BIA
+则是事先做好的"分诊标准手册"——什么程度算急诊、什么程度算重症,都在它里面定好。</p>
+</blockquote>
+<h3 id="23-一图看清四组件的任务分解">2.3 一图看清四组件的任务分解</h3>
+<p>讲师口述了 slides 13
+那张图的内容——每个组件下面挂着具体任务,这是非常好的考点框架:</p>
+<pre class="mermaid"><code>flowchart LR
+    CP[Contingency Planning] --&gt; BIA
+    CP --&gt; IRP
+    CP --&gt; DRP
+    CP --&gt; BCP
+    BIA[&quot;BIA&lt;br/&gt;(5 个任务)&quot;] --&gt; b1[威胁/攻击识别与优先级]
+    BIA --&gt; b2[业务单元分析]
+    BIA --&gt; b3[攻击成功情景开发]
+    BIA --&gt; b4[潜在损害评估]
+    BIA --&gt; b5[从属计划分类]
+    IRP[&quot;IRP&lt;br/&gt;(4 个任务)&quot;] --&gt; i1[事件规划]
+    IRP --&gt; i2[事件侦测]
+    IRP --&gt; i3[事件反应]
+    IRP --&gt; i4[事件恢复]
+    DRP[&quot;DRP&lt;br/&gt;(3 个任务)&quot;] --&gt; d1[灾难恢复规划]
+    DRP --&gt; d2[危机管理]
+    DRP --&gt; d3[恢复运营]
+    BCP[&quot;BCP&lt;br/&gt;(3 个任务)&quot;] --&gt; c1[建立连续性策略]
+    BCP --&gt; c2[运营连续性规划]
+    BCP --&gt; c3[连续性管理]</code></pre>
+<hr />
+<h2 id="3-谁来做按什么流程做">§3 谁来做、按什么流程做</h2>
+<p>知道了"做什么"(四组件),现在看"谁来做、按什么步骤做"。</p>
+<h3 id="31-cpmt-与-nist-7-步流程">3.1 CPMT 与 NIST 7 步流程</h3>
+<p>理想情况下,<strong>CIO、CISO、关键 IT 与业务经理</strong>都应在所有
+CP 组件的创建与开发中积极参与。组建起来之后,负责统领全局的治理团队叫
+<strong>CPMT(Contingency Planning Management
+Team,应急规划管理团队)</strong>——它是整个 CP 的"政府/中枢"。</p>
+<p>CPMT 一旦成立,就开始编写 <strong>CP
+文档</strong>。这份文档不是随便写的,要遵循公认的国际框架——讲师点名了
+<strong>NIST</strong> 和 <strong>ISO</strong> 两个组织。NIST 推荐的
+<strong>7 步开发流程</strong>是核心考点:</p>
+<pre class="mermaid"><code>flowchart TD
+    S1[&quot;1. Develop the CP policy statement&lt;br/&gt;制定 CP 政策声明&lt;br/&gt;—— 提供开展工作的授权与指导,没有它无法启动&quot;]
+    S2[&quot;2. Conduct the BIA&lt;br/&gt;执行 BIA&lt;br/&gt;—— 识别并排序关键 IT 系统与组件&quot;]
+    S3[&quot;3. Identify preventive controls&lt;br/&gt;识别预防性控制&lt;br/&gt;—— 减少中断影响、提升可用性、降低应急生命周期成本&quot;]
+    S4[&quot;4. Create contingency strategies&lt;br/&gt;制定应急策略&lt;br/&gt;—— 确保系统能在中断后快速有效恢复&quot;]
+    S5[&quot;5. Develop a contingency plan&lt;br/&gt;开发应急计划&lt;br/&gt;—— 含恢复受损系统的详细指南与流程&quot;]
+    S6[&quot;6. Ensure plan testing, training &amp; exercises&lt;br/&gt;确保测试/培训/演练&lt;br/&gt;—— 测试找出规划缺口,培训让人员能启动计划&quot;]
+    S7[&quot;7. Ensure plan maintenance&lt;br/&gt;确保计划维护&lt;br/&gt;—— 计划是&#39;活文档&#39;,随系统升级持续更新&quot;]
+    S1 --&gt; S2 --&gt; S3 --&gt; S4 --&gt; S5 --&gt; S6 --&gt; S7</code></pre>
+<p>注意第 7 步的措辞:计划是一份 <strong>living
+document(活文档)</strong>——它必须随着组织和系统的变化被<strong>定期更新</strong>。一份三年没动过的应急计划,真到用时往往已经失效。</p>
+<blockquote>
+<p>⚠️ <strong>易混点</strong> — slide 7 和 slide 8 列的 7 步,第 3、4
+步顺序在两页上略有出入(slide 8
+把"制定恢复策略"放在"识别预防性控制"之前)。考试以"先 policy → 再 BIA →
+然后预防控制/策略 → 开发计划 → 测试培训 →
+维护"这个<strong>大框架</strong>为准即可,不必纠结中间两步的细微次序。</p>
+</blockquote>
+<h3 id="32-四个团队及其职责">3.2 四个团队及其职责</h3>
+<p>参与 CP
+与应急运营的有<strong>四个团队</strong>,务必能对应上它们各自管哪个计划:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>团队</th>
+<th>全称</th>
+<th>负责的计划</th>
+<th>核心职责</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>CPMT</strong></td>
+<td>CP Management Team</td>
+<td>统领全局</td>
+<td>收集系统与威胁信息、执行 BIA、协调另外三个计划的制定</td>
+</tr>
+<tr class="even">
+<td><strong>IR team</strong></td>
+<td>Incident Response team</td>
+<td>IRP</td>
+<td>侦测、评估、响应 <strong>incidents</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>DR team</strong></td>
+<td>Disaster Recovery team</td>
+<td>DRP</td>
+<td>侦测、评估、响应
+<strong>disasters</strong>,并在<strong>原址</strong>重建运营</td>
+</tr>
+<tr class="even">
+<td><strong>BC team</strong></td>
+<td>Business Continuity team</td>
+<td>BCP</td>
+<td>在事件/灾难发生时,在**异地(off-site)**建立并启动运营</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>CPMT 的人员构成</strong>(slide
+10)也是考点,它包含三类角色:</p>
+<ul>
+<li><strong>Champion(倡导者/发起人)</strong>:一位高层经理,负责支持、推动、为项目背书。理想人选是
+<strong>CEO 或组织总裁</strong>。把 CP 当成一个"项目",champion
+就是那个能调动权力结构的人。</li>
+<li><strong>Project Manager(项目经理)</strong>:champion
+提供战略视野但不直接管项目,所以需要一位项目经理来实际推进——通常是中层运营经理,<strong>CISO
+是绝佳人选</strong>,负责落实项目规划、引导开发、审慎管理资源。</li>
+<li><strong>Team
+Members(团队成员)</strong>:来自各利益共同体的经理或代表——
+<ul>
+<li><strong>Business managers</strong>
+提供业务活动细节、指出哪些功能对运营至关重要;</li>
+<li><strong>IT managers</strong> 提供面临风险的系统信息,用于 BIA 及
+IR/DR/BC 计划;</li>
+<li><strong>InfoSec managers</strong>
+统筹安全规划,提供威胁、漏洞、攻击及恢复需求信息;</li>
+<li>还可能需要**法务(legal affairs / corporate
+counsel)<strong>代表确保计划在法律边界内,以及</strong>企业传播(corporate
+communication / PR)**代表确保危机沟通方案到位。</li>
+</ul></li>
+</ul>
+<blockquote>
+<p><strong>🔑 为什么需要 PR/传播代表?</strong> —
+讲师举了个很现实的例子:如果团队里没有公关经理,组织就不知道危机中如何应对媒体、如何管理可能泄露的信息。设想媒体就一起刚发生的事件去问
+CEO,而 CEO
+一无所知——那会非常尴尬。所以"谁来对外发声、说什么"必须事先规划。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(组织规模很重要)</strong> —
+这四个团队的设定是针对<strong>大型组织</strong>的,各团队是不同实体、成员不重叠。但讲师反复强调:<strong>安全规划必须考虑组织规模。</strong>
+在小型组织里,这些团队可能由同一批人重叠担任;而"你在 Wollongong
+开的一家小餐馆",根本不需要四个团队——可能一个人确保整体安全就够了,只要相关内容<strong>显式或隐式地</strong>写进政策、并符合当地法律法规即可。这个"规模决定一切"的思想会在后续课程反复出现。</p>
+</blockquote>
+<hr />
+<h2 id="4-bia--business-impact-analysis业务影响分析">§4 BIA — Business
+Impact Analysis(业务影响分析)</h2>
+<p>现在进入四大组件的逐一深入。第一个是 <strong>BIA</strong>,它是 CP
+流程的<strong>第一阶段(first
+phase)</strong>,也是初始规划阶段的关键组件。它的作用是:<strong>为 CP
+团队提供关于系统、以及这些系统所面临威胁的信息</strong>,并为每一种潜在攻击的影响提供<strong>详细情景(detailed
+scenarios)</strong>。</p>
+<h3 id="41-bia-不是-risk-management一个根本的假设差异">4.1 BIA 不是 Risk
+Management:一个根本的假设差异</h3>
+<p>这是 BIA 最容易考、也最容易混淆的点,务必吃透:</p>
+<ul>
+<li><strong>Risk Management(风险管理)</strong>
+关注的是:识别<strong>威胁(threats)、漏洞(vulnerabilities)、攻击(attacks)</strong>,从而确定<strong>用哪些控制措施(controls)来保护信息</strong>。它的视角是"如何防住"。</li>
+<li><strong>BIA</strong>
+的视角恰恰相反:它<strong>假设控制已经失效、被绕过、或证明无效(controls
+have been bypassed or are
+ineffective)</strong>,并且<strong>攻击已经成功</strong>。</li>
+</ul>
+<p>换句话说,BIA
+问的是一个"最坏已经发生"的问题:<strong>攻击者已经得手了,我们该怎么办?</strong>
+通过假设最坏情况已发生、再评估这种逆境会如何冲击组织,你就能洞察:组织应当如何<strong>响应</strong>这个不利事件、如何<strong>最小化损害</strong>、如何<strong>从影响中恢复</strong>、如何<strong>返回正常运营</strong>。</p>
+<blockquote>
+<p><strong>🔑 一句话区分</strong> — Risk Management
+站在攻击<strong>之前</strong>问"怎么防住";BIA
+站在攻击<strong>之后</strong>问"既然防不住、它得手了,损失多大、怎么救"。</p>
+</blockquote>
+<h3 id="42-bia-的五个阶段">4.2 BIA 的五个阶段</h3>
+<p>CP 团队按以下五个阶段执行 BIA(slide 16–19),这是高频考点:</p>
+<pre class="mermaid"><code>flowchart TD
+    T1[&quot;① Threat attack identification&lt;br/&gt;威胁/攻击识别与优先级&quot;] --&gt; T2[&quot;② Business unit analysis&lt;br/&gt;业务单元分析&quot;]
+    T2 --&gt; T3[&quot;③ Attack success scenario development&lt;br/&gt;攻击成功情景开发&quot;]
+    T3 --&gt; T4[&quot;④ Potential damage assessment&lt;br/&gt;潜在损害评估&quot;]
+    T4 --&gt; T5[&quot;⑤ Subordinate plan classification&lt;br/&gt;从属计划分类&quot;]</code></pre>
+<p><strong>① Threat attack identification(威胁/攻击识别)</strong>
+一个已经做过 risk management
+的组织,手里应该已经有一份<strong>排好优先级的威胁清单</strong>(以及资产清单)。BIA
+在此基础上更新这份清单,并补上一条关键的新信息——<strong>attack
+profile(攻击画像)</strong>:对一次攻击过程中所发生活动的<strong>详细描述</strong>。</p>
+<p><strong>② Business unit analysis(业务单元分析)</strong>
+对组织内部各<strong>业务功能(business
+functions)<strong>进行</strong>分析与优先级排序</strong>——哪些业务功能更重要,要先理清。</p>
+<p><strong>③ Attack success scenario
+development(攻击成功情景开发)</strong>
+为每个功能领域创建一系列<strong>情景(scenarios)</strong>,描绘攻击成功后的影响。这些攻击画像中的情景应包含:</p>
+<ul>
+<li><strong>Methodology(方法论)</strong>——攻击是怎么进行的;</li>
+<li><strong>Indicators(指标)</strong>——有哪些迹象;</li>
+<li><strong>Broad consequences(广泛后果)</strong>。
+并且要补上<strong>备选结果(alternate outcomes)</strong>:<strong>best
+case(最好)、worst case(最坏)、most likely(最可能)</strong>。</li>
+</ul>
+<p><strong>④ Potential damage assessment(潜在损害评估)</strong>
+估算上一步那三种结果(最好/最坏/最可能)的<strong>成本</strong>——具体是哪个区域受损、损失多少钱。做法是准备一个"<strong>攻击情景结局(attack
+scenario end case)</strong>",据此识别从每种情况中恢复需要做什么。</p>
+<p><strong>⑤ Subordinate plan classification(从属计划分类)</strong>
+把每一个攻击情景结局归类为<strong>灾难性(disastrous)或非灾难性</strong>——这一步直接决定后面用哪个计划:</p>
+<ul>
+<li><strong>灾难性攻击 → 需要 DRP(disaster recovery plan)</strong></li>
+<li><strong>非灾难性攻击 → 需要 IRP(incident response
+plan)</strong></li>
+</ul>
+<blockquote>
+<p><strong>🔑 重要观念:同一事件,此组织是 incident,彼组织是
+disaster</strong> — 讲师强调,什么算 incident、什么算
+disaster,<strong>没有放之四海皆准的标准</strong>,必须结合组织自身的性质、现实和处境来定。对一家大企业只是
+incident 的事,对一家小公司可能就是 disaster。而"在哪条线上把 incident
+判为 disaster",正是要在 BIA 阶段(尤其是这第⑤步)事先定好的。</p>
+</blockquote>
+<hr />
+<h2 id="5-irp--incident-response-plan事件响应计划">§5 IRP — Incident
+Response Plan(事件响应计划)</h2>
+<p>这是本章篇幅最大、细节最多的一块。<strong>IRP</strong>
+是一套<strong>详细的流程与程序</strong>,用来<strong>预判(anticipate)、侦测(detect)、缓解(mitigate)<strong>那些可能危及信息资源与资产的意外事件的影响。它的程序在</strong>事件被侦测到的那一刻启动</strong>。</p>
+<h3 id="51-什么才算一个-infosec-incident">5.1 什么才算一个 InfoSec
+incident?</h3>
+<p>在 CP 里,任何意外事件<strong>自动先被称为
+incident</strong>。但要把一次威胁正式归类为<strong>信息安全事件(InfoSec
+incident)</strong>,必须同时满足三个条件:</p>
+<ol type="1">
+<li>它<strong>针对信息资产(directed against information
+assets)</strong>;</li>
+<li>它有<strong>现实的成功机会(realistic chance of
+success)</strong>;</li>
+<li>它<strong>威胁信息资产的
+CIA</strong>(confidentiality、integrity、availability)。</li>
+</ol>
+<p>记住一个性质上的判断:<strong>Incident response
+是被动的(reactive),不是预防性的(preventative)。</strong>
+预防靠的是防火墙、入侵检测、密码学这类<strong>保护机制</strong>;而 IR
+是在坏事已经发生后才介入的"反应措施"。</p>
+<p><strong>CSIRT</strong> 在这里登场:CPMT 的一项早期任务,就是组建一支
+<strong>CSIRT(Computer Security Incident Response
+Team,计算机安全事件响应团队)</strong>。CSIRT 的关键成员会成为 <strong>IR
+规划委员会</strong>。CSIRT 是 IR
+团队的一个<strong>子集</strong>,由技术与管理兼具的 IT 和 InfoSec
+专业人员组成,随时准备诊断并响应事件。</p>
+<blockquote>
+<p><strong>🔑 直觉:消防队</strong> —
+讲师用消防队打比方:一支消防队接到火警,不是每个人各自冲向火场,而是每个成员都有<strong>特定角色</strong>,作为一个**统一的整体(unified
+body)**行动——评估情况、确定响应、协调行动。IR
+团队也一样:每个成员都必须清楚自己的角色,与他人协同,执行 IRP
+的目标。<strong>它是一个团队,不是一群人的集合。</strong></p>
+</blockquote>
+<h3 id="52-ir-规划的三个时间维度before--during--after">5.2 IR
+规划的三个时间维度:before / during / after</h3>
+<p>针对每一个事件情景,CP
+团队必须准备<strong>三套事件处置程序</strong>——围绕"事件<strong>之前 /
+之中 / 之后</strong>该做什么":</p>
+<ul>
+<li><strong>During the
+incident(事件之中)</strong>:规划者编写"事件进行中必须执行"的程序,把这些程序<strong>分组并分配给不同角色</strong>(系统管理员的任务不同于管理层的任务)。IR
+规划委员会起草一套<strong>特定功能的程序(function-specific
+procedures)</strong>。</li>
+<li><strong>After the
+incident(事件之后)</strong>:编写"事件刚一停止就要立即执行"的程序。</li>
+<li><strong>Before the
+incident(事件之前)</strong>:编写"必须<strong>预先</strong>完成"的准备任务,包括:数据备份计划的细节、灾难恢复准备、培训计划、测试方案、服务协议副本、以及
+BC 计划。</li>
+</ul>
+<blockquote>
+<p>这正是 slide 21 那张"Figure 3-3 Incident response
+planning"想表达的:一份 IR
+计划要同时覆盖事件的<strong>之前、之中、之后</strong>三段时间。</p>
+</blockquote>
+<h3 id="53-事件分类与-pipkin-的三类指标高频考点">5.3 事件分类与 Pipkin
+的三类指标(高频考点)</h3>
+<p>IR
+团队每天面临的最大难题是:<strong>眼前这个异常,到底是日常的正常使用,还是一起真正的
+incident?</strong> 这个判断叫<strong>事件分类(incident
+classification)</strong>,非常困难——因为同一个现象(比如网络变慢)既可能是攻击,也可能只是网络过载。分类的依据来自终端用户的初始报告、入侵检测系统(IDS)、主机/网络层的病毒检测软件、以及系统管理员。</p>
+<p>为了让"判断是否真为 incident"更可靠,安全专家 <strong>Donald L.
+Pipkin</strong>(惠普互联网安全部门的安全系统架构师)提出了<strong>三类事件指标</strong>,按可能性递增排列。这是必背内容:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>指标类别</th>
+<th>含义</th>
+<th>典型例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Possible indicators(可能指标)</strong></td>
+<td>也许有问题</td>
+<td>出现陌生文件;运行未知程序/进程;计算资源异常消耗(内存/硬盘/CPU
+突增或突降);异常系统崩溃</td>
+</tr>
+<tr class="even">
+<td><strong>Probable indicators(很可能指标)</strong></td>
+<td>比较像是有问题</td>
+<td>在异常时间发生活动(如半夜流量飙升);出现新账户(尤其带
+root/特权);有人报告遭受攻击;IDS 发来通知</td>
+</tr>
+<tr class="odd">
+<td><strong>Definite indicators(确定指标)</strong></td>
+<td>几乎可断定有问题</td>
+<td>休眠账户被使用;日志被篡改;出现黑客工具;合作伙伴/同行通知;黑客本人通知</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师为每一类都给了生动的例子,帮助记忆:</p>
+<ul>
+<li><strong>Possible</strong>:你在 Windows
+主目录或系统文件夹里突然发现来历不明的文件;任务管理器里
+CPU/内存/硬盘占用莫名其妙地高;以及著名的 <strong>blue screen of
+death(蓝屏死机)</strong>——老系统跑新程序时尤其容易崩。</li>
+<li><strong>Probable</strong>:大学校园里晚上没多少人工作,<strong>如果管理员发现半夜网络流量极高,那很可能有攻击正在进行</strong>;或者定期审查账户时,发现一个连管理员自己都不记得、日志里也追溯不到创建记录的新账户——尤其当它还带管理员权限时。</li>
+<li><strong>Definite</strong>:前员工的休眠账户突然开始访问系统资源;在线日志与之前的版本对不上(说明日志被改);在不该出现的地方发现黑客工具(因此很多组织明令禁止未经
+CISO 书面许可使用这类工具);合作伙伴报告"攻击来自你们的系统"。</li>
+</ul>
+<p><strong>当以下"确定的实际事件"被确认时,对应的 IR
+必须立即激活:</strong></p>
+<ul>
+<li><strong>Loss of
+availability(可用性丧失)</strong>——信息/系统变得不可用;</li>
+<li><strong>Loss of
+integrity(完整性丧失)</strong>——数据损坏、出现乱码、数据明显错误;</li>
+<li><strong>Loss of
+confidentiality(机密性丧失)</strong>——敏感信息泄露的通知;</li>
+<li><strong>Violation of policy(违反政策)</strong>;</li>
+<li><strong>Violation of law(违反法律)</strong>。</li>
+</ul>
+<p>一旦事件被确认并分类,IR 就从 <strong>detection
+phase(侦测阶段)</strong> 进入 <strong>reaction
+phase(反应阶段)</strong>。</p>
+<h3 id="54-反应阶段alert-roster-与-documentation">5.4 反应阶段:Alert
+roster 与 Documentation</h3>
+<p>进入反应阶段后,CSIRT
+的几个动作必须<strong>快速、且可能并行</strong>地发生:通知关键人员、分配任务、记录事件。其中两个概念要重点掌握。</p>
+<p><strong>Alert roster(警报名册)</strong>
+这是一份<strong>包含"事件发生时需通知的个人的联系信息"的文档</strong>。通知有两种激活方式,各有取舍:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>方式</th>
+<th>机制</th>
+<th>优点</th>
+<th>缺点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Sequential(顺序式)</strong></td>
+<td>一名联系人<strong>逐个</strong>打电话通知名册上每个人</td>
+<td><strong>准确</strong>(同一人传递,信息不走样)</td>
+<td><strong>慢</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Hierarchical(层级式)</strong></td>
+<td>第一人通知几个指定的人,这几人再各自通知下一批,逐层展开</td>
+<td><strong>快</strong>(很多人同时在打电话)</td>
+<td>信息可能在<strong>人传人中被扭曲(distorted)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Alert message(警报消息)</strong>
+是对事件的<strong>脚本化描述</strong>,只含刚好够用的信息——让每个响应者知道该启动
+IRP 的哪个部分,又不至于妨碍通知流程。比如"X 地发生火灾",团队就知道该启动
+IRP 的消防部分。</p>
+<blockquote>
+<p><strong>🔑 现实中的例子</strong> — 讲师说,你走进 UOW 的 Building 3(IT
+学院的楼),墙上就贴着这样的文档:写明发生事件时应通报的成员姓名、职务和联系方式。那就是一份真实的
+alert
+roster。还有一条易忽略的要点:<strong>关键的高管(如总经理)也必须被通知</strong>,但要在事件<strong>确认之后、媒体或外部得知之前</strong>——这样他们被媒体问到时才知道如何应对。</p>
+</blockquote>
+<p><strong>Documentation(文档记录)</strong>
+一旦事件被确认、通知流程启动,团队就要开始<strong>记录</strong>,记下事件期间每个动作的
+<strong>who / what / when / where / why /
+how</strong>。它的价值有三层:</p>
+<ol type="1">
+<li>事后作为<strong>案例研究(case
+study)</strong>,判断当时的行动是否正确、是否有效;</li>
+<li>证明组织已**尽一切可能(due
+care)**遏制事件蔓延——在法律上,**尽职(standards of due
+care)**可能为组织提供保护;</li>
+<li>可作为未来培训和新版 IR 计划的<strong>模拟素材</strong>。</li>
+</ol>
+<h3 id="55-遏制升级恢复复盘">5.5 遏制、升级、恢复、复盘</h3>
+<p>IR
+最核心的任务是<strong>阻止事件、或遏制其影响范围</strong>。<strong>遏制策略(containment
+strategies)<strong>聚焦两件事:</strong>(1) 停止事件,(2)
+重新夺回系统控制权。</strong></p>
+<p>具体的遏制手段(slide 30,按从温和到激烈排列):</p>
+<pre class="mermaid"><code>flowchart TD
+    C1[断开受影响的通信线路] --&gt; C2[动态应用过滤规则,限制特定网络访问]
+    C2 --&gt; C3[禁用被攻陷的用户账户]
+    C3 --&gt; C4[重新配置防火墙,阻断问题流量]
+    C4 --&gt; C5[临时停用被攻陷的进程或服务]
+    C5 --&gt; C6[关停作为通道的应用或服务器,如邮件服务器]
+    C6 --&gt; C7[关闭所有计算机和网络设备&lt;br/&gt;最极端,仅当系统控制权已完全丧失]</code></pre>
+<p>最后一招"关掉一切"只在<strong>系统控制权已经彻底丧失、别无他法</strong>时才用——此时唯一的希望是<strong>保住计算机上的数据</strong>,等事后再回来尽量恢复未被破坏的部分。每种手段都有代价:比如直接断开线路最简单直接,但如果组织的关键业务恰好跑在那条线路上,这一招就太激进了。</p>
+<p><strong>Incident escalation(事件升级)</strong>
+事件的范围或严重程度可能增长到 <strong>IRP
+已无法充分遏制</strong>的地步。此时就要把它<strong>升级为
+disaster</strong>,或移交给外部权威(如执法机构、公开的应急单位)。在哪条线上判定为
+disaster,正是 <strong>BIA 阶段事先定好的</strong>。</p>
+<blockquote>
+<p>⚠️ <strong>关键警告</strong> —
+讲师特别强调:<strong>升级一旦做出,就无法撤销(once done, it cannot be
+undone)。</strong> 所以何时、何地启用升级,必须非常谨慎、有明确指引。</p>
+</blockquote>
+<p><strong>Recovering from incidents(从事件中恢复)</strong>
+事件被遏制、控制权夺回后,恢复才开始。CSIRT
+必须先评估损害的全部范围(<strong>incident damage
+assessment</strong>:确定 CIA
+被破坏的范围),才能决定如何重启系统。记录损害的人<strong>必须受过训练</strong>,以便正确<strong>收集与保全证据(collect
+and preserve
+evidence)</strong>——万一事件涉及刑事犯罪或引发民事诉讼时用得上。</p>
+<p>按 Pipkin 的方法,恢复过程包含这些步骤:</p>
+<ul>
+<li>找出<strong>允许事件发生和扩散的漏洞</strong>并修复;</li>
+<li>处理那些<strong>未能阻止/限制事件、或本就缺失的防护措施</strong>(安装、替换或升级);</li>
+<li>评估并改进<strong>监控能力</strong>;</li>
+<li>从<strong>备份中恢复数据</strong>;</li>
+<li>检查、清理并恢复<strong>被破坏的服务与进程</strong>;</li>
+<li><strong>持续监控</strong>系统;</li>
+<li><strong>恢复利益共同体成员的信心</strong>。</li>
+</ul>
+<p><strong>After-action review(AAR,事后回顾)</strong>
+回到日常工作之前,IR 团队必须做一次
+<strong>AAR</strong>——对从首次侦测到最终恢复全过程的<strong>详细复盘</strong>。所有成员回顾自己的行动,核对
+IR 文档是否准确,找出 IR
+计划<strong>有效、无效、应改进</strong>的地方。AAR 既能升级 IR
+计划,也能成为未来员工的培训案例。</p>
+<p><strong>涉及法律时</strong>:当事件触犯民法或刑法,组织有责任通知相关部门。讲师对比了中美:美国由
+<strong>FBI</strong> 处理跨州计算机犯罪与(网络)恐怖主义,澳大利亚则由
+<strong>Australian Federal
+Police(澳大利亚联邦警察)<strong>承担类似职能。引入执法机构有利有弊——<strong>好处</strong>是他们更擅长处理证据、获取证词、构建法律案件;<strong>坏处</strong>是组织可能</strong>失去对事件后续进程的控制权</strong>。</p>
+<hr />
+<h2 id="6-drp--disaster-recovery-plan灾难恢复计划">§6 DRP — Disaster
+Recovery Plan(灾难恢复计划)</h2>
+<p>当 IR 团队侦测到的事件<strong>升级为 disaster</strong> 时,IRP
+已无力高效恢复,此时 <strong>DRP</strong> 接手。DRP 通常由 <strong>CIO
+领导的 IT
+利益共同体</strong>负责,涵盖准备和从灾难中恢复——无论是<strong>自然(natural)还是人为(man-made)<strong>的灾难。有些事件因其本质会被</strong>立即判定为
+disaster</strong>,比如大火、严重洪水、破坏性风暴或地震。</p>
+<p><strong>一个事件何时算 disaster?</strong>(满足任一条件即可,slide
+35):</p>
+<ol type="1">
+<li>组织<strong>无法遏制或控制</strong>该事件的影响;<strong>或</strong></li>
+<li>事件造成的损害/破坏程度<strong>严重到组织无法快速恢复</strong>。</li>
+</ol>
+<p><strong>DRP 的核心作用</strong>:定义如何在**组织通常所在的位置(即原址
+primary site)**重建运营。</p>
+<h3 id="61-灾难的两种分类法">6.1 灾难的两种分类法</h3>
+<pre class="mermaid"><code>flowchart TD
+    D[灾难分类] --&gt; N1[按性质]
+    D --&gt; N2[按发展速度]
+    N1 --&gt; NA[&quot;Natural(自然)&lt;br/&gt;火灾、洪水、地震、海啸、雷击、龙卷风、风暴、台风&quot;]
+    N1 --&gt; NB[&quot;Man-made(人为)&lt;br/&gt;恐怖主义/网络恐怖主义、战争、由 incident 升级而来的人为破坏&quot;]
+    N2 --&gt; SA[&quot;Rapid onset(快速发生)&lt;br/&gt;突然、几乎无预警,如地震、洪水、风暴、龙卷风&quot;]
+    N2 --&gt; SB[&quot;Slow onset(缓慢发生)&lt;br/&gt;随时间逐渐侵蚀组织承受力,如干旱、饥荒、环境退化/气候变化、森林砍伐、虫害&quot;]</code></pre>
+<ul>
+<li><strong>最常见的分法</strong>是把<strong>自然灾难</strong>和<strong>人为灾难</strong>分开。</li>
+<li><strong>另一种分法</strong>按<strong>发展速度</strong>:**rapid
+onset(快速发生)**几乎无预警、可能夺走生命并摧毁生产资料;**slow
+onset(缓慢发生)**则随时间逐渐削弱组织的承受能力。</li>
+</ul>
+<h3 id="62-drp-的关键要素">6.2 DRP 的关键要素</h3>
+<p>为灾难做规划时,CPMT 要做<strong>情景开发与影响分析(scenario
+development and impact
+analysis)</strong>,给每种潜在灾难的威胁级别归类。讲师提醒:生成情景时<strong>应从最重要的资产——人(people)——开始</strong>:你是否拥有具备相应组织知识、能重启业务的人力?组织必须**交叉培训(cross-train)**员工,以确保运营和"正常感"能被恢复。此外,<strong>DRP
+必须定期测试</strong>,这样 DR 团队才能快速高效地领导恢复。</p>
+<p>DRP 必须包含的关键要素(slide 37):</p>
+<ul>
+<li><strong>角色与职责的清晰划分</strong>——每个人都清楚灾难中自己的职责;</li>
+<li>执行 <strong>alert roster</strong> 并通知关键人员;</li>
+<li>清晰<strong>确立优先级</strong>;</li>
+<li>灾难的<strong>文档记录</strong>;</li>
+<li>缓解影响的<strong>行动步骤</strong>;</li>
+<li>各系统组件的<strong>备选实现方案</strong>(当主版本不可用时)。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 讲师的亲身例子:Building 3 的 fire warden</strong> —
+讲师本人是 Building 3 的<strong>消防督导员(fire
+warden)</strong>。一旦楼里发生火灾,他必须帮助楼内人员安全撤离到集合点:逐间办公室敲门,要求师生按指定路线撤到指定区域等候。这就是"角色与职责清晰划分"在现实中的样子——谁负责疏散、谁负责对接消防警察医疗、谁负责打包带走关键物品,都得事先分配好。</p>
+</blockquote>
+<p>DRP
+还必须<strong>灵活(flexible)</strong>,因为真实事件常常超出最周密的计划。如果<strong>物理设施完好</strong>,就开始恢复系统和数据;如果<strong>设施已被摧毁、不可用</strong>,就采取备选行动。而<strong>当灾难威胁到组织在原址的存续时,DR
+流程就转变为 BC 流程</strong>——这正是下一节。</p>
+<hr />
+<h2 id="7-bcp--business-continuity-plan业务连续性计划">§7 BCP — Business
+Continuity Plan(业务连续性计划)</h2>
+<p><strong>BCP</strong>
+确保<strong>关键业务功能在灾难发生时仍能继续</strong>。它和 DRP
+有几个关键区别,务必记牢:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>DRP</th>
+<th>BCP</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>由谁管理</td>
+<td>IT 利益共同体(CIO 领导)</td>
+<td><strong>CEO / COO</strong></td>
+</tr>
+<tr class="even">
+<td>在哪里恢复</td>
+<td><strong>原址(primary site)</strong> 的技术设施与运营</td>
+<td><strong>备用站点(alternate site)</strong> 的关键业务功能</td>
+</tr>
+<tr class="odd">
+<td>何时启动</td>
+<td>灾难发生时</td>
+<td>当灾难使原址<strong>长期不可用</strong>、需要更复杂的恢复时,<strong>与
+DRP 并行</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师的清晰表述:<strong>灾难发生在原址</strong>,使原址变得不可用、不可访问;于是
+<strong>BCP 在备用站点续命</strong>,而 <strong>DR
+团队仍在原址努力恢复</strong>业务运营。两者<strong>并行(concurrently)</strong>。BCP
+可以一直持续,直到组织能恢复原址、或选定新的主站点。</p>
+<blockquote>
+<p>📎 <strong>拓展(不是每家都需要)</strong> —
+并非每个企业都需要备用站点。讲师举例:Wollongong
+的一家小店可能<strong>直接停业、等原址恢复</strong>就行,因为维护一个备用站点的成本相对其业务规模太高,负担不起。但<strong>制造业和零售业</strong>高度依赖运营连续性(否则无法产生收入),所以更可能配备
+BCP
+以便快速搬迁、把收入损失降到最低。又一次,<strong>组织规模决定方案</strong>。</p>
+</blockquote>
+<h3 id="71-连续性策略exclusive-use-vs-shared-use">7.1
+连续性策略:Exclusive-use vs Shared-use</h3>
+<p>BCP 的基石是<strong>识别关键业务功能及支撑它们的资源</strong>。CP
+团队要指派一组人评估、比较各种备选方案并推荐选哪个。所选策略通常涉及一个<strong>异地设施(off-site
+facility)</strong>,需定期检查、配置、加固和测试。<strong>决定选哪个的因素,通常是成本(cost)。</strong></p>
+<p>策略分两大类:</p>
+<p><strong>Exclusive-use options(独占使用)——hot / warm / cold
+sites</strong>,这是 hot→cold
+的"准备程度递减、成本递减、恢复时间递增"光谱:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>站点</th>
+<th>准备程度</th>
+<th>一句话</th>
+<th>恢复速度 / 成本</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Hot site(热站)</strong></td>
+<td>最高</td>
+<td><strong>完全配置好的计算机设施,所有服务齐备</strong></td>
+<td>恢复最快,成本最高</td>
+</tr>
+<tr class="even">
+<td><strong>Warm site(温站)</strong></td>
+<td>中等</td>
+<td>像热站,但<strong>软件应用未保持完全就绪</strong></td>
+<td>居中</td>
+</tr>
+<tr class="odd">
+<td><strong>Cold site(冷站)</strong></td>
+<td>最低</td>
+<td><strong>只保留最基本的服务和设施</strong></td>
+<td>恢复最慢,成本最低</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Shared-use options(共享使用)</strong>:</p>
+<ul>
+<li><strong>Timeshares(分时共享)</strong>:像独占站点,但是<strong>租来的</strong>;</li>
+<li><strong>Service
+bureaus(服务机构)</strong>:提供物理设施的<strong>代理机构</strong>;</li>
+<li><strong>Mutual
+agreements(互助协议)</strong>:两个组织之间<strong>互相协助</strong>的合同。</li>
+</ul>
+<p>还有<strong>专门化备选(specialized alternatives)</strong>:</p>
+<ul>
+<li><strong>Rolling mobile site(移动式站点)</strong>——可移动的设施;</li>
+<li><strong>Externally stored resources(外部存储资源)</strong>。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 一个记忆锚</strong> — hot / warm / cold
+的温度就是"准备热度":热站随时能上场(贵),冷站只是块空地加水电(便宜),温站介于中间。选哪个,本质是
+§2 里说的那对老朋友——<strong>恢复速度 vs 成本</strong>的权衡。</p>
+</blockquote>
+<blockquote>
+<p>⚠️ <strong>本讲录音到此为止</strong> —
+课堂录音在讲到连续性策略的分类时下课了,讲师说"hot / warm / cold
+各选项的具体讲解放到下次"。所以 §7.1 的细节、以及下面的 §7.2
+数据备份、§8 的时序与测试,主要依据 <strong>slides 41–48</strong>
+整理,课堂口头展开较少——但它们都在 slides 范围内,是公平的考点。</p>
+</blockquote>
+<h3 id="72-数据备份策略">7.2 数据备份策略</h3>
+<p>要让任何 BCP
+站点快速运转起来,组织必须能<strong>恢复数据</strong>。四种选项(slide
+43,按"实时性递增"排列):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>策略</th>
+<th>机制</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Traditional data backups(传统备份)</strong></td>
+<td>常规的数据备份</td>
+</tr>
+<tr class="even">
+<td><strong>Electronic vaulting(电子保险库)</strong></td>
+<td>将数据**批量(bulk batch)**传输到异地设施</td>
+</tr>
+<tr class="odd">
+<td><strong>Remote journaling(远程日志)</strong></td>
+<td>将**实时交易(live transactions)**传输到异地设施</td>
+</tr>
+<tr class="even">
+<td><strong>Database shadowing(数据库影子)</strong></td>
+<td>存储<strong>重复的在线交易数据</strong>(在多处同时保存)</td>
+</tr>
+</tbody>
+</table></div>
+<p>直觉上,从 electronic vaulting 到 database
+shadowing,是"从定期批量搬运"到"近乎实时多副本"的演进——越实时,灾难时丢失的数据越少,但成本和复杂度也越高。</p>
+<hr />
+<h2 id="8-整体时序测试与持续改进">§8 整体时序、测试与持续改进</h2>
+<h3 id="81-测试应急计划">8.1 测试应急计划</h3>
+<p>光有计划不够,<strong>问题往往在测试中才暴露</strong>;发现问题、加以改进,才能得到一份<strong>可靠的计划</strong>。五种测试策略(slide
+47,按"投入与真实度递增"排列):</p>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;Desk check&lt;br/&gt;桌面检查&lt;br/&gt;(各自核对清单)&quot;] --&gt; B[&quot;Structured walkthrough&lt;br/&gt;结构化走查&lt;br/&gt;(集体逐步过一遍)&quot;]
+    B --&gt; C[&quot;Simulation&lt;br/&gt;模拟&lt;br/&gt;(模拟事件演练)&quot;]
+    C --&gt; D[&quot;Parallel testing&lt;br/&gt;并行测试&lt;br/&gt;(备用系统与主系统同时跑)&quot;]
+    D --&gt; E[&quot;Full interruption testing&lt;br/&gt;完全中断测试&lt;br/&gt;(真的关停主系统,最真实也最有风险)&quot;]</code></pre>
+<p>越往右,越接近真实灾难、越能检验计划,但对正常业务的干扰和风险也越大。</p>
+<h3 id="82-最终思想迭代与持续改进">8.2 最终思想:迭代与持续改进</h3>
+<p>应急规划不是"写完就锁进抽屉"的一次性任务。<strong>迭代带来改进(iteration
+results in improvement)</strong>——这种方法论的正式形态叫
+<strong>CPI(Continuous Process
+Improvement,持续过程改进)</strong>:每演练一次,计划就应当被改进一次;<strong>持续的评估与改进,带来更好的结果。</strong>
+这也呼应了 §3 NIST 7 步里的第 7
+步——计划是一份永远在更新的<strong>活文档</strong>。</p>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>Contingency Planning(CP)</strong>
+是为意外不利事件做的整体规划,涵盖<strong>准备、侦测、反应、恢复</strong>四个动作;其主要目标是以<strong>最小成本和最小中断</strong>恢复正常运营,而意外事件中<strong>最受冲击的信息特性是可用性(availability)</strong>。</li>
+<li>CP 有四大组件,顺序固定:<strong>BIA → IRP → DRP → BCP</strong>。BIA
+是必须先做的准备;坏事<strong>默认按 incident
+处理(IRP)</strong>;无法控制时<strong>升级(escalate)为
+disaster(DRP,在原址恢复)</strong>;原址长期不可用时 <strong>BCP 与 DRP
+并行</strong>、在备用站点续命。</li>
+<li><strong>BIA 与 Risk Management 的根本区别</strong>:Risk Management
+在攻击前问"如何防住";<strong>BIA
+假设控制已失效、攻击已成功</strong>,在攻击后问"损失多大、如何恢复"。BIA
+有<strong>五个阶段</strong>,最后一步<strong>从属计划分类</strong>决定一个结局走
+DRP(灾难性)还是 IRP(非灾难性)。</li>
+<li>参与 CP 的有<strong>四个团队</strong>(CPMT、IR、DR、BC),由
+<strong>CPMT</strong> 统领;CPMT 含 <strong>Champion(理想为 CEO)、Project
+Manager(理想为 CISO)、Team Members</strong>。NIST 推荐 <strong>7
+步</strong>开发 CP
+文档,且计划必须是定期更新的<strong>活文档</strong>。</li>
+<li>判断"是否真为 incident"用 <strong>Pipkin
+三类指标</strong>:<strong>possible(可能)&lt; probable(很可能)&lt;
+definite(确定)</strong>;确认的实际事件包括<strong>可用性/完整性/机密性丧失、违反政策、违反法律</strong>,确认后从
+<strong>detection 进入 reaction</strong>。</li>
+<li>反应阶段的两个核心工具:<strong>Alert roster</strong>(sequential
+准确但慢 / hierarchical 快但易失真)与
+<strong>Documentation</strong>(记录
+who/what/when/where/why/how,兼具复盘、法律 due
+care、培训三重价值)。遏制聚焦<strong>停止事件 +
+夺回控制权</strong>,<strong>升级一旦做出不可撤销</strong>,恢复后必做
+<strong>AAR(事后回顾)</strong>。</li>
+<li><strong>DRP 在原址恢复(IT/CIO 主管),BCP 在备用站点续命(CEO/COO
+主管),二者并行</strong>。灾难按<strong>自然/人为</strong>或<strong>快速/缓慢发生</strong>分类。</li>
+<li>BCP 连续性策略分<strong>独占(hot/warm/cold
+sites,准备程度与成本递减)<strong>和</strong>共享(timeshare、service
+bureau、mutual
+agreement)</strong>,<strong>成本是决定因素</strong>;数据备份有<strong>传统备份、electronic
+vaulting、remote journaling、database
+shadowing</strong>四种(实时性递增)。计划要靠<strong>五种测试</strong>(desk
+check → full interruption)检验,并通过
+**CPI(持续过程改进)**不断迭代。</li>
+</ul>
+<hr />
+<h2 id="附易混淆点速查">附:易混淆点速查</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>容易搞混的一对</th>
+<th>关键区别</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>BIA vs Risk Management</strong></td>
+<td>BIA 假设"已经被攻破";Risk Management 研究"如何不被攻破"</td>
+</tr>
+<tr class="even">
+<td><strong>IRP vs DRP</strong></td>
+<td>IRP 处理 incident;DRP 处理升级后的
+disaster,在<strong>原址</strong>恢复</td>
+</tr>
+<tr class="odd">
+<td><strong>DRP vs BCP</strong></td>
+<td>DRP 在<strong>原址</strong>(IT/CIO);BCP
+在<strong>备用站点</strong>(CEO/COO);灾难时<strong>并行</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Incident vs Disaster</strong></td>
+<td>能控制/快速恢复 = incident;不能控制 或 损害严重到无法快速恢复 =
+disaster(界线在 BIA 中定义)</td>
+</tr>
+<tr class="odd">
+<td><strong>Possible / Probable / Definite</strong></td>
+<td>可能性递增:陌生文件(possible)&lt;
+半夜流量飙升/新特权账户(probable)&lt;
+日志被改/黑客工具/黑客通知(definite)</td>
+</tr>
+<tr class="even">
+<td><strong>Sequential vs Hierarchical roster</strong></td>
+<td>Sequential 准确但慢;Hierarchical 快但信息易失真</td>
+</tr>
+<tr class="odd">
+<td><strong>Hot / Warm / Cold site</strong></td>
+<td>准备程度与成本:hot(全配置、最贵)&gt; warm(应用未就绪)&gt;
+cold(只有基础设施、最便宜)</td>
+</tr>
+<tr class="even">
+<td><strong>Champion vs Project Manager</strong></td>
+<td>Champion 提供战略视野与权力背书(CEO);PM 实际管项目(CISO)</td>
+</tr>
+</tbody>
+</table></div>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>
