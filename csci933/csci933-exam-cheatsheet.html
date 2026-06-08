@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CSCI933 · Machine Learning & Data Mining — Exam Cheat Sheet</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  :root { --fs: 9.5pt; --cols: 2; --accent: #1f4e79; --rule: #b9c2cc; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #e9ebee; }
+  body {
+    margin: 0; color: #111; font-size: var(--fs); line-height: 1.32;
+    font-family: "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  /* On screen, present the sheet as a padded A4 page on a desk — gives it real
+     margins and a paper look, so what you read ≈ what prints. */
+  @media screen {
+    body { max-width: 210mm; margin: 24px auto; padding: 14mm 13mm; background: #fff;
+           box-shadow: 0 8px 28px rgba(0,0,0,.16); }
+  }
+  @media print {
+    html { background: none; }
+    body { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+  }
+  .sheet-title {
+    column-span: all; margin: 0 0 6px; padding-bottom: 4px;
+    border-bottom: 2px solid var(--accent); color: var(--accent);
+    font-size: calc(var(--fs) * 1.7); letter-spacing: .2px;
+  }
+  /* balance (not auto): on screen the page has no fixed height, and column-fill:auto
+     would pour everything into the first column and leave the right side blank.
+     balance spreads content evenly across columns. */
+  .content { column-count: var(--cols); column-gap: 7mm; column-fill: balance; column-rule: 1px solid var(--rule); }
+
+  h1, h2, h3 { break-after: avoid; margin: 8px 0 3px; color: var(--accent); }
+  h1 { font-size: calc(var(--fs) * 1.25); border-left: 3px solid var(--accent); padding-left: 5px; }
+  h2 { font-size: calc(var(--fs) * 1.12); }
+  h3 { font-size: var(--fs); font-style: italic; color: #333; }
+  p { margin: 0 0 4px; }
+  ul, ol { margin: 0 0 5px; padding-left: 1.1em; }
+  li { margin: 0 0 1.5px; break-inside: avoid; }
+  strong { color: #000; }
+  code, .formula { font-family: "SF Mono", Consolas, monospace; font-size: .94em;
+    background: #f1f3f5; padding: 0 2px; border-radius: 2px; }
+  math { font-size: 1.02em; }
+  math[display="block"] { display: block; margin: 4px 0 7px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 6px 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3px 0 6px; break-inside: avoid; font-size: .95em; }
+  th, td { border: 1px solid var(--rule); padding: 2px 5px; text-align: left; vertical-align: top; }
+  th { background: #eef2f6; color: var(--accent); font-weight: 600; }
+
+  blockquote { margin: 3px 0; padding: 2px 7px; border-left: 3px solid #e0a800;
+    background: #fff8e1; break-inside: avoid; }
+  blockquote p { margin: 0; }
+
+  /* tag a section as "must know" with > [!key] in source → rendered as blockquote starting with 🔑 */
+</style>
+</head>
+<body>
+<h1 class="sheet-title">CSCI933 · Machine Learning & Data Mining — Exam Cheat Sheet</h1>
+<div class="content">
+<h1 id="csci933-machine-learning-data-mining-exam-cheat-sheet">CSCI933 ·
+Machine Learning &amp; Data Mining — Exam Cheat Sheet</h1>
+<blockquote>
+<p>Exam style (anchors everything below): <strong>no
+derivations</strong> — you’re given an equation and must <em>explain
+what each term does · what happens if removed/scaled · why it’s designed
+so</em>. Two master question types: <strong>① scenario → pick model →
+justify → trade-offs</strong>, <strong>② interpret a
+loss/equation</strong>. Some questions come from the
+<strong>assignments</strong> (Ridge, Dropout, RAG). Recurring spine: all
+ML = <strong>learn a function input→output</strong>;
+<strong>generalization</strong> (do well on unseen
+<em>same-distribution</em> data) is the goal,
+<strong>overfitting</strong> the enemy; we minimise <strong>empirical
+error
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math></strong>
+but want <strong>generalization error
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math></strong>;
+bias²+variance+irreducible.</p>
+</blockquote>
+<hr />
+<h2 id="w2-ml-introduction">W2 · ML introduction</h2>
+<ul>
+<li><strong>Mitchell T/E/P:</strong> program learns from experience
+<strong>E</strong> w.r.t. task <strong>T</strong> measured by
+<strong>P</strong> if P on T improves with E.</li>
+<li><strong>8 paradigms:</strong> supervised, unsupervised,
+semi-supervised, transductive, online, reinforcement, active,
+few-shot.</li>
+<li><strong>Tasks as function signatures:</strong> classification
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>ℝ</mi><mi>n</mi></msup><mspace width="-0.167em"></mspace><mo>→</mo><mspace width="-0.167em"></mspace><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mi>.</mi><mi>.</mi><mi>k</mi><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\mathbb{R}^n\!\to\!\{1..k\}</annotation></semantics></math>,
+regression
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>ℝ</mi><mi>n</mi></msup><mspace width="-0.167em"></mspace><mo>→</mo><mspace width="-0.167em"></mspace><mi>ℝ</mi></mrow><annotation encoding="application/x-tex">\mathbb{R}^n\!\to\!\mathbb{R}</annotation></semantics></math>,
+ranking, clustering, dim-reduction
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>ℝ</mi><mi>n</mi></msup><mspace width="-0.167em"></mspace><mo>→</mo><mspace width="-0.167em"></mspace><msup><mi>ℝ</mi><mi>k</mi></msup></mrow><annotation encoding="application/x-tex">\mathbb{R}^n\!\to\!\mathbb{R}^k</annotation></semantics></math>,
+transcription, translation, anomaly detection, synthesis, density
+estimation.</li>
+<li><strong>Linear regression</strong> normal equations
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝛚</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>X</mi><mi>T</mi></msup><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><msup><mi>X</mi><mi>T</mi></msup><mi>y</mi></mrow><annotation encoding="application/x-tex">\boldsymbol\omega=(X^TX)^{-1}X^Ty</annotation></semantics></math>
+(use <strong>pseudo-inverse</strong> if singular); geometric = project
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+onto feature subspace. <strong>Bias
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
+enlarges the hypothesis space</strong> (line need not pass through
+origin) — same reason every neuron has a bias.</li>
+<li><strong>Capacity</strong> = ability to fit varied functions.
+Underfit (too simple) / overfit (memorises noise).
+<strong>i.i.d.</strong> assumption: train &amp; test from the
+<strong>same distribution</strong> (violation = domain shift). 70/30
+split; never leak test data; 100 % train accuracy = red flag.</li>
+<li><strong>PAC</strong> (concept only, “don’t sweat” the maths):
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝔼</mi><mrow><mo stretchy="true" form="prefix">[</mo><mover><mi>R</mi><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow><mo>=</mo><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathbb{E}[\hat R(h)]=R(h)</annotation></semantics></math>
+— empirical error is an unbiased estimate of generalization error; gives
+sample-size &amp; error bounds at confidence
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mi>δ</mi></mrow><annotation encoding="application/x-tex">1-\delta</annotation></semantics></math>,
+accuracy
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>.</li>
+</ul>
+<hr />
+<h2 id="w3-regression">W3 · Regression</h2>
+<ul>
+<li>Core tension: minimise <strong>empirical error</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mi>m</mi></mfrac><mo>∑</mo><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat R(h)=\frac1m\sum L(h(x_i),y_i)</annotation></semantics></math>
+but truly want <strong>generalization error</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>𝔼</mi><mrow><mi>x</mi><mo>∼</mo><mi>𝒟</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">[</mo><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>h</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">R(h)=\mathbb{E}_{x\sim\mathcal D}[L(h(x),f(x))]</annotation></semantics></math>.
+The gap = overfitting.</li>
+<li><strong>Linear regression:</strong> minimise MSE; objective
+convex+differentiable → set
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mi>F</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\nabla F=0</annotation></semantics></math>
+→ normal eqns
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>=</mo><mi>X</mi><mi>Y</mi></mrow><annotation encoding="application/x-tex">XX^TW=XY</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mi>X</mi><mi>Y</mi></mrow><annotation encoding="application/x-tex">W=(XX^T)^{-1}XY</annotation></semantics></math>;
+geometric = <strong>orthogonal projection</strong>. Big data → use
+<strong>gradient descent</strong> instead of inverting.</li>
+<li>Least squares = <strong>low bias, high variance, no control of
+weight norm (no regularization) → overfits.</strong> This is the disease
+the rest cures.</li>
+<li><strong>Bias–variance decomposition:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">error</mtext><mo>=</mo><munder><munder><mtext mathvariant="normal">irreducible</mtext><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">noise</mtext></munder><mo>+</mo><msup><mtext mathvariant="normal">bias</mtext><mn>2</mn></msup><mo>+</mo><mtext mathvariant="normal">variance</mtext></mrow><annotation encoding="application/x-tex">\text{error}=\underbrace{\text{irreducible}}_{\text{noise}}+\text{bias}^2+\text{variance}</annotation></semantics></math>.</li>
+<li><strong>Ridge (L2):</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>min</mo><mspace width="0.222em"></mspace><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>W</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>+</mo><mo stretchy="false" form="postfix">∥</mo><msup><mi>X</mi><mi>T</mi></msup><mi>W</mi><mo>−</mo><mi>Y</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\min\ \lambda\|W\|^2+\|X^TW-Y\|^2</annotation></semantics></math>
+→
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><msup><mi>X</mi><mi>T</mi></msup><mo>+</mo><mi>λ</mi><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mi>X</mi><mi>Y</mi></mrow><annotation encoding="application/x-tex">W=(XX^T+\lambda I)^{-1}XY</annotation></semantics></math>.
+<strong>Always invertible</strong> (PSD +
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mi>I</mi></mrow><annotation encoding="application/x-tex">\lambda I</annotation></semantics></math>).
+<strong>Shrinks weights toward 0 but NOT to 0</strong>;
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mspace width="-0.167em"></mspace><mo>↑</mo></mrow><annotation encoding="application/x-tex">\lambda\!\uparrow</annotation></semantics></math>
+⟹ bias↑, variance↓. <em>Salt-soup analogy:</em> keeps a little of every
+ingredient = shrinkage estimator.</li>
+<li><strong>Lasso (L1):</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>min</mo><mspace width="0.222em"></mspace><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msub><mo stretchy="false" form="postfix">∥</mo><mn>1</mn></msub><mo>+</mo><mo>∑</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>⋯</mi><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\min\ \lambda\|w\|_1+\sum(\cdots)^2</annotation></semantics></math>.
+Goal is really
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math></strong>
+(count nonzero) but
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>
+not optimisable →
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+= computable surrogate</strong> → <strong>sparse solution = automatic
+feature selection + interpretability</strong> (zeros out useless
+features).</li>
+<li><strong>L1 vs L2 geometry:</strong> L2 ball =
+<strong>circle</strong> (no corners → no zeros); L1 ball =
+<strong>diamond</strong> with corners <strong>on the axes</strong> →
+contour first touches a corner → some coords = 0 → sparsity.</li>
+<li><strong>Elastic Net:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msub><mo stretchy="false" form="postfix">∥</mo><mn>1</mn></msub><mo>+</mo><mi>β</mi><mo stretchy="false" form="postfix">∥</mo><mi>W</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\lambda\|w\|_1+\beta\|W\|^2</annotation></semantics></math>
+— ridge-shrink then lasso-zero; good when features grouped / solution
+spread over subspaces.</li>
+</ul>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th>penalty</th>
+<th>effect</th>
+<th>sparse?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Linear</td>
+<td>—</td>
+<td>unconstrained</td>
+<td>no</td>
+</tr>
+<tr class="even">
+<td><strong>Ridge</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>W</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\lambda\|W\|^2</annotation></semantics></math></td>
+<td>shrink, not zero</td>
+<td>no</td>
+</tr>
+<tr class="odd">
+<td><strong>Lasso</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msub><mo stretchy="false" form="postfix">∥</mo><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">\lambda\|w\|_1</annotation></semantics></math></td>
+<td>zero out useless</td>
+<td>✓</td>
+</tr>
+<tr class="even">
+<td><strong>Elastic</strong></td>
+<td>L1+L2</td>
+<td>shrink then zero</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Data troubles:</strong> non-representative (sampling
+<strong>bias</strong>/<strong>noise</strong> → train≠prod distribution),
+poor quality (outliers, missing → median <strong>imputation</strong>;
+Pima “heart-rate = 0”), irrelevant features (selection = Lasso,
+extraction = PCA/autoencoder). <em>Garbage in → garbage out.</em>
+<strong>Ridge/Lasso interpretation is assignment-linked &amp;
+exam-likely.</strong></li>
+</ul>
+<hr />
+<h2 id="w4-classification-kernels-svm">W4 · Classification · Kernels ·
+SVM</h2>
+<ul>
+<li><strong>Classification → category</strong>, regression → value.
+Pipeline: <strong>sensor → feature extractor → classifier →
+decision</strong>; pattern =
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-dim
+vector.</li>
+<li><strong>Fish story:</strong> features must be
+<strong>discriminative</strong>; distribution <strong>overlap =
+unavoidable error</strong>; combine features → 2-D boundary; too many
+features → <strong>curse of dimensionality</strong> + overfitting;
+<strong>Occam’s razor</strong> = simplest model that <em>still
+fits</em>.</li>
+<li><strong>Bayes decision (optimal if distributions known):</strong>
+<ul>
+<li><strong>Min-error:</strong> assign
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+to max posterior; via Bayes ⟺
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>∣</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x\mid\omega_j)P(\omega_j)</annotation></semantics></math>
+largest;
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>i</mi></msub><mo>∣</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>∣</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac></mrow><annotation encoding="application/x-tex">P(\omega_i\mid x)=\frac{p(x\mid\omega_i)P(\omega_i)}{p(x)}</annotation></semantics></math>.
+<strong>Likelihood ratio</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>∣</mo><msub><mi>ω</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>∣</mo><msub><mi>ω</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>≷</mo><mfrac><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac></mrow><annotation encoding="application/x-tex">\frac{p(x\mid\omega_1)}{p(x\mid\omega_2)}\gtrless\frac{P(\omega_2)}{P(\omega_1)}</annotation></semantics></math>.</li>
+<li><strong>Min-risk:</strong> loss matrix
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>λ</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><annotation encoding="application/x-tex">\lambda_{ji}</annotation></semantics></math>
+(diagonal 0), conditional risk
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>l</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>λ</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ω</mi><mi>j</mi></msub><mo>∣</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">l_i(x)=\sum_j\lambda_{ji}P(\omega_j\mid x)</annotation></semantics></math>,
+pick min-risk class. <strong>Zero-one loss ⟹ min-risk =
+min-error</strong> (special case).</li>
+</ul></li>
+<li><strong>Discriminant functions:</strong> don’t assume a
+distribution, learn the boundary directly. <strong>Linear-machine
+decision regions are always CONVEX</strong> → fail on
+non-convex-separable data → fix with <strong>piecewise-linear</strong>
+(multiple prototypes, take max).</li>
+<li><strong>★ Kernel methods (top exam point):</strong> <strong>kernel
+trick</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\kappa(x,z)=\langle\phi(x),\phi(z)\rangle</annotation></semantics></math>
+computes a <strong>high-dim inner product in the original space without
+ever knowing
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math></strong>
+(Mercer). <em>“Look at the chair from another angle.”</em> Any algorithm
+expressible with <strong>only inner products</strong> can be
+<strong>kernelized</strong> (kernel ridge, classification, kernel PCA).
+<strong>RBF
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mi>γ</mi><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><mi>z</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\exp(-\gamma\|x-z\|^2)</annotation></semantics></math>
+= default, most powerful.</strong> Verify:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>x</mi><mn>1</mn><mn>2</mn></msubsup><mo>,</mo><msubsup><mi>x</mi><mn>2</mn><mn>2</mn></msubsup><mo>,</mo><msqrt><mn>2</mn></msqrt><msub><mi>x</mi><mn>1</mn></msub><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>⇒</mo><mi>κ</mi><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><mi>x</mi><mo>,</mo><mi>z</mi><msup><mo stretchy="false" form="postfix">⟩</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\phi(x)=(x_1^2,x_2^2,\sqrt2x_1x_2)\Rightarrow\kappa=\langle x,z\rangle^2</annotation></semantics></math>.</li>
+<li><strong>SVM:</strong> maximise margin
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>γ</mi><mo>=</mo><mn>1</mn><mi>/</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><mo stretchy="false" form="postfix">∥</mo></mrow><annotation encoding="application/x-tex">\gamma=1/\|w\|</annotation></semantics></math>
+⟺
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>min</mo><mspace width="0.222em"></mspace><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\min\ \tfrac12\|w\|^2</annotation></semantics></math>
+s.t.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo stretchy="false" form="prefix">⟨</mo><mi>w</mi><mo>,</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">⟩</mo><mo>+</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>≥</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">y_i(\langle w,x_i\rangle+b)\ge1</annotation></semantics></math>.
+<strong>Support vectors</strong> = points on the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>±</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\pm1</annotation></semantics></math>
+boundary (only they matter). <strong>Dual contains only inner
+products</strong> → swap in a kernel for nonlinearity. <strong>Soft
+margin</strong> (box constraint
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>≤</mo><msub><mi>α</mi><mi>i</mi></msub><mo>≤</mo><mi>C</mi></mrow><annotation encoding="application/x-tex">0\le\alpha_i\le C</annotation></semantics></math>)
+tolerates noise/outliers; practice = <strong>scale → RBF →
+cross-validate
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mo>,</mo><mi>γ</mi></mrow><annotation encoding="application/x-tex">C,\gamma</annotation></semantics></math></strong>.</li>
+<li><strong>Exam (W4):</strong> no derivation; <em>explain</em>
+kernelization (turning nonlinear into linear), not memorise
+formulas.</li>
+</ul>
+<hr />
+<h2 id="w5-neural-networks-deep-learning-i">W5 · Neural networks (Deep
+Learning I)</h2>
+<ul>
+<li><strong>★ One-liner: a neural network is a universal function
+approximator.</strong> Big enough → approximates almost any function;
+question is only <em>how well</em>.</li>
+<li><strong>Neuron</strong> = weighted sum + bias + activation:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>k</mi></msub><mo>=</mo><mi>ϕ</mi><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub><msub><mi>x</mi><mi>j</mi></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">y_k=\phi\!\big(\sum_j\omega_{kj}x_j\big)</annotation></semantics></math>
+(bias absorbed as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>0</mn></msub><mspace width="-0.167em"></mspace><mo>=</mo><mspace width="-0.167em"></mspace><mn>1</mn></mrow><annotation encoding="application/x-tex">x_0\!=\!1</annotation></semantics></math>).
+<strong>Remove the activation → it’s just linear regression;
+nonlinearity is the source of all power.</strong></li>
+<li><strong>Activations:</strong> threshold (not differentiable, dead),
+<strong>logistic/sigmoid</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><msup><mi>e</mi><mrow><mo>−</mo><mi>a</mi><mi>v</mi></mrow></msup></mrow></mfrac><annotation encoding="application/x-tex">\frac{1}{1+e^{-av}}</annotation></semantics></math>
+(differentiable), <strong>ReLU</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\max(0,v)</annotation></semantics></math>
+(deep-net workhorse, eases vanishing gradient), <strong>softmax</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac><msup><mi>e</mi><msub><mi>v</mi><mi>k</mi></msub></msup><mrow><mo>∑</mo><msup><mi>e</mi><msub><mi>v</mi><mi>j</mi></msub></msup></mrow></mfrac><annotation encoding="application/x-tex">\frac{e^{v_k}}{\sum e^{v_j}}</annotation></semantics></math>
+(multi-class output = probability distribution). <strong>Good activation
+= nonlinear + nice derivative + bounded.</strong></li>
+<li><strong>Architectures:</strong> single-layer / multilayer
+feedforward (MLP) / recurrent. <strong>Deeper → more abstract
+hierarchical features</strong> (edges→parts→objects) → supports
+<strong>transfer learning</strong> (freeze the generic backbone, retrain
+the specialised head). <strong>Choosing an architecture = injecting an
+inductive bias.</strong></li>
+<li><strong>Gradient descent</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi><mo>=</mo><mi>x</mi><mo>−</mo><mi>ϵ</mi><mi>∇</mi><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x&#39;=x-\epsilon\nabla f(x)</annotation></semantics></math>
+(blind-man-downhill / ball rolling; steepest descent, Cauchy 1847).
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mi>f</mi></mrow><annotation encoding="application/x-tex">\nabla f</annotation></semantics></math>
+= vector of partials; fastest descent =
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>∇</mi><mi>f</mi></mrow><annotation encoding="application/x-tex">-\nabla f</annotation></semantics></math>.</li>
+<li><strong>Perceptron:</strong> hyperplane
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∑</mo><msub><mi>ω</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sum\omega_ix_i+b=0</annotation></semantics></math>;
+<strong>only linearly separable</strong> (XOR fails) → motivates
+multilayer.</li>
+<li><strong>Back-propagation = gradient descent on an MLP</strong>, two
+passes (<strong>forward</strong> compute output,
+<strong>backward</strong> propagate error), solving the
+<strong>credit-assignment problem</strong> via the chain rule. Local
+gradient
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mi>j</mi></msub><mo>=</mo><msub><mi>e</mi><mi>j</mi></msub><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\delta_j=e_j\phi&#39;(v_j)</annotation></semantics></math>
+(output) or
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mi>j</mi></msub><mo>=</mo><mi>ϕ</mi><mi>′</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><msub><mo>∑</mo><mi>k</mi></msub><msub><mi>δ</mi><mi>k</mi></msub><msub><mi>ω</mi><mrow><mi>k</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\delta_j=\phi&#39;(v_j)\sum_k\delta_k\omega_{kj}</annotation></semantics></math>
+(hidden, “borrow blame downstream”); update
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Δ</mi><msub><mi>ω</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mo>=</mo><mi>η</mi><mspace width="0.167em"></mspace><msub><mi>δ</mi><mi>j</mi></msub><mspace width="0.167em"></mspace><msub><mi>y</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">\Delta\omega_{ji}=\eta\,\delta_j\,y_i</annotation></semantics></math>.</li>
+<li><strong>Optimizers:</strong> SGD → <strong>Momentum</strong>
+(inertia) → <strong>NAG</strong> (look-ahead) → <strong>AdaGrad</strong>
+(per-dim adaptive LR, but dies) → <strong>RMSProp</strong> (fixes dying
+via moving avg) → <strong>Adam</strong> (momentum + adaptive,
+default).</li>
+<li><strong>Exam (W5):</strong> read each symbol; explain the two passes
++ credit assignment + why output vs hidden updates differ; can
+<strong>hand-calc a single neuron</strong> and a <strong>1-D GD
+step</strong> — <em>not</em> recite the derivation.</li>
+</ul>
+<hr />
+<h2 id="w6-cnns-deep-learning-ii">W6 · CNNs (Deep Learning II)</h2>
+<ul>
+<li>FC on images → <strong>parameter explosion</strong>. <strong>CNN =
+MLP + 2 priors: ① local connectivity (receptive field) ② weight
+sharing.</strong> For <strong>grid-like</strong> data (1-D series, 2-D
+images). At least one layer uses <strong>convolution</strong> instead of
+matrix multiply.</li>
+<li><strong>Convolution:</strong> a small <strong>filter (= prototype
+detector)</strong> slides over input, doing <strong>multiply-and-sum (a
+similarity score)</strong> → a <strong>feature map</strong>.
+<strong>#feature maps = #filters.</strong> ML actually runs
+<strong>cross-correlation</strong> (no kernel flip) but still calls it
+convolution (filter is learned, so flipping is irrelevant).</li>
+<li><strong>Output size</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">⌊</mo><mfrac><mrow><mi>W</mi><mo>−</mo><mi>F</mi><mo>+</mo><mn>2</mn><mi>P</mi></mrow><mi>S</mi></mfrac><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">⌋</mo><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">=\big\lfloor\frac{W-F+2P}{S}\big\rfloor+1</annotation></semantics></math>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+input,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+filter,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>P</mi><annotation encoding="application/x-tex">P</annotation></semantics></math>
+padding,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
+stride). <strong>★ memorise this</strong> — a likely calculation
+question.</li>
+<li><strong>3 benefits:</strong> ① <strong>sparse interactions</strong>
+(fewer params; deep layers still cover a large effective receptive
+field) ② <strong>parameter sharing</strong> ③ <strong>equivariance to
+translation</strong> (input moves → output moves the same;
+signal-processing LTI).</li>
+<li><strong>★ Trap (high-freq):</strong> <strong>equivariant
+(convolution, position moves with it) ≠ invariant (pooling, small shifts
+absorbed).</strong> <em>Conv finds; pool tolerates.</em></li>
+<li><strong>Pooling</strong> (max/avg/L2) = replace a neighbourhood by a
+<strong>summary statistic</strong> → compress + downsample +
+<strong>approximate invariance to small translations</strong> (a strong
+prior).</li>
+<li><strong>Architecture, one keyword each:</strong>
+<strong>LeNet-5</strong> (1998, first practical CNN, MNIST) →
+<strong>AlexNet</strong> (2012 ignition: <strong>ReLU + Dropout + data
+augmentation</strong>) → <strong>GoogLeNet</strong> (2014:
+<strong>Inception module</strong> + <strong>1×1 conv</strong>, ~1/10 of
+AlexNet’s params) → <strong>ResNet</strong> (2015: <strong>skip
+connection / residual</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>x</mi></mrow><annotation encoding="application/x-tex">F(x)=H(x)-x</annotation></semantics></math>,
+fixes the <strong>degradation</strong> problem so very deep nets train).
+<strong>SAME</strong> padding (zeros, output≈in/stride, lets branches
+concat) vs <strong>VALID</strong> (no pad).</li>
+<li><strong>Exam (W6):</strong> the 3 benefits; equivariance vs
+invariance; conv vs cross-correlation; each architecture’s signature
+contribution; compute a layer’s output size. Image =
+<strong>tensor</strong> (batch of colour images = 4-D: N×H×W×C).</li>
+</ul>
+<hr />
+<h2 id="w7-recurrent-neural-networks">W7 · Recurrent neural
+networks</h2>
+<ul>
+<li><strong>Sequence/time-series</strong> data has a time/order
+dimension (vs an image “snapshot”). Slow natural evolution → predictable
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>≈</mo><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mtext mathvariant="normal">noise</mtext></mrow><annotation encoding="application/x-tex">x_t\approx x_{t-1}+\text{noise}</annotation></semantics></math>).</li>
+<li><strong>RNN core:</strong> a <strong>hidden state
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>
+= memory</strong>, <strong>same cell reused every step</strong> (★
+<strong>parameter sharing across time</strong> — handles any length,
+basis of BPTT).
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>f</mi><mi>W</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>y</mi><mi>t</mi></msub><mo>=</mo><msub><mi>f</mi><msub><mi>W</mi><mi>o</mi></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_t=f_W(h_{t-1},x_t),\ y_t=f_{W_o}(h_t)</annotation></semantics></math>.
+<strong>Vanilla/Elman:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>W</mi><mrow><mi>h</mi><mi>h</mi></mrow></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mrow><mi>x</mi><mi>h</mi></mrow></msub><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_t=\tanh(W_{hh}h_{t-1}+W_{xh}x_t)</annotation></semantics></math>.
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>
+because it saturates</strong> → curbs value explosion.</li>
+<li><strong>5 I/O shapes:</strong> one-to-one;
+<strong>one-to-many</strong> (image captioning);
+<strong>many-to-one</strong> (sentiment/action); <strong>many-to-many
+aligned</strong> (per-frame label); <strong>seq2seq</strong>
+(translation = <strong>encoder many-to-one + decoder
+one-to-many</strong>).</li>
+<li><strong>BPTT</strong> = forward + backprop through all unrolled time
+steps. <strong>Long sequence → gradient explodes (instability) or
+vanishes (forgets early input = loses long-term dependency,</strong>
+“bank” = river vs money<strong>).</strong>
+<ul>
+<li>Fix explode: input scaling,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>,
+smaller LR, layer norm, (gradient clipping). Fix forget:
+<strong>LSTM/GRU</strong>.</li>
+</ul></li>
+<li><strong>LSTM:</strong> long-term state
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mi>t</mi></msub><annotation encoding="application/x-tex">c_t</annotation></semantics></math>
+= memory conveyor</strong> + 3 <strong>σ gates</strong>
+(forget/input/output,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mo>∈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma\in[0,1]</annotation></semantics></math>
+= valve) +
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>tanh</mo><annotation encoding="application/x-tex">\tanh</annotation></semantics></math>
+candidate
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math>.
+Update
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><msub><mi>f</mi><mi>t</mi></msub><mspace width="-0.167em"></mspace><mo>⊗</mo><mspace width="-0.167em"></mspace><msub><mi>c</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>i</mi><mi>t</mi></msub><mspace width="-0.167em"></mspace><mo>⊗</mo><mspace width="-0.167em"></mspace><msub><mi>g</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">c_t=f_t\!\otimes\! c_{t-1}+i_t\!\otimes\! g_t</annotation></semantics></math>
+(“keep some old, add some new”);
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>o</mi><mi>t</mi></msub><mspace width="-0.167em"></mspace><mo>⊗</mo><mspace width="-0.167em"></mspace><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>c</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_t=o_t\!\otimes\!\tanh(c_t)</annotation></semantics></math>.</li>
+<li><strong>GRU:</strong> <strong>2 gates</strong> (reset/update),
+<strong>single state
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math></strong>,
+lighter, similar performance.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>z</mi><mi>t</mi></msub><mspace width="-0.167em"></mspace><mo>⊗</mo><mspace width="-0.167em"></mspace><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>z</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="-0.167em"></mspace><mo>⊗</mo><mspace width="-0.167em"></mspace><msub><mi>g</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">h_t=z_t\!\otimes\! h_{t-1}+(1-z_t)\!\otimes\! g_t</annotation></semantics></math>
+(one gate does keep-old + take-new).</li>
+<li>Limit: still struggles past <strong>~100 steps</strong> →
+<strong>Transformer</strong>.</li>
+<li><strong>★ Exam (W7):</strong> <strong>do NOT recite LSTM/GRU
+formulas</strong>; <strong>describe</strong> how they work (gates, what
+each manages, store/forget/read), RNN’s problems, and <strong>why RNN’s
+limits motivate the Transformer</strong>. Put the formulas on your
+A4.</li>
+</ul>
+<hr />
+<h2 id="w8-regularization">W8 · Regularization</h2>
+<ul>
+<li><strong>★ Definition (Kukačka umbrella):</strong> <em>any technique
+aimed at making a model generalize better.</em> A <strong>class of
+purposes</strong>, not one formula.</li>
+<li><strong>Generalization</strong> (unseen,
+<strong>same-distribution</strong>) vs <strong>overfitting</strong>
+(over-parameterised net + too little data = memorise). The “same
+distribution” premise can’t be dropped.</li>
+<li><strong>★★ Named exam point (lecturer said twice):</strong>
+<em>Regularization ↔︎ Generalization relation.</em>
+<strong>Generalization = the goal; regularization = the means</strong> —
+constrain model/data/optimization to suppress memorising training noise,
+shrinking the train-vs-unseen gap. <strong>Be ready to write 3–4
+lines.</strong></li>
+<li><strong>Formalised:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>w</mi><mo>*</mo></msup><mo>=</mo><mo>arg</mo><msub><mo>min</mo><mi>w</mi></msub><mspace width="0.222em"></mspace><mfrac><mn>1</mn><mrow><mo stretchy="true" form="prefix">|</mo><mi>D</mi><mo stretchy="true" form="postfix">|</mo></mrow></mfrac><mo>∑</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><munder><munder><mrow><mi>ℰ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>f</mi><mi>w</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">fidelity</mtext></munder><mo>+</mo><munder><munder><mi>R</mi><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">reg term</mtext></munder><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">w^*=\arg\min_w\ \frac1{|D|}\sum\big(\underbrace{\mathcal E(f_w(x),t)}_{\text{fidelity}}+\underbrace{R}_{\text{reg term}}\big)</annotation></semantics></math>;
+expected risk approximated by empirical risk;
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+= knob. <strong>Intuition: regularization shrinks the search
+space</strong> (“find the person <em>in a blue shirt</em>”);
+<strong>optimization still does the search.</strong></li>
+<li><strong>5 elements determining
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>w</mi><mo>*</mo></msup><annotation encoding="application/x-tex">w^*</annotation></semantics></math>
+= 5 regularization entry points:</strong></li>
+</ul>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Entry</th>
+<th>Levers</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>① Data</strong></td>
+<td>feature extraction (PCA removes <strong>redundant</strong>
+features), <strong>augmentation</strong> (cover the distribution), add
+noise
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>τ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>x</mi><mo>+</mo><mi>θ</mi></mrow><annotation encoding="application/x-tex">\tau_\theta(x)=x+\theta</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td><strong>② Architecture</strong></td>
+<td>choosing it = <strong>inductive bias</strong>; <strong>weight
+sharing</strong> (conv → shift-equivariance + locality); activation:
+<strong>ReLU</strong> (vanishing-grad), <strong>Dropout</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>③ Error fn</strong></td>
+<td>MSE (regression), cross-entropy (classification),
+<strong>Dice</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac><mrow><mn>2</mn><mrow><mo stretchy="true" form="prefix">|</mo><mi>X</mi><mo>∩</mo><mi>Y</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>X</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>+</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>Y</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow></mfrac><annotation encoding="application/x-tex">\frac{2|X\cap Y|}{|X|+|Y|}</annotation></semantics></math>
+(segmentation, <strong>combats imbalance</strong>)</td>
+</tr>
+<tr class="even">
+<td><strong>④ Reg term</strong></td>
+<td><strong>weight decay</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac><mi>λ</mi><mo stretchy="false" form="postfix">∥</mo><mi>w</mi><msubsup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\frac12\lambda\|w\|_2^2</annotation></semantics></math>
+(L2/ridge), L1/Lasso (sparse), elastic net; <strong>smoothness</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><msub><mi>J</mi><msub><mi>f</mi><mi>w</mi></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><msubsup><mo stretchy="false" form="postfix">∥</mo><mi>F</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\|J_{f_w}(x)\|_F^2</annotation></semantics></math>
+(input near→output near)</td>
+</tr>
+<tr class="odd">
+<td><strong>⑤ Optimization</strong></td>
+<td>init (keep activation var≈1, <strong>pre-train</strong> GPT then
+freeze generic layers), update (momentum, LR
+<strong>annealing</strong>), <strong>termination = early
+stopping</strong> (validation, <code>patience</code>)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>⚠️ <strong>Dropout = randomly <em>zeroing activations</em></strong>
+(≈ ensemble of sub-nets, geometric mean), <strong>not</strong> “freezing
+weights” (the lecturer’s loose phrasing — use the precise version).</li>
+<li><strong>Exam (W8):</strong> interpret equations not derive
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>arg</mo><mo>min</mo></mrow><annotation encoding="application/x-tex">\arg\min</annotation></semantics></math>,
+expected risk, weight decay, SGD, Dice, Frobenius); reg↔︎gen is a
+near-guaranteed question; <em>tell the story</em> (blue shirt /
+basketball / alphabet / airport face-scan);
+<strong>assignment-linked</strong> = Ridge, Dropout, RAG.</li>
+</ul>
+<hr />
+<h2 id="w9-text-processing-transformer">W9 · Text processing &amp;
+Transformer</h2>
+<ul>
+<li>Any signal → <strong>numbers</strong>. Pipeline:
+<strong>standardization → tokenization → vectorization.</strong> Token
+granularity: word / n-gram / char / <strong>subword</strong> (BPE,
+modern default).</li>
+<li><strong>One-hot:</strong> sparse, <strong>no semantics</strong> (all
+words orthogonal → cat≈dog same as cat≈democracy).</li>
+<li><strong>Word embedding:</strong> dense <strong>geometric</strong>
+space, semantically near → vector near;
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mi>i</mi><mi>n</mi><mi>g</mi><mo>+</mo><mi>w</mi><mi>o</mi><mi>m</mi><mi>a</mi><mi>n</mi><mo>−</mo><mi>m</mi><mi>a</mi><mi>n</mi><mo>≈</mo><mi>q</mi><mi>u</mi><mi>e</mi><mi>e</mi><mi>n</mi></mrow><annotation encoding="application/x-tex">king+woman-man\approx queen</annotation></semantics></math>.</strong>
+From joint learning or pretrained
+(Word2vec/GloVe/<strong>BERT</strong>/<strong>GPT</strong>).</li>
+<li><strong>Static-embedding limit:</strong> one word = one fixed vector
+→ can’t disambiguate <strong>“station”</strong> (train/radio/space).
+Need a <strong>context-aware</strong> representation →
+<strong>attention</strong>.</li>
+<li><strong>RNN encoder-decoder NMT:</strong> input
+<strong>reversed</strong>, target <strong>shifted +
+<code>&lt;SOS&gt;</code></strong>, supervised. <strong>3 weaknesses +
+fixes:</strong> unidirectional/causal (can’t see future) →
+<strong>bidirectional RNN</strong> (the “queen” disambiguation);
+huge-vocab softmax → <strong>sampled softmax</strong>; early mistake
+unfixable → <strong>beam search</strong> (keep
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+best,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+= beam width, costly).</li>
+<li><strong>★ Attention core formula (MUST write &amp; read):</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">Attention</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>Q</mi><mo>,</mo><mi>K</mi><mo>,</mo><mi>V</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mtext mathvariant="normal">softmax</mtext><mspace width="-0.167em"></mspace><mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">(</mo><mfrac displaystyle="false"><mrow><mi>Q</mi><msup><mi>K</mi><mrow><mspace width="-0.167em"></mspace><mi>⊤</mi></mrow></msup></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">)</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">\text{Attention}(Q,K,V)=\text{softmax}\!\Big(\tfrac{QK^{\!\top}}{\sqrt{d_k}}\Big)V</annotation></semantics></math>
+<strong>Differentiable dictionary lookup:</strong>
+<strong>Query</strong> = what I’m looking for; <strong>Key</strong> =
+what each item is matched against; <strong>Value</strong> = info
+returned.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><msup><mi>K</mi><mrow><mspace width="-0.167em"></mspace><mi>⊤</mi></mrow></msup></mrow><annotation encoding="application/x-tex">QK^{\!\top}</annotation></semantics></math>
+= pairwise relevance;
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>/</mi><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mrow><annotation encoding="application/x-tex">/\sqrt{d_k}</annotation></semantics></math>
+= temperature</strong> (controls sharpness — too big → uniform weights →
+“not attending”); softmax → weights;
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>×</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">\times V</annotation></semantics></math>
+→ weighted sum. <strong>Self-attention:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>,</mo><mi>K</mi><mo>,</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">Q,K,V</annotation></semantics></math>
+all from one sequence
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>Q</mi></msup></mrow><annotation encoding="application/x-tex">Q=XW^Q</annotation></semantics></math>
+etc.); each token absorbs related tokens’ info (station → “train
+station”).</li>
+<li><strong>Alignment scores:</strong> dot
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>h</mi><mi>T</mi></msup><mi>y</mi></mrow><annotation encoding="application/x-tex">h^Ty</annotation></semantics></math>
+/ general
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>h</mi><mi>T</mi></msup><mi>W</mi><mi>y</mi></mrow><annotation encoding="application/x-tex">h^TWy</annotation></semantics></math>
+/ concat; <strong>additive (Bahdanau) vs multiplicative
+(Luong).</strong></li>
+<li><strong>Transformer</strong> (“Attention Is All You Need”): drop
+RNN/conv, <strong>attention only.</strong> <strong>Components (★
+take-home):</strong> self-attention + <strong>positional
+encoding</strong> (sin/cos, restores order — <em>dog bites man ≠ man
+bites dog</em>) + <strong>multi-head</strong> (parallel subspaces) +
+<strong>residual + layer norm</strong> +
+<strong>feed-forward</strong>.</li>
+<li><strong>Families:</strong> <strong>encoder-only = BERT</strong>
+(understand/classify), <strong>decoder-only = GPT</strong>
+(autoregressive generate, causal mask), <strong>encoder-decoder</strong>
+(translate/summarise). Masks: padding, causal.</li>
+<li><strong>★ Take-home (lecturer: “remember this”):</strong> <em>A
+Transformer does not merely store word meanings; it dynamically
+constructs meaning from context.</em></li>
+<li><strong>RAG</strong> (Assignment-linked): doc → chunk → embed →
+vector index; query embedded, retrieve context, constrain generation
+onto evidence.</li>
+<li><strong>Exam (W9):</strong> write/interpret the attention formula
+&amp; Q/K/V; why static embedding is insufficient (station);
+Transformer’s components; the take-home line.</li>
+</ul>
+<hr />
+<h2
+id="w10-representation-learning-scenario-selection-the-core-exam-type">W10
+· Representation learning (★ scenario-selection = the core exam
+type)</h2>
+<ul>
+<li><em>“It’s all about representation.”</em> Good representation =
+<strong>discriminative (unique)</strong> + <strong>generative</strong>.
+<strong>Three-question framework for every method: ① what is the
+representation · ② why useful · ③ how learned (= its loss
+function).</strong></li>
+</ul>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>encoder?</th>
+<th>probabilistic?</th>
+<th>generate?</th>
+<th>loss</th>
+<th>strength</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>PCA</strong></td>
+<td>linear</td>
+<td>✗</td>
+<td>✗</td>
+<td>max variance</td>
+<td>linear, interpretable baseline</td>
+</tr>
+<tr class="even">
+<td><strong>AE</strong></td>
+<td>✓ det.</td>
+<td>✗</td>
+<td>✗</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|x-\hat x\|^2</annotation></semantics></math></td>
+<td>compress, <strong>anomaly detection</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>VAE</strong></td>
+<td>✓ prob.</td>
+<td>✓</td>
+<td>✓</td>
+<td>ELBO (recon + KL)</td>
+<td>structured latent, generate</td>
+</tr>
+<tr class="even">
+<td><strong>β-VAE</strong></td>
+<td>✓ prob.</td>
+<td>✓</td>
+<td>✓</td>
+<td>recon
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">-\beta</annotation></semantics></math>KL</td>
+<td><strong>disentangle</strong>, controllable</td>
+</tr>
+<tr class="odd">
+<td><strong>GAN</strong></td>
+<td>✗ (noise)</td>
+<td>implicit</td>
+<td>✓</td>
+<td>minimax</td>
+<td><strong>sharp/realistic</strong> images</td>
+</tr>
+<tr class="even">
+<td><strong>Diffusion</strong></td>
+<td>✗</td>
+<td>✓</td>
+<td>✓</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>ϵ</mi><mo>−</mo><msub><mi>ϵ</mi><mi>θ</mi></msub><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|\epsilon-\epsilon_\theta\|^2</annotation></semantics></math></td>
+<td><strong>high-fidelity + stable</strong> (slow)</td>
+</tr>
+<tr class="odd">
+<td><strong>SSL</strong></td>
+<td>✓</td>
+<td>—</td>
+<td>✗</td>
+<td>contrastive/InfoNCE</td>
+<td><strong>label-efficient</strong>, transferable</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>PCA:</strong>
+top-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+covariance eigenvectors, max variance, <strong>Karhunen–Loève
+optimal</strong> linear representation; nonlinear → KPCA.</li>
+<li><strong>Autoencoder:</strong> encoder → <strong>bottleneck</strong>
+→ decoder; recon loss
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mo>−</mo><mover><mi>x</mi><mo accent="true">̂</mo></mover><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|x-\hat x\|^2</annotation></semantics></math>
+(square = penalise large errors); bottleneck forces the
+<strong>essence</strong>. <strong>★ Anomaly detection: train on
+<em>normal data only</em> → anomaly → high reconstruction error →
+threshold</strong> (sidesteps class imbalance — no failure samples
+needed). <strong>AE ≈ nonlinear PCA.</strong></li>
+<li><strong>VAE:</strong> encoder outputs a
+<strong>distribution</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>μ</mi><mo>,</mo><mi>σ</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\mu,\sigma)</annotation></semantics></math>
+→ can <strong>generate</strong>. <strong>ELBO = reconstruction
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>−</mo><annotation encoding="application/x-tex">-</annotation></semantics></math>
+KL<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo stretchy="false" form="postfix">∥</mo><mi>p</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(q\|p)</annotation></semantics></math></strong>;
+KL (a “distance” between distributions) shapes the latent toward
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal N(0,I)</annotation></semantics></math>
+— <strong>“4 minus X”: maximise ELBO ⟹ minimise KL.</strong>
+<strong>Reparameterization</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>μ</mi><mo>+</mo><mi>σ</mi><mo>⊙</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">z=\mu+\sigma\odot\epsilon</annotation></semantics></math>
+makes sampling differentiable. AE = deterministic + only reconstruct;
+VAE = probabilistic + generate.</li>
+<li><strong>β-VAE:</strong> weight KL by
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\beta&gt;1</annotation></semantics></math></strong>
+→ <strong>disentanglement</strong> (each latent dim = one independent,
+human factor; face editing). <strong>Trade-off: better disentangle ⟹
+lower reconstruction fidelity (blurrier).</strong></li>
+<li><strong>GAN:</strong> <strong>generator (forges)</strong> vs
+<strong>discriminator (detects)</strong>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>min</mo><mi>G</mi></msub><msub><mo>max</mo><mi>D</mi></msub><mspace width="0.222em"></mspace><mi>𝔼</mi><mrow><mo stretchy="true" form="prefix">[</mo><mo>log</mo><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow><mo>+</mo><mi>𝔼</mi><mrow><mo stretchy="true" form="prefix">[</mo><mo>log</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\min_G\max_D\ \mathbb{E}[\log D(x)]+\mathbb{E}[\log(1-D(G(z)))]</annotation></semantics></math>;
+at equilibrium
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+guesses 50/50,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+has learned the distribution. <strong>Sharp/realistic but training
+unstable → mode collapse</strong> (EEG example). Metrics:
+<strong>FID</strong> (lower better), <strong>IS</strong> (higher
+better).</li>
+<li><strong>Diffusion (DDPM):</strong> <strong>forward fixed noising +
+reverse learned denoising</strong> (two Markov chains). Train target =
+<strong>predict the noise</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>ϵ</mi><mo>−</mo><msub><mi>ϵ</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|\epsilon-\epsilon_\theta(x_t,t)\|^2</annotation></semantics></math>
+→ <strong>turns generation into supervised denoising</strong> (hence
+stable). <em>“If noise can be predicted, it can be removed.”</em>
+High-fidelity, slow sampling; engine of <strong>Stable Diffusion /
+DALL·E 2</strong>.</li>
+<li><strong>SSL:</strong> learn from <strong>unlabeled</strong> data via
+a <strong>pretext task</strong>; <strong>contrastive / InfoNCE</strong>
+pulls two augmentations of the same sample together, pushes others apart
+(fist / friend’s-back intuition;
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math>
+= temperature, cosine sim). Produces a <strong>transferable pretrained
+backbone</strong> (medical imaging: SSL-pretrain → fine-tune on small
+labeled set).</li>
+<li><strong>★ Decision rules (the exam):</strong> compress/anomaly →
+<strong>AE</strong>; structured generation → <strong>VAE</strong>;
+controllable/disentangle → <strong>β-VAE</strong>; sharp images →
+<strong>GAN</strong>; highest fidelity → <strong>Diffusion</strong>;
+label-efficient features → <strong>SSL</strong>. <strong>Per method
+know: representation · loss · assumptions/trade-offs · application · vs
+neighbours.</strong></li>
+<li><strong>Exam (W10):</strong> master types = ① scenario → choose
+model + justify + risks (e.g. <em>why AE not supervised for QC; why GAN
+vs Diffusion</em>); ② interpret a loss term (KL,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>).
+Cross-week Ridge-vs-Lasso example (read
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mn>1</mn></msub><mspace width="-0.167em"></mspace><mo>=</mo><mspace width="-0.167em"></mspace><mn>0</mn><mo>,</mo><msub><mi>w</mi><mn>3</mn></msub><mspace width="-0.167em"></mspace><mo>=</mo><mspace width="-0.167em"></mspace><mn>1.5</mn></mrow><annotation encoding="application/x-tex">w_1\!=\!0,w_3\!=\!1.5</annotation></semantics></math>
+→ “feature 1 useless, feature 3 most important”).</li>
+</ul>
+<hr />
+<h2 id="w11-graph-neural-networks">W11 · Graph neural networks</h2>
+<ul>
+<li><strong>Relational data</strong> (social/molecule/citation):
+<strong>structure itself is the signal.</strong> Graph
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>V</mi><mo>,</mo><mi>E</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G=(V,E)</annotation></semantics></math>;
+<strong>only connections matter — where you draw a node is
+irrelevant</strong> (basis of permutation symmetry).</li>
+<li><strong>Matrices:</strong> <strong>adjacency
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math></strong>
+(who connects, symmetric for undirected), <strong>degree
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math></strong>,
+<strong>Laplacian
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>=</mo><mi>D</mi><mo>−</mo><mi>A</mi></mrow><annotation encoding="application/x-tex">L=D-A</annotation></semantics></math></strong>;
+GNN input =
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>A</mi><mo>,</mo><mi>X</mi><mo>,</mo><msub><mi>E</mi><mtext mathvariant="normal">feat</mtext></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(A,X,E_{\text{feat}})</annotation></semantics></math>.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>
+= where info can flow,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+= what each node carries.</li>
+<li><strong>Can’t use MLP</strong> (no node order). Need
+<strong>permutation equivariance</strong> (node-level: relabel → outputs
+relabel) &amp; <strong>invariance</strong> (graph-level: relabel → same
+output); <strong>order-independent aggregation (sum/mean/max) guarantees
+both.</strong></li>
+<li><strong>★ Message passing (the heart):</strong> each <strong>layer =
+one round</strong> on the <strong>same graph</strong>; only node
+embeddings change
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mspace width="-0.167em"></mspace><mo>→</mo><mspace width="-0.167em"></mspace><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mspace width="-0.167em"></mspace><mo>→</mo><mspace width="-0.167em"></mspace><mi>⋯</mi></mrow><annotation encoding="application/x-tex">H^{(0)}\!\to\!H^{(1)}\!\to\!\cdots</annotation></semantics></math>.
+Per node: <strong>aggregate neighbours (order-invariant) → transform →
+update with self.</strong> <strong>One layer = 1 hop;
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+layers = receptive field of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+hops.</strong> <strong>Must keep self</strong> (self-loop
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>A</mi><mo accent="true">̃</mo></mover><mo>=</mo><mi>A</mi><mo>+</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">\tilde A=A+I</annotation></semantics></math>)
+or a node loses its identity. (GNN “layer” ≠ stacked new units — common
+trap.)</li>
+<li><strong>GCN:</strong> add self-loop
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>A</mi><mo accent="true">̃</mo></mover><mo>=</mo><mi>A</mi><mo>+</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">\tilde A=A+I</annotation></semantics></math>
+→ <strong>symmetric-normalise</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>A</mi><mo accent="true">̂</mo></mover><mo>=</mo><msup><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow></msup><mover><mi>A</mi><mo accent="true">̃</mo></mover><msup><mover><mi>D</mi><mo accent="true">̃</mo></mover><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow></msup></mrow><annotation encoding="application/x-tex">\hat A=\tilde D^{-1/2}\tilde A\tilde D^{-1/2}</annotation></semantics></math>
+(stops high-degree nodes dominating) →
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>=</mo><mi>σ</mi><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mover><mi>A</mi><mo accent="true">̂</mo></mover><mspace width="0.167em"></mspace><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mspace width="0.167em"></mspace><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">H^{(\ell+1)}=\sigma\!\big(\hat A\,H^{(\ell)}\,W^{(\ell)}\big)</annotation></semantics></math>
+<strong>= normalised neighbour aggregation + shared transform +
+nonlinearity.</strong> Read as:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup><msup><mi>W</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mo stretchy="true" form="postfix">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">H^{(\ell)}W^{(\ell)}</annotation></semantics></math>
+= learnable <strong>transform</strong>, left-multiply
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat A</annotation></semantics></math>
+= <strong>mix neighbours</strong>. Classic use = <strong>semi-supervised
+node classification</strong> (propagate labels known→unknown through
+edges).</li>
+<li><strong>Tasks:</strong> <strong>node classification</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y_i=f(h_i)</annotation></semantics></math>,
+<strong>link prediction</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mi>i</mi></msub><mo>,</mo><msub><mi>h</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p_{ij}=f(h_i,h_j)</annotation></semantics></math>,
+<strong>graph classification</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>G</mi></msub><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>h</mi><mi>G</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">y_G=f(h_G)</annotation></semantics></math>
+(<strong>readout</strong> must be permutation-invariant).
+<strong>Transductive</strong> (same graph, masked labels) vs
+<strong>inductive</strong> (new nodes/graphs = generalization).</li>
+<li><strong>Family:</strong> <strong>GCN</strong> (normalised sum) ·
+<strong>GraphSAGE</strong> (sample + aggregate, inductive, scalable) ·
+<strong>GAT</strong> (attention-weighted neighbours, learns who matters)
+· <strong>GIN</strong> (sum + MLP, strong graph discrimination) ·
+<strong>R-GCN</strong> (per-relation, KGs) · <strong>Graph
+Transformer</strong> (global attention, long-range).</li>
+<li><strong>★ 3 failure modes (named exam point):</strong>
+<strong>oversmoothing</strong> (too deep → all node reps become similar
+→ why GNNs stay shallow); <strong>oversquashing</strong> (fixed-size
+embedding can’t push too much far-away info through a bottleneck);
+<strong>heterophily</strong> (connected nodes have <em>different</em>
+labels → naïve smoothing <em>hurts</em>).</li>
+<li>Use a GNN because <strong>relations are core</strong>, not because
+“the data looks like a graph.”</li>
+<li><strong>Exam (W11):</strong> no derivation — interpret the equation
+(<em>what does
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>A</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat A</annotation></semantics></math>
+do · what changes if you alter a term · why designed so</em>); on your
+A4 write <strong>concept explanations, not formulas</strong>; answer in
+proper ML language.</li>
+</ul>
+
+</div>
+</body>
+</html>
