@@ -10,7 +10,7 @@
 //   <根>/index.html             首页：列出所有科目
 //   <根>/<科目>/index.html      科目页：列出该科目所有笔记
 
-import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSync } from 'node:fs'
+import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -172,6 +172,173 @@ ${items}
   })
 }
 
+// ── 笔记页增强：章节提纲（TOC）+ 返回科目主页 ───────────────────────────────
+// 笔记正文里的 <h2>/<h3> 已带 id（由生成笔记的工具自动加），所以这里只需在
+// 「拷贝进 dist/」时解析这些标题、拼出一个可点击跳转的目录侧栏并注入。
+// 源笔记文件完全不改动；改动只发生在 dist/ 的副本里。
+
+// 从笔记 HTML 中按出现顺序提取带 id 的 h2 / h3 标题
+const extractHeadings = (html) => {
+  const re = /<h([23])\s+[^>]*?id="([^"]+)"[^>]*>([\s\S]*?)<\/h\1>/gi
+  const headings = []
+  let m
+  while ((m = re.exec(html)) !== null) {
+    const text = m[3].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+    if (text) headings.push({ level: Number(m[1]), id: m[2], text })
+  }
+  return headings
+}
+
+// 侧栏面板（桌面固定显示，手机折叠为抽屉）的标记
+const tocPanel = (headings, subjectLabel) => {
+  const back = `<a class="toc-back" href="./index.html">← 返回 ${escapeHtml(subjectLabel)}</a>`
+  const nav = headings.length
+    ? `  <nav class="toc-nav" aria-label="章节目录">
+    <p class="toc-title">本章目录</p>
+    <ul>
+${headings
+  .map((h) => `      <li class="toc-l${h.level}"><a href="#${escapeHtml(h.id)}">${escapeHtml(h.text)}</a></li>`)
+  .join('\n')}
+    </ul>
+  </nav>`
+    : ''
+  return `<button class="toc-toggle" type="button" aria-controls="note-toc" aria-expanded="false">☰ 目录</button>
+<div class="toc-backdrop" hidden></div>
+<aside class="toc-panel" id="note-toc">
+  <div class="toc-inner">
+    ${back}
+${nav}
+  </div>
+</aside>`
+}
+
+// 注入用的样式：桌面按 2:8 切两栏（左导航/右正文，各自栏内居中）；窄屏改为抽屉 + 浮动按钮
+// 想换 3:7 只改 --nav-w 一处（20vw → 30vw）；--read-w 是正文阅读限宽
+const NAV_CSS = `
+  :root { --drawer-w: 288px; --nav-w: 20vw; --read-w: 720px; --nav-max: 264px; }
+  .toc-toggle {
+    position: fixed; top: 12px; left: 12px; z-index: 60;
+    font: inherit; font-size: .9rem; padding: 7px 13px; line-height: 1;
+    color: #fff; background: var(--accent, #2f6f4f); border: 0; border-radius: 8px;
+    cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  }
+  .toc-backdrop {
+    position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.38);
+    opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  .toc-panel {
+    position: fixed; top: 0; left: 0; z-index: 55;
+    width: var(--drawer-w); height: 100vh; height: 100dvh; overflow-y: auto;
+    padding: 22px 18px 48px; background: #fff;
+    border-right: 1px solid var(--rule, #dfe2dc);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    transform: translateX(-100%); transition: transform .25s ease;
+  }
+  .toc-back { display: block; font-size: .92rem; margin-bottom: 16px; color: var(--accent, #2f6f4f); }
+  .toc-title { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted, #5b636b); margin: 0 0 8px; }
+  .toc-nav ul { list-style: none; margin: 0; padding: 0; }
+  .toc-nav li { margin: 0; }
+  .toc-nav a { display: block; padding: 5px 9px; border-radius: 6px; line-height: 1.4;
+    font-size: .92rem; color: var(--ink, #22272e); text-decoration: none;
+    border-left: 2px solid transparent; }
+  .toc-nav a:hover { background: var(--soft, #eaf3ee); text-decoration: none; }
+  .toc-l3 a { padding-left: 24px; font-size: .86rem; color: var(--muted, #5b636b); }
+  .toc-nav a.active { font-weight: 600; color: var(--accent, #2f6f4f);
+    background: var(--soft, #eaf3ee); border-left-color: var(--accent, #2f6f4f); }
+  h2[id], h3[id] { scroll-margin-top: 24px; }
+  body.toc-open .toc-panel { transform: translateX(0); box-shadow: 0 0 32px rgba(0,0,0,.18); }
+  body.toc-open .toc-backdrop { opacity: 1; pointer-events: auto; }
+  @media (max-width: 1079px) { body { padding-top: 64px; } }
+  /* 桌面：屏幕按 2:8 切两栏——左栏放导航并在栏内居中，右栏放正文并在栏内居中。
+     左栏宽 = --nav-w（20vw，改 30vw 即 3:7）；右栏 = 余下空间，正文限宽 --read-w。
+     用 max()/min() 兜底，保证临界宽度下正文既不挤进导航栏、也不溢出。 */
+  @media (min-width: 1080px) {
+    .toc-toggle, .toc-backdrop { display: none; }
+    .toc-panel {
+      transform: none;
+      width: var(--nav-w);
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .toc-inner {
+      margin: auto;            /* flex 子项 margin:auto —— 栏内水平+垂直居中，内容超高时仍可滚动 */
+      width: 100%;
+      max-width: var(--nav-max);
+      padding: 40px 20px;
+    }
+    body {
+      max-width: min(var(--read-w), calc(100vw - var(--nav-w) - 64px));
+      margin-left: calc(var(--nav-w) + max(32px, (100vw - var(--nav-w) - var(--read-w)) / 2));
+      margin-right: auto;
+      padding-left: 0;
+      padding-right: 0;
+    }
+  }
+`
+
+// 注入用的脚本：抽屉开关 + 滚动高亮当前章节（无依赖、纯原生）
+const NAV_JS = `
+(function () {
+  var body = document.body;
+  var toggle = document.querySelector('.toc-toggle');
+  var backdrop = document.querySelector('.toc-backdrop');
+  var panel = document.getElementById('note-toc');
+  if (!panel) return;
+  var small = window.matchMedia('(max-width: 1079px)');
+  function setOpen(open) {
+    body.classList.toggle('toc-open', open);
+    if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (backdrop) backdrop.hidden = !open;
+  }
+  if (toggle) toggle.addEventListener('click', function () { setOpen(!body.classList.contains('toc-open')); });
+  if (backdrop) backdrop.addEventListener('click', function () { setOpen(false); });
+  var links = {};
+  var anchors = panel.querySelectorAll('.toc-nav a');
+  anchors.forEach(function (a) {
+    links[a.getAttribute('href').slice(1)] = a;
+    a.addEventListener('click', function () { if (small.matches) setOpen(false); });
+  });
+  var heads = [].slice.call(document.querySelectorAll('h2[id], h3[id]')).filter(function (h) { return links[h.id]; });
+  if (!heads.length) return;
+  var current = null;
+  function setActive(id) {
+    if (id === current) return;
+    if (current && links[current]) links[current].classList.remove('active');
+    current = id;
+    if (links[id]) {
+      links[id].classList.add('active');
+      if (!small.matches) links[id].scrollIntoView({ block: 'nearest' });
+    }
+  }
+  function onScroll() {
+    var y = window.scrollY + 120;
+    var activeId = heads[0].id;
+    for (var i = 0; i < heads.length; i++) {
+      if (heads[i].offsetTop <= y) activeId = heads[i].id; else break;
+    }
+    setActive(activeId);
+  }
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (!ticking) { requestAnimationFrame(function () { onScroll(); ticking = false; }); ticking = true; }
+  }, { passive: true });
+  onScroll();
+})();
+`
+
+// 把目录侧栏 + 返回链接注入到一篇笔记 HTML（不改源文件，只改 dist 副本）
+const injectNav = (html, subjectLabel) => {
+  if (html.includes('id="note-toc"')) return html // 已注入则跳过（幂等）
+  const panel = tocPanel(extractHeadings(html), subjectLabel)
+  return html
+    .replace(/<\/head>/i, () => `<style>${NAV_CSS}</style>\n</head>`)
+    .replace(/<body[^>]*>/i, (open) => `${open}\n${panel}`)
+    .replace(/<\/body>/i, () => `<script>${NAV_JS}</script>\n</body>`)
+}
+
 // 把可发布内容（首页、各科目页、笔记副本）输出到独立的 dist/ 目录，
 // 供 Cloudflare Workers 静态资源部署（见 wrangler.jsonc 的 assets.directory = ./dist）。
 const build = () => {
@@ -187,10 +354,12 @@ const build = () => {
 
   subjects.forEach((subject) => {
     const outDir = join(DIST, subject.name)
+    const subjectLabel = subject.meta.title || subject.name
     mkdirSync(outDir, { recursive: true })
-    subject.notes.forEach((note) =>
-      copyFileSync(join(subject.dir, note.file), join(outDir, note.file)),
-    )
+    subject.notes.forEach((note) => {
+      const src = readFileSync(join(subject.dir, note.file), 'utf8')
+      writeFileSync(join(outDir, note.file), injectNav(src, subjectLabel))
+    })
     writeFileSync(join(outDir, 'index.html'), subjectPage(subject))
   })
 
