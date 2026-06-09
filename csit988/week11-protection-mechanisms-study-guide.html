@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 11 · 保护机制 (Protection Mechanisms)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-11--保护机制-protection-mechanisms">Week 11 · 保护机制
+(Protection Mechanisms)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>描述 (describe)</strong> 各种<strong>访问控制 (access
+control)</strong> 方法,包括
+<strong>authentication(认证)、authorization(授权)</strong> 以及基于
+<strong>biometric(生物特征)</strong> 的访问控制,并特别理解当下热门的
+<strong>multi-factor authentication(多因素认证,MFA)</strong></li>
+<li><strong>识别 (identify)</strong> 各类
+<strong>firewall(防火墙)</strong> 及其常见的部署架构 (implementation
+approaches)</li>
+<li><strong>识别并描述 (identify &amp; describe)</strong> 各类
+<strong>intrusion detection systems(入侵检测系统,IDS/IDPS)</strong>
+及其依赖的检测策略</li>
+<li><strong>解释 (explain)</strong> 无线网络 (wireless network)
+的保护手段</li>
+<li><strong>解释 cryptography(密码学)与 encryption(加密)</strong>
+的过程,并能<strong>对比 (compare &amp; contrast)</strong>
+symmetric(对称)与 asymmetric(非对称)两类加密</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>📎 <strong>参考</strong> — 本章对应教材 <strong>Chapter
+10</strong>,是整门课"技术控制 (technical
+controls)"的核心一讲。前两讲(Week 9 /
+10)讲的是<strong>风险管理</strong>——找出风险、量化风险、选策略控制风险。本讲回答其中一个具体问题:当你决定用
+<strong>Defense(防御)</strong>
+策略去"上保障措施"时,<strong>手里到底有哪些技术武器?</strong>
+答案就是这一长串:访问控制、防火墙、IDPS、无线保护、加密。</p>
+</blockquote>
+<p>在动手之前,先把本章在整门课里的位置和内部结构摆清楚:</p>
+<pre class="mermaid"><code>flowchart TD
+  T[&quot;技术控制 Technical Controls&lt;br/&gt;(本讲 / Ch.10)&quot;]
+  T --&gt; AC[&quot;① 访问控制&lt;br/&gt;Access Controls (IAAA)&quot;]
+  T --&gt; FW[&quot;② 防火墙&lt;br/&gt;Firewalls&quot;]
+  T --&gt; ID[&quot;③ 入侵检测与防御&lt;br/&gt;IDPS&quot;]
+  T --&gt; WL[&quot;④ 无线网络保护&lt;br/&gt;Wireless Protection&quot;]
+  T --&gt; CR[&quot;⑤ 密码学&lt;br/&gt;Cryptography&quot;]
+  AC -.-&gt;|&quot;谁能进、能做什么&quot;| GOAL[&quot;守住 CIA&quot;]
+  FW -.-&gt;|&quot;挡住内外网之间的流量&quot;| GOAL
+  ID -.-&gt;|&quot;发现并阻断入侵&quot;| GOAL
+  WL -.-&gt;|&quot;保护空气中的信号&quot;| GOAL
+  CR -.-&gt;|&quot;把信息变成别人读不懂的形态&quot;| GOAL</code></pre>
+<hr />
+<h2 id="一引言技术控制的定位-s2s4">一、引言:技术控制的定位 (S2–S4)</h2>
+<h3 id="11-技术控制是必要但不充分的">1.1 技术控制是"必要但不充分"的</h3>
+<p>整章的第一句话定调:<strong>technical
+controls(技术控制)是任何信息安全方案不可或缺的一部分,但单靠它们守不住整个
+IT 环境。</strong> 这两句话要一起记——少了任一半都会被出题挑错:</p>
+<ul>
+<li><strong>不可或缺
+(essential)</strong>:几乎所有信息安全方案都离不开技术控制。</li>
+<li><strong>不充分 (insufficient if used
+alone)</strong>:必须配合<strong>健全的政策 (sound policy)</strong> 和
+<strong>教育、培训、意识 (education, training, and awareness, 即
+SETA)</strong> 一起用。</li>
+</ul>
+<p>本章会讲到的技术安全机制有:access controls、firewalls、dial-up
+protection(拨号保护)、intrusion detection systems、scanning and analysis
+tools(扫描分析工具)、encryption systems。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)—
+讲者的"密码政策"例子,极好理解"为什么技术控制不可替代"</strong> 像 UOW
+这样的大组织都有<strong>密码政策 (password
+policy)</strong>:规定密码多长、必须含大写/小写/数字/特殊符号中的至少三类、多久必须改一次、禁止用旧密码。问题来了——<strong>你没法靠"挨个问员工有没有照做"来执行这条政策</strong>,因为密码属于隐私、根本无从核实。这时一个非常简单的<strong>技术控制</strong>(在系统里设一条规则,不满足强度就不让设密码)就把政策落地了。
+一句话总结讲者的观点:<strong>在人的行为难以监管的地方,技术控制能把政策强制执行下去
+(enable policy enforcement where human behavior is difficult to
+regulate)。</strong></p>
+</blockquote>
+<h3 id="12-安全球面-sphere-of-security">1.2 安全球面 (Sphere of
+Security)</h3>
+<p><strong>Sphere of Security(安全球面)</strong>
+是一张示意图,展示技术控制可以部署在技术基础设施的<strong>多个点位</strong>上。它的关键不在画面本身,而在它揭示的一个对称结构:</p>
+<pre class="mermaid"><code>flowchart LR
+  subgraph OUT[&quot;外部威胁 (左侧)&quot;]
+    direction TB
+    O1[&quot;Internet / 不可信网络&quot;]
+  end
+  subgraph CTRL[&quot;技术控制层&quot;]
+    direction TB
+    C1[&quot;防火墙 Firewall&quot;]
+    C2[&quot;IDPS&quot;]
+    C3[&quot;访问控制 Access Control&quot;]
+    C4[&quot;加密 Encryption&quot;]
+  end
+  subgraph IN[&quot;内部威胁 (右侧)&quot;]
+    direction TB
+    I1[&quot;内部人员&lt;br/&gt;(可直接接触信息)&quot;]
+    I2[&quot;policy / SETA&lt;br/&gt;(针对人的控制)&quot;]
+  end
+  OUT --&gt; CTRL --&gt; IN</code></pre>
+<ul>
+<li><strong>左侧</strong>画的是抵御<strong>组织外部威胁</strong>的控制(IDPS、访问控制、加密等)。</li>
+<li><strong>右侧</strong>画的是抵御<strong>组织内部威胁</strong>的控制。讲者特别强调:<strong>内部人员往往能直接接触信息,可以绕过
+(circumvent)
+许多最强的技术控制</strong>——所以右侧还画了针对"人"这一要素的控制(政策、SETA)。</li>
+</ul>
+<blockquote>
+<p><strong>本节小结</strong>:技术控制 = 必要 + 不充分;必须配 policy 与
+SETA;Sphere of Security
+一图说明"内外威胁需要不同侧重的控制",且内部人员能绕过技术控制。</p>
+</blockquote>
+<hr />
+<h2 id="二访问控制-iaaa-s5s13">二、访问控制 IAAA (S5–S13)</h2>
+<h3 id="21-四个过程iaaa">2.1 四个过程:IAAA</h3>
+<p><strong>Access control(访问控制)</strong>
+的目标是:<strong>规范用户进入组织"可信区域"的准入</strong>——这个可信区域既可以是<strong>逻辑的
+(logical)</strong>(系统、数据),也可以是<strong>物理的
+(physical)</strong>(机房、办公区)。一套成功的访问控制由<strong>四个过程</strong>构成,首字母合称
+<strong>IAAA</strong>:</p>
+<pre class="mermaid"><code>flowchart LR
+  I[&quot;Identification 标识&lt;br/&gt;你说你是谁?&quot;] --&gt; A1[&quot;Authentication 认证&lt;br/&gt;证明你真是你&quot;]
+  A1 --&gt; A2[&quot;Authorization 授权&lt;br/&gt;你能做哪些操作?&quot;]
+  A2 --&gt; A3[&quot;Accountability 问责&lt;br/&gt;记录你做了什么&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>过程</th>
+<th>一句话定义</th>
+<th>回答的问题</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Identification(标识)</strong></td>
+<td>获取请求访问的实体的身份</td>
+<td>"你<strong>声称</strong>你是谁?"</td>
+</tr>
+<tr class="even">
+<td><strong>Authentication(认证)</strong></td>
+<td><strong>确认</strong>请求访问的实体的身份</td>
+<td>"你<strong>真的</strong>是你声称的那个人吗?"</td>
+</tr>
+<tr class="odd">
+<td><strong>Authorization(授权)</strong></td>
+<td>确定该实体在该区域内<strong>能执行哪些操作</strong></td>
+<td>"你<strong>能做什么</strong>?"</td>
+</tr>
+<tr class="even">
+<td><strong>Accountability(问责)</strong></td>
+<td>记录已授权个人和系统的活动</td>
+<td>"你<strong>做了什么</strong>?(留痕)"</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>⚠️
+<strong>必考要点</strong>:一套成功的访问控制方案<strong>总是同时包含全部四个要素</strong>("always
+incorporates all four elements")。别把 IAAA 记成三个或漏掉
+Accountability。</p>
+</blockquote>
+<h3 id="22-标识-identification-s6">2.2 标识 Identification (S6)</h3>
+<p><strong>Identification</strong>
+是一种<strong>为请求访问的未验证实体提供信息</strong>的机制。这个未验证实体有个专门名字叫
+<strong>supplicant(申请方)</strong>。贴在 supplicant 身上的标签叫
+<strong>identifier(标识符,简称 ID)</strong>,它必须满足:</p>
+<ul>
+<li><strong>唯一 (unique)</strong>——能映射到安全域 (security domain)
+内<strong>有且仅有一个</strong>实体。</li>
+</ul>
+<p>ID 的形式有两种常见做法:</p>
+<ul>
+<li><strong>复合 ID (composite
+ID)</strong>:把部门代码、特殊字符、随机数等拼接起来,保证唯一。</li>
+<li><strong>单一信息</strong>:直接用姓名首字母 + 姓氏 (first initial +
+surname) 之类。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 讲者举的"什么能当
+ID"例子</strong>:姓名+生日+地址的组合、email、社会安全号、银行账号;在大学里就是<strong>学号
+(student number)</strong>,教职工则是<strong>工号 (staff
+number)</strong>。注意:在 UOW 里每人有<strong>多个</strong>唯一
+ID(学号是唯一的,email 也是唯一的)。</p>
+</blockquote>
+<h3 id="23-认证-authentication--四类因素-s7s10">2.3 认证 Authentication
+—— 四类因素 (S7–S10)</h3>
+<p><strong>Authentication</strong> 是<strong>验证 supplicant
+所声称身份</strong>的过程。它依赖<strong>四类认证因素 (authentication
+factor types)</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+  AU[&quot;Authentication 因素&quot;]
+  AU --&gt; K[&quot;① Something you KNOW 你知道的&lt;br/&gt;密码 / 口令短语 / PIN&quot;]
+  AU --&gt; H[&quot;② Something you HAVE 你拥有的&lt;br/&gt;智能卡 / 令牌 / 手机&quot;]
+  AU --&gt; A[&quot;③ Something you ARE 你本身的&lt;br/&gt;指纹 / 虹膜 / 视网膜 (生物特征)&quot;]
+  AU --&gt; P[&quot;④ Something you PRODUCE 你产生的&lt;br/&gt;声音 / 签名 / 步态&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>因素</th>
+<th>本质</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Something you know</strong></td>
+<td>静态的、你脑子里记着的</td>
+<td>password、passphrase、PIN</td>
+</tr>
+<tr class="even">
+<td><strong>Something you have</strong></td>
+<td>你能证明自己拥有的实物</td>
+<td>智能卡、cryptographic token、手机</td>
+</tr>
+<tr class="odd">
+<td><strong>Something you are</strong></td>
+<td>你身上<strong>固有 (inherent)</strong> 的生物特征</td>
+<td>指纹、视网膜/虹膜扫描</td>
+</tr>
+<tr class="even">
+<td><strong>Something you produce</strong></td>
+<td>你<strong>做出来/产生</strong>的东西(非固有但可靠)</td>
+<td>签名、声纹,讲者还提到<strong>步态 (gait)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="强认证--多因素认证-mfa">强认证 = 多因素认证 (MFA)</h4>
+<p><strong>Strong authentication(强认证)</strong>
+的定义很硬核:<strong>至少使用两种不同的认证因素类型</strong>——这就是
+<strong>Multi-factor Authentication(多因素认证,MFA)</strong>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 两个一定要会复述的现实例子</strong></p>
+<ul>
+<li><strong>e-banking(网银)</strong>:登录时用 ID +
+PIN(你知道的);要做转账时,系统再要一个<strong>一次性密码 (one-time
+password, OTP)</strong>,发到你的 token
+或注册手机(你拥有的)。"查看余额"也许只要一个因素,"发起交易"就强制升级到两个/多个因素。</li>
+<li><strong>UOW 登录(讲者说实际上用了 3 个因素)</strong>:① 输入 UOW
+给的用户名+密码(know);② 屏幕弹出一个两位数,你要在手机的 Authenticator
+应用(如 Outlook)里输入它确认(have);③
+解锁手机本身可能还要指纹(are)。三个因素叠加,认证平台才足够
+<strong>robust(健壮)</strong>。</li>
+</ul>
+</blockquote>
+<h4 id="①-something-you-know密码与口令短语-s8">① Something you
+know:密码与口令短语 (S8)</h4>
+<ul>
+<li><strong>Password(密码)</strong>:只有用户本人应该知道的私密字符组合。</li>
+<li><strong>Passphrase(口令短语)</strong>:一句通常比密码更长的<strong>自然语言短语</strong>,由它<strong>派生
+(derive)</strong> 出一个<strong>虚拟密码 (virtual
+password)</strong>。</li>
+<li>推荐强度:<strong>至少 10
+个字符</strong>,至少含一个数字和一个特殊字符。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 区块链钱包的 seed phrase
+例子</strong>:钱包不让你背一长串乱码,而是给你 12 或 24 个<strong>助记词
+(passphrase)</strong>,系统据此生成真正的密钥。这正是"passphrase 派生
+virtual password"的现实写照。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 关于
+entropy(熵)与暴力破解时间,讲者花了很长篇幅</strong> <strong>Entropy(熵)=
+密码的不可预测程度</strong>。麻烦在于人类偏爱低熵密码(生日、名字、家人名),于是攻击者的"字典"小得多、很快就能猜中。幻灯片右侧那张表的逻辑是:</p>
+<ul>
+<li>只用大小写不敏感的标准字母、长度 8 → 约 2080
+亿种组合,人手工试不可能,但<strong>普通电脑约 0.5 秒</strong>就破了;长度
+10 约 5 分钟,长度 14 约 46 年。</li>
+<li>一旦<strong>区分大小写 + 加数字 +
+加特殊符号</strong>,同样长度耗时陡增:长度 8 要 1 小时多,长度 10 约 1
+年,长度 12 约 6500 年,长度 16 在"随机"假设下要约 <strong>3
+亿年</strong>(约为地球年龄的上百倍)。
+核心规律(常被出概念题):<strong>密码强度每增加一点,攻击者所需时间呈指数级
+(exponentially) 增长。</strong></li>
+</ul>
+</blockquote>
+<h4 id="②-something-you-have卡与令牌-s9">② Something you have:卡与令牌
+(S9)</h4>
+<p>用户或系统<strong>所拥有的实物</strong>。例子从简到繁:</p>
+<ul>
+<li><strong>dumb card(哑卡)</strong>:带磁条的卡,如 ATM 卡。</li>
+<li><strong>smart card(智能卡)</strong>:卡里含处理器。</li>
+<li><strong>cryptographic
+token(密码令牌)</strong>:卡里有处理器<strong>且带显示屏</strong>。</li>
+<li>令牌可分<strong>同步 (synchronous)</strong> 或 <strong>异步
+(asynchronous)</strong> 两种。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 硬件令牌的"离线生成
+OTP"巧思</strong>:约 15
+年前银行普遍发<strong>硬件令牌</strong>,平时离线放着;转账时系统要
+OTP,你按一下令牌(只要还有电),即便不联网,它也能给出一个六位 PIN
+让你成功认证。讲者赞它是"让离线令牌与在线系统对上暗号"的精巧设计。如今多被
+<strong>Google/Microsoft Authenticator 等认证器 App</strong> 取代——一个
+App 可同时维护对多个平台的 PIN 生成。</p>
+</blockquote>
+<h4 id="③-something-you-are--④-something-you-produce-s10">③ Something
+you are / ④ Something you produce (S10)</h4>
+<ul>
+<li><strong>Something you
+are(生物特征,biometrics)</strong>:扫描人体特征,转换图像以提取
+<strong>minutiae(细节特征点)</strong>——这些唯一参考点被数字化并以<strong>加密格式存储</strong>。</li>
+<li><strong>Something you
+produce</strong>:用户<strong>执行或产生</strong>的东西,含<strong>签名识别</strong>与<strong>声纹识别</strong>技术(讲者举了对
+Siri / Google Home 说话下指令)。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 生物特征是"模糊"的 (fuzzy in
+nature)</strong>:你的指纹每次按下都略有差异,但好系统仍应可靠地接受你,且大多数时候不产生<strong>误报
+(false positive)</strong> 或<strong>漏报 (false
+negative)</strong>。这点呼应后面 IDPS 里同样会出现的"误报率"概念。</p>
+</blockquote>
+<h3 id="24-授权-authorization--三种机制-s11">2.4 授权 Authorization ——
+三种机制 (S11)</h3>
+<p>划重点:<strong>Authorization 只发生在 Authentication
+之后</strong>("begins with an authenticated
+entity")。三种常见授权机制:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>机制</th>
+<th>做法</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Authorization for each authenticated
+user(逐用户授权)</strong></td>
+<td>系统逐个验证实体,只把资源访问权授予该实体</td>
+<td>大系统里<strong>会非常复杂</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Authorization for members of a group(按组授权)</strong></td>
+<td>把已认证实体匹配到<strong>组成员列表</strong>,按<strong>组的访问权</strong>授予资源</td>
+<td>讲者说这是<strong>最常用</strong>的方法</td>
+</tr>
+<tr class="odd">
+<td><strong>Authorization across multiple
+systems(跨系统授权)</strong></td>
+<td>由<strong>中央认证授权系统</strong>核验身份,发给一组<strong>凭证
+(credential / ticket)</strong></td>
+<td>典型例子 <strong>Single Sign-On(单点登录,SSO)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— SSO
+的直觉</strong>:你只需登录一次,认证票据 (ticket)
+会在你访问同一系统域下的其它 App
+时被<strong>复用</strong>,常借助共享目录结构 (shared directory)
+实现。</p>
+</blockquote>
+<h3 id="25-问责-accountability-s12">2.5 问责 Accountability (S12)</h3>
+<p><strong>Accountability</strong>
+确保系统上的<strong>所有操作都能归因到某个已认证身份</strong>。这些操作既可能是被授权的(查询/修改数据),也可能是<strong>越权尝试</strong>(提权、读/改超出权限的数据)。</p>
+<ul>
+<li>实现手段:<strong>system logs(系统日志)</strong> + <strong>database
+journals(数据库日志)</strong> + <strong>auditing(审计)</strong>
+这些记录。</li>
+<li><strong>system log</strong> =
+某系统按配置记录特定信息(失败的访问尝试、系统改动等)的记录;用途包括入侵检测、定位系统故障根因、追踪资源使用。</li>
+<li><strong>关键防护</strong>:必须保证<strong>生成和存储日志的服务器本身是安全的</strong>(物理+数字)。讲者点出一个攻击链:攻击者若破坏了
+CIA 又删掉记录,问责与审计就无从谈起。</li>
+</ul>
+<h3 id="26-管理访问控制-s13">2.6 管理访问控制 (S13)</h3>
+<p>落地访问控制需要一份<strong>正式的访问控制政策 (formal access control
+policy)</strong>,规定访问权如何授予实体和组,并包含以下条款:</p>
+<ul>
+<li><strong>周期性复审 (periodically review)</strong> 所有访问权;</li>
+<li>给<strong>新员工</strong>授权;</li>
+<li>员工<strong>岗位变动</strong>时<strong>变更</strong>访问权;</li>
+<li>适时<strong>撤销 (revoke)</strong> 访问权。</li>
+</ul>
+<blockquote>
+<p><strong>本节小结(IAAA 一句话各记一条)</strong>:</p>
+<ul>
+<li>Identification = 你声称是谁(supplicant + 唯一 ID)</li>
+<li>Authentication = 证明你是你(四因素:know / have / are / produce;≥2 类
+= MFA)</li>
+<li>Authorization = 你能做什么(逐用户 / 按组(最常用)/ 跨系统
+SSO;<strong>必在认证之后</strong>)</li>
+<li>Accountability = 你做了什么(日志 + 审计;保护好日志服务器)</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="三防火墙-firewalls-s14s25">三、防火墙 Firewalls (S14–S25)</h2>
+<h3 id="31-什么是防火墙-s14">3.1 什么是防火墙 (S14)</h3>
+<p>在信息安全里,<strong>firewall(防火墙)</strong>
+是<strong>任何阻止特定类型信息在"不可信网络"与"可信网络"之间流动的设备</strong>。</p>
+<ul>
+<li><strong>不可信网络 (untrusted network)</strong>:通常指外部,如
+Internet。</li>
+<li><strong>可信网络 (trusted network)</strong>:通常指内部,如你的
+<strong>LAN(局域网)</strong>。</li>
+<li>形态可以是:一台独立计算机、跑在现有路由器/服务器上的服务,或一整套带多个支撑设备的独立网络。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)—
+"firewall"这个名字的由来(讲者讲得很生动)</strong>:它借自物理世界。建筑里的
+<strong>firewall</strong>
+是从地下室直通屋顶的混凝土墙,挡火蔓延;<strong>fire door(防火门)</strong>
+很重,着火时关上挡烟;飞机里的 firewall
+是一道绝热金属隔板,把高温危险的发动机部件和乘客舱隔开。信息安全把这个概念搬过来——<strong>只不过隔的不是火和烟,而是信息</strong>:在两个区域(不可信外网
+/ 可信内网)之间挡住特定流量。</p>
+</blockquote>
+<h3 id="32-防火墙的四代发展-s15s18">3.2 防火墙的四代发展 (S15–S18)</h3>
+<p>为什么要按"代"学?因为理解现代防火墙最好的方式,就是看它如何从最朴素的原理一步步演进到今天的复杂技术。</p>
+<pre class="mermaid"><code>flowchart LR
+  G1[&quot;第一代&lt;br/&gt;Packet Filtering&lt;br/&gt;只看包头&quot;] --&gt; G2[&quot;第二代&lt;br/&gt;Application-Level&lt;br/&gt;在应用层工作&quot;]
+  G2 --&gt; G3[&quot;第三代&lt;br/&gt;Stateful Inspection&lt;br/&gt;用 state table 记连接状态&quot;]
+  G3 --&gt; G4[&quot;第四代&lt;br/&gt;Dynamic Packet Filtering&lt;br/&gt;按已通过的包动态决策&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>代</th>
+<th>名称</th>
+<th>工作方式</th>
+<th>缺点 / 注意</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>1st</strong></td>
+<td><strong>Packet Filtering(包过滤)</strong></td>
+<td>检查<strong>每个进出包的包头 (packet header)</strong>,按 IP
+地址、包类型、端口等值<strong>选择性过滤</strong></td>
+<td>只看地址,最简单</td>
+</tr>
+<tr class="even">
+<td><strong>2nd</strong></td>
+<td><strong>Application-Level(应用层)</strong></td>
+<td>像包过滤,但工作在<strong>应用层 (application
+layer)</strong>;常与过滤防火墙<strong>配合使用</strong></td>
+<td><strong>为特定应用层协议设计</strong>,难改用于其它协议</td>
+</tr>
+<tr class="odd">
+<td><strong>3rd</strong></td>
+<td><strong>Stateful Inspection(状态检测)</strong></td>
+<td>用 <strong>state table(状态表)</strong>
+记录内外系统间的<strong>连接状态与上下文</strong>(谁、何时、发了哪个包);匹配不上就回退查
+<strong>ACL(访问控制列表)</strong></td>
+<td>维护和比对状态表带来<strong>额外开销</strong>,可能被 <strong>DoS
+攻击</strong>利用</td>
+</tr>
+<tr class="even">
+<td><strong>4th</strong></td>
+<td><strong>Dynamic Packet Filtering(动态包过滤)</strong></td>
+<td>只放行<strong>特定源/目的/端口</strong>的包;理解协议如何运作,<strong>动态开关</strong>防火墙通路</td>
+<td>——</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>⚠️ <strong>必考对比:static filter vs dynamic filter</strong>(S18)</p>
+<ul>
+<li><strong>Static
+filter(静态过滤)</strong>:<strong>每个包独立评估</strong>。</li>
+<li><strong>Dynamic
+filter(动态过滤)</strong>:决策<strong>取决于此前已通过防火墙的包</strong>。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 包头(packet
+header)的类比</strong>:网络里每个信息包就像海运的箱子,带一段
+<strong>header(头部)</strong>
+信息(发件人、收件人地址等)。包过滤防火墙正是检查这段 header
+来决定<strong>接受还是拒绝</strong>。第三代的 DoS
+风险也好理解:攻击者狂发海量包,防火墙逐个比对状态表,造成流量拥塞。</p>
+</blockquote>
+<h3 id="33-防火墙的四种架构-s19s23">3.3 防火墙的四种架构 (S19–S23)</h3>
+<p>四代防火墙各自可用多种<strong>架构 (architecture)</strong>
+部署,这些架构有时互斥、有时可组合。常见四种:</p>
+<pre class="mermaid"><code>flowchart TD
+  A[&quot;① Packet Filtering Routers&lt;br/&gt;包过滤路由器&quot;]
+  B[&quot;② Screened Host Firewalls&lt;br/&gt;屏蔽主机 (含 bastion host)&quot;]
+  C[&quot;③ Dual-Homed Host Firewalls&lt;br/&gt;双宿主机 (含 NAT)&quot;]
+  D[&quot;④ Screened-Subnet Firewalls&lt;br/&gt;屏蔽子网 (含 DMZ)&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>架构</th>
+<th>关键结构</th>
+<th>要点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Packet Filtering Routers(包过滤路由器)</strong></td>
+<td>内外网之间的路由器配置成阻挡不允许的包</td>
+<td>简单有效降低外部攻击风险;<strong>缺审计与强认证</strong>,复杂 ACL
+会<strong>拖慢网络性能</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Screened Host Firewalls(屏蔽主机)</strong></td>
+<td>包过滤路由器 + 一台独立专用防火墙(如应用代理服务器)</td>
+<td>路由器先筛包减负;那台独立主机常称 <strong>bastion
+host(堡垒主机)</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Dual-Homed Host Firewalls(双宿主机)</strong></td>
+<td><strong>bastion host
+带两个网络接口</strong>(一接外网、一接内网),所有流量必须穿过它</td>
+<td>常配 <strong>NAT(网络地址转换)</strong>:把外部 IP 转成特殊范围的内部
+IP(通常 1 对 1)</td>
+</tr>
+<tr class="even">
+<td><strong>Screened-Subnet Firewalls(屏蔽子网)</strong></td>
+<td>包过滤路由器后面放一个或多个内部 bastion host</td>
+<td>引入 <strong>DMZ(非军事区,demilitarized zone)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— DMZ
+是什么、放什么</strong>:<strong>DMZ(demilitarized
+zone,非军事区)</strong>
+是一段单独的网段。从不可信网络来的连接经外部过滤路由器进入,再经路由防火墙进出
+DMZ;<strong>只有来自 DMZ
+堡垒主机的连接才被允许进入可信内网</strong>。DMZ
+里放那些"需要对不可信网络提供服务"的服务器:<strong>Web 服务器、FTP
+服务器、某些数据库服务器</strong>。</p>
+</blockquote>
+<h3 id="34-选择与管理防火墙-s24s25">3.4 选择与管理防火墙 (S24–S25)</h3>
+<p><strong>选对防火墙要问的四个问题 (S24)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>要问什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Firewall technology(技术类型)</strong></td>
+<td>哪种类型在<strong>保护与成本</strong>之间最平衡?</td>
+</tr>
+<tr class="even">
+<td><strong>Cost(成本)</strong></td>
+<td>基础价含哪些功能?哪些要加钱?所有成本因素都清楚了吗?</td>
+</tr>
+<tr class="odd">
+<td><strong>Maintenance(维护)</strong></td>
+<td>设置配置有多难?有没有<strong>能胜任配置的技术人员</strong>?</td>
+</tr>
+<tr class="even">
+<td><strong>Future growth(未来增长)</strong></td>
+<td>能否适应目标组织<strong>不断增长的网络</strong>?</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>管理防火墙的要点 (S25)</strong>:</p>
+<ul>
+<li>每台防火墙都必须有自己的<strong>配置规则集 (configuration
+rules)</strong>;使用前应先<strong>明确防火墙使用政策</strong>。</li>
+<li>配置规则集<strong>非常复杂且易错</strong>:逻辑错误会导致意外行为(本该拒绝却放行、端口/服务写错)。每条规则都要<strong>精心编写、按正确顺序放入列表、调试、测试</strong>。</li>
+<li><strong>性能 vs
+安全限制</strong>要权衡——组织"宁可承受潜在风险,也不愿换来确定的失败
+(certain failure)"。</li>
+<li><strong>"用一台计算机去保护计算机"</strong>
+本身就有问题:防火墙自己也是台计算机,所以<strong>防火墙自身的防护</strong>也需被认真对待。</li>
+</ul>
+<blockquote>
+<p><strong>本节小结</strong>:防火墙 =
+内外网之间的信息闸门;<strong>四代</strong>(包过滤→应用层→状态检测→动态包过滤,记住
+static vs dynamic、state table、DoS
+风险);<strong>四种架构</strong>(包过滤路由器 / 屏蔽主机+bastion /
+双宿主机+NAT /
+屏蔽子网+DMZ);选型四问、管理强调规则集易错与自我防护。</p>
+</blockquote>
+<hr />
+<h2 id="四入侵检测与防御系统-idps-s26s31">四、入侵检测与防御系统 IDPS
+(S26–S31)</h2>
+<h3 id="41-idps-是什么-s26">4.1 IDPS 是什么 (S26)</h3>
+<p><strong>IDPS(Intrusion Detection and Prevention
+System,入侵检测与防御系统)</strong> 工作起来<strong>像防盗报警器
+(burglar
+alarm)</strong>:检测到违规就触发警报。管理员可选警报级别;系统常配置成通过
+email 或短信通知管理员。</p>
+<p>带<strong>入侵防御 (intrusion prevention)</strong>
+技术的系统,会试图用以下手段<strong>阻止攻击得逞</strong>:</p>
+<ul>
+<li><strong>终止网络连接或攻击者会话</strong>;</li>
+<li><strong>重新配置网络设备</strong>,改变安全环境以封锁访问;</li>
+<li><strong>改变攻击内容使其无害
+(benign)</strong>——例如在邮件到达收件人前<strong>移除受感染的附件</strong>。</li>
+</ul>
+<p>和防火墙一样,IDPS
+也需要<strong>复杂的配置</strong>才能达到期望的检测与响应水平。</p>
+<h3 id="42-两种分类维度">4.2 两种分类维度</h3>
+<p>IDPS
+可以从<strong>两个互相独立的维度</strong>来分类——一个看"装在哪、监控什么",一个看"靠什么方法检测"。考试常把这两个维度混在一起出,务必分清:</p>
+<pre class="mermaid"><code>flowchart TD
+  IDPS[&quot;IDPS 分类&quot;]
+  IDPS --&gt; D1[&quot;维度一:按部署位置&quot;]
+  IDPS --&gt; D2[&quot;维度二:按检测方法&quot;]
+  D1 --&gt; H[&quot;Host-based 主机型&lt;br/&gt;护服务器/主机资产&quot;]
+  D1 --&gt; N[&quot;Network-based 网络型&lt;br/&gt;护网络资产&quot;]
+  D2 --&gt; S[&quot;Signature-based 签名型&lt;br/&gt;像杀毒软件&quot;]
+  D2 --&gt; A[&quot;Anomaly-based 异常型&lt;br/&gt;建基线、统计偏差&quot;]</code></pre>
+<h4 id="维度一host-based-vs-network-based-s27s29">维度一:Host-based vs
+Network-based (S27–S29)</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Host-Based IDPS(主机型)</strong></th>
+<th><strong>Network-Based IDPS(网络型)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>监控对象</td>
+<td>配置并分类各类系统和<strong>数据文件</strong>,看<strong>文件属性变化</strong>(如系统文件夹被改)</td>
+<td>监控<strong>网络流量</strong>,找<strong>流量模式</strong>(如大量相关流量→可能是
+DoS)</td>
+</tr>
+<tr class="even">
+<td>告警</td>
+<td>只提供少数几个通用告警级别</td>
+<td>预定义条件触发时通知管理员</td>
+</tr>
+<tr class="odd">
+<td>误报</td>
+<td>配置不精确时会产生大量误报</td>
+<td><strong>误报 (false-positive) 比主机型多得多</strong></td>
+</tr>
+<tr class="even">
+<td>特点</td>
+<td><strong>可同时监控多台计算机</strong></td>
+<td>用知识库匹配已知与未知攻击策略;配置维护更复杂</td>
+</tr>
+</tbody>
+</table></div>
+<h4
+id="维度二signature-based-vs-anomaly-based-s30">维度二:Signature-based
+vs Anomaly-based (S30)</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Signature-Based(签名型)</strong></th>
+<th><strong>Anomaly-Based(异常型,又名 behavior-based)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>原理</td>
+<td>像<strong>杀毒软件</strong>:拿流量去匹配<strong>预设的攻击模式签名</strong></td>
+<td>先从正常流量<strong>采集数据建立基线
+(baseline)</strong>,再周期性用<strong>统计方法</strong>采样并与基线比对</td>
+</tr>
+<tr class="even">
+<td>能否发现新攻击</td>
+<td><strong>不能</strong>——签名必须持续更新,跟不上就漏掉新策略</td>
+<td><strong>能</strong>——偏离基线的就算异常,可发现新型攻击</td>
+</tr>
+<tr class="odd">
+<td>开销</td>
+<td>小(只是比对)</td>
+<td><strong>大</strong>——需要大量开销和处理能力</td>
+</tr>
+<tr class="even">
+<td>软肋</td>
+<td>签名要不断更新;还受"攻击发生的时间跨度"影响</td>
+<td>资源消耗高</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)—
+讲者点睛</strong>:杀毒软件其实就是一种签名型
+IDPS——它建一个已知病毒的数据库,新文件来了就比对签名,中招的被<strong>隔离
+(quarantine)</strong>。异常型则像"先学会你平时长什么样,再揪出反常的你"——基线变量可包括主机内存、CPU
+占用、网络包数量等。</p>
+</blockquote>
+<h3 id="43-管理-idps-s31">4.3 管理 IDPS (S31)</h3>
+<ul>
+<li>IDPS 必须用<strong>技术知识 +
+足够的业务与安全知识</strong>来配置,才能区分<strong>日常情况</strong>与<strong>真实威胁</strong>。</li>
+<li>配置好的 IDPS
+能把告警翻译成<strong>不同级别的通知</strong>:低级→日志条目,中级→email,严重→短信/呼机。</li>
+<li>配置糟糕的后果有两种:<strong>信息过载</strong>(管理员烦到关掉呼机)或<strong>漏报真实攻击</strong>。</li>
+<li><strong>Agent(代理)</strong>:驻留在系统上、向<strong>管理服务器</strong>回报的软件;大多数
+IDPS 靠 agent 监控。</li>
+<li><strong>Consolidated enterprise management
+service(统一企业管理服务)</strong>:让安全人员从<strong>多个主机型与网络型
+IDPS</strong>汇总数据,<strong>跨系统、跨子网找模式</strong>。</li>
+</ul>
+<blockquote>
+<p><strong>本节小结</strong>:IDPS =
+网络世界的防盗报警(还能主动阻断);<strong>两维分类</strong>别混——位置维度(host
+vs network,网络型误报更多)、方法维度(signature
+像杀毒、追不上新攻击;anomaly 建基线、能抓新攻击但开销大);管理靠 agent +
+统一管理服务。</p>
+</blockquote>
+<hr />
+<h2 id="五无线网络保护-s32s34">五、无线网络保护 (S32–S34)</h2>
+<h3 id="51-无线网络的特殊风险-s32">5.1 无线网络的特殊风险 (S32)</h3>
+<p>多数组织的无线网络基于 <strong>IEEE 802.11
+协议</strong>。无线安全的独特难点在于<strong>信号在空气里到处跑</strong>,而这又和一个概念绑定:</p>
+<ul>
+<li><strong>Footprint(覆盖足迹)</strong>:有足够信号强度能建立连接的<strong>地理区域</strong>。它的大小取决于<strong>无线接入点
+(Wireless Access Point, WAP)</strong> 的发射功率。</li>
+<li><strong>配置的两难</strong>:功率要足够保证目标区域内的连接质量,但<strong>又不能大到让足迹外的人也能连上</strong>——太小影响可用性,太大影响安全性。</li>
+</ul>
+<p>两类典型威胁(因信号外泄而生):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>威胁</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>War Driving(战争驾驶)</strong></td>
+<td>开车/走动穿过某地理区域,<strong>主动扫描开放或不安全的 Wi-Fi
+接入点</strong>,找到没保护的就蹭网甚至入侵</td>
+</tr>
+<tr class="even">
+<td><strong>Rogue WAP(流氓接入点)</strong></td>
+<td>攻击者架一个<strong>假接入点</strong>,诱骗用户输入密码;凭证一旦被窃,攻击者拿去认证真正的合法网络</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="52-wep--wpa--wpa2--wpa3-s33s34">5.2 WEP → WPA → WPA2 → WPA3
+(S33–S34)</h3>
+<p>无线加密协议的演进时间线,是本节最容易出题的地方:</p>
+<pre class="mermaid"><code>timeline
+  title 无线安全协议演进
+  1990s : WEP (有线等效保密) — 基础保护，存在根本性密码学缺陷
+  2000s早期 : WPA v1 — 取代 WEP，但仍沿用部分 WEP 旧技术
+  2000s : WPA2 (IEEE 802.11i) — 基于 AES，更健壮
+  2018 : WPA3 — 安全性进一步提升，开始取代 WPA2</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>协议</th>
+<th>全称 / 标准</th>
+<th>要点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>WEP</strong></td>
+<td>Wired Equivalent Privacy(有线等效保密)</td>
+<td>提供<strong>基础</strong>级安全,防未授权访问/窃听;但<strong>不保护用户之间互看数据</strong>;有<strong>根本性密码学缺陷</strong>,被
+WPA 取代</td>
+</tr>
+<tr class="even">
+<td><strong>WPA</strong></td>
+<td>Wi-Fi Protected Access(由 <strong>Wi-Fi Alliance</strong>
+制定的行业标准)</td>
+<td>与老 WAP 有兼容性问题;v1 仍用了部分 WEP 旧技术,故有安全隐患</td>
+</tr>
+<tr class="odd">
+<td><strong>WPA2</strong></td>
+<td>基于 <strong>IEEE 802.11i</strong></td>
+<td>基于 <strong>AES(Advanced Encryption Standard,高级加密标准)</strong>
+的更健壮协议;在认证、加密、吞吐量上都增强</td>
+</tr>
+<tr class="even">
+<td><strong>WPA3</strong></td>
+<td>——</td>
+<td>安全性进一步提升,<strong>自 2018 年起开始取代 WPA2</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>本节小结</strong>:无线难在"信号外泄 + footprint
+难调";两类威胁记 War Driving / Rogue WAP;协议演进 <strong>WEP(有缺陷)→
+WPA → WPA2(AES)→ WPA3(2018)</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="六密码学-cryptography-s35s52">六、密码学 Cryptography
+(S35–S52)</h2>
+<p>这是本章篇幅最大、也最"硬核"的一节。先建立全局地图,再逐块展开。</p>
+<h3 id="61-密码学能达成的四个安全目标-s35">6.1
+密码学能达成的四个安全目标 (S35)</h3>
+<p><strong>Cryptography(密码学)</strong>
+是一种<strong>精巧的控制元素</strong>,常被<strong>嵌入其它信息安全控制</strong>中。它能帮助达成:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>安全目标</th>
+<th>用的密码学技术</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Confidentiality(机密性)</strong></td>
+<td>symmetric / asymmetric encryption(对称/非对称加密)</td>
+</tr>
+<tr class="even">
+<td><strong>Integrity(完整性)</strong></td>
+<td>hashing(哈希)</td>
+</tr>
+<tr class="odd">
+<td><strong>Authentication + Non-Repudiation(认证 +
+不可否认)</strong></td>
+<td>digital signatures(数字签名)和 MACs</td>
+</tr>
+<tr class="even">
+<td><strong>Authorization(授权)</strong></td>
+<td>public-key infrastructure(PKI,公钥基础设施)</td>
+</tr>
+</tbody>
+</table></div>
+<p>几个必须分清的母概念:</p>
+<ul>
+<li><strong>Cryptography</strong>:对消息进行<strong>编码与解码</strong>,使他人无法理解。</li>
+<li><strong>Cryptanalysis(密码分析)</strong>:在<strong>不知道算法和密钥</strong>的情况下,从
+ciphertext 还原出原始 plaintext 的过程——即"破解"。</li>
+<li><strong>Cryptology(密码术)= Cryptography +
+Cryptanalysis</strong>。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)—
+为什么这两者必须共存</strong>:Cryptanalysis
+能揭示算法的弱点,从而激励人们开发更健壮、更安全的新版算法。"破解研究"和"加密研究"是一对相互推动的搭档。</p>
+</blockquote>
+<h3 id="62-基本术语-s36">6.2 基本术语 (S36)</h3>
+<p>下表是高频送分点,务必逐条记牢:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>术语</th>
+<th>定义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Algorithm(算法)</strong></td>
+<td>把未加密消息转成加密消息的<strong>数学公式/方法</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Cipher(密码法)</strong></td>
+<td>对消息<strong>各个组成部分</strong>进行的加密<strong>变换</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Ciphertext / cryptogram(密文)</strong></td>
+<td>加密后产生的<strong>不可理解的</strong>消息</td>
+</tr>
+<tr class="even">
+<td><strong>Plaintext(明文)</strong></td>
+<td><strong>原始未加密</strong>消息;也是成功解密后的结果</td>
+</tr>
+<tr class="odd">
+<td><strong>Cryptosystem(密码系统)</strong></td>
+<td>把明文转成密文的<strong>一整套变换</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Decipher(解密)</strong></td>
+<td>把密文转回明文</td>
+</tr>
+<tr class="odd">
+<td><strong>Encipher(加密)</strong></td>
+<td>把明文转成密文</td>
+</tr>
+<tr class="even">
+<td><strong>Key(密钥)</strong></td>
+<td>与算法<strong>配合使用</strong>、由明文生成密文的信息</td>
+</tr>
+<tr class="odd">
+<td><strong>Steganography(隐写术)</strong></td>
+<td><strong>隐藏消息(通常藏在图像里)</strong> 的过程</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>⚠️ <strong>极易混淆:Cryptography vs Steganography</strong></p>
+<ul>
+<li><strong>Cryptography
+不隐藏消息的存在</strong>——它只是让外人<strong>读不懂</strong>(并防止篡改完整性);攻击者仍<strong>看得到有一条消息在那</strong>。</li>
+<li><strong>Steganography
+隐藏的是消息的"存在"本身</strong>——比如把文字嵌进一张看起来很自然的图片里,只有持正确密钥的人才能把内容提取出来。讲者把它和之前讲过的
+<strong>covert channel(隐蔽信道)</strong> 关联起来记。</li>
+</ul>
+</blockquote>
+<h3 id="63-三种基础密码法-s37s39">6.3 三种基础密码法 (S37–S39)</h3>
+<p>常见密码法有三种:<strong>substitution(替换)、transposition(置换)、XOR(异或)</strong>。</p>
+<h4 id="①-替换密码-substitution-cipher-s37">① 替换密码 Substitution
+Cipher (S37)</h4>
+<p>把一个值替换成另一个值。</p>
+<ul>
+<li><strong>Monoalphabetic(单表替换)</strong>:只用一套字母表,例子是
+<strong>Caesar cipher(凯撒密码)</strong>。</li>
+<li><strong>Polyalphabetic(多表替换)</strong>:用两套或更多字母表。</li>
+</ul>
+<blockquote>
+<p><strong>Caesar 密码 worked
+example(讲者讲解)</strong>:密钥就是"<strong>向后移 3 位</strong>"。</p>
+<pre><code>明文表: A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+密文表: D E F G H I J K L M N O P Q R S T U V W X Y Z A B C</code></pre>
+<p>于是 <strong>BERLIN → EHUOLQ</strong>。密钥只是数字
+<strong>3</strong>:知道移几位,就能反向移回去解密;移动是<strong>循环的
+(cyclic)</strong>——Z 再往后就回到 A。
+<strong>为什么现在是玩具</strong>:字母表只有 26
+个,密钥可能性极少,<strong>手工十分钟就能暴力破解</strong>。</p>
+</blockquote>
+<h4 id="②-置换密码-transposition-cipher-s38">② 置换密码 Transposition
+Cipher (S38)</h4>
+<p>又名 <strong>permutation
+cipher(排列密码)</strong>:<strong>重排一个块内的值</strong>来生成密文,可在<strong>位
+(bit) 级</strong>或<strong>字节/字符级</strong>进行。</p>
+<blockquote>
+<p><strong>worked
+example(幻灯片)</strong>:密钥指定每一位移到哪个位置(如"位 1→位 3、位
+2→位 6…",位 1 是最右位)。把明文按 8
+位分块后,按密钥重排各位即得密文。它<strong>只打乱顺序、不替换值</strong>——这正是它和替换密码的根本区别。</p>
+</blockquote>
+<h4 id="③-异或运算-xor-s39">③ 异或运算 XOR (S39)</h4>
+<p><strong>XOR cipher</strong>:把比特流与另一段数据流(通常是 <strong>key
+stream,密钥流</strong>)做布尔 <strong>XOR</strong> 运算。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>XOR 规则</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0 ⊕ 0</td>
+<td><strong>0</strong></td>
+</tr>
+<tr class="even">
+<td>0 ⊕ 1</td>
+<td><strong>1</strong></td>
+</tr>
+<tr class="odd">
+<td>1 ⊕ 0</td>
+<td><strong>1</strong></td>
+</tr>
+<tr class="even">
+<td>1 ⊕ 1</td>
+<td><strong>0</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>记忆口诀</strong>:两值<strong>相同得 0,不同得
+1</strong>。它<strong>可逆</strong>——把密文再和 key stream
+异或一次,就还原出明文。</p>
+<blockquote>
+<p><strong>worked example(幻灯片)</strong>:</p>
+<pre><code>明文:     0100 0001
+密钥流:   0101 1010
+密文:     0001 1011   ← 逐位异或</code></pre>
+<p>解密:密文 0001 1011 ⊕ 密钥流 0101 1010 = 明文 0100 0001。</p>
+</blockquote>
+<h3 id="64-对称加密-symmetric-encryption-s40s41">6.4 对称加密 Symmetric
+Encryption (S40–S41)</h3>
+<p><strong>Symmetric encryption(对称加密)</strong>,又名 <strong>private
+key / secret key
+encryption(私钥/密钥加密)</strong>:<strong>加密和解密用同一把密钥</strong>。</p>
+<ul>
+<li><strong>优点</strong>:方法通常<strong>极其高效
+(efficient)</strong>,加解密所需处理量小。</li>
+<li><strong>致命挑战</strong>:<strong>怎么把密钥安全地送到接收方</strong>(key
+distribution / key management problem)。</li>
+<li><strong>著名算法</strong>:<strong>DES、3DES、AES</strong>。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 讲者用 Zoom
+课堂揭示对称加密的局限</strong>:Caesar 密码就是对称加密(密钥 3
+既用于加密也用于解密)。但现实是——我和上百个学生在 Zoom
+上通信,信息以加密形式传输,<strong>我没法事先和每个学生单独约定一把密钥</strong>。所以<strong>对称加密单独用解决不了密钥分发问题</strong>,这正是引出非对称加密的动机。</p>
+</blockquote>
+<h3 id="65-非对称加密-asymmetric-encryption-s42s43">6.5 非对称加密
+Asymmetric Encryption (S42–S43)</h3>
+<p><strong>Asymmetric encryption(非对称加密)</strong>,又名
+<strong>public key
+encryption(公钥加密)</strong>:用<strong>两把不同但相关的密钥</strong>。</p>
+<pre class="mermaid"><code>flowchart LR
+  P[&quot;明文&quot;] --&gt;|&quot;用 Key A 加密&quot;| C[&quot;密文&quot;]
+  C --&gt;|&quot;只能用 Key B 解密&quot;| P2[&quot;明文&quot;]
+  note[&quot;反过来也成立:&lt;br/&gt;Key B 加密 → 只能 Key A 解密&quot;]</code></pre>
+<ul>
+<li>任一把都能加密或解密,但<strong>若用 Key A 加密,就只能用 Key B
+解密</strong>,反之亦然。</li>
+<li><strong>最有价值的用法</strong>:一把设为
+<strong>private(私钥)</strong>、另一把设为
+<strong>public(公钥)</strong>。</li>
+<li><strong>著名算法</strong>:<strong>RSA、ElGamal、Regev</strong>。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— Regev
+与后量子密码</strong>:RSA、ElGamal 已知对<strong>量子计算机 (quantum
+computer)</strong> 脆弱。学界因此标准化了一批抗量子的
+<strong>post-quantum cryptography(后量子密码)</strong>,<strong>Regev
+加密方案</strong>是主要候选之一,已有部分被标准化为后量子时代的新一代算法。</p>
+<p><strong>公钥加密怎么用</strong>:你生成一对(公钥 +
+私钥)。公钥可以发给任何想给你发消息的人,私钥自己留着。别人用<strong>你的公钥加密</strong>,得到的密文<strong>除了持私钥的你,谁都读不懂</strong>。</p>
+</blockquote>
+<p><strong>非对称加密的代价 (S43)</strong>:</p>
+<ul>
+<li>两方对话需要 <strong>4
+把密钥</strong>,且密钥数量随参与方增加而<strong>几何级 (geometrically)
+增长</strong>。</li>
+<li><strong>不如对称加密高效</strong>(公钥需要数学结构,计算更重、密钥更大)。</li>
+</ul>
+<h3 id="66-对称-vs-非对称--核心对比">6.6 对称 vs 非对称 —— 核心对比</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th><strong>Symmetric(对称)</strong></th>
+<th><strong>Asymmetric(非对称)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>别名</td>
+<td>private / secret key</td>
+<td>public key</td>
+</tr>
+<tr class="even">
+<td>密钥</td>
+<td><strong>同一把</strong>密钥加解密</td>
+<td><strong>两把</strong>不同但相关的密钥(公钥+私钥)</td>
+</tr>
+<tr class="odd">
+<td>效率</td>
+<td><strong>高、快</strong></td>
+<td><strong>较低、慢</strong></td>
+</tr>
+<tr class="even">
+<td>主要难题</td>
+<td><strong>密钥分发</strong>(怎么把密钥给对方)</td>
+<td>效率低、密钥多(4 把/两方,几何增长)</td>
+</tr>
+<tr class="odd">
+<td>著名算法</td>
+<td>DES、3DES、AES</td>
+<td>RSA、ElGamal、Regev</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="67-数字签名-digital-signatures-s44">6.7 数字签名 Digital
+Signatures (S44)</h3>
+<p><strong>Digital signature(数字签名)</strong>
+把非对称过程<strong>反过来用</strong>:<strong>私钥加密</strong>消息、<strong>公钥解密</strong>消息。</p>
+<ul>
+<li>由中央机构(registry)独立验证为真实的消息。</li>
+<li>既然只有"拥有私钥的组织"才能产生这条消息,<strong>消息确由它发出这一点无法抵赖</strong>——这种
+<strong>non-repudiation(不可否认性)</strong> 正是数字签名的根基。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)—
+讲者类比手写签名的两个安全属性</strong>:①
+<strong>不可伪造</strong>——只有持私钥的你能产生通过验证算法的签名;②
+<strong>不可否认</strong>——签了就赖不掉,因为只有你能产生该签名。这正是把手写签名的性质搬进数字世界。</p>
+</blockquote>
+<h3 id="68-数字证书ca-与-pki-s45-s47">6.8 数字证书、CA 与 PKI (S45,
+S47)</h3>
+<p>非对称加密有个现实漏洞:<strong>公钥看起来就是一串随机字符串,本身不带身份</strong>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)—
+讲者的"公钥被掉包"场景</strong>:你上我的网站,看到一串自称是"我的公钥"的字符串。但若网站被攻击者篡改、把公钥换成攻击者的公钥,你<strong>无法分辨</strong>(两串都是随机的),于是你用假公钥加密,攻击者用对应私钥就能读你的消息。<strong>问题核心:你凭什么信任对方的公钥?</strong>
+答案就是给公钥建一套管理体系——PKI。</p>
+</blockquote>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>概念</th>
+<th>定义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Digital certificate(数字证书)</strong></td>
+<td>一份附在文件上的<strong>电子文档</strong>,类似数字签名,<strong>证明文件确实来自其声称的组织、且未被篡改</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Certificate Authority(证书颁发机构,CA)</strong></td>
+<td>管理证书签发的机构,充当<strong>电子公证人 (electronic notary
+public)</strong>,核验证书的来源与完整性</td>
+</tr>
+<tr class="odd">
+<td><strong>PKI(Public-Key Infrastructure,公钥基础设施)</strong></td>
+<td>实现公钥加密所需的<strong>全部硬件、软件、密码系统</strong>;基于公钥密码系统,包含数字证书与
+CA</td>
+</tr>
+</tbody>
+</table></div>
+<p>PKI
+能为组织提供的服务:<strong>authentication、integrity、confidentiality、authorization、non-repudiation</strong>(认证、完整性、机密性、授权、不可否认)。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 浏览器里的证书链</strong>:你访问 UOW
+网站时,浏览器要确认它在和真
+UOW(而非攻击者)通信,于是检查网站的<strong>数字证书</strong>。点 Chrome
+地址栏的锁形图标就能看到:UOW 的证书由某个 CA 签发,该 CA
+又由更上一级签发——这就是<strong>证书链 (certification
+chain)</strong>。证书里含域名、有效期、算法、数字签名本身等信息。</p>
+</blockquote>
+<h3 id="69-混合系统-hybrid-systems-s48">6.9 混合系统 Hybrid Systems
+(S48)</h3>
+<p>为什么现实中两类加密要<strong>合用</strong>?因为它们的优缺点正好互补:</p>
+<pre class="mermaid"><code>flowchart LR
+  S[&quot;对称加密&lt;br/&gt;快,但有密钥分发难题&quot;]
+  A[&quot;非对称加密&lt;br/&gt;慢,但不需事先约定密钥&quot;]
+  S -. 互补 .- A
+  A --&gt;|&quot;① 先用公钥加密&lt;br/&gt;安全交换一把对称密钥&quot;| K[&quot;双方约定的对称密钥&quot;]
+  K --&gt;|&quot;② 之后全程用对称加密&lt;br/&gt;快速、高效、安全&quot;| DONE[&quot;正常通信&quot;]</code></pre>
+<ul>
+<li>纯非对称加密<strong>除了证书领域外很少单独使用</strong>,通常<strong>与对称加密合用,构成
+hybrid system(混合系统)</strong>。</li>
+<li>当前主流混合流程基于 <strong>Diffie-Hellman key
+exchange(迪菲–赫尔曼密钥交换)</strong>:用公钥加密<strong>在不暴露给任何第三方的情况下交换私钥</strong>。</li>
+<li>即:<strong>用非对称加密来交换对称密钥</strong>,之后双方就能基于对称加密做快速、高效、安全的通信。</li>
+<li>Diffie-Hellman
+<strong>为后续公钥加密的发展奠定了基础</strong>。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 又是 Zoom 例子</strong>:你的 Zoom
+会话一开始,你我电脑(经
+Zoom)先用非对称/公钥协议<strong>交换密钥</strong>;一旦密钥商定,后续就<strong>全用对称加密</strong>通话。这就是混合系统在你眼前每天发生的实例。</p>
+</blockquote>
+<h3 id="610-使用与管理密码控制-s50s52">6.10 使用与管理密码控制
+(S50–S52)</h3>
+<h4 id="应用场景-s50">应用场景 (S50)</h4>
+<p><strong>前提</strong>:密码控制只有在<strong>密钥管理基础设施搭建妥当</strong>、且系统被<strong>正确运维</strong>时才能保证安全。组织可用密码控制支撑:</p>
+<ul>
+<li>email 及附件的<strong>机密性与完整性</strong>;</li>
+<li>电子商务的<strong>认证、机密性、完整性、不可否认</strong>;</li>
+<li>经 <strong>VPN(虚拟专用网)</strong> 远程访问的认证与机密性;</li>
+<li>作为访问控制系统的补充,提供<strong>更高标准的认证</strong>。</li>
+</ul>
+<h4 id="著名密码协议-s51">著名密码协议 (S51)</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>用途</th>
+<th>协议</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>邮件安全</td>
+<td><strong>S/MIME</strong>、<strong>PGP(Pretty Good
+Privacy)</strong></td>
+</tr>
+<tr class="even">
+<td>Web 安全</td>
+<td><strong>SSL/TLS</strong>、<strong>HTTPS</strong></td>
+</tr>
+<tr class="odd">
+<td>IP 层安全</td>
+<td><strong>IPSec</strong></td>
+</tr>
+<tr class="even">
+<td>安全远程操作</td>
+<td><strong>SSH(Secure Shell)</strong></td>
+</tr>
+<tr class="odd">
+<td>远程接入</td>
+<td><strong>VPN(Virtual Private Network)</strong></td>
+</tr>
+<tr class="even">
+<td>安全认证</td>
+<td><strong>Kerberos</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)—
+讲者对几个协议的定位</strong>:<strong>TLS</strong> 的历史旧名是
+<strong>SSL</strong>,如今用的是 TLS 版本(讲者口误说
+v3),工作在传输/应用层;<strong>HTTPS</strong> 就是用 TLS 加密的
+HTTP(末尾多个 S);<strong>IPSec</strong> 在更低的
+IP/网络层保护流量;<strong>SSH</strong>
+在应用层让你安全地远程操作;<strong>VPN</strong>
+在你和公司网络之间建一条<strong>加密隧道 (tunnel)</strong>(如在家访问
+UOW 校内敏感服务)。想深入学这些协议,可选讲者也教的 <strong>CSCI968
+网络安全</strong>(春季开)。</p>
+</blockquote>
+<h4 id="管理密码控制的原则-s52">管理密码控制的原则 (S52)</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>原则</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>别弄丢你的密钥</strong></td>
+<td>弄丢→你自己也访问不了信息;泄露→别人能访问</td>
+</tr>
+<tr class="even">
+<td><strong>要知道你在和谁通信</strong></td>
+<td>身份核验是前提</td>
+</tr>
+<tr class="odd">
+<td><strong>某些算法对某些国家可能违法</strong></td>
+<td>密码学与国家安全紧密相关,部分国家有禁用/不信任政策</td>
+</tr>
+<tr class="even">
+<td><strong>每个密码系统都有弱点</strong></td>
+<td>别盲目信任任何算法</td>
+</tr>
+<tr class="odd">
+<td><strong>别把密码系统装在易被攻破的系统上</strong></td>
+<td>见下条"木桶原理"</td>
+</tr>
+<tr class="even">
+<td><strong>CA 能被完全信任吗?</strong></td>
+<td>用 PKI 就得信任某个 CA,但 CA 也可能被攻陷</td>
+</tr>
+<tr class="odd">
+<td><strong>隐晦不等于安全 (no security in obscurity)</strong></td>
+<td>算法应当透明,见下</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 两条贯穿全章的安全哲学</strong>:</p>
+<ul>
+<li><strong>木桶原理(最弱环节)</strong>:整个系统的安全性<strong>不高于其最薄弱环节</strong>。你算法再强,若架在不安全的主机上,攻击者根本不用碰你的算法,直接打最弱点。</li>
+<li><strong>No security in
+obscurity(隐晦非安全)</strong>:靠"藏着用了哪种算法"来保密,短期或许管用,但可用算法就那么多,攻击者迟早能推断出来;更糟的是你因此疏于更新算法,一旦被识破就会被轻易攻破。
+最后一句收束全章:<strong>密码协议及其密码系统,和防火墙、IDPS
+受同样的管理局限约束</strong>——技术再好,也得靠健全政策和正确运维兜底。</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="七全章速记表-one-page-recap">七、全章速记表 (One-page
+recap)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>板块</th>
+<th>必记要点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>定位</strong></td>
+<td>技术控制<strong>必要但不充分</strong>,要配 policy + SETA;Sphere of
+Security 分内外威胁</td>
+</tr>
+<tr class="even">
+<td><strong>IAAA</strong></td>
+<td>Identification(supplicant+唯一ID)→
+Authentication(know/have/are/produce,≥2类=MFA)→
+Authorization(逐用户/按组(最常用)/SSO,<strong>必在认证后</strong>)→
+Accountability(日志+审计)</td>
+</tr>
+<tr class="odd">
+<td><strong>防火墙四代</strong></td>
+<td>包过滤 → 应用层 → 状态检测(state table、ACL、DoS风险)→
+动态包过滤(static vs dynamic)</td>
+</tr>
+<tr class="even">
+<td><strong>防火墙四架构</strong></td>
+<td>包过滤路由器 / 屏蔽主机(bastion host)/ 双宿主机(NAT)/
+屏蔽子网(DMZ)</td>
+</tr>
+<tr class="odd">
+<td><strong>IDPS 两维</strong></td>
+<td>位置:host vs
+network(网络型误报更多);方法:signature(像杀毒、追不上新攻击)vs
+anomaly(建基线、能抓新攻击但开销大)</td>
+</tr>
+<tr class="even">
+<td><strong>无线</strong></td>
+<td>802.11、footprint、WAP;威胁 War Driving / Rogue WAP;协议
+WEP→WPA→WPA2(AES)→WPA3(2018)</td>
+</tr>
+<tr class="odd">
+<td><strong>密码目标</strong></td>
+<td>机密性=加密;完整性=哈希;认证+不可否认=数字签名/MAC;授权=PKI</td>
+</tr>
+<tr class="even">
+<td><strong>三种基础密码法</strong></td>
+<td>substitution(Caesar:BERLIN→EHUOLQ)/ transposition(只重排)/
+XOR(同0异1、可逆)</td>
+</tr>
+<tr class="odd">
+<td><strong>对称 vs 非对称</strong></td>
+<td>对称:同密钥、快、难在分发(DES/3DES/AES);非对称:双密钥、慢、4密钥几何增长(RSA/ElGamal/Regev)</td>
+</tr>
+<tr class="even">
+<td><strong>数字签名</strong></td>
+<td>私钥加密+公钥解密 → non-repudiation</td>
+</tr>
+<tr class="odd">
+<td><strong>证书/CA/PKI</strong></td>
+<td>证书=带公钥的电子身份证;CA=电子公证人;PKI=公钥加密的整套基础设施</td>
+</tr>
+<tr class="even">
+<td><strong>混合系统</strong></td>
+<td>Diffie-Hellman:用非对称<strong>交换对称密钥</strong>,之后用对称加密(快+安全)</td>
+</tr>
+<tr class="odd">
+<td><strong>管理哲学</strong></td>
+<td>木桶原理(最弱环节)、no security in obscurity、每个系统都有弱点</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🎯 <strong>考试提示(讲者亲口说的)</strong>:期末考定在 <strong>6 月 17
+日</strong>;前两讲(Week
+9/10)的风险评估<strong>计算题</strong>会以"非workshop原样"的形式出现在期末——本讲虽以概念为主,但
+IAAA 四要素、防火墙四代/四架构、IDPS
+两维分类、对称vs非对称对比、Caesar/XOR 的小计算,都是高频考点。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 9 · 风险管理:识别与评估风险 (Risk Management: Identifying and Assessing Risk)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-9--风险管理识别与评估风险-risk-management-identifying-and-assessing-risk">Week
+9 · 风险管理:识别与评估风险 (Risk Management: Identifying and Assessing
+Risk)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>定义</strong> risk
+management(风险管理)及其在组织中的角色,并说清它和 risk identification /
+risk assessment / risk control 的关系</li>
+<li><strong>描述</strong> 用来识别和排序 information
+assets(信息资产)风险的技术——尤其是 weighted factor
+analysis(加权因子分析)</li>
+<li><strong>解释</strong> 风险是如何基于"不利事件发生的可能性
+(likelihood)"和"事件发生时对资产的影响 (impact)"来评估的</li>
+<li><strong>计算</strong> 单个 vulnerability 的相对风险评分,套用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>R</mi><mi>C</mi><mo>+</mo><mi>U</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R=(L_v\times I)\times(1-RC+U)</annotation></semantics></math>
+这个公式</li>
+<li><strong>讨论</strong> 风险识别过程的产出(TVA 工作表、ranked
+vulnerability risk worksheet)如何被用于下一步的风险控制</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>📎 <strong>参考</strong> — 本章对应教材 <strong>Chapter
+8</strong>。下一讲(Week 10)讲 <strong>risk
+control(风险控制)</strong>,即拿到本讲的风险清单后"怎么办"。本讲只解决"有哪些风险、各有多严重"。</p>
+</blockquote>
+<p>信息安全部门(InfoSec
+department)存在的根本理由,其实只有一句话:<strong>管理由信息和 IT
+带来的风险</strong>。注意这里说的是"管理"而不是"消灭"——任何组织只要运转,就一定有风险:招人有风险、卖产品有风险、连决定把办公楼盖在哪儿都有风险。风险无法清零,只能被认识、被排序、被控制到组织愿意接受的程度。于是问题就变成:<strong>面对成百上千的资产和威胁,管理者该把有限的钱和人手优先投到哪里?</strong>
+本章就是回答这个问题的前半部分——先把风险一条条找出来(identify),再给每条风险打个分(assess),这样下一讲做控制时才有的放矢。</p>
+<p>整个风险管理由<strong>两个正式流程 (two formal processes)</strong>
+组成,本讲只覆盖第一个:</p>
+<pre class="mermaid"><code>flowchart LR
+  subgraph RM[&quot;风险管理 Risk Management&quot;]
+    direction LR
+    A[&quot;① 风险识别与评估&lt;br/&gt;Risk Identification &amp;amp; Assessment&lt;br/&gt;(本讲 / Chapter 8)&quot;] --&gt; B[&quot;② 风险控制&lt;br/&gt;Risk Control&lt;br/&gt;(下一讲)&quot;]
+  end
+  A -.产出: 排好序的风险清单.-&gt; B</code></pre>
+<hr />
+<h2
+id="一谋定而后动三个-community-of-interest-与孙子兵法">一、谋定而后动:三个
+community of interest 与孙子兵法</h2>
+<p>在动手识别风险之前,先要明确<strong>谁来负责</strong>。回忆第一讲讲过的概念:信息安全里有三个<strong>利益共同体
+(communities of
+interest)</strong>,本讲再次强调每个共同体在"降低风险"这件事上各自的角色。把它们的分工记清楚,因为考试常考"某项责任归谁":</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>Community of interest</th>
+<th>在风险管理中的角色</th>
+<th>一句话记忆</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>General management(高层/总体管理)</strong></td>
+<td>设计 IT 与 InfoSec
+的组织结构,确保资产被成功防御;并<strong>拨付足够的钱和人</strong></td>
+<td>定大局、给资源</td>
+</tr>
+<tr class="even">
+<td><strong>IT management(IT 管理)</strong></td>
+<td>构建并安全运行系统,把运营风险考虑进去并实施恰当控制</td>
+<td>把系统造安全、跑安全</td>
+</tr>
+<tr class="odd">
+<td><strong>InfoSec management(信息安全管理)</strong></td>
+<td>因为最懂威胁和攻击,所以在应对风险中<strong>带头 (leadership
+role)</strong>;同时在 InfoSec 的"安全"与业务的"可用"之间不断权衡</td>
+<td>当先锋、做权衡</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲到这里,讲者引用了 2400 多年前<strong>孙子 (Sun Tzu)</strong>
+的一句话,作为整章的思想主线。这不是装饰——它精确地概括了风险识别的两半工作:</p>
+<blockquote>
+<p>"<strong>知彼知己,百战不殆;不知彼而知己,一胜一负;不知彼不知己,每战必殆。</strong>"
+(If you know the enemy and know yourself, you need not fear the result
+of a hundred battles…)</p>
+</blockquote>
+<p>把这句话翻译到信息安全里:</p>
+<ul>
+<li><strong>知己 (Knowing Yourself)</strong> =
+摸清自己有哪些<strong>有价值的信息资产</strong>,把它们识别、归类、分级,并搞清当前是怎么保护的。一个组织若连自己有什么、值多少都不知道,根本无从谈保护。</li>
+<li><strong>知彼 (Knowing the Enemy)</strong> =
+识别、审视并理解<strong>威胁
+(threats)</strong>——哪些威胁真的会攻击我的资产、它们的攻击手法是什么。</li>
+</ul>
+<p>这恰好对应本讲的两大块:<strong>资产侧(知己)<strong>和</strong>威胁侧(知彼)</strong>,最后在"漏洞"处交汇。这里顺便把两个会被考到的正式定义钉死:</p>
+<blockquote>
+<p><strong>📖 定义</strong> — <strong>风险管理 (risk
+management)</strong>:发现并评估组织运营所面临之风险、并决定这些风险该如何被<strong>控制或缓解
+(controlled or mitigated)</strong> 的过程。<strong>风险分析 (risk
+analysis)</strong>:对组织内<strong>风险等级 (levels of risk)</strong>
+的识别与评估,它是风险管理的一个<strong>主要组成部分</strong>。换句话说,risk
+analysis 是 risk management 内部的一块。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 为什么强调"风险管理是一个
+process(过程)而非一次性项目"?幻灯片只点了一句"not
+install-and-forget"。背后的道理是:威胁环境一直在变(新漏洞、新攻击、新业务),今天评估出来的风险等级几个月后可能完全不同。所以风险识别和评估不是做一次就归档,而是要<strong>周期性重做</strong>。这也是为什么后面所有产出都做成"worksheet(可更新的工作表)"而不是"一次性报告"。</p>
+</blockquote>
+<h3 id="谁对风险负责-accountability">谁对风险负责 (Accountability)</h3>
+<p>三个共同体都担责,但各有侧重——这页(S8/S9)很容易出选择题:</p>
+<pre class="mermaid"><code>flowchart TD
+  R[&quot;风险管理责任&lt;br/&gt;Accountability&quot;] --&gt; I[&quot;InfoSec&lt;br/&gt;最懂威胁攻击 → 牵头应对&quot;]
+  R --&gt; T[&quot;IT&lt;br/&gt;构建安全系统、保障安全运行&quot;]
+  R --&gt; M[&quot;Management &amp;amp; Users&lt;br/&gt;早期发现与响应 + 拨付资源(钱/人)&quot;]</code></pre>
+<p>三个共同体必须<strong>协同</strong>,覆盖从"全面灾难"到"一名员工的小失误"的每个风险层级。具体要共同参与这些活动(记其中的动词链条):<strong>评估控制措施
+→ 判断哪些控制方案最划算 (cost-effective) → 采购/部署控制 →
+监督控制持续有效 → 识别风险 → 评估风险 → 汇总结论 (summarize
+findings)</strong>。其中"识别风险"和"评估风险"就是本讲的两大主题,下面逐一展开。</p>
+<hr />
+<h2 id="二风险识别-risk-identification先把家底盘清楚">二、风险识别 (Risk
+Identification):先把家底盘清楚</h2>
+<p><strong>风险识别 (risk identification)</strong>
+的正式定义是:<strong>对组织信息资产所面临风险的识别、列举与记录 (the
+recognition, enumeration, and documentation of
+risks)</strong>。它是风险管理的<strong>第一个操作阶段 (first operational
+phase)</strong>。</p>
+<p>这里要先定义一个贯穿全章的核心名词。<strong>信息资产 (information
+asset)</strong>
+指:<strong>任何收集/存储/处理/传输对组织有价值之信息的集合、数据库或资产</strong>。注意这个定义比"数据库"宽得多——它包括人、流程、软硬件、网络设备,任何"承载有价值信息"的东西都算。</p>
+<p>风险识别从<strong>自我审视 (self-examination)</strong>
+开始,管理者要做四步,顺序很重要:</p>
+<pre class="mermaid"><code>flowchart LR
+  S1[&quot;1. 识别 Identify&lt;br/&gt;列出所有信息资产&quot;] --&gt; S2[&quot;2. 归类 Classify&lt;br/&gt;按敏感度/安全需求分级&quot;]
+  S2 --&gt; S3[&quot;3. 分组 Categorize&lt;br/&gt;归入有意义的类别&quot;]
+  S3 --&gt; S4[&quot;4. 排序 Prioritize&lt;br/&gt;按整体重要性排名&quot;]</code></pre>
+<p>下面把这四步逐一讲透。</p>
+<h3 id="21-识别信息资产-identifying-information-assets">2.1 识别信息资产
+(Identifying Information Assets)</h3>
+<p>第一步是把所有资产列出来,资产分六大类:<strong>people(人)、procedures(流程)、data(数据)、software(软件)、hardware(硬件)、networking
+elements(网络元素)</strong>。</p>
+<p>这一步有个关键原则:<strong>先列出来,不要急着判断价值 (without
+pre-judging the
+value)</strong>。价值在后面的步骤才赋予。为什么?因为如果一边列一边主观打分,容易漏掉那些"看起来不重要、实则关键"的资产。</p>
+<p>讲者把这六类资产进一步细分,这套细分值得记住(它体现了"为什么要分得这么细"):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>资产类别</th>
+<th>细分</th>
+<th>为什么这样分</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>People</strong></td>
+<td>内部人员 vs
+外部人员;内部再分"受信任角色(权限大、责任大)"vs"普通员工"</td>
+<td>不同信任级别带来的风险不同</td>
+</tr>
+<tr class="even">
+<td><strong>Procedures</strong></td>
+<td>标准流程 vs <strong>敏感流程 (sensitive procedures)</strong></td>
+<td>敏感流程可能泄露关键流程的内部运作,被外人利用</td>
+</tr>
+<tr class="odd">
+<td><strong>Data</strong></td>
+<td>处于传输/处理/存储三种状态的信息</td>
+<td>"data"在此是广义,不只是数据库</td>
+</tr>
+<tr class="even">
+<td><strong>Software</strong></td>
+<td>应用 / 操作系统 / <strong>安全组件 (security
+components)</strong></td>
+<td>安全组件属于受控环境,要比普通软件保护得更严</td>
+</tr>
+<tr class="odd">
+<td><strong>Hardware</strong></td>
+<td>普通用户设备 vs 属于安全受控系统的设备</td>
+<td>后者要保护得更严</td>
+</tr>
+<tr class="even">
+<td><strong>Networking</strong></td>
+<td>防火墙、路由器、交换机及其内嵌系统软件</td>
+<td>常是攻击焦点,需单独考虑而非并入硬件</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 例(敏感流程为何危险)</strong> —
+一家电信公司"开通新线路"的操作流程,看似平常,但它揭示了一个关键业务的内部运作细节。外部人员一旦拿到这套流程,就可能据此非法开通服务、窃取通信资源。所以同样是"流程",它的风险等级远高于普通行政流程。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+为什么网络设备要从硬件里<strong>单独拎出来</strong>?讲者举了个精妙的例子:同一台服务器,如果纯粹当代理/缓存(proxy/cache)用,功能上更像网络设备,就归为
+networking;但如果配成数据库服务器,就归为
+hardware。判断标准是"它主要在干网络的活还是计算的活"。这说明分类不是看物理外形,而是看<strong>功能角色</strong>。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+有些企业模型把六类<strong>简化为三类:people、processes、technologies</strong>。无论用哪种模型,核心要求都一样:确保所有信息资源都被正确识别、评估、纳入风险管理。</p>
+</blockquote>
+<h3 id="22-该记录资产的哪些属性-asset-attributes">2.2
+该记录资产的哪些属性 (Asset Attributes)</h3>
+<p>光知道"有一台路由器"不够,还得记录它的<strong>属性
+(attributes)</strong>,这样日后分析漏洞时才能精确定位。很多组织用<strong>资产清单系统
+(asset inventory system)</strong>
+自动跟踪硬件、软件、网络组件;没有的话就得建一套等价的手工流程。无论自动还是手工,都要先规划:<strong>到底跟踪每个资产的哪些属性?</strong>
+这取决于组织的需求和风险管理目标。</p>
+<p>针对<strong>硬件/软件/网络资产</strong>,可选属性包括:</p>
+<ul>
+<li><strong>Name(名称)</strong> ——
+列出所有常用名并交叉引用;但要采用<strong>不向攻击者泄露关键信息的命名规范</strong>(别把服务器命名为
+<code>PAYROLL-DB-PROD</code>)。</li>
+<li><strong>Asset tag(资产标签)</strong> ——
+采购时分配的唯一编号,便于跟踪。</li>
+<li><strong>IP address</strong> ——
+对网络设备和服务器有用,对软件几乎不适用;且因 DHCP
+<strong>动态分配</strong>,IP 常变,作为标识不可靠。</li>
+<li><strong>MAC address</strong> ——
+网卡的硬件唯一编号,但<strong>可被伪造
+(spoofed)</strong>,且一台设备可能有多个网卡/可配置
+MAC,所以很多组织已弃用它作为唯一标识。</li>
+<li><strong>Asset type(资产类型)</strong>、<strong>Serial
+number(序列号)</strong>、<strong>Manufacturer
+name(厂商名)</strong>、<strong>Model/part number(型号/部件号)</strong>
+——
+后几项在分析漏洞时尤其有用,因为很多漏洞<strong>只针对特定型号或特定软件</strong>。</li>
+<li><strong>Software version / update revision / FCO number</strong> ——
+FCO 即 <strong>Field Change
+Order(现场变更单)</strong>,指厂商上门给硬件升级。</li>
+<li><strong>Physical location(物理位置)</strong> 与 <strong>Logical
+location(逻辑位置,在网络中的位置)</strong>。</li>
+<li><strong>Controlling entity(控制方)</strong> ——
+哪个组织单元控制此资产。这点重要:<strong>控制方对"这设备能承受多少风险、能花多少钱加控制"有发言权</strong>。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例(一个设备多个版本号)</strong> —
+一台防火墙设备可能同时挂着<strong>三个版本号</strong>:BIOS/固件版本、运行的操作系统版本、防火墙应用软件版本。组织得决定跟踪其中哪几个,因为漏洞公告往往只针对其中某一层。这就是"为什么属性要记这么细"的现实理由。</p>
+</blockquote>
+<p>针对<strong>人、流程、数据</strong>这类资产,负责识别和评估的应当是<strong>具备相应知识、经验和判断力的管理者</strong>(它们不像硬件那样一目了然)。记录系统要<strong>灵活</strong>,允许按资产性质链接不同属性。基本属性如下:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>资产</th>
+<th>基本属性</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>People</strong></td>
+<td>职位名/编号/ID;主管名/编号/ID;<strong>安全许可级别 (security
+clearance)</strong>;特殊技能</td>
+</tr>
+<tr class="even">
+<td><strong>Procedures</strong></td>
+<td>描述;预期用途;关联的软硬件/网络;参考存放位置;更新存放位置</td>
+</tr>
+<tr class="odd">
+<td><strong>Data</strong></td>
+<td>分类等级;所有者/创建者/管理者;数据结构大小与类型;在线/离线;位置;<strong>备份流程</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+注意人/流程的属性里反复强调"用编号/ID
+而非姓名、职位、角色名"。原因是姓名和职位会<strong>歧义或变动</strong>(同名、调岗),而编号是稳定唯一的标识。大组织往往只对最关键的少数资产做完整跟踪(比如任务关键服务器),桌面机干脆不追——抓重点是务实的做法。</p>
+</blockquote>
+<h3 id="23-归类与分级-classifying-and-categorizing">2.3 归类与分级
+(Classifying and Categorizing)</h3>
+<p>资产列完后,要审视这些<strong>类别是否对风险管理有意义</strong>,并反映每个资产的<strong>敏感度与安全优先级</strong>。这就需要一套<strong>分类方案
+(classification
+scheme)</strong>,按敏感度和安全需求给资产分级,每一级对应一种保护强度。</p>
+<p>一个典型的三级方案:<strong>Confidential(机密)/ Internal(内部)/
+Public(公开)</strong>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+讲者特意对比:第三讲(访问控制)里讲过美国军方的<strong>五级</strong>分类;但大多数普通组织<strong>三级就够了</strong>。对人员这类资产,可能要用另一套方案——按"need
+to know(知必所需)"和"right to update(更新权限)"给予安全许可级别。</p>
+</blockquote>
+<p>这一步有个<strong>铁律</strong>,极易考填空/判断:分类类别必须<strong>全面且互斥
+(comprehensive and mutually exclusive)</strong>。</p>
+<ul>
+<li><strong>Comprehensive(全面)</strong> =
+每个被盘点的资产都<strong>必须能归入某一类</strong>(没有"无处安放"的资产)。</li>
+<li><strong>Mutually exclusive(互斥)</strong> =
+每个资产<strong>只能落在一个类别</strong>里(不能脚踩两条船)。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例(互斥/全面的实战)</strong> — 某组织有个 <strong>PKI
+的证书颁发机构 (Certificate Authority,
+CA)</strong>。纯按技术标准,它只是"软件",可能被随手归入普通软件类、不享受特殊保护。但
+CA
+提供密钥管理、是基础设施的核心,必须严密保护。所以正确做法是把它归入<strong>更高优先级的"软件安全组件"类</strong>——前提是要先确认这个类别已存在且不与其他类重叠。这正是"全面
++ 互斥"两条原则在指导分类决策。</p>
+</blockquote>
+<h3 id="24-给资产赋值-assessing-the-values-of-information-assets">2.4
+给资产赋值 (Assessing the Values of Information Assets)</h3>
+<p>识别、归类、分级之后,要给每个资产赋一个<strong>相对价值 (relative
+value)</strong>。注意是"相对"——我们往往无法预知"资产被攻破会损失多少绝对金额",但<strong>相对比较</strong>足以保证<strong>最有价值的资产被优先保护</strong>。</p>
+<p>讲者给了一组用来判断相对价值的<strong>问题清单</strong>,每个问题背后都有讲究:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>评估问题</th>
+<th>关键辨析</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>哪个资产对组织<strong>成功最关键 (most critical)</strong>?</td>
+<td>对照组织的<strong>使命陈述 (mission statement)</strong>
+判断哪些资产支撑目标</td>
+</tr>
+<tr class="even">
+<td>哪个资产产生<strong>最多收入 (most revenue)</strong>?</td>
+<td>非营利组织则看"对服务交付有多关键"</td>
+</tr>
+<tr class="odd">
+<td>哪个资产带来<strong>最高利润 (highest profitability)</strong>?</td>
+<td><strong>利润 ≠ 收入</strong>!有些系统收入高但利润薄甚至不盈利</td>
+</tr>
+<tr class="even">
+<td>哪个资产<strong>最贵 (most expensive to replace)</strong>?</td>
+<td>独特/长交付周期的设备需备份并定期测试</td>
+</tr>
+<tr class="odd">
+<td>哪个资产<strong>最难保护 (most expensive to protect)</strong>?</td>
+<td>此阶段只能做初步估计,因为控制成本还没算出来</td>
+</tr>
+<tr class="even">
+<td>哪个资产丢失/泄露会<strong>最丢脸或带来最大法律责任</strong>?</td>
+<td>涉及组织形象</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 例(收入 vs 利润)</strong> — 讲者用 Amazon.com
+讲清这个易混点:有的服务器支撑图书销售,有的支撑拍卖,有的支撑"图书评论数据库"。评论数据库<strong>本身不直接产生利润</strong>,但它对销售有间接价值——所以要分清"哪些资产直接挣钱"和"哪些资产虽不挣钱却支撑挣钱的资产"。再如造飞机发动机的厂商,会判定<strong>装配线的过程控制系统</strong>是头等重要,而收发货的数据录入台次之(因为后者有替代方案)。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 这里可以回链第四讲的
+<strong>BIA(Business Impact
+Analysis,业务影响分析)</strong>:赋值时直接复用 BIA
+收集的信息,能让"资产值多少"的判断更有依据。这就是各讲之间的衔接——风险识别不是凭空打分,而是站在前面工作的肩膀上。</p>
+</blockquote>
+<h3 id="25-排序加权因子分析-weighted-factor-analysis">2.5
+排序:加权因子分析 (Weighted Factor Analysis)</h3>
+<p>风险识别的<strong>最后一步</strong>是把资产<strong>按重要性排序</strong>。工具是<strong>加权因子分析工作表
+(weighted factor analysis
+worksheet)</strong>:给每个资产、在每个关键因子上打分,因子各有权重,加权求和得到总分。</p>
+<p>这是本章第一个需要会<strong>手算</strong>的地方。规则:每个因子有权重(本例三因子权重
+30/40/30,合计 100),每个资产在每个因子上打 0.1–1.0 的分(也可用 1–10 或
+1–100),<strong>加权分 = Σ(因子得分 × 因子权重)</strong>。</p>
+<blockquote>
+<p><strong>🔑 例(讲者亲算的 75 分)</strong> — 资产"EDI document set
+1",三个因子得分与权重:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>因子</th>
+<th>权重</th>
+<th>资产得分</th>
+<th>贡献</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Impact on revenue(对收入)</td>
+<td>30</td>
+<td>0.8</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.8</mn><mo>×</mo><mn>30</mn><mo>=</mo><mn>24</mn></mrow><annotation encoding="application/x-tex">0.8\times30=24</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td>Impact on profitability(对利润)</td>
+<td>40</td>
+<td>0.9</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.9</mn><mo>×</mo><mn>40</mn><mo>=</mo><mn>36</mn></mrow><annotation encoding="application/x-tex">0.9\times40=36</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>Impact on public image(对形象)</td>
+<td>30</td>
+<td>0.5</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.5</mn><mo>×</mo><mn>30</mn><mo>=</mo><mn>15</mn></mrow><annotation encoding="application/x-tex">0.5\times30=15</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td><strong>加权总分</strong></td>
+<td></td>
+<td></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>24</mn><mo>+</mo><mn>36</mn><mo>+</mo><mn>15</mn><mo>=</mo><mn>𝟕𝟓</mn></mrow><annotation encoding="application/x-tex">24+36+15=\mathbf{75}</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table></div>
+<p>对照:若某资产在三项都拿满分 1.0,则加权分 =
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>30</mn><mo>+</mo><mn>40</mn><mo>+</mo><mn>30</mn><mo>=</mo><mn>100</mn></mrow><annotation encoding="application/x-tex">30+40+30=100</annotation></semantics></math>(本例中
+"customer order via SSL inbound" 就是 100
+分的最重要资产);而最不重要的资产("supplier fulfillment advice
+inbound")只有 41
+分。<strong>算出来的分数本身没有绝对意义,价值在于横向排序。</strong></p>
+</blockquote>
+<p>至此<strong>知己</strong>部分完成:我们有了一份<strong>按重要性排好序的资产清单</strong>。接下来转向<strong>知彼</strong>。</p>
+<hr />
+<h2 id="三威胁评估-threat-assessment知彼的第一步">三、威胁评估 (Threat
+Assessment):知彼的第一步</h2>
+<p>风险识别的终极目标,是审视每个资产的处境以<strong>暴露其弱点
+(vulnerabilities)</strong>。但这里有个工程难题:一个组织面临的威胁种类繁多,<strong>如果假设"每种威胁都会攻击每个资产",项目规模会爆炸</strong>(威胁数
+× 资产数)。</p>
+<p>解决办法很关键:<strong>把"威胁识别"和"漏洞识别"分开管理,最后再交汇
+(managed separately, then coordinated at the
+end)</strong>。先单独把威胁理清楚,这就是<strong>威胁评估 (threat
+assessment)</strong>。</p>
+<h3 id="31-十二类威胁-12-categories-of-threats">3.1 十二类威胁 (12
+Categories of Threats)</h3>
+<p>回忆第三讲讲过的 <strong>12 类信息安全威胁(教材 Table
+8-3)</strong>。每一类都对 InfoSec
+提出独特挑战,必须用专门的控制去针对其攻击手法。它们按字母序列出:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>威胁类别 (Threat category)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Compromises to intellectual property(知识产权受损)</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Deviations in quality of service from service
+providers(服务商服务质量偏差)</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Espionage or trespass(间谍或非法入侵)</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Forces of nature(自然力量)</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Human error or failure(人为错误或失误)</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Information extortion(信息勒索)</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>Sabotage or vandalism(蓄意破坏)</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>Software attacks(软件攻击)</td>
+</tr>
+<tr class="odd">
+<td>9</td>
+<td>Technical hardware failures or errors(硬件故障)</td>
+</tr>
+<tr class="even">
+<td>10</td>
+<td>Technical software failures or errors(软件故障)</td>
+</tr>
+<tr class="odd">
+<td>11</td>
+<td>Technological obsolescence(技术过时)</td>
+</tr>
+<tr class="even">
+<td>12</td>
+<td>Theft(盗窃)</td>
+</tr>
+</tbody>
+</table></div>
+<p>在评估之前,每种威胁都要进一步审查,判断它<strong>对目标资产的潜在影响</strong>——这个审查过程就叫
+threat assessment。</p>
+<h3 id="32-评估威胁八个问题-assessing-threats">3.2 评估威胁:八个问题
+(Assessing Threats)</h3>
+<p>不是每种威胁都危及每个组织。先<strong>逐类审视,剔除不适用的威胁</strong>(虽然很难整类剔除,但能加速后续评估)。一个威胁的危险程度有时很难判断,可借助下面这组问题——每个问题背后的逻辑都要懂:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>评估问题</th>
+<th>背后逻辑</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>这威胁对我的资产构成<strong>真实危险</strong>吗?</td>
+<td>没有真实暴露的威胁可安全忽略(如高地组织不必担心海啸/泥石流;不用某软件就不必担心它的漏洞)</td>
+</tr>
+<tr class="even">
+<td>是<strong>内部</strong>还是<strong>外部</strong>威胁?</td>
+<td>来源不同,防御手段不同</td>
+</tr>
+<tr class="odd">
+<td>哪些威胁<strong>发生概率最高 (probability of
+occurrence)</strong>?</td>
+<td>取决于攻击有多广为人知、有多少威胁主体有能力实施</td>
+</tr>
+<tr class="even">
+<td>哪些威胁<strong>成功概率最高 (probability of success)</strong>?</td>
+<td>攻击越复杂、越需要高水平攻击者,组织越不必过度担心</td>
+</tr>
+<tr class="odd">
+<td>哪些威胁成功后<strong>损失最大 (greatest loss)</strong>?</td>
+<td>"高成功率+小损失" &lt; "低成功率+巨大损失" 值得警惕</td>
+</tr>
+<tr class="even">
+<td>组织<strong>最没准备 (least prepared)</strong> 应对哪些威胁?</td>
+<td>上新技术/新业务时尤其要警惕</td>
+</tr>
+<tr class="odd">
+<td>防护哪些威胁<strong>最贵 (cost to protect)</strong>?</td>
+<td>中小企业预算有限,优先级可能直接由可用资金决定</td>
+</tr>
+<tr class="even">
+<td>从哪些威胁中<strong>恢复最贵 (cost to recover)</strong>?</td>
+<td>可用 1–5 打分(1 便宜、5 极贵),或填入真实金额</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+注意"发生概率最高"和"成功概率最高"是两个不同的问题:前者问"我会不会被这种威胁盯上",后者问"一旦被盯上,它能不能真的攻破我的资产"。考试爱在这种细微区别上设题。</p>
+</blockquote>
+<h3 id="33-威胁排序-prioritizing-threats">3.3 威胁排序 (Prioritizing
+Threats)</h3>
+<p>和给资产排序一样,对威胁也做一次<strong>加权表分析 (weighted table
+analysis)</strong>:列出威胁类别 → 选取上面那些问题作为因子 →
+给每个问题因子赋权重 →
+给每个威胁在每个因子上打分。结果是一份<strong>按相对严重程度排好序的威胁清单</strong>。极端情况下,如果同一威胁对不同资产的严重程度差别很大,还可以<strong>逐资产
+(per asset)</strong> 单独评估。</p>
+<p>注意这里和资产排序用的是<strong>同一套加权方法</strong>——这种"一招通用"正是本章设计的优雅之处。</p>
+<hr />
+<h2
+id="四漏洞评估-vulnerability-assessment让威胁与资产交汇">四、漏洞评估
+(Vulnerability Assessment):让威胁与资产交汇</h2>
+<p>现在我们有了<strong>排好序的资产</strong>(知己)和<strong>排好序的威胁</strong>(知彼)。第四步是让两者<strong>交汇</strong>:逐一审视"每个资产
+× 每个威胁",找出二者之间存在的弱点。</p>
+<p><strong>漏洞 (vulnerability)</strong>
+的定义:<strong>威胁主体可借以攻击信息资产的具体通路——信息资产、安全流程、设计或控制中的缺陷或弱点,可被有意或无意地利用来破坏安全
+(a flaw or weakness… that can be exploited accidentally or on purpose to
+breach security)</strong>。形象地说,漏洞是资产盔甲上的裂缝。</p>
+<blockquote>
+<p><strong>🔑 例(DMZ 路由器的漏洞清单)</strong> — 针对一台 <strong>DMZ
+路由器</strong>(DMZ = Demilitarized
+Zone,隔离内网与不可信外网如公网的子网),把 12
+类威胁逐一对照,列出每类威胁对应的可能漏洞。这样的清单要为<strong>每个资产</strong>都建一份。</p>
+<p>漏洞清单通常很长,且一个威胁可能对同一资产呈现<strong>多个漏洞</strong>。因为列漏洞带有主观性、依赖经验,所以<strong>最好由背景多元的小组做头脑风暴</strong>:网络专家、运维团队、InfoSec
+风险专家,甚至技术过硬的用户一起来,才不容易漏。</p>
+</blockquote>
+<h3 id="tva-工作表把三者拼成一张表">TVA 工作表:把三者拼成一张表</h3>
+<p>风险识别走到这里,组织手上应有三样东西:<strong>① 排好序的资产清单 ②
+排好序的威胁清单 ③
+每个"威胁×资产"之间存在的漏洞知识</strong>。把它们合成一张 <strong>TVA
+工作表 (Threats-Vulnerabilities-Assets worksheet)</strong>:</p>
+<ul>
+<li><strong>一个轴放资产</strong>(按重要性从左到右,最重要在左),<strong>另一个轴放威胁</strong>(按危险性从上到下,最危险在上)。</li>
+<li>网格的每个交叉格代表"某威胁对某资产"——格子里填该处存在的<strong>漏洞</strong>。</li>
+<li>这张网格直观地展示资产的**"暴露面
+(exposure)"**,实现一次简单的漏洞评估。</li>
+</ul>
+<pre class="mermaid"><code>flowchart TD
+  subgraph TVA[&quot;TVA 工作表结构&quot;]
+    direction TB
+    note[&quot;横轴=资产(左→右 重要性递减)&lt;br/&gt;纵轴=威胁(上→下 危险性递减)&lt;br/&gt;交叉格=该威胁对该资产的漏洞&quot;]
+  end</code></pre>
+<p>格子里的漏洞用<strong>三元组 (TVA triples)</strong>
+命名,这套记法要会读:</p>
+<ul>
+<li><strong>T1V1A1</strong> = 威胁 1 与资产 1 之间的<strong>第 1
+个</strong>漏洞</li>
+<li><strong>T1V2A1</strong> = 威胁 1 与资产 1 之间的<strong>第 2
+个</strong>漏洞</li>
+<li><strong>T2V1A1</strong> = 威胁 2 与资产 1 之间的第 1 个漏洞</li>
+<li>…以此类推</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例(没有漏洞的格子)</strong> — 某制药公司最重要的资产是
+R&amp;D
+数据库,而它部署在<strong>不连互联网的独立网络</strong>上。那么在"外部黑客(T1)×
+该数据库(A1)"这个交叉格里,可能<strong>根本不存在漏洞</strong>——评估组直接把这格划掉。但更常见的是格子里存在一个或多个漏洞。</p>
+<p>在样例 TVA
+表里还用<strong>颜色</strong>表示优先级:<strong>红色</strong>格(如 T1×A1
+及相邻格)风险最高、最需关注,往黄/蓝/绿到白依次降低,白色最不关键。</p>
+</blockquote>
+<p>到了下一步(风险评估),不仅要看漏洞,评估组还会分析<strong>已有的控制
+(existing
+controls)</strong>——这些控制如何保护资产、或减轻可能的损失,并把它们也编目进
+TVA 表。这就自然过渡到本讲的第二大主题。</p>
+<hr />
+<h2 id="五风险评估-risk-assessment给每个漏洞打分">五、风险评估 (Risk
+Assessment):给每个漏洞打分</h2>
+<p>前面把"有哪些风险"找全了;<strong>风险评估</strong>回答"各有多严重"。它给<strong>每一个具体漏洞</strong>赋一个<strong>风险评分
+(risk rating /
+score)</strong>。这个数字的<strong>绝对值不代表什么</strong>,但它让你能<strong>横向比较</strong>各漏洞的相对风险,从而把控制资源投到最该投的地方。</p>
+<p>讲者强调:<strong>估算风险不是精确科学 (not an exact
+science)</strong>,公式里有些因子本身就是估计值。目标是建立一个<strong>可重复
+(repeatable) 的方法</strong>来评估每个漏洞的相对风险。</p>
+<h3 id="51-相对风险评估公式-the-formula">5.1 相对风险评估公式 (The
+Formula)</h3>
+<p>这是本科目(乃至本讲)出现的<strong>第一个公式</strong>,务必背熟并会算:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>R</mi><mi>C</mi><mo>+</mo><mi>U</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R = (L_v \times I) \times (1 - RC + U)</annotation></semantics></math></p>
+<p>读成大白话:<strong>风险 = (漏洞被利用的可能性 × 资产影响值) × (1 −
+当前控制已消减的风险比例 + 不确定性)</strong>。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>符号</th>
+<th>含义</th>
+<th>取值/来源</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math></td>
+<td><strong>Risk rating factor</strong>,该"资产+漏洞"的风险评分</td>
+<td>计算结果</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>v</mi></msub><annotation encoding="application/x-tex">L_v</annotation></semantics></math></td>
+<td><strong>Likelihood</strong>,该漏洞被利用的可能性</td>
+<td>通常 0.1(很低)~1.0(几乎必然)</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math></td>
+<td><strong>Impact</strong>,资产的影响值</td>
+<td>来自风险识别阶段的赋值(如 0–100)</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>C</mi></mrow><annotation encoding="application/x-tex">RC</annotation></semantics></math></td>
+<td><strong>Risk mitigated by current
+controls</strong>,当前控制已消减的风险比例</td>
+<td>如 50% = 0.5;无控制 = 0</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math></td>
+<td><strong>Uncertainty</strong>,对当前漏洞认知的不确定度</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>=</mo><mn>100</mn><mi>%</mi><mo>−</mo><mtext mathvariant="normal">准确度</mtext></mrow><annotation encoding="application/x-tex">U = 100\% - \text{准确度}</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table></div>
+<p>公式分两部分:第一部分
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">L_v \times I</annotation></semantics></math>
+是"裸风险"(多可能 × 多严重);第二部分
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>R</mi><mi>C</mi><mo>+</mo><mi>U</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(1-RC+U)</annotation></semantics></math>
+是修正项——<strong>已有控制把风险往下压(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>R</mi><mi>C</mi></mrow><annotation encoding="application/x-tex">-RC</annotation></semantics></math>),而认知的不确定性又把它往上抬(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mi>U</mi></mrow><annotation encoding="application/x-tex">+U</annotation></semantics></math>)</strong>。两部分相乘即得
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math>。下面把四个因子逐一讲清。</p>
+<h3 id="52-四个因子详解">5.2 四个因子详解</h3>
+<p><strong>①
+Likelihood(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>v</mi></msub><annotation encoding="application/x-tex">L_v</annotation></semantics></math>,可能性)</strong>
+—— 在一个定义好的刻度上,某漏洞被利用之概率的总体评分。常用
+<strong>0.1~1.0</strong>:0.1 表示极低,1.0 表示几乎必然。</p>
+<blockquote>
+<p><strong>🔑 例</strong> — "系统被漏水损坏"的可能性可评为
+<strong>0.1</strong>;而"未来一年内至少收到一封带病毒/蠕虫的邮件"可评为
+<strong>0.5</strong>(更可能)。也可改用 1–10 或
+1–100,取决于需要的粒度。无论用哪套刻度,都要<strong>一致地</strong>运用专业、经验和判断。对许多"资产/漏洞"组合,<strong>已有现成来源</strong>给出了可能性(如某类建筑起火的概率有精算数据,邮件带毒概率有大量研究)。</p>
+</blockquote>
+<p><strong>②
+Impact(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math>,影响值)</strong>
+—— 攻击成功后最担心的后果是<strong>资产价值的损失 (loss of asset
+value)</strong>。影响值直接复用风险识别阶段做的资产赋值;前面的加权表能帮助理解一次成功攻击的量级。另一个信息来源是<strong>报道其他组织成功遭袭的媒体</strong>。</p>
+<p><strong>③ Risk mitigated by current
+controls(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>C</mi></mrow><annotation encoding="application/x-tex">RC</annotation></semantics></math>,已控制比例)</strong>
+——
+如果某漏洞被现有控制<strong>完全管住</strong>,它可以<strong>直接搁置</strong>(风险已清零);如果只是<strong>部分控制</strong>,就估计已控制了百分之几,这个百分比就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>C</mi></mrow><annotation encoding="application/x-tex">RC</annotation></semantics></math>。</p>
+<p><strong>④
+Uncertainty(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>,不确定性)</strong>
+——
+我们不可能对每个漏洞无所不知(攻击多可能、影响多大都难以确知),连"现有控制能减多少风险"也有估计误差。所以<strong>必须</strong>加一个不确定性因子,它由管理者凭判断和经验估出。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>=</mo><mn>100</mn><mi>%</mi><mo>−</mo><mtext mathvariant="normal">你对数据的准确度</mtext></mrow><annotation encoding="application/x-tex">U = 100\% - \text{你对数据的准确度}</annotation></semantics></math>。</p>
+<h3 id="53-算两道题讲者亲算">5.3 算两道题(讲者亲算)</h3>
+<blockquote>
+<p><strong>🔑 例 1 — 资产 A</strong> 影响值 50,有 1 个漏洞,可能性
+1.0,<strong>无任何控制</strong>,假设/数据 <strong>90%
+准确</strong>。</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>v</mi></msub><mo>=</mo><mn>1.0</mn></mrow><annotation encoding="application/x-tex">L_v = 1.0</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mo>=</mo><mn>50</mn></mrow><annotation encoding="application/x-tex">I = 50</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>C</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">RC = 0</annotation></semantics></math>(无控制),<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>=</mo><mn>100</mn><mi>%</mi><mo>−</mo><mn>90</mn><mi>%</mi><mo>=</mo><mn>0.1</mn></mrow><annotation encoding="application/x-tex">U = 100\%-90\% = 0.1</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1.0</mn><mo>×</mo><mn>50</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mn>0</mn><mo>+</mo><mn>0.1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>50</mn><mo>×</mo><mn>1.1</mn><mo>=</mo><mn>𝟓𝟓</mn></mrow><annotation encoding="application/x-tex">R = (1.0 \times 50) \times (1 - 0 + 0.1) = 50 \times 1.1 = \mathbf{55}</annotation></semantics></math></li>
+</ul>
+</blockquote>
+<blockquote>
+<p><strong>🔑 例 2 — 资产 B</strong> 影响值
+100,有<strong>两个</strong>漏洞,假设/数据 <strong>80%
+准确</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>=</mo><mn>0.2</mn></mrow><annotation encoding="application/x-tex">U=0.2</annotation></semantics></math>):</p>
+<ul>
+<li><strong>V2</strong>:可能性 0.5,现有控制消减了 <strong>50%</strong>
+的风险
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>R</mi><mn>2</mn></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.5</mn><mo>×</mo><mn>100</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mn>0.5</mn><mo>+</mo><mn>0.2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>50</mn><mo>×</mo><mn>0.7</mn><mo>=</mo><mn>𝟑𝟓</mn></mrow><annotation encoding="application/x-tex">R_2 = (0.5 \times 100) \times (1 - 0.5 + 0.2) = 50 \times 0.7 = \mathbf{35}</annotation></semantics></math></li>
+<li><strong>V3</strong>:可能性 0.1,<strong>无控制</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>R</mi><mn>3</mn></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.1</mn><mo>×</mo><mn>100</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mn>0</mn><mo>+</mo><mn>0.2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>10</mn><mo>×</mo><mn>1.2</mn><mo>=</mo><mn>𝟏𝟐</mn></mrow><annotation encoding="application/x-tex">R_3 = (0.1 \times 100) \times (1 - 0 + 0.2) = 10 \times 1.2 = \mathbf{12}</annotation></semantics></math></li>
+</ul>
+<p><strong>结论</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>R</mi><mn>2</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>35</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>&gt;</mo><msub><mi>R</mi><mn>3</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>12</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R_2(35) &gt; R_3(12)</annotation></semantics></math>,所以
+<strong>V2 更值得优先关注</strong>。注意 V3
+虽然可能性低又没控制,但因为可能性实在太低,综合下来风险反而比"可能性中等但已部分控制"的
+V2
+小——这正说明<strong>为什么要用公式综合判断,而不能只看单一因子</strong>。</p>
+</blockquote>
+<h3 id="54-定性方法asnzs-4360-的可能性--后果">5.4 定性方法:AS/NZS 4360
+的"可能性 × 后果"</h3>
+<p>上面是<strong>定量 (quantitative)</strong>
+路线。另一条路是<strong>定性 (qualitative)</strong>
+的——用<strong>类别</strong>而非具体数值来定风险,出自
+<strong>澳大利亚/新西兰风险管理标准 4360 (Australian and New Zealand
+Risk Management Standard
+4360)</strong>。它根据"威胁发生的概率"和"成功攻击的预期后果"两个维度来定级。</p>
+<ul>
+<li><strong>后果 (Consequences,即影响评估)</strong> 分 <strong>5
+级</strong>:1 = Insignificant(无关紧要,如无伤亡、极低财务损失)… 5 =
+Catastrophic(灾难性,如人员死亡、有害物质泄漏、巨额财务损失)。中间为 2
+Minor、3 Moderate、4 Major。</li>
+<li><strong>可能性 (Likelihood)</strong> 分 <strong>A–E
+级</strong>:<strong>A = Almost certain(几乎必然)</strong>,B = Likely,C =
+Possible,D = Unlikely,<strong>E = Rare(罕见)</strong>。</li>
+</ul>
+<p>把两个维度组合成矩阵,就能看出哪些威胁危险最大;<strong>结果排名可填回
+TVA 表用于风险评估</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>后果＼可能性</th>
+<th>A 几乎必然</th>
+<th>B 可能</th>
+<th>C 或许</th>
+<th>D 不太可能</th>
+<th>E 罕见</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>5 灾难性</strong></td>
+<td>E 极高</td>
+<td>E 极高</td>
+<td>E 极高</td>
+<td>H 高</td>
+<td>H 高</td>
+</tr>
+<tr class="even">
+<td><strong>4 重大</strong></td>
+<td>E 极高</td>
+<td>E 极高</td>
+<td>H 高</td>
+<td>H 高</td>
+<td>M 中</td>
+</tr>
+<tr class="odd">
+<td><strong>3 中等</strong></td>
+<td>E 极高</td>
+<td>H 高</td>
+<td>M 中</td>
+<td>M 中</td>
+<td>L 低</td>
+</tr>
+<tr class="even">
+<td><strong>2 轻微</strong></td>
+<td>H 高</td>
+<td>M 中</td>
+<td>M 中</td>
+<td>L 低</td>
+<td>L 低</td>
+</tr>
+<tr class="odd">
+<td><strong>1 无关紧要</strong></td>
+<td>H 高</td>
+<td>M 中</td>
+<td>L 低</td>
+<td>L 低</td>
+<td>L 低</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>表中等级:<strong>E = Extreme risk(极高,需立即行动)</strong>,<strong>H
+= High(需高层关注)</strong>,M = Moderate,<strong>L =
+Low(常规流程处理即可)</strong>。</p>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+如果两个威胁落在同一等级(比如都是
+E),怎么再分高下?讲者解释:看具体单元格——<strong>5A 排在 5B、4A
+之前</strong>,因为"后果更灾难/可能性更高"的潜在影响更大。也就是说,同为
+Extreme,后果级别和可能性级别更高的排更前。</p>
+</blockquote>
+<hr />
+<h2
+id="六收尾识别控制记录结果与交付物">六、收尾:识别控制、记录结果与交付物</h2>
+<h3 id="61-初步识别可能的控制-identify-possible-controls">6.1
+初步识别可能的控制 (Identify Possible Controls)</h3>
+<p>对每个仍有<strong>残余风险 (residual risk)</strong>
+的"威胁+漏洞",先列一份<strong>初步的控制点子清单</strong>。目的是标出哪些残余风险区域<strong>可能需要、也可能不需要</strong>进一步降低。</p>
+<blockquote>
+<p><strong>残余风险 (residual risk)</strong> =
+<strong>在现有控制已经应用之后,仍然剩下的风险</strong>。(详细机制留到下一讲。)</p>
+</blockquote>
+<p>控制(也叫 safeguards /
+countermeasures)分<strong>三大类</strong>,这个三分法要记牢:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>控制类别</th>
+<th>是什么</th>
+<th>关联的前面讲次</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Policies(策略)</strong></td>
+<td>安全策略</td>
+<td>第五讲</td>
+</tr>
+<tr class="even">
+<td><strong>Programs(项目)</strong></td>
+<td>提升安全的组织活动,如 SETA(安全教育/培训/意识)项目</td>
+<td>前面讲次</td>
+</tr>
+<tr class="odd">
+<td><strong>Technical controls(技术控制)</strong></td>
+<td>即"安全技术",是策略的技术实现</td>
+<td>本部分</td>
+</tr>
+</tbody>
+</table></div>
+<p>凡是已部署或已规划的控制,一经识别就应<strong>加进 TVA
+工作表</strong>。</p>
+<h3 id="62-记录结果ranked-vulnerability-risk-worksheet">6.2
+记录结果:ranked vulnerability risk worksheet</h3>
+<p>到此为止,风险管理过程的目标是:<strong>识别信息资产及其漏洞,并按"保护需求"排名</strong>。过程中收集了大量关于资产、威胁、以及<strong>现有控制</strong>的事实信息。最终的汇总文档叫
+<strong>排序漏洞风险工作表 (ranked vulnerability risk
+worksheet)</strong>——它是下一步(风险控制)的初始工作文档。</p>
+<p>它的列结构(注意这里用的是<strong>简化版风险公式</strong>):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>列</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Asset</strong></td>
+<td>易受攻击的资产清单</td>
+</tr>
+<tr class="even">
+<td><strong>Asset impact</strong></td>
+<td>来自加权因子分析的影响值(本例 1–100)</td>
+</tr>
+<tr class="odd">
+<td><strong>Vulnerability</strong></td>
+<td>每个<strong>未受控</strong>漏洞的描述</td>
+</tr>
+<tr class="even">
+<td><strong>Vulnerability likelihood</strong></td>
+<td>该漏洞被威胁主体实现的可能性(0.1~1.0,也可更小如 0.025)</td>
+</tr>
+<tr class="odd">
+<td><strong>Risk-rating factor</strong></td>
+<td>= <strong>Asset impact × Likelihood</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>注意</strong> — 这张表的 risk-rating factor
+<strong>只用了完整公式的第一项
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">L_v\times I</annotation></semantics></math></strong>,<strong>没有</strong>计入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>C</mi></mrow><annotation encoding="application/x-tex">RC</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>。换句话说,它是
+§5.1 完整公式的简化版。考试若给 ranked vulnerability
+worksheet,用的就是这个简化算法;若明确给出"当前控制百分比"和"准确度",则用完整公式。看清题目给了哪些量,是这类计算题的关键。</p>
+</blockquote>
+<h3 id="63-交付物-deliverables">6.3 交付物 (Deliverables)</h3>
+<p>风险识别完成后,文档包应包含到此为止信息资产管理团队准备的全部工作表:</p>
+<pre class="mermaid"><code>flowchart LR
+  A[&quot;Information asset&lt;br/&gt;classification worksheet&quot;] --&gt; B[&quot;Weighted criteria&lt;br/&gt;analysis worksheet&quot;]
+  B --&gt; C[&quot;TVA worksheet&quot;]
+  C --&gt; D[&quot;Ranked vulnerability&lt;br/&gt;risk worksheet&quot;]
+  D --&gt; E[&quot;→ 下一讲:风险控制&lt;br/&gt;(成本效益分析 / cost-benefit)&quot;]</code></pre>
+<p>风险识别过程还应规定:这些报告<strong>起什么作用、由谁准备、由谁审阅</strong>。其中,<strong>高排名资产上存在未受控漏洞,是部署新控制的第一优先级</strong>。但在加任何新控制之前,组织必须基于<strong>成本效益分析
+(cost-benefit analysis)</strong>
+确定自己<strong>愿意接受多少风险</strong>——而这,正是下一讲的主题。</p>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>风险管理 =
+两个正式流程</strong>:本讲的"风险识别与评估"负责找出并量化风险,下一讲的"风险控制"负责处理风险;三个
+communities of interest 共同担责,InfoSec 牵头。</li>
+<li><strong>孙子兵法是主线</strong>:"知己"=
+识别、归类、分级、排序自己的信息资产;"知彼"=
+识别并评估威胁;二者在"漏洞"处交汇。</li>
+<li><strong>风险识别四步</strong>:识别 → 归类 → 分级 →
+排序;识别资产时<strong>先列出、不急于估值</strong>,资产分人/流程/数据/软件/硬件/网络六类。</li>
+<li><strong>分类铁律</strong>:类别必须<strong>全面
+(comprehensive)</strong> 且<strong>互斥 (mutually
+exclusive)</strong>——每个资产必落一类、且只落一类。</li>
+<li><strong>加权因子分析</strong>是给资产(和威胁)排序的通用工具:加权分 =
+Σ(因子得分 × 因子权重);分数无绝对意义,价值在横向排序。</li>
+<li><strong>威胁与漏洞分开评估再交汇</strong>,避免"每威胁×每资产"的组合爆炸;成果汇成
+<strong>TVA 工作表</strong>,交叉格用 <strong>T#V#A#</strong>
+三元组标注漏洞。</li>
+<li><strong>核心风险公式</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>R</mi><mi>C</mi><mo>+</mo><mi>U</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R=(L_v\times I)\times(1-RC+U)</annotation></semantics></math>
+必须会算:可能性×影响
+是裸风险,现有控制(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>R</mi><mi>C</mi></mrow><annotation encoding="application/x-tex">-RC</annotation></semantics></math>)往下压、不确定性(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mi>U</mi></mrow><annotation encoding="application/x-tex">+U</annotation></semantics></math>)往上抬;无控制则
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>C</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">RC=0</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>=</mo><mn>100</mn><mi>%</mi><mo>−</mo><mtext mathvariant="normal">准确度</mtext></mrow><annotation encoding="application/x-tex">U=100\%-\text{准确度}</annotation></semantics></math>。</li>
+<li><strong>定性替代法</strong>是 AS/NZS 4360 的"可能性(A–E)×
+后果(1–5)"矩阵,产出 Extreme/High/Moderate/Low 等级,可填回 TVA 表。</li>
+<li><strong>残余风险 (residual risk)</strong> =
+应用现有控制后仍剩的风险;控制分三类:<strong>policies / programs /
+technical controls</strong>。</li>
+<li><strong>最终交付物</strong>是 <strong>ranked vulnerability risk
+worksheet</strong>(注意其 risk-rating 用简化式
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">L_v\times I</annotation></semantics></math>),它把"高排名资产上的未受控漏洞"顶到首位,移交给下一讲做成本效益分析与风险控制。</li>
+</ul>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

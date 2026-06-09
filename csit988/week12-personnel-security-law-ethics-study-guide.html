@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 12 · 人员安全、法律与道德 (Personnel and Security; Law and Ethics)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-12--人员安全法律与道德-personnel-and-security-law-and-ethics">Week
+12 · 人员安全、法律与道德 (Personnel and Security; Law and Ethics)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>讨论 (discuss)</strong> 各类 <strong>InfoSec
+positions(信息安全岗位)</strong> 所需的<strong>技能与资历 (skills and
+requirements)</strong>,并能区分主流的<strong>专业认证 (professional
+certifications)</strong></li>
+<li><strong>解释 (explain)</strong> 如何把信息安全的约束<strong>整合
+(integrate)</strong> 进组织的<strong>人力资源流程 (human resources
+processes)</strong>——从 hiring(招聘)、training(培训)、promotion(晋升)到
+termination(离职)</li>
+<li><strong>描述 (describe)</strong>
+用来约束在职人员、防止其滥用信息的<strong>人员安全实践 (personnel
+security practices)</strong>:separation of duties、two-person
+control、job/task rotation、mandatory vacation、least privilege</li>
+<li><strong>区分 (distinguish)</strong> <strong>法律 (laws)</strong> 与
+<strong>道德 (ethics)</strong> 的关系与差异,列举主要的 <strong>InfoSec
+相关法律</strong>,并说明 <strong>威慑 (deterrence)</strong>
+起作用的三个条件</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>📎 <strong>本章定位</strong> — 对应教材 <strong>Chapter 11(人员)与
+Chapter
+12(法律与道德)</strong>,是整门课的<strong>收尾讲</strong>。前面几周我们一路讲下来:信息安全是<strong>管理问题</strong>
+→ 规划与政策 → 风险管理 → 技术控制(Week
+11)。讲者在课上反复强调的一句话在这里再次落地——<strong>"InfoSec is a
+management task that cannot be handled with technology
+alone(信息安全是一项管理任务,光靠技术解决不了)"</strong>。整门课只有一讲(Week
+11)讲技术,其余全在讲<strong>人、流程、政策、法律</strong>。本讲就是把"人"这个最难管也最关键的要素讲透,再用"法律与道德"为整门课收口。</p>
+</blockquote>
+<p>在动手之前,先把这一讲的两大板块和内部结构摆清楚:</p>
+<pre class="mermaid"><code>flowchart TD
+  W12[&quot;Week 12&lt;br/&gt;人员安全 + 法律道德&quot;]
+  W12 --&gt; A[&quot;A. 人员与安全&lt;br/&gt;Personnel &amp; Security (Ch.11)&quot;]
+  W12 --&gt; B[&quot;B. 法律与道德&lt;br/&gt;Law &amp; Ethics (Ch.12)&quot;]
+
+  A --&gt; A1[&quot;① 配备安全职能&lt;br/&gt;Staffing: 供需 / 资历 / 能力&quot;]
+  A --&gt; A2[&quot;② 信息安全岗位&lt;br/&gt;Positions: CISO / Manager / Technician&quot;]
+  A --&gt; A3[&quot;③ 专业认证&lt;br/&gt;Credentials: (ISC)² / ISACA&quot;]
+  A --&gt; A4[&quot;④ 雇佣政策与实践&lt;br/&gt;Hiring → Termination&quot;]
+  A --&gt; A5[&quot;⑤ 人员安全实践&lt;br/&gt;SoD / Rotation / Least Privilege&quot;]
+  A --&gt; A6[&quot;⑥ 非雇员的安全&lt;br/&gt;Nonemployees&quot;]
+
+  B --&gt; B1[&quot;① 法律 vs 道德&quot;]
+  B --&gt; B2[&quot;② InfoSec 相关法律&quot;]
+  B --&gt; B3[&quot;③ 威慑不良行为&quot;]
+  B --&gt; B4[&quot;④ 道德规范 Codes of Ethics&quot;]</code></pre>
+<hr />
+<h1 id="第一部分人员与安全-personnel-and-security">第一部分:人员与安全
+(Personnel and Security)</h1>
+<h2 id="一为什么人是安全的核心-s3">一、为什么"人"是安全的核心 (S3)</h2>
+<p>整章的定调句:<strong>维护一个安全的环境,要求 InfoSec 部门被精心地构建
+(carefully structured),并配备具有恰当资历 (appropriately credentialed)
+的人员。</strong>
+换句话说,安全的第一道防线不是防火墙,而是<strong>对的人坐在对的岗位上</strong>。</p>
+<p>但光有"对的人"还不够——还必须把<strong>恰当的程序 (proper
+procedures)</strong> 整合进<strong>所有人力资源活动</strong>中。讲者把
+HR 的全生命周期列了出来:</p>
+<pre class="mermaid"><code>flowchart LR
+  H[&quot;Hiring 招聘&quot;] --&gt; T[&quot;Training 培训&quot;]
+  T --&gt; P[&quot;Promotion 晋升&quot;]
+  P --&gt; Tm[&quot;Termination 离职&quot;]
+  H -.-&gt;|&quot;每一环都要嵌入 InfoSec 考量&quot;| S[&quot;守住组织信息的 CIA&quot;]
+  T -.-&gt; S
+  P -.-&gt; S
+  Tm -.-&gt; S</code></pre>
+<p>本章会沿着这条生命周期讲两件事:</p>
+<ol type="1">
+<li><strong>招聘端</strong>:InfoSec
+人员的招聘问题与实践,以及最受追捧的专业认证;</li>
+<li><strong>整合</strong>:如何把 InfoSec
+政策融入<strong>通用</strong>的招聘实践(注意:不止针对安全岗位)。</li>
+</ol>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 讲者反复点的一个关键观点</strong>
+这一讲讲的招聘/离职/人员控制实践,<strong>适用于组织里的所有员工,而不仅仅是
+InfoSec 岗位</strong>。讲者明确说:无论未来的员工属于哪个
+<strong>community of
+interest(利益相关共同体)</strong>——是信息安全社群,还是另外两个社群(一般管理、IT)——招聘时都必须考虑信息安全。这一点很容易被忽略,也很可能成为出题点。</p>
+</blockquote>
+<blockquote>
+<p><strong>本节小结</strong>:安全环境 = 结构合理的 InfoSec 部门 +
+有资质的人员 + 把 InfoSec 嵌入 HR
+全流程(招聘→培训→晋升→离职);且这套实践覆盖<strong>全体员工</strong>。</p>
+</blockquote>
+<hr />
+<h2
+id="二配备安全职能供需资历与能力-s4s7">二、配备安全职能:供需、资历与能力
+(S4–S7)</h2>
+<h3 id="21-供需关系决定了人才稀缺-s4">2.1 供需关系决定了人才稀缺
+(S4)</h3>
+<p>要挑选出一支<strong>有效组合 (effective mix)</strong>
+的信息安全人员队伍,需要权衡多项<strong>标准
+(criteria)</strong>——其中一部分在组织的掌控之内(给多少预算、设什么岗位),另一部分则<strong>不在组织掌控之内</strong>,最典型的就是<strong>人才市场的供需
+(supply and demand)</strong>。</p>
+<p>讲者描述了这个市场的动态:</p>
+<pre class="mermaid"><code>flowchart LR
+  D[&quot;需求骤增&lt;br/&gt;Demand rises quickly&quot;] --&gt; Gap[&quot;初期供给跟不上&lt;br/&gt;Initial supply fails to meet it&quot;]
+  Gap --&gt; R[&quot;从业者入场 / 转向&lt;br/&gt;professionals enter or refocus skills&quot;]
+  R --&gt; Eq[&quot;逐渐获得所需技能、经验、证书&lt;br/&gt;gain required skills, experience, credentials&quot;]</code></pre>
+<ul>
+<li>当对某类关键安全技能的<strong>需求快速上升</strong>时,<strong>初期供给往往满足不了</strong>;</li>
+<li>随着需求被市场知晓,从业者会<strong>进入这个就业市场</strong>,或<strong>重新聚焦自己的技能
+(refocus job skills)</strong>
+去补齐所需的<strong>技能、经验和资历</strong>。</li>
+</ul>
+<p>这解释了为什么安全人才"贵且难招"——是供需时间差造成的。</p>
+<h3 id="22-管理者该做什么-s5">2.2 管理者该做什么 (S5)</h3>
+<p>要推动整个 InfoSec 学科向前发展,<strong>管理者</strong>应当:</p>
+<ul>
+<li>更多了解信息安全岗位(以及相关 IT 岗位)的<strong>要求与资历
+(requirements and qualifications)</strong>;</li>
+<li>更多了解信息安全的<strong>预算与人员需求 (budgetary and personnel
+needs)</strong>;</li>
+<li>赋予信息安全职能(尤其是
+<strong>CISO</strong>)<strong>恰当的影响力与威望 (appropriate level of
+influence and prestige)</strong>。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 第三点很关键:如果 CISO
+在组织里没有足够的"话语权和地位",安全工作就推不动。这呼应了前面几讲"信息安全是自上而下
+(top-down) 才能成功"的主题。</p>
+</blockquote>
+<h3 id="23-infosec-专业人员的理想能力-s6s7">2.3 InfoSec
+专业人员的理想能力 (S6–S7)</h3>
+<p>幻灯片列了一串招聘 InfoSec
+人员时希望看到的能力,可以分成"管理/沟通"与"技术/认知"两组:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>期望具备的能力</th>
+<th>关键句</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>理解组织</strong></td>
+<td>懂组织如何<strong>构建与运转 (structured and operated)</strong></td>
+<td>业务常识</td>
+</tr>
+<tr class="even">
+<td><strong>管理认知</strong></td>
+<td>认识到 <strong>InfoSec 是管理任务,光靠技术解决不了</strong></td>
+<td>整门课的中心句</td>
+</tr>
+<tr class="odd">
+<td><strong>沟通</strong></td>
+<td>与人协作好,<strong>书面与口头 (written and verbal)</strong>
+沟通都强</td>
+<td>软技能</td>
+</tr>
+<tr class="even">
+<td><strong>政策意识</strong></td>
+<td>承认 <strong>policy(政策)</strong> 在指导安全工作中的角色</td>
+<td>呼应 Week 5</td>
+</tr>
+<tr class="odd">
+<td><strong>教育/培训</strong></td>
+<td>理解 <strong>InfoSec 教育与培训</strong>
+的关键作用——让用户成为<strong>解决方案的一部分而非问题的一部分</strong></td>
+<td>SETA 思想</td>
+</tr>
+<tr class="even">
+<td><strong>威胁认知</strong></td>
+<td>能<strong>感知威胁 (perceive
+threats)</strong>,理解威胁如何变成攻击,从而保护组织</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><strong>技术控制</strong></td>
+<td>懂得如何<strong>应用技术控制 (apply technical
+controls)</strong></td>
+<td>见下方拓展</td>
+</tr>
+<tr class="even">
+<td><strong>IT 熟悉度</strong></td>
+<td>熟悉主流 IT 技术:DOS、Windows、Linux、UNIX;懂 IT 与 InfoSec
+术语和概念</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 讲者对"技术控制能力"的两点提醒</strong>
+①
+"懂技术控制"<strong>不只是技术员的要求</strong>,<strong>高层管理者也需要</strong>——因为一个对技术控制完全无知的管理者,根本没法有效管理整个
+InfoSec 问题。 ② 关于 DOS/Windows/Linux/UNIX 这串操作系统:讲者直言
+<strong>DOS 已经是"古董系统 (ancient
+system)"</strong>,如今的招聘广告大多不再要求这些——这是教材年代感的体现,理解精神即可,别死记。</p>
+</blockquote>
+<blockquote>
+<p><strong>本节小结</strong>:安全人才稀缺源于<strong>供需时间差</strong>;管理者要争取<strong>预算+给
+CISO 地位</strong>;理想的 InfoSec
+人才是**"懂管理+会沟通+有政策意识+具备够用的技术理解"**
+的复合型,而不是纯技术员。</p>
+</blockquote>
+<hr />
+<h2 id="三信息安全岗位-s8s13">三、信息安全岗位 (S8–S13)</h2>
+<h3 id="31-三类角色definers--builders--administrators-s8">3.1
+三类角色:Definers / Builders / Administrators (S8)</h3>
+<p>幻灯片把 InfoSec
+岗位按职能分成三大类。一个好用的记忆框架是"<strong>定标准 → 造方案 →
+跑运营</strong>":</p>
+<pre class="mermaid"><code>flowchart LR
+  D[&quot;Definers 定义者&lt;br/&gt;提供政策、指南、标准&lt;br/&gt;做咨询与风险评估&lt;br/&gt;设计产品与技术架构&quot;] --&gt;|&quot;交给&quot;| B[&quot;Builders 建造者&lt;br/&gt;真正的技术大牛&lt;br/&gt;创建并部署安全方案&quot;]
+  B --&gt;|&quot;交给&quot;| A[&quot;Administrators 管理运维者&lt;br/&gt;运行安全工具与监控&lt;br/&gt;持续改进流程&quot;]
+  D -.-&gt;|&quot;资深、知识面广&lt;br/&gt;但不深钻某一技术&quot;| note1[&quot; &quot;]
+  style note1 fill:transparent,stroke:transparent</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>角色</th>
+<th>干什么</th>
+<th>特征</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Definers(定义者)</strong></td>
+<td>提供 policies / guidelines / standards;咨询、做 <strong>risk
+assessment</strong>、设计产品与技术架构</td>
+<td>资深人士,<strong>知识面广但不深 (broad knowledge, not a lot of
+depth)</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Builders(建造者)</strong></td>
+<td><strong>创建并安装 (create and install)</strong> 由 definers
+设计的安全方案</td>
+<td>"真正的技术大牛 (real techies)"</td>
+</tr>
+<tr class="odd">
+<td><strong>Administrators(运维者)</strong></td>
+<td>管理安全工具、安全<strong>监控 (monitoring)</strong>
+职能;<strong>持续改进流程</strong></td>
+<td>日常运营</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="32-岗位与汇报关系-s9">3.2 岗位与汇报关系 (S9)</h3>
+<p>幻灯片用一张组织图展示了典型岗位的<strong>汇报关系 (reporting
+relationships)</strong>。结构如下:</p>
+<pre class="mermaid"><code>flowchart TD
+  CIO[&quot;CIO&lt;br/&gt;(常为高管 / executive)&quot;] --&gt; CISO[&quot;CISO&lt;br/&gt;首席信息安全官&quot;]
+  Consult[&quot;Security Consultant&lt;br/&gt;(外部顾问,非全职)&quot;] -.-&gt;|&quot;咨询支持&quot;| CISO
+  CISO --&gt; SM[&quot;Security Managers&lt;br/&gt;安全经理&quot;]
+  SM --&gt; Admin[&quot;Security Administrators&quot;]
+  SM --&gt; Tech[&quot;Security Technicians&quot;]
+  SM --&gt; Officer[&quot;Security Officers&quot;]</code></pre>
+<p>要点:</p>
+<ul>
+<li><strong>CISO 在 InfoSec 职能的顶端</strong>,通常<strong>汇报给
+CIO</strong>;</li>
+<li><strong>Security consultant(安全顾问)</strong>
+可能只是外部人员、不一定是全职雇员,为 CISO 与安全经理提供咨询;</li>
+<li>安全经理之下是 administrators、technicians、security officers
+等<strong>最一线 (entry-level)</strong> 的岗位。</li>
+</ul>
+<h3 id="33-ciso--首席信息安全官-s10s11">3.3 CISO — 首席信息安全官
+(S10–S11)</h3>
+<p><strong>CISO(Chief Information Security Officer)</strong>
+是组织里<strong>最高的信息安全官</strong>(不同组织可能叫别的名字,但 CISO
+是最标准的称呼)。关键特征:</p>
+<ul>
+<li><strong>通常不是高管级 (usually not an executive-level)
+职位</strong>,多数情况下<strong>汇报给 CIO</strong>;
+<ul>
+<li>对比:<strong>CIO</strong> 才可能是高管,统管全部 IT;CISO
+一般在其下。</li>
+</ul></li>
+<li><strong>"先是业务管理者,其次才是技术专家 (business managers first
+and technologists second)"</strong> —— 这是 CISO
+角色排序的核心,常考。</li>
+<li>必须<strong>通晓信息安全的所有领域</strong>:技术 (technology)、规划
+(planning)、政策 (policy)。</li>
+</ul>
+<p><strong>CISO 的资历要求(S11):</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>要求</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>认证</strong></td>
+<td><strong>CISSP</strong> —— CISO 最常见的资格证</td>
+</tr>
+<tr class="even">
+<td><strong>学历</strong></td>
+<td>通常要求<strong>研究生学位 (graduate degree)</strong>,专业可为
+criminal justice、business、technology 或相关领域</td>
+</tr>
+<tr class="odd">
+<td><strong>经验</strong></td>
+<td>在 security management、planning、policy、budgets 方面的经验</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 讲者补充:UOW 自己的 IT
+部门据他所知也是"CISO 汇报给
+IT/CIO"这种典型结构。可以用这个真实例子帮助记忆"CISO 一般不是高管"。</p>
+</blockquote>
+<h3 id="34-security-manager--安全经理-s12">3.4 Security Manager —
+安全经理 (S12)</h3>
+<p><strong>Security Manager(安全经理)</strong> 是<strong>中层 (middle
+level)</strong>——夹在 CISO 与技术员之间,两头对接:</p>
+<pre class="mermaid"><code>flowchart TD
+  CISO[&quot;CISO 下达目标 / 分配管理职责&quot;] --&gt;|&quot;向下执行&quot;| SM[&quot;Security Manager&quot;]
+  Tech[&quot;Technicians 上报问题&quot;] --&gt;|&quot;向上汇报&quot;| SM
+  SM --&gt;|&quot;对接&quot;| Other[&quot;其他部门 / 部门经理&quot;]</code></pre>
+<ul>
+<li><strong>职责</strong>:对 InfoSec 项目的<strong>日常运营 (day-to-day
+operation)</strong> 负责;完成 CISO
+定下的目标;解决技术员反馈上来的问题;常被 CISO
+指派<strong>具体管理职责</strong>;与其他部门的经理<strong>联络
+(liaise)</strong>。</li>
+<li><strong>资历</strong>:
+<ul>
+<li><strong>拥有 CISSP 并不罕见</strong>(但不像 CISO 那样硬性要求);</li>
+<li>需要传统业务经验:budgeting、project management、personnel
+management、hiring and firing;</li>
+<li>必须能起草<strong>中/低层级的政策、标准与指南</strong>(对应 Week 5
+政策三层结构里的中、低层);</li>
+<li>类型多样,<strong>比 CISO 更专精 (more specialized)</strong>——CISO
+管全局,经理管某一块。</li>
+</ul></li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 映射回 Week 5 的政策三层</strong>
+讲者把"安全经理起草中/低层政策"对应到 Week 5
+学过的政策层级:<strong>EISP(企业级)→ ISSP(议题级)→
+SysSP(系统级)</strong>。CISO
+关注顶层(EISP),安全经理负责把它落成中低层(ISSP / SysSP)的 standards
+&amp; guidelines。</p>
+</blockquote>
+<h3 id="35-security-technician--安全技术员-s13">3.5 Security Technician
+— 安全技术员 (S13)</h3>
+<p><strong>Security Technician(安全技术员)</strong>
+是技术过硬的执行者,也是 InfoSec 典型的<strong>入门级 (entry-level)
+岗位</strong>(尽管偏技术):</p>
+<ul>
+<li><strong>日常工作</strong>:配置 <strong>firewalls</strong> 与
+<strong>IDS</strong>、部署安全软件、诊断排障、与系统/网络管理员协作以确保安全技术被正确实施;</li>
+<li><strong>资历</strong>:因组织而异;组织通常偏好<strong>有认证、熟练
+(certified, proficient)</strong>
+的技术员;岗位通常要求对<strong>特定的硬件/软件</strong>有经验。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 讲者的具体例子</strong> 招聘一个负责
+<strong>Cisco 防火墙</strong>的安全技术员,你会要求他有安装/维护 Cisco
+系统(软硬件)的经验,并持有 <strong>Cisco
+认证</strong>。要点:技术员岗位强调"对某项具体技术的动手经验 (experience
+using the technology is usually required)",而不是泛泛的管理能力。</p>
+</blockquote>
+<blockquote>
+<p><strong>本节小结</strong>:三类角色 <strong>Definers(定标准)/
+Builders(造方案)/ Administrators(跑运营)</strong>;岗位金字塔
+<strong>CISO → Security Manager →
+Technician</strong>;记住三句话——CISO**"先管理后技术"、通常非高管、汇报给
+CIO**;Manager 是<strong>中层、能写中低层政策</strong>;Technician
+是<strong>技术型入门岗、看重具体技术经验</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="四信息安全专业认证-s14s18">四、信息安全专业认证 (S14–S18)</h2>
+<h3 id="41-为什么组织依赖认证-s14">4.1 为什么组织依赖认证 (S14)</h3>
+<p>招人时,除了面试和几道快速测试题,组织很难靠自己判断候选人的真实水平,于是普遍<strong>依赖专业认证
+(professional certifications)</strong> 来<strong>确认候选人的熟练程度
+(ascertain proficiency)</strong>。</p>
+<p>但有个<strong>告诫
+(caveat)</strong>:很多认证项目<strong>相对较新</strong>——发证是个大生意——它们的<strong>确切价值并未被多数招聘组织完全理解</strong>。因此<strong>发证机构
+(certifying bodies)</strong>
+要不断向社群"教育"自家证书的价值与含金量。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 讲者讲的真实就业市场逻辑</strong>
+现实中:岗位一发布,大量人投递;但 JD 里设了<strong>硬门槛
+(criteria)</strong>,只有"打勾打够"的候选人才会被叫去面试。而**"持有某项知名认证"往往就是那个起点门槛**——很多网络安全岗位至少要求一张知名证书。<strong>没有证,很可能连面试都进不了。</strong>
+这就是认证在求职中的真实分量。</p>
+</blockquote>
+<h3 id="42-isc²-的认证cissp-与-sscp-s15s16">4.2 (ISC)² 的认证:CISSP 与
+SSCP (S15–S16)</h3>
+<p><strong>(ISC)²</strong>(International Information Systems Security
+Certification
+Consortium,国际信息系统安全认证联盟)提供多项安全认证,与本讲最相关的是
+<strong>CISSP</strong> 和 <strong>SSCP</strong>。</p>
+<p><strong>CISSP — Certified Information Systems Security
+Professional</strong></p>
+<ul>
+<li>InfoSec 从业者<strong>最负盛名 (most prestigious)</strong>
+的认证之一(很可能是最高的那张);</li>
+<li>证明你对信息安全知识的<strong>精通 (mastery)</strong>;</li>
+<li>覆盖 <strong>10 个知识域 (10 domains)</strong>:</li>
+</ul>
+<pre class="mermaid"><code>mindmap
+  root((CISSP&lt;br/&gt;10 Domains))
+    Access Control 访问控制
+    Business Continuity &amp; DR 业务连续性与灾难恢复
+    Cryptography 密码学
+    InfoSec Governance &amp; Risk Mgmt 治理与风险管理
+    Legal/Regulations/Investigations/Compliance 法律合规
+    Operations Security 运营安全
+    Physical Security 物理安全
+    Security Architecture &amp; Design 安全架构与设计
+    Software Development Security 软件开发安全
+    Telecom &amp; Network Security 电信与网络安全</code></pre>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 讲者借 10
+个域回顾整门课(非常好的复习线索!)</strong> 讲者特意指出,这 10
+个域我们在本课程里<strong>大多都碰过</strong>:</p>
+<ul>
+<li><strong>Access control / Cryptography</strong> → Week
+11(技术控制讲)</li>
+<li><strong>Business continuity &amp; DR</strong> → 应急计划那一讲(Week
+4)</li>
+<li><strong>InfoSec governance &amp; risk management</strong> →
+多讲(Week 9–10 风险管理等)</li>
+<li><strong>Legal &amp; compliance</strong> → 就是今天这一讲</li>
+<li><strong>Security architecture &amp; design</strong> → Week 7</li>
+<li><strong>Operations security / Physical security</strong> →
+只是简略提及,没有展开</li>
+<li><strong>Software development security</strong> → 没细讲,但用过
+<strong>SecSDLC</strong> 这个术语</li>
+<li><strong>Telecom &amp; network security</strong> → 提过主要协议(Wi-Fi
+security、TLS、VPN) 一句话:<strong>这门课是想成为 InfoSec
+专业人士的一个很好的起点;想当 CISO,CISSP
+是你该拿的证之一。</strong></li>
+</ul>
+</blockquote>
+<p><strong>SSCP — System Security Certified Practitioner</strong></p>
+<ul>
+<li>比 CISSP
+<strong>更容易</strong>,定位<strong>更偏入门级安全经理</strong>(而非纯技术员);</li>
+<li>大多数题目聚焦 InfoSec 的<strong>运营本质 (operational
+nature)</strong>;</li>
+<li>覆盖 <strong>7 个域</strong>:access controls、analysis and
+monitoring、cryptography、malicious code、networks and
+telecommunications、risk/response and recovery、security operations and
+administration;</li>
+<li>知识的深度与广度<strong>不及 CISSP</strong>。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 职业路径</strong>
+讲者建议的一条典型路径:先考
+<strong>SSCP</strong>,积累几年知识与经验后,再去挑战
+<strong>CISSP</strong>。SSCP 是 CISSP 的"低配前置版"。</p>
+</blockquote>
+<h3 id="43-isaca-的认证cisa-与-cism-s17">4.3 ISACA 的认证:CISA 与 CISM
+(S17)</h3>
+<p><strong>ISACA</strong>(Information Systems Audit and Control
+Association,信息系统审计与控制协会)赞助四项认证,本讲提两项:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>认证</th>
+<th>全称</th>
+<th>定位</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>CISA</strong></td>
+<td>Certified Information Systems <strong>Auditor</strong></td>
+<td>适合<strong>审计
+(auditing)</strong>、网络、安全专业人士——<strong>更偏审计与网络</strong></td>
+</tr>
+<tr class="even">
+<td><strong>CISM</strong></td>
+<td>Certified Information Security <strong>Manager</strong></td>
+<td>面向<strong>有经验的 InfoSec
+经理</strong>;向高层管理证明候选人具备<strong>有效安全管理与咨询</strong>所需的背景知识——<strong>更偏
+InfoSec 管理</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>记忆法:<strong>CISA = Auditor(审计)</strong>,<strong>CISM =
+Manager(管理)</strong>。</p>
+<h3 id="44-认证的成本-s18">4.4 认证的成本 (S18)</h3>
+<pre class="mermaid"><code>flowchart LR
+  C[&quot;偏好的认证&lt;br/&gt;preferred certifications&quot;] --&gt; Exp[&quot;往往很贵 expensive&quot;]
+  C --&gt; Rev[&quot;即便资深也得复习&lt;br/&gt;need some review&quot;]
+  C --&gt; Exp2[&quot;要求 2–3 年工作经验&lt;br/&gt;(CISSP 常达 5 年)&quot;]
+  C --&gt; Hands[&quot;奖励有实战经验者&lt;br/&gt;reward hands-on experience&quot;]
+  C --&gt; Deter[&quot;高成本劝退&#39;只想试试能不能过&#39;的人&quot;]</code></pre>
+<ul>
+<li>含金量越高的认证往往<strong>越贵</strong>;</li>
+<li>即便是经验丰富的专业人士,<strong>不复习也很难考好</strong>——要投入可观的时间;</li>
+<li>高成本会<strong>劝退</strong>那些"只想试试能不能过 (just to see if
+they can pass)"的人;</li>
+<li>多数考试要求 <strong>2–3
+年工作经验</strong>,且<strong>结构上奖励有大量实战经验的人</strong>——纯应届、没有业界实操的人往往考不好。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— CISSP 的具体数字</strong>
+讲者给的概数:CISSP 报名费从<strong>几百到约 2000 美元</strong>,通常要求
+<strong>3–5
+年</strong>信息安全工作经验,自学备考可能要<strong>好几个月</strong>逐域攻克。结论:想挑战自我、纯试水的人别碰
+CISSP,太费时费钱。</p>
+</blockquote>
+<blockquote>
+<p><strong>本节小结</strong>:组织靠认证判断水平,认证常是求职<strong>硬门槛</strong>;<strong>(ISC)²</strong>
+出 <strong>CISSP(10 域,最高级)</strong> 和 <strong>SSCP(7
+域,入门级)</strong>;<strong>ISACA</strong> 出
+<strong>CISA(审计)</strong> 和
+<strong>CISM(管理)</strong>;认证普遍<strong>贵、要复习、要 2–3 年(CISSP
+常 5 年)经验</strong>。</p>
+</blockquote>
+<hr />
+<h2
+id="五雇佣政策与实践从招聘到离职-s19s27">五、雇佣政策与实践:从招聘到离职
+(S19–S27)</h2>
+<h3 id="51-总原则把-infosec-织进所有雇佣实践-s19">5.1 总原则:把 InfoSec
+织进所有雇佣实践 (S19)</h3>
+<p>管理层应把<strong>扎实的 InfoSec
+理念整合进组织的所有雇佣政策与实践</strong>中,包括:</p>
+<ul>
+<li>把<strong>信息安全职责</strong>写进<strong>每个员工的职位描述 (job
+description)</strong> 和后续的<strong>绩效考核 (performance
+reviews)</strong>;</li>
+<li>这一做法能让<strong>整个组织更认真地对待信息安全</strong>。</li>
+</ul>
+<p>接下来按 HR 流程逐环看 InfoSec 该如何嵌入。</p>
+<h3 id="52-招聘-hiring-s20s22">5.2 招聘 (Hiring) (S20–S22)</h3>
+<p>从 InfoSec 视角看,招聘是个<strong>布满安全隐患 (laden with potential
+security pitfalls)</strong> 的过程。各子环节的安全考量:</p>
+<pre class="mermaid"><code>flowchart TD
+  JD[&quot;① 职位描述 Job Description&lt;br/&gt;广告招聘时给出完整描述&quot;] --&gt; SL[&quot;② 筛选 + 面试 Interviews&quot;]
+  SL --&gt; Orient[&quot;③ 新员工入职 Orientation&quot;]
+  Orient --&gt; OJT[&quot;④ 在岗安全培训 On-the-job training&quot;]
+  OJT --&gt; BG[&quot;⑤ 背景核查 Security checks&quot;]
+  BG --&gt; K[&quot;⑥ 合同与雇佣 Contracts&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>环节</th>
+<th>InfoSec 考量</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>职位描述</strong></td>
+<td>招聘广告要提供<strong>完整的职位描述</strong></td>
+</tr>
+<tr class="even">
+<td><strong>面试 (Interviews)</strong></td>
+<td>InfoSec 应<strong>建议 HR
+限制</strong>向候选人透露该岗位的<strong>访问权限 (access
+rights)</strong> 信息;若面试含<strong>实地参观 (site
+visit)</strong>,路线应<strong>避开机密与受限区域</strong>——访客可能借机观察到足以威胁组织的运营/安全信息</td>
+</tr>
+<tr class="odd">
+<td><strong>新员工入职</strong></td>
+<td>新员工应在入职培训中接受<strong>全面的 InfoSec 简报
+(briefing)</strong></td>
+</tr>
+<tr class="even">
+<td><strong>在岗安全培训</strong></td>
+<td>定期开展 <strong>SETA</strong>(Security Education, Training and
+Awareness)活动,把安全保持在员工脑中最前沿,减少操作失误</td>
+</tr>
+<tr class="odd">
+<td><strong>安全核查</strong></td>
+<td>发 offer 前做<strong>背景核查 (background check)</strong></td>
+</tr>
+<tr class="even">
+<td><strong>合同与雇佣</strong></td>
+<td>合同是一项重要的<strong>安全工具 (security instrument)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 两个重要补充</strong> ①
+<strong>背景核查具体查什么</strong>:身份/Social Security、并可能包括
+drug test(药检)、driving record(驾驶记录)、credit
+report(信用报告)、criminal
+record(犯罪记录,最重要)。<strong>而且续签合同时也要重新查</strong>——人的背景可能随时间变化,要确保仍满足组织的准入安全要求。
+② <strong>招聘 InfoSec
+实践适用于所有部门的招聘</strong>,不止安全岗——这是讲者第二次强调这一点。</p>
+</blockquote>
+<h3 id="53-离职-termination-issues-s23s27">5.3 离职 (Termination Issues)
+(S23–S27)</h3>
+<p>员工离开组织时,必须执行一系列任务,确保人走之后组织信息的
+<strong>CIA</strong> 仍受保护:</p>
+<p><strong>离职时的清单 (S23):</strong></p>
+<ul>
+<li>禁用对组织系统的<strong>访问 (disable access)</strong>;</li>
+<li>收回所有<strong>可移动介质 (removable media)</strong>;</li>
+<li><strong>保全硬盘 (hard drives secured)</strong>;</li>
+<li><strong>更换</strong>文件柜与门锁;</li>
+<li><strong>吊销门禁卡 (keycard access revoked)</strong>;</li>
+<li>清理个人物品;</li>
+<li><strong>护送 (escort)</strong> 前员工离开场所。</li>
+</ul>
+<p><strong>离职面谈 (Exit interview, S24):</strong>
+很多组织会做,目的有二——提醒员工任何<strong>合同义务</strong>(如
+<strong>NDA / 保密协议</strong>);收集员工任职期间的反馈。</p>
+<p><strong>两种离职处理方式 (S24–S26):</strong></p>
+<pre class="mermaid"><code>flowchart TD
+  T[&quot;员工离职 outprocessing&quot;] --&gt; H[&quot;敌意离职 Hostile departure&lt;br/&gt;(更危险)&quot;]
+  T --&gt; F[&quot;友好离职 Friendly departure&lt;br/&gt;(更易处理)&quot;]
+
+  H --&gt; H1[&quot;在通知本人之前&lt;br/&gt;就切断所有逻辑与门禁访问&quot;]
+  H1 --&gt; H2[&quot;当天到岗 → 被带进主管办公室&lt;br/&gt;告知坏消息 → 被护送离开&quot;]
+
+  F --&gt; F1[&quot;员工提前递交辞呈&lt;br/&gt;难以全程严控其访问与信息使用&quot;]
+  F1 --&gt; F2[&quot;账号通常继续保留&lt;br/&gt;但设新的过期日&quot;]
+  F2 --&gt; F3[&quot;可自由进出、自行收拾物品&lt;br/&gt;无需护送,离开前交还公司财物&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>对比维度</th>
+<th><strong>Hostile(敌意离职)</strong></th>
+<th><strong>Friendly(友好离职)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>触发</td>
+<td>被解雇、关系不和</td>
+<td>主动辞职、提前通知</td>
+</tr>
+<tr class="even">
+<td>风险</td>
+<td>高——可能<strong>报复 (revenge)</strong></td>
+<td>较低</td>
+</tr>
+<tr class="odd">
+<td>访问处理</td>
+<td><strong>先切断,再通知</strong>(不给反应时间)</td>
+<td>账号<strong>保留一段时间</strong>,设过期日</td>
+</tr>
+<tr class="even">
+<td>物理处置</td>
+<td>全程护送</td>
+<td>通常无需护送</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>无论哪种情况 (S27):</strong></p>
+<ul>
+<li>离职者用过的办公室和信息必须<strong>清点
+(inventoried)</strong>,文件<strong>封存或销毁</strong>,财物归还组织;</li>
+<li>警惕离职者<strong>带走对其新工作有价值的信息或资产</strong>;</li>
+<li><strong>审查系统日志 (scrutinize system logs)</strong>
+可帮助判断是否发生了政策违规或信息损失。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 敌意离职的操作细节</strong>
+讲者描述的典型做法:在解雇当天<strong>早上</strong>,员工一到岗就被告知"你被解雇了",<strong>立即</strong>被护送进主管办公室听坏消息,然后护送离开;个人财物事后转交,或在监督下当场收拾。核心逻辑是**"先断访问、不给报复窗口"**。</p>
+</blockquote>
+<blockquote>
+<p><strong>本节小结</strong>:把 InfoSec
+写进<strong>每个职位描述与绩效考核</strong>;招聘六环节(JD→面试→入职→在岗培训→背景核查→合同)各有安全考量;离职要<strong>禁用访问、收回介质、换锁、吊销门禁、护送</strong>;<strong>敌意离职=先断后说</strong>,<strong>友好离职=留账号设过期</strong>;两种都要清点、审日志、提醒
+NDA。</p>
+</blockquote>
+<hr />
+<h2
+id="六人员安全实践-personnel-security-practices-s28s30">六、人员安全实践
+(Personnel Security Practices) (S28–S30)</h2>
+<p>这一节讲的是<strong>监控与控制在职员工、把其滥用信息的机会降到最低</strong>的方法。它们和
+Week 11 的<strong>访问控制原则</strong>高度相关。</p>
+<pre class="mermaid"><code>flowchart TD
+  PSP[&quot;人员安全实践&lt;br/&gt;Personnel Security Practices&quot;]
+  PSP --&gt; SoD[&quot;① Separation of Duties&lt;br/&gt;职责分离&quot;]
+  PSP --&gt; TPC[&quot;② Two-Person Control&lt;br/&gt;双人控制&quot;]
+  PSP --&gt; JR[&quot;③ Job Rotation&lt;br/&gt;岗位轮换&quot;]
+  PSP --&gt; TR[&quot;④ Task Rotation&lt;br/&gt;任务轮换&quot;]
+  PSP --&gt; MV[&quot;⑤ Mandatory Vacation&lt;br/&gt;强制休假&quot;]
+  PSP --&gt; LP[&quot;⑥ Least Privilege&lt;br/&gt;最小权限&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>实践</th>
+<th>定义</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Separation of Duties(职责分离)</strong></td>
+<td>把工作拆开,每人只做任务序列中自己那一段</td>
+<td>让<strong>单个人难以</strong>违反 InfoSec、破坏信息的 CIA</td>
+</tr>
+<tr class="even">
+<td><strong>Two-Person Control(双人控制)</strong></td>
+<td>两个人<strong>相互复核并批准</strong>对方的工作,任务才算完成</td>
+<td>没有人能独揽整个流程</td>
+</tr>
+<tr class="odd">
+<td><strong>Job Rotation(岗位轮换)</strong></td>
+<td>要求<strong>每个员工都能做至少另一个员工的工作</strong></td>
+<td>任何人都可被替换;无人能做"无人能复核"的事</td>
+</tr>
+<tr class="even">
+<td><strong>Task Rotation(任务轮换)</strong></td>
+<td>所有<strong>关键任务</strong>都能由<strong>多人</strong>执行</td>
+<td>同上,确保可被他人有据复核</td>
+</tr>
+<tr class="odd">
+<td><strong>Mandatory Vacation(强制休假)</strong></td>
+<td>强制每位员工休假</td>
+<td>借机<strong>详查其工作</strong>,并检验"没他组织能否照常运转"</td>
+</tr>
+<tr class="even">
+<td><strong>Least Privilege(最小权限)</strong></td>
+<td>员工<strong>只能访问完成任务所需的信息</strong>,且<strong>只在所需时段内</strong></td>
+<td>把滥用机会降到最低;若人人随时能看所有数据,滥用几乎必然发生</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 讲者的两个解释,极有助理解</strong> ①
+<strong>职责分离的银行例子</strong>:很多银行批准大额资金需要<strong>多人签字
+(multiple signatures)</strong> 才能放款——这正是 separation of duties
+的现实落地。 ②
+<strong>强制休假的双重目的</strong>:不仅是给组织<strong>复查该员工工作</strong>的机会,也是在<strong>演练最坏情况</strong>——如果这个员工突然离开,组织还能不能正常运转?</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 与 Week 11 的连接</strong>
+<strong>Separation of duties</strong> 和 <strong>least
+privilege</strong> 本身就是访问控制的基本原则(Week 11 IAAA
+体系)。本讲是从"人员管理"的角度再次应用它们:<strong>least privilege
+既是技术上的授权原则,也是人事上的信息隔离原则。</strong></p>
+</blockquote>
+<blockquote>
+<p><strong>本节小结</strong>:六大实践的共同目标是<strong>降低内部人员滥用信息的机会</strong>。记忆主线:<strong>分离与双人(让一个人办不成坏事)→
+轮换与休假(让坏事瞒不住、能被复核)→
+最小权限(让能接触的本就最少)</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="七个人数据的安全-s31">七、个人数据的安全 (S31)</h2>
+<p>组织<strong>依法 (by law)</strong>
+有义务保护敏感的或个人的<strong>员工信息</strong>:</p>
+<ul>
+<li><strong>例子</strong>:员工住址、电话、Social Security
+number、医疗状况、家属姓名与住址;</li>
+<li>这一责任还<strong>延伸到客户、病人,以及任何与组织有业务关系的人</strong>;</li>
+<li>个人数据与 InfoSec
+通常要保护的其他数据<strong>并无本质不同</strong>,但<strong>有更多法规专门覆盖它</strong>——因为这不仅关乎安全,更关乎<strong>隐私
+(privacy)</strong>;</li>
+<li>InfoSec
+程序应确保这类数据<strong>至少获得与组织其他重要数据同等级别的保护</strong>。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+讲者指出,围绕隐私的法律在全球范围内被广泛制定与适用(后面 S37
+会列举具体法律,如 HIPAA、GDPR)。"安全 ≠
+隐私"是个值得记住的区分:<strong>个人数据要同时满足安全要求和隐私法规。</strong></p>
+</blockquote>
+<blockquote>
+<p><strong>本节小结</strong>:个人/员工数据要受保护是<strong>法律义务</strong>;范围覆盖员工<strong>及客户、病人、业务伙伴</strong>;它和别的数据一样需要安全,但<strong>额外受隐私法规约束</strong>,保护等级<strong>不得低于</strong>其他重要数据。</p>
+</blockquote>
+<hr />
+<h2
+id="八非雇员的安全考量-security-considerations-for-nonemployees-s32s35">八、非雇员的安全考量
+(Security Considerations for Nonemployees) (S32–S35)</h2>
+<p>很多<strong>不是雇员</strong>的人也常常能接触组织的敏感信息,因此与这一类人的关系必须<strong>被谨慎管理</strong>,以防信息资产面临的威胁变成现实。共四类:</p>
+<pre class="mermaid"><code>flowchart TD
+  NE[&quot;非雇员 Nonemployees&quot;]
+  NE --&gt; TW[&quot;① 临时工 Temporary Workers&quot;]
+  NE --&gt; CE[&quot;② 合同工 Contract Employees&quot;]
+  NE --&gt; CO[&quot;③ 顾问 Consultants&quot;]
+  NE --&gt; BP[&quot;④ 业务伙伴 Business Partners&quot;]
+  TW -.-&gt;|&quot;贯穿四类的共同原则&quot;| LP[&quot;最小权限 Least Privilege&lt;br/&gt;+ 护送 + 背景核查 + NDA&quot;]
+  CE -.-&gt; LP
+  CO -.-&gt; LP
+  BP -.-&gt; LP</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>类型</th>
+<th>风险特点</th>
+<th>关键控制</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Temporary workers(临时工)</strong></td>
+<td>不受雇于服务对象组织;<strong>可能不受</strong>约束雇员的合同义务/政策;除非合同写明,<strong>派遣机构可能不为其损失负责</strong></td>
+<td>访问应<strong>限于完成职责所需</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Contract employees(合同工)</strong></td>
+<td><strong>专业承包商</strong>(如装修、布线)可能需要进入组织所有区域;<strong>服务承包商</strong>通常只需特定设施</td>
+<td><strong>服务承包商不得随意走动</strong>;在安全设施中<strong>逐房间护送、进出陪同</strong>;服务合同要求:<strong>提前
+24–48
+小时</strong>通知维护、<strong>所有现场人员做背景核查</strong>、取消/改期需提前通知</td>
+</tr>
+<tr class="odd">
+<td><strong>Consultants(顾问)</strong></td>
+<td>有自己的安全要求与合同义务;<strong>保护你的信息可能不是他们的首要任务</strong></td>
+<td>按<strong>合同工</strong>方式处理;特殊的信息/设施访问要求须<strong>在授予访问前写进合同</strong>;<strong>应用最小权限</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Business partners(业务伙伴)</strong></td>
+<td>为交换信息、集成系统或互利而结成<strong>战略联盟</strong>;系统集成后,<strong>竞争性团队可能拿到双方母公司都没预料会泄露的信息</strong></td>
+<td><strong>事先协议</strong>约定双方愿承受的<strong>暴露程度 (levels of
+exposure)</strong>;顾问须<strong>预筛、护送、签
+NDA</strong>;集成前<strong>审查双方系统的安全等级</strong>——<strong>一个系统的漏洞会变成所有互联系统的漏洞</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 一句必记的安全格言</strong> "<strong>A
+vulnerability on one system becomes a vulnerability for all linked
+systems(一个系统上的漏洞,就是所有互联系统的漏洞)。</strong>"
+这就是为什么业务伙伴系统集成前必须互审安全等级——它也是"供应链安全
+(supply chain security)"思想的雏形。</p>
+</blockquote>
+<blockquote>
+<p><strong>本节小结</strong>:四类非雇员 <strong>临时工 / 合同工 / 顾问 /
+业务伙伴</strong>,贯穿它们的通用武器是 <strong>最小权限 + 护送 +
+背景核查 + NDA +
+写进合同</strong>;业务伙伴最特殊,要<strong>事先约定暴露程度、集成前互审安全等级</strong>。</p>
+</blockquote>
+<hr />
+<h1
+id="第二部分法律与道德-law-and-ethics-in-infosec">第二部分:法律与道德
+(Law and Ethics in InfoSec)</h1>
+<h2 id="九法律-vs-道德-s36">九、法律 vs 道德 (S36)</h2>
+<p>这是整门课的最后一个主题。<strong>法律 (laws)</strong> 与
+<strong>道德 (ethics)</strong> 相关但<strong>不同</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+  Culture[&quot;文化的道德观&lt;br/&gt;ethics of a culture / cultural mores&quot;]
+  Culture --&gt;|&quot;法律大体源自道德&lt;br/&gt;laws largely drawn from ethics&quot;| Law
+  Law[&quot;法律 Laws&lt;br/&gt;政府制定并强制执行的规则&lt;br/&gt;codify expected behavior&quot;]
+  Ethics[&quot;道德 Ethics&lt;br/&gt;符合社会成员普遍认同原则的&lt;br/&gt;可接受行为&quot;]
+  Law --&gt;|&quot;有治理机构的制裁&lt;br/&gt;carries sanction of governing authority&quot;| Sanction[&quot;违反 → 法律后果(被起诉、上法庭)&quot;]
+  Ethics --&gt;|&quot;无强制制裁&lt;br/&gt;do NOT carry sanction&quot;| NoSanction[&quot;不能因&#39;不道德&#39;就起诉某人&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>法律 (Laws)</strong></th>
+<th><strong>道德 (Ethics)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>定义</td>
+<td>政府<strong>制定并强制执行</strong>的规则,用以<strong>编纂
+(codify)</strong> 社会中期望的行为</td>
+<td>符合社会成员<strong>普遍认同的原则</strong>的<strong>可接受行为</strong></td>
+</tr>
+<tr class="even">
+<td>来源</td>
+<td><strong>大体源自一种文化的道德</strong></td>
+<td>基于<strong>文化习俗 (cultural mores)</strong></td>
+</tr>
+<tr class="odd">
+<td>强制力</td>
+<td><strong>带有治理机构的制裁</strong></td>
+<td><strong>不带制裁</strong></td>
+</tr>
+<tr class="even">
+<td>违反后果</td>
+<td>可能被<strong>起诉、上法庭</strong></td>
+<td>不能仅因"不道德"就起诉某人</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>关键:四种组合都可能存在。</strong> 一件事可能是:</p>
+<ul>
+<li>合法且道德;合法但不道德;道德但不合法;既不合法也不道德。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 呼应 workshop 的经典案例</strong>
+讲者提到 workshop
+里做过的练习:举一个**"守法但不道德"<strong>的情形,和一个</strong>"道德但不合法"<strong>的情形。这正是"laws
+≠ ethics"的核心考点。记住这句话:</strong>"something ethical is not
+necessarily lawful, and something lawful is not necessarily
+ethical."**</p>
+</blockquote>
+<h2 id="十信息安全与法律-infosec-and-the-law-s37">十、信息安全与法律
+(InfoSec and the Law) (S37)</h2>
+<p>InfoSec 专业人员与管理者必须对其组织运营所处的<strong>法律框架 (legal
+framework)</strong> 有<strong>基本的把握</strong>。美国在 InfoSec
+立法上起了引领作用:</p>
+<p><strong>美国主要法律(注意年份,常考):</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>法律</th>
+<th>全称</th>
+<th>年份</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>CFA Act</strong></td>
+<td>Computer Fraud and Abuse Act(计算机欺诈与滥用法)</td>
+<td><strong>1986</strong></td>
+</tr>
+<tr class="even">
+<td><strong>CSA</strong></td>
+<td>Computer Security Act(计算机安全法)</td>
+<td><strong>1987</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Federal Privacy Act</strong></td>
+<td>联邦隐私法</td>
+<td><strong>1974</strong></td>
+</tr>
+<tr class="even">
+<td><strong>ECPA</strong></td>
+<td>Electronic Communications Privacy Act(电子通信隐私法)</td>
+<td><strong>1986</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>HIPAA</strong></td>
+<td>Health Insurance Portability and Accountability
+Act(健康保险流通与责任法)</td>
+<td><strong>1996</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>国际法律与法律机构:</strong></p>
+<ul>
+<li><strong>European Council Cybercrime
+Convention</strong>(欧洲委员会网络犯罪公约)</li>
+<li><strong>DMCA</strong> — Digital Millennium Copyright
+Act(数字千年版权法)</li>
+<li><strong>Australian High Tech
+Crime</strong>(澳大利亚高科技犯罪相关法)</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 讲者的两点补充</strong> ① <strong>HIPAA
+的"H"是
+Health</strong>:这部法大多数条款关于医疗健康,但其<strong>一般原则适用于多个领域</strong>,不止医疗。
+② <strong>GDPR</strong>(General Data Protection
+Regulation,欧盟通用数据保护条例)是更近期、影响很大的隐私法律。如今很多科技公司会在声明里写明其安全框架遵循
+<strong>HIPAA(美)、GDPR(欧)</strong>,治理框架遵循 <strong>ISO
+标准</strong>——而这些概念本课程都讲过。(GDPR
+不在幻灯片上,但讲者口头强调,值得知道。)</p>
+</blockquote>
+<h2
+id="十一威慑不良与违法行为-deterring-unethical-and-illegal-behavior-s38">十一、威慑不良与违法行为
+(Deterring Unethical and Illegal Behavior) (S38)</h2>
+<p><strong>威慑 (deterrence) 是预防违法或不道德行为的最佳方法。</strong>
+而 InfoSec 人员的职责之一就是<strong>威慑不道德与违法行为</strong>。</p>
+<p><strong>不道德行为的三类成因:</strong></p>
+<pre class="mermaid"><code>flowchart LR
+  U[&quot;不道德行为&lt;br/&gt;Unethical behavior&quot;]
+  U --&gt; I[&quot;Ignorance 无知&lt;br/&gt;不知道这事不对&quot;]
+  U --&gt; A[&quot;Accident 意外&lt;br/&gt;知道不对,但失误犯了&quot;]
+  U --&gt; In[&quot;Intent 故意&lt;br/&gt;明知不对,仍故意为之&quot;]</code></pre>
+<p><strong>法律/政策及其处罚只有在三个条件同时存在时才能威慑:</strong></p>
+<pre class="mermaid"><code>flowchart TD
+  Deter[&quot;有效威慑&lt;br/&gt;Deterrence works&quot;]
+  Deter --&gt; C1[&quot;① 对处罚的恐惧&lt;br/&gt;Fear of penalty&quot;]
+  Deter --&gt; C2[&quot;② 被抓到的概率&lt;br/&gt;Probability of being caught&quot;]
+  Deter --&gt; C3[&quot;③ 处罚被切实执行的概率&lt;br/&gt;Probability of penalty being administered&quot;]</code></pre>
+<ul>
+<li><strong>① 恐惧处罚</strong>:违法会面临严重后果;</li>
+<li><strong>② 被抓概率足够高</strong>:才会让人不敢违规;</li>
+<li><strong>③
+处罚确实会被执行</strong>:如果被抓了却因故不予处罚(没被切实执行),人们就不会真的"怕"——这一条最容易被忽视。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>记忆法</strong> — 威慑三条件 = <strong>怕罚 + 抓得到 +
+真的罚</strong>。缺任何一条,威慑失效。</p>
+</blockquote>
+<h2 id="十二道德规范-codes-of-ethics-s39">十二、道德规范 (Codes of
+Ethics) (S39)</h2>
+<p>许多专业组织制定了<strong>行为准则 (codes of conduct)</strong>
+和/或<strong>道德规范 (codes of ethics)</strong>,要求成员遵守:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>组织</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>ACM</strong></td>
+<td>Association for Computing Machinery</td>
+</tr>
+<tr class="even">
+<td><strong>(ISC)²</strong></td>
+<td>即上文发 CISSP/SSCP 的机构</td>
+</tr>
+<tr class="odd">
+<td><strong>SANS</strong></td>
+<td>SysAdmin, Audit, Network and Security</td>
+</tr>
+<tr class="even">
+<td><strong>ISACA</strong></td>
+<td>即上文发 CISA/CISM 的机构</td>
+</tr>
+<tr class="odd">
+<td><strong>ISSA</strong></td>
+<td>Information Systems Security Association</td>
+</tr>
+</tbody>
+</table></div>
+<p>要点:</p>
+<ul>
+<li>道德规范能对个人在<strong>计算机使用上的判断</strong>产生<strong>积极影响</strong>;</li>
+<li>但归根结底,<strong>安全专业人员有个人责任 (individual
+responsibility)</strong>,要遵循以下三者而行事:
+<ol type="1">
+<li><strong>雇主</strong>的政策与程序;</li>
+<li>自己所属<strong>专业组织</strong>的规范;</li>
+<li><strong>社会的法律</strong>。</li>
+</ol></li>
+</ul>
+<blockquote>
+<p><strong>本节小结(法律与道德)</strong>:法律=有制裁、源自道德;道德=无制裁、基于习俗;<strong>四种"合法×道德"组合都存在</strong>。记住美国五法的年份和
+HIPAA=Health;威慑靠<strong>怕罚+抓得到+真的罚</strong>三条件;不道德行为成因=<strong>无知/意外/故意</strong>;最终落到<strong>个人责任</strong>:守雇主政策、守专业规范、守法律。</p>
+</blockquote>
+<hr />
+<h2 id="全章思维导图-big-picture">全章思维导图 (Big Picture)</h2>
+<pre class="mermaid"><code>flowchart TD
+  Root[&quot;Week 12&lt;br/&gt;人员 + 法律道德&quot;]
+
+  Root --&gt; P[&quot;A · 人员与安全 Ch.11&quot;]
+  Root --&gt; L[&quot;B · 法律与道德 Ch.12&quot;]
+
+  P --&gt; P1[&quot;配备:供需差 → 人才稀缺&lt;br/&gt;管理者争预算 + 给 CISO 地位&quot;]
+  P --&gt; P2[&quot;岗位:Definers/Builders/Admins&lt;br/&gt;CISO(管理优先,汇报CIO)→Manager(中层)→Technician(入门技术)&quot;]
+  P --&gt; P3[&quot;认证:(ISC)²=CISSP(10域)/SSCP(7域)&lt;br/&gt;ISACA=CISA(审计)/CISM(管理)&quot;]
+  P --&gt; P4[&quot;雇佣:Hiring 六环节&lt;br/&gt;Termination = 敌意(先断)/友好(留账号)&quot;]
+  P --&gt; P5[&quot;人员实践:SoD/双人/轮换/强制休假/最小权限&quot;]
+  P --&gt; P6[&quot;个人数据受隐私法约束&quot;]
+  P --&gt; P7[&quot;非雇员:临时工/合同工/顾问/业务伙伴&lt;br/&gt;→ 最小权限+护送+背景核查+NDA&quot;]
+
+  L --&gt; L1[&quot;法律 vs 道德:有/无制裁;四组合&quot;]
+  L --&gt; L2[&quot;美国五法 + 国际法(DMCA/GDPR/澳)&quot;]
+  L --&gt; L3[&quot;威慑三条件:怕罚+抓得到+真的罚&quot;]
+  L --&gt; L4[&quot;道德规范:ACM/(ISC)²/SANS/ISACA/ISSA&lt;br/&gt;→ 个人责任&quot;]</code></pre>
+<hr />
+<h2 id="关键术语速查-glossary">关键术语速查 (Glossary)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>术语</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>CISO</strong></td>
+<td>Chief Information Security
+Officer,组织最高信息安全官;管理优先,通常非高管,汇报 CIO</td>
+</tr>
+<tr class="even">
+<td><strong>Definers / Builders / Administrators</strong></td>
+<td>InfoSec 岗位三类:定标准 / 造方案 / 跑运营</td>
+</tr>
+<tr class="odd">
+<td><strong>CISSP</strong></td>
+<td>(ISC)² 最高级认证,覆盖 10 个知识域;CISO 常见资格</td>
+</tr>
+<tr class="even">
+<td><strong>SSCP</strong></td>
+<td>(ISC)² 入门级认证(System Security Certified Practitioner),7
+个域,偏运营</td>
+</tr>
+<tr class="odd">
+<td><strong>CISA / CISM</strong></td>
+<td>ISACA 认证:Auditor(审计)/ Manager(管理)</td>
+</tr>
+<tr class="even">
+<td><strong>SETA</strong></td>
+<td>Security Education, Training and Awareness,安全教育培训与意识</td>
+</tr>
+<tr class="odd">
+<td><strong>Hostile / Friendly departure</strong></td>
+<td>敌意离职(先断访问再通知)/ 友好离职(账号保留并设过期)</td>
+</tr>
+<tr class="even">
+<td><strong>Separation of Duties</strong></td>
+<td>职责分离,拆分任务使单人无法独力作恶</td>
+</tr>
+<tr class="odd">
+<td><strong>Two-Person Control</strong></td>
+<td>双人控制,两人相互复核批准</td>
+</tr>
+<tr class="even">
+<td><strong>Job / Task Rotation</strong></td>
+<td>岗位/任务轮换,确保工作可被他人复核与替代</td>
+</tr>
+<tr class="odd">
+<td><strong>Mandatory Vacation</strong></td>
+<td>强制休假,借机复查其工作并演练"人走也能运转"</td>
+</tr>
+<tr class="even">
+<td><strong>Least Privilege</strong></td>
+<td>最小权限,只给完成任务所需的最小访问</td>
+</tr>
+<tr class="odd">
+<td><strong>NDA</strong></td>
+<td>Non-Disclosure Agreement,保密协议</td>
+</tr>
+<tr class="even">
+<td><strong>Laws vs Ethics</strong></td>
+<td>法律(政府制定、有制裁)vs 道德(基于文化习俗、无制裁)</td>
+</tr>
+<tr class="odd">
+<td><strong>Deterrence</strong></td>
+<td>威慑,预防违法/不道德的最佳方法;需三条件同时成立</td>
+</tr>
+<tr class="even">
+<td><strong>CFAA / CSA / ECPA / HIPAA / Federal Privacy
+Act</strong></td>
+<td>美国主要 InfoSec/隐私法律(1986/1987/1986/1996/1974)</td>
+</tr>
+<tr class="odd">
+<td><strong>DMCA / GDPR</strong></td>
+<td>数字千年版权法 / 欧盟通用数据保护条例</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="自测清单-self-check">自测清单 (Self-check)</h2>
+<p>读完后,试着不看上文回答:</p>
+<ol type="1">
+<li>CISO 的三个特征是什么?(管理优先、通常非高管、汇报谁?)</li>
+<li>Definers、Builders、Administrators 各负责什么?</li>
+<li>(ISC)² 与 ISACA 各出哪些证?CISSP 覆盖几个域,SSCP 几个?CISA 与 CISM
+的侧重分别是?</li>
+<li>招聘流程里,面试与实地参观各有什么 InfoSec 注意事项?</li>
+<li>敌意离职与友好离职在"访问处理"上的核心区别是什么?</li>
+<li>列出至少四种人员安全实践,并说出它们共同的目的。</li>
+<li>用一句话说明"职责分离"的银行例子。</li>
+<li>非雇员四类是哪四类?贯穿它们的通用控制有哪些?</li>
+<li>法律与道德的两大区别是什么?举一个"合法但不道德"的情形。</li>
+<li>威慑起作用的三个条件是什么?不道德行为的三类成因是什么?</li>
+<li>美国五部主要法律分别叫什么、哪一年?HIPAA 的"H"代表什么?</li>
+</ol>
+<hr />
+<blockquote>
+<p>📌 <strong>课程收尾提示(来自录音)</strong> —
+这是倒数第二讲。讲者预告<strong>最后一讲 (Week 13)</strong> 会:① 复习
+Lecture 1–12 的某个主题;②
+讲解<strong>期末考试</strong>的要求与题型,<strong>特别是 MCQ
+的评分方式</strong>(注意:5
+选项的题可能有<strong>多个正确选项</strong>,通常 1–3 个);考试日期为
+<strong>6 月 17 日</strong>。建议出席最后一讲以了解考试结构并提问。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>
