@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 6 · 模型窃取攻击 (Deep Neural Network Model Stealing Attacks)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-6--模型窃取攻击-deep-neural-network-model-stealing-attacks">Week
+6 · 模型窃取攻击 (Deep Neural Network Model Stealing Attacks)</h1>
+<blockquote>
+<p><strong>CSIT375/975 — AI and Cybersecurity</strong> · Dr Wei Zong ·
+University of Wollongong</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>讲清动机</strong>:为什么训练一个商用 DL
+模型「贵得离谱」(数据采集、专家标注、机密数据、架构搜索、算力——ChatGPT-3
+花 $2–4M、PaLM 花 $3–12M),以及为什么这让「<strong>仅凭 input-output
+对就复制一个黑盒模型</strong>」成了有利可图的攻击;并能区分 <strong>model
+functionality stealing(功能窃取)</strong> 和 <strong>inference
+attacks(推理攻击)</strong> 的不同目标;</li>
+<li><strong>吃透 Softmax</strong>:解释 <strong>logits →
+probabilities</strong> 的转换、为什么概率和为 1,会手算一个 softmax
+数值例子;并理解 <strong>temperature(温度)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+如何「软化 / 锐化」概率分布;</li>
+<li><strong>复现知识蒸馏 (Knowledge Distillation, KD)
+的逻辑链</strong>:从「模型的知识 =
+<strong>学到的输入→输出映射</strong>(而非权重)」这一关键视角,到「用
+<strong>soft targets(软标签)</strong> 让 student 模仿
+teacher」,到为什么要<strong>升高温度</strong>才能暴露「<strong>dark
+knowledge</strong>(错误答案的相对概率)」,再到用 <strong>KL
+divergence</strong> 训练 student;</li>
+<li><strong>推导 Knockoff Nets</strong>:把窃取建模成 <strong>victim vs.
+adversary 的双人博弈</strong>,说清 <strong>transfer set(迁移集)</strong>
+的两种构造策略(<strong>random</strong> vs.
+<strong>adaptive</strong>)、为什么 Knockoff 里
+<strong>T=1</strong>、online/offline
+两阶段训练,并能解读三种数据场景(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>A</mi></msub><mo>=</mo><msub><mi>P</mi><mi>V</mi></msub></mrow><annotation encoding="application/x-tex">P_A{=}P_V</annotation></semantics></math>
+/ closed-world / open-world)下的实验结论——包括「$30 偷下一个人脸识别
+API」这一震撼结果;</li>
+<li><strong>解释半监督学习 (Semi-Supervised Learning, SSL)
+如何提升窃取效率</strong>:逐步说清 <strong>MixMatch</strong>
+的四步(<strong>augmentation → label guessing + sharpening → MixUp →
+loss</strong>),理解 <strong>consistency
+regularization(一致性正则)</strong> 的核心思想,并能读懂「只用
+<strong>250 次查询</strong>就逼近 victim」的结果;</li>
+<li><strong>串起本章主线</strong>:三种窃取手段是<strong>层层递进</strong>的——朴素打标
+→ KD(知识蒸馏) → Knockoff(真实黑盒) →
+MixMatch(用无标签数据榨干每一次查询)。</li>
+</ul>
+</blockquote>
+<p>上一周(Week
+5)我们站在<strong>守方</strong>,把后门从模型里清除。这一周我们<strong>换一种威胁</strong>:攻击者甚至不碰你的训练流程,他只是<strong>像普通用户一样调用你部署在线上的模型</strong>,然后把它「<strong>偷</strong>」走——复制出一个功能几乎一样的副本。讲师在开场点明了本章的分量:<strong>这是本课程「AI
+模型自身的安全问题」这半部分的最后一章</strong>;下一周开始,课程转向「用
+AI 解决安全问题」。</p>
+<blockquote>
+<p>📎 <strong>本章横跨两节课的录音(重要)</strong> — 这套 "Model
+Stealing" 的 slides 讲了<strong>两节课</strong>。<strong>Lecture 6(Week
+6)</strong> 先花了大半节课<strong>补完上一周的后门防御</strong>(Neural
+Cleanse、Anti-Backdoor Learning、军备竞赛),然后才开始讲模型窃取,一路讲到
+<strong>Knockoff Nets</strong> 的全部结果就下课了(讲师原话:「Can we do
+better? 我们下周继续」);<strong>半监督学习 / MixMatch(slides
+24–33)</strong> 是在 <strong>Lecture 7(Week
+7)一开头</strong>补完的,之后才转入 Week 7 自己的主题(IP
+protection)。<strong>本指南整合了这两段录音</strong>,所以
+KD、Knockoff、MixMatch 三部分都有完整课堂讲解支撑。</p>
+</blockquote>
+<p>本章的骨架,是一条「<strong>偷得越来越聪明</strong>」的主线:</p>
+<pre class="mermaid"><code>flowchart TD
+    Q[&quot;攻击者只能&lt;br/&gt;黑盒查询 victim 模型&lt;br/&gt;(给图片 → 拿概率)&quot;]
+    Q --&gt; N[&quot;① 朴素打标&lt;br/&gt;Naïve labeling&lt;br/&gt;用 victim 打标 → 从头训练&quot;]
+    N --&gt;|&quot;还要自己训练&lt;br/&gt;不省算力 &amp; 怕数据差&quot;| KD[&quot;② 知识蒸馏 KD&lt;br/&gt;让 student 模仿&lt;br/&gt;victim 的 soft targets&quot;]
+    KD --&gt;|&quot;搬到真实黑盒&quot;| KN[&quot;③ Knockoff Nets&lt;br/&gt;双人博弈 + transfer set&lt;br/&gt;random / adaptive 策略&quot;]
+    KN --&gt;|&quot;每次查询都要花钱&lt;br/&gt;能不能更省查询?&quot;| MM[&quot;④ MixMatch (SSL)&lt;br/&gt;用海量无标签数据&lt;br/&gt;250 次查询逼近 victim&quot;]</code></pre>
+<blockquote>
+<p>🧭 <strong>一句话抓住全章</strong> —
+<strong>模型的「价值」藏在它的「输入→输出映射」里,而这个映射可以仅凭黑盒查询被「蒸馏」出来。</strong>
+升温(KD)是为了暴露映射的细节(dark knowledge),降温(MixMatch 的
+sharpening)是为了把猜的标签变自信——温度这一个旋钮,贯穿了整章。</p>
+</blockquote>
+<hr />
+<h2
+id="一引子为什么偷模型是门划算的生意">一、引子:为什么「偷模型」是门划算的生意?</h2>
+<h3 id="11-训练一个商用模型到底贵在哪">1.1
+训练一个商用模型,到底贵在哪?</h3>
+<p>在谈「偷」之前,先理解「造」有多贵——因为攻击的全部动机,就是<strong>绕开这些成本</strong>。开发一个商用
+DL 模型,钱和精力烧在五个地方:</p>
+<ul>
+<li><strong>采集海量标注数据</strong>:动辄上百万张图。</li>
+<li><strong>专家标注</strong>:像<strong>医学影像 (medical
+images)</strong>,得请医生来标,极贵。</li>
+<li><strong>机密数据</strong>:医疗记录、金融记录这类数据<strong>根本不公开</strong>,你想买都买不到。</li>
+<li><strong>架构 / 超参搜索</strong>:找到合适的 architecture 和
+hyperparameters 本身要反复试。</li>
+<li><strong>算力</strong>:训练本身就要烧钱。讲师给了两个标志性数字:</li>
+</ul>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>模型</th>
+<th>年份</th>
+<th>训练成本(仅算力)</th>
+<th>规模</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>ChatGPT-3</strong></td>
+<td>2020</td>
+<td>约 <strong>$2M – $4M</strong></td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><strong>PaLM</strong> (Pathways Language Model, Google AI)</td>
+<td>2022</td>
+<td>约 <strong>$3M – $12M</strong></td>
+<td><strong>540 billion</strong> 参数,transformer-based LLM</td>
+</tr>
+</tbody>
+</table></div>
+<p>正因为造得这么贵,厂商会把<strong>数据细节、确切架构、超参</strong>全部<strong>保密</strong>,以保护模型的商业价值。模型最终以<strong>黑盒
+(black-box)</strong> 形式部署:<strong>输入进去,预测出来</strong>(input
+in, predictions out),内部一概不可见。</p>
+<h3 id="12-核心问题能只凭输入-输出对复制一个黑盒吗">1.2
+核心问题:能只凭「输入-输出对」复制一个黑盒吗?</h3>
+<p>于是攻击者发问:</p>
+<blockquote>
+<p><strong>Can one create a copy of the black-box model solely based on
+input-output
+pairs?</strong>(能不能仅凭「喂图片、收预测」这些成对数据,就复制出黑盒的功能?)</p>
+</blockquote>
+<p><strong>答案是 YES。</strong> 这就是本章的主题——<strong>model
+functionality
+stealing(模型功能窃取)</strong>:窃取一个复杂黑盒模型的<strong>功能</strong>(给同样的输入,产生几乎一样的输出)。它能帮攻击者**省下(其实是「偷走」)**那几百万美元的研发与训练成本。</p>
+<blockquote>
+<p>⚠️ <strong>别和 inference attacks 混淆(高频易错点)</strong> —
+讲师特意区分两类不同目标的攻击: | | <strong>Model functionality
+stealing(本章)</strong> | <strong>Inference attacks</strong> |
+|---|---|---| | 目标 | 复制模型的<strong>功能 / 行为</strong> |
+<strong>推断模型的某些属性</strong> | | 想得到 | 一个功能等价的副本
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>A</mi></msub><annotation encoding="application/x-tex">F_A</annotation></semantics></math>
+| 训练数据、架构等<strong>关于</strong>模型的信息 |
+一句话:<strong>功能窃取偷的是「会做什么」,推理攻击偷的是「它是什么样的」。</strong></p>
+</blockquote>
+<hr />
+<h2 id="二预备知识softmax-与朴素偷法为什么不够好">二、预备知识:Softmax
+与「朴素偷法」为什么不够好</h2>
+<h3 id="21-softmax把-logits-变成概率">2.1 Softmax:把 logits
+变成概率</h3>
+<p>要理解窃取,先要看清模型「吐」给用户的到底是什么。回忆一下:一个神经网络最后一层输出的是
+<strong>logits(原始打分)</strong>——但厂商<strong>通常不会</strong>把
+logits 直接返回给用户,而是返回<strong>概率 (probabilities)</strong>。把
+logits 转成概率,靠的就是 <strong>softmax</strong>。</p>
+<p><strong>Softmax</strong> 专为<strong>多分类 (multi-class
+classification)</strong>
+设计,作用是给每个类别分配一个<strong>小数概率</strong>,且<strong>所有概率加起来等于
+1.0</strong>。定义为:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>i</mi></msub><mo>=</mo><mfrac><msup><mi>e</mi><msub><mi>z</mi><mi>i</mi></msub></msup><mrow><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></munderover><msup><mi>e</mi><msub><mi>z</mi><mi>j</mi></msub></msup></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mi>i</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>K</mi></mrow><annotation encoding="application/x-tex">\sigma(z)_i = \frac{e^{z_i}}{\sum_{j=1}^{K} e^{z_j}}, \qquad i = 1,\dots,K</annotation></semantics></math></p>
+<p>逐项读:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>z</mi><mi>i</mi></msub><annotation encoding="application/x-tex">z_i</annotation></semantics></math>
+是第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+类的 logit;分子
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>e</mi><msub><mi>z</mi><mi>i</mi></msub></msup><annotation encoding="application/x-tex">e^{z_i}</annotation></semantics></math>
+把它指数化(永远为正);分母是<strong>所有类指数之和</strong>(归一化项,保证总和为
+1);<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">\sigma(z)_i</annotation></semantics></math>
+就是第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+类的概率。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+是类别数,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>e</mi><annotation encoding="application/x-tex">e</annotation></semantics></math>
+是自然常数。</p>
+<pre class="mermaid"><code>flowchart LR
+    IMG[&quot;输入图片&lt;br/&gt;(如 ransomware)&quot;] --&gt; NET[&quot;神经网络&quot;]
+    NET --&gt; LOG[&quot;logits&lt;br/&gt;z = [z₁,…,z_K]&lt;br/&gt;(内部,不返回用户)&quot;]
+    LOG --&gt; SM[&quot;Softmax&quot;]
+    SM --&gt; PROB[&quot;probabilities&lt;br/&gt;σ = [σ₁,…,σ_K]&lt;br/&gt;Σσ = 1 ← 返回用户&quot;]</code></pre>
+<blockquote>
+<p><strong>🔑 数值例子(slides 原例)</strong> — 设 logits 向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>1.2</mn><mo>,</mo><mspace width="0.222em"></mspace><mn>2.5</mn><mo>,</mo><mspace width="0.222em"></mspace><mn>1.8</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">z = [1.2,\ 2.5,\ 1.8]</annotation></semantics></math>。</p>
+<ul>
+<li>分母
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><msup><mi>e</mi><mn>1.2</mn></msup><mo>+</mo><msup><mi>e</mi><mn>2.5</mn></msup><mo>+</mo><msup><mi>e</mi><mn>1.8</mn></msup><mo>≈</mo><mn>3.32</mn><mo>+</mo><mn>12.18</mn><mo>+</mo><mn>6.05</mn><mo>=</mo><mn>21.55</mn></mrow><annotation encoding="application/x-tex">= e^{1.2} + e^{2.5} + e^{1.8} \approx 3.32 + 12.18 + 6.05 = 21.55</annotation></semantics></math>。</li>
+<li>各类概率:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>3.32</mn><mn>21.55</mn></mfrac><mo>≈</mo><mn>0.154</mn></mrow><annotation encoding="application/x-tex">\frac{3.32}{21.55}\approx 0.154</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>12.18</mn><mn>21.55</mn></mfrac><mo>≈</mo><mn>0.565</mn></mrow><annotation encoding="application/x-tex">\frac{12.18}{21.55}\approx 0.565</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>6.05</mn><mn>21.55</mn></mfrac><mo>≈</mo><mn>0.281</mn></mrow><annotation encoding="application/x-tex">\frac{6.05}{21.55}\approx 0.281</annotation></semantics></math>。</li>
+<li>验证:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.154</mn><mo>+</mo><mn>0.565</mn><mo>+</mo><mn>0.281</mn><mo>=</mo><mn>1.0</mn></mrow><annotation encoding="application/x-tex">0.154 + 0.565 + 0.281 = 1.0</annotation></semantics></math>
+✓。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(承接 Week 1)</strong> — logits / softmax 在 Week 1
+讲神经网络基础时已出现过,这里是把它**作为窃取攻击的「接口」**重新审视:<strong>攻击者只能拿到
+softmax 后的概率,拿不到 logits</strong>——这个限制,后面解释 Knockoff
+为什么用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T{=}1</annotation></semantics></math>
+时至关重要。</p>
+</blockquote>
+<h3 id="22-朴素偷法-naïve-way为什么不够好">2.2 朴素偷法 (Naïve
+Way):为什么不够好?</h3>
+<p>最直接的窃取思路:<strong>用 victim
+模型给一批数据打标,再拿这些「数据+标签」从头训练自己的模型。</strong></p>
+<p>听起来可行,但讲师列了它的几条硬伤:</p>
+<ul>
+<li><strong>强烈依赖数据质量</strong>:如果攻击者手里的数据<strong>和原始训练数据接近</strong>,效果还行(可能只略差);但如果<strong>差很远</strong>,偷出来的模型<strong>性能很低</strong>。</li>
+<li><strong>数据贵 /
+难搞时不现实</strong>:像医学影像、金融记录这种数据本身就难拿。</li>
+<li><strong>省不了算力</strong>:你<strong>还是得从头训练一个模型</strong>,该烧的算力一分没省。</li>
+</ul>
+<p>换句话说,朴素偷法把窃取退化成了「普通的监督训练」,既没占到便宜,又脆弱。<strong>真正聪明的攻击者会用知识蒸馏。</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>朴素偷法 (Naïve)</strong></th>
+<th><strong>知识蒸馏 (KD)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>victim 输出怎么用</td>
+<td>当成 <strong>hard label</strong>(只取最可能那一类)</td>
+<td>当成 <strong>soft target</strong>(保留整个概率分布)</td>
+</tr>
+<tr class="even">
+<td>学到了什么</td>
+<td>只学「答案」</td>
+<td>还学到「错误答案的相对可能性」= <strong>dark knowledge</strong></td>
+</tr>
+<tr class="odd">
+<td>省算力吗</td>
+<td>否,从头训练</td>
+<td>借助 soft target / 预训练,效率高得多</td>
+</tr>
+<tr class="even">
+<td>性能</td>
+<td>数据差就崩</td>
+<td>显著更稳、更好</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="三知识蒸馏-knowledge-distillation窃取的核心引擎">三、知识蒸馏
+(Knowledge Distillation):窃取的核心引擎</h2>
+<h3 id="31-它本来是用来压缩模型的">3.1 它本来是用来「压缩模型」的</h3>
+<p><strong>Knowledge Distillation (KD)</strong> 由 <strong>Hinton
+等人(2015)</strong> 提出(讲师补一句:Hinton
+因「让神经网络得以进行机器学习的奠基性发现」获 <strong>2024
+年诺贝尔奖</strong>)。它<strong>最初的动机是 model
+compression(模型压缩)</strong>:把一个<strong>模型集成
+(ensemble)</strong>
+的知识,<strong>转移</strong>进一个<strong>小的单一模型</strong>里部署。但这套「转移知识」的机制,<strong>正好被攻击者拿来窃取模型</strong>。</p>
+<h3 id="32-关键视角模型的知识是映射不是权重">3.2
+关键视角:模型的「知识」是映射,不是权重</h3>
+<p>KD
+的整个根基,是对「<strong>什么是模型的知识</strong>」的一个<strong>重新定义</strong>:</p>
+<ul>
+<li><strong>旧视角</strong>:知识 = 训练得到的<strong>参数 (parameter
+values)</strong>。</li>
+<li><strong>它的致命问题</strong>:如果知识就是权重,那你<strong>没法把知识从一个架构搬到另一个架构</strong>——VGG
+和 ResNet 的参数数量、结构都不同,权重根本对不上。</li>
+<li><strong>KD 的新视角</strong>:<strong>模型的知识 = 它学到的「输入向量
+→ 输出向量」的映射(mapping / 函数)</strong>。</li>
+</ul>
+<p>这个视角的妙处在于:只要两个模型给出<strong>相同的输入→输出映射</strong>,它们就<strong>拥有相同的知识</strong>——无论内部架构多么不同。而这,正是窃取得以成立的理论前提。</p>
+<blockquote>
+<p><strong>🔑 dark
+knowledge:错误答案的相对概率,泄露了模型怎么「泛化」</strong> — Hinton
+的核心洞察:<strong>一个模型对「错误类别」分配的相对概率,蕴含了大量关于它如何泛化的信息。</strong>
+例:给一张 BMW 的图,模型也许有极小概率把它误判成 garbage
+truck(垃圾车),但误判成
+carrot(胡萝卜)的概率<strong>还要低好几个数量级</strong>。「BMW
+更像垃圾车而非胡萝卜」——这种<strong>类别间的相对相似度</strong>,就是藏在概率分布里的
+<strong>dark knowledge</strong>,也正是 student 要从 teacher
+那里偷学的东西。</p>
+</blockquote>
+<h3 id="33-用-soft-targets-让-student-模仿-teacher">3.3 用 soft targets
+让 student 模仿 teacher</h3>
+<p>于是窃取的做法变成:<strong>用 victim 产生的概率作为 "soft
+targets"(软标签),来训练 student(即 knockoff)模型,让它模仿
+victim。</strong></p>
+<ul>
+<li><strong>hard target(硬标签)</strong>:一张猫的图 →
+<code>[猫=1, 狗=0, 鸟=0]</code>。普通监督训练用的就是它,配
+<strong>cross-entropy loss</strong>。</li>
+<li><strong>soft
+target(软标签)</strong>:<code>[猫=0.95, 狗=0.03, 鸟=0.02]</code>。它保留了「猫更像狗而非鸟」的
+dark knowledge。</li>
+<li>软标签可以由<strong>原始训练集</strong>或一个单独的
+<strong>"transfer set"(迁移集)</strong> 产生,而且 <strong>transfer set
+可以完全是无标签数据</strong>(我们只需要 victim 给的概率)。</li>
+</ul>
+<h3 id="34-温度-temperature软化分布逼出-dark-knowledge">3.4 温度
+(Temperature):软化分布,逼出 dark knowledge</h3>
+<p>有个麻烦:对<strong>简单任务</strong>(如 MNIST 手写数字),victim
+几乎总以<strong>极高置信度</strong>给出正确答案——比如把某个「2」判为「3」的概率是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mo>−</mo><mn>6</mn></mrow></msup><annotation encoding="application/x-tex">10^{-6}</annotation></semantics></math>,判为「7」是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mo>−</mo><mn>9</mn></mrow></msup><annotation encoding="application/x-tex">10^{-9}</annotation></semantics></math>。这些概率<strong>近乎
+0</strong>,soft target 退化成了 hard target,<strong>没什么 dark
+knowledge 可学</strong>。</p>
+<p>解决办法:<strong>升高 softmax 的温度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math></strong>,把分布「软化」:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>i</mi></msub><mo>=</mo><mfrac><msup><mi>e</mi><mrow><msub><mi>z</mi><mi>i</mi></msub><mi>/</mi><mi>T</mi></mrow></msup><mrow><munder><mo>∑</mo><mi>j</mi></munder><msup><mi>e</mi><mrow><msub><mi>z</mi><mi>j</mi></msub><mi>/</mi><mi>T</mi></mrow></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">\sigma(z)_i = \frac{e^{z_i / T}}{\sum_{j} e^{z_j / T}}</annotation></semantics></math></p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T=1</annotation></semantics></math>:朴素
+softmax(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+消失)。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T &gt; 1</annotation></semantics></math>:分布变软</strong>(各类概率拉得更平,差距缩小)→
+暴露 dark knowledge。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T &lt; 1</annotation></semantics></math>:分布变锐</strong>(强者愈强)→
+趋向
+one-hot。(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+必须
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">&gt;0</annotation></semantics></math>。)</li>
+</ul>
+<blockquote>
+<p><strong>🔑 升温数值例子(slides 原例)</strong> — 两类(cat /
+dog),logits =
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>10</mn><mo>,</mo><mspace width="0.222em"></mspace><mn>2</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[10,\ 2]</annotation></semantics></math>。</p>
+<ul>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T=1</annotation></semantics></math></strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>e</mi><mn>10</mn></msup><mo>≈</mo><mn>22026</mn></mrow><annotation encoding="application/x-tex">e^{10}\approx 22026</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>e</mi><mn>2</mn></msup><mo>≈</mo><mn>7.39</mn></mrow><annotation encoding="application/x-tex">e^{2}\approx 7.39</annotation></semantics></math>
+→ cat
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≈</mo><mn>99.97</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">\approx 99.97\%</annotation></semantics></math>,dog
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≈</mo><mn>0.03</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">\approx 0.03\%</annotation></semantics></math>。几乎是
+hard target,看不出 dog 的相对可能性。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">T=5</annotation></semantics></math></strong>:logits/T
+=
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>2</mn><mo>,</mo><mspace width="0.222em"></mspace><mn>0.4</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[2,\ 0.4]</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>e</mi><mn>2</mn></msup><mo>≈</mo><mn>7.39</mn></mrow><annotation encoding="application/x-tex">e^{2}\approx 7.39</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>e</mi><mn>0.4</mn></msup><mo>≈</mo><mn>1.49</mn></mrow><annotation encoding="application/x-tex">e^{0.4}\approx 1.49</annotation></semantics></math>
+→ cat
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≈</mo><mfrac><mn>7.39</mn><mn>8.88</mn></mfrac><mo>=</mo><mn>83</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">\approx \frac{7.39}{8.88}=83\%</annotation></semantics></math>,dog
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≈</mo><mn>17</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">\approx 17\%</annotation></semantics></math>。<strong>现在「dog
+也有点像」这件事被显示出来了</strong>——这正是要 student 学的信号。</li>
+</ul>
+<p><strong>转移知识 (transferring knowledge)</strong> =
+用<strong>高温</strong>下 victim 产生的 soft target,在 transfer set
+上训练 student。实验常用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">T=4</annotation></semantics></math>
+或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">T=6</annotation></semantics></math>。</p>
+</blockquote>
+<h3 id="35-怎么训练kl-divergence-与-python-实现">3.5 怎么训练:KL
+divergence 与 Python 实现</h3>
+<p>让 student 模仿
+teacher,数学上就是<strong>最小化两个概率分布的差异</strong>,用
+<strong>KL divergence(KL 散度)</strong> 度量:</p>
+<ul>
+<li><strong>KL = 0 ⟺
+两个分布完全相同</strong>(这是理论上的终极目标:student 完美复制
+teacher)。</li>
+</ul>
+<p>实现骨架(PyTorch):</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># teacher = victim(被偷的模型);student = knockoff(我们训练的)</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>s_logits <span class="op">=</span> student(x) <span class="op">/</span> T          <span class="co"># student 的 logits 除以温度</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>t_logits <span class="op">=</span> teacher(x) <span class="op">/</span> T          <span class="co"># teacher 的 logits 除以温度</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>distill_loss <span class="op">=</span> KL_div(log_softmax(s_logits), softmax(t_logits))</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 若恰好有真标签,可加一个小的监督项(否则 α=0,只用蒸馏损失)</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>stu_loss <span class="op">=</span> F.cross_entropy(logits, target, reduction<span class="op">=</span><span class="st">&#39;mean&#39;</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>loss <span class="op">=</span> distill_loss <span class="op">+</span> alpha <span class="op">*</span> stu_loss</span></code></pre></div>
+<blockquote>
+<p>📎 <strong>两个实现细节(讲师强调)</strong> — (1) student 一侧要用
+<strong><code>log_softmax</code></strong>,因为 PyTorch 的
+<code>KL_div</code> API <strong>要求第一个分布是 log 尺度</strong>;(2)
+现实中攻击者<strong>通常没有真标签</strong>,所以
+<code>alpha = 0</code>,<strong>只优化蒸馏损失</strong>。Lab 里你会用
+Python 亲手实现 KD。</p>
+</blockquote>
+<hr />
+<h2 id="四knockoff-nets把蒸馏搬进真实黑盒">四、Knockoff
+Nets:把蒸馏搬进真实黑盒</h2>
+<p>KD 解决了「怎么模仿」,但现实里 victim 是个<strong>线上黑盒
+API</strong>,你既不知道它的架构,也没有它的训练数据。<strong>Knockoff
+Nets(Orekondy et al., 2019)</strong> 把窃取落地成一个完整攻击。</p>
+<h3 id="41-形式化一场-victim-vs-adversary-的双人博弈">4.1 形式化:一场
+victim vs. adversary 的双人博弈</h3>
+<ul>
+<li><strong>victim 模型</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>v</mi></msub><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></mrow><annotation encoding="application/x-tex">F_v: X \to Y</annotation></semantics></math>:给任意图片
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>,返回一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+维概率向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>(各分量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\in[0,1]</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>k</mi></msub><msub><mi>y</mi><mi>k</mi></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\sum_k y_k = 1</annotation></semantics></math>)。</li>
+<li><strong>adversary 的目标</strong>:用一个 <strong>knockoff
+模型</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>A</mi></msub><annotation encoding="application/x-tex">F_A</annotation></semantics></math>
+复制功能,使
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>A</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>≈</mo><msub><mi>F</mi><mi>v</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">F_A(X) \approx F_v(X)</annotation></semantics></math>。</li>
+<li><strong>adversary
+的「未知数」</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>v</mi></msub><annotation encoding="application/x-tex">F_v</annotation></semantics></math>
+的<strong>内部</strong>(架构、超参)+
+训练/评估用的<strong>数据</strong>——全不知道。</li>
+</ul>
+<pre class="mermaid"><code>flowchart TD
+    subgraph V[&quot;Victim(防守方,造模型的公司)&quot;]
+      V1[&quot;采集任务数据 x∼P_V&lt;br/&gt;(如细粒度鸟类分类)&quot;] --&gt; V2[&quot;请专家标注&quot;]
+      V2 --&gt; V3[&quot;选最佳架构 F_v 训练&quot;]
+      V3 --&gt; V4[&quot;部署为黑盒 API&lt;br/&gt;(给图 → 返回概率)&quot;]
+    end
+    subgraph A[&quot;Adversary(攻击方,偷模型的人)&quot;]
+      A1[&quot;从无标签数据集 P_A&lt;br/&gt;按策略挑图&quot;] --&gt; A2[&quot;查询 victim API&lt;br/&gt;← 拿回 pseudo-labels(概率)&quot;]
+      A2 --&gt; A3[&quot;攒成 transfer set&quot;]
+      A3 --&gt; A4[&quot;选复杂架构 + KD 训练 F_A&lt;br/&gt;模仿 victim&quot;]
+    end
+    V4 -.-&gt;|&quot;每次查询&lt;br/&gt;都要花钱/延迟&quot;| A2</code></pre>
+<p>注意 <strong>pseudo-labels(伪标签)</strong>:adversary
+自己的数据是无标签的,他靠<strong>查询 victim</strong>
+来获得标签——这些标签就是 victim
+给的概率,称伪标签。<strong>每次查询都有成本</strong>(金钱、延迟),所以攻击者拼命想<strong>省查询</strong>。</p>
+<h3 id="42-transfer-set-怎么构造random-vs-adaptive">4.2 Transfer set
+怎么构造:random vs. adaptive</h3>
+<p>攻击者手里有个图像数据集
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>A</mi></msub><annotation encoding="application/x-tex">P_A</annotation></semantics></math>,但<strong>不能把每张图都拿去查</strong>(太贵),得用<strong>策略</strong>挑子集:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>策略</th>
+<th>怎么挑</th>
+<th>优 / 劣</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Random(随机)</strong></td>
+<td>从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>A</mi></msub><annotation encoding="application/x-tex">P_A</annotation></semantics></math>
+无放回随机采样去查
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>v</mi></msub><annotation encoding="application/x-tex">F_v</annotation></semantics></math></td>
+<td>简单;<strong>风险</strong>:可能采到与任务无关的图(拿狗的图去查鸟类分类器)</td>
+</tr>
+<tr class="even">
+<td><strong>Adaptive(自适应)</strong></td>
+<td>用三条信号引导采样(见下)</td>
+<td>更省查询、更有效</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Adaptive 的三条信号</strong>:</p>
+<ol type="1">
+<li><strong>鼓励 victim 给出高置信预测</strong> →
+高置信通常意味着这张图落在 victim 训练过的 <strong>domain</strong>
+内;</li>
+<li><strong>鼓励图像多样性</strong> →
+避免所有图都来自单一或少数几个类;</li>
+<li><strong>鼓励 knockoff 与 victim 预测「不一致」</strong> → 不一致 =
+还有东西可学(若两者已预测相同,这张图对 knockoff 没有新信息)。</li>
+</ol>
+<blockquote>
+<p>注意:adaptive 里
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>A</mi></msub><annotation encoding="application/x-tex">F_A</annotation></semantics></math>
+是<strong>在构造 transfer set 的过程中被同时训练</strong>的(为了第 3
+条信号),之后还会<strong>重新训练</strong>。</p>
+</blockquote>
+<h3 id="43-蒸馏为什么-knockoff-里-t--1">4.3 蒸馏:为什么 Knockoff 里 T =
+1?</h3>
+<p>构造好 transfer set 后,就用 KD 训练
+knockoff。但这里<strong>不加温度(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T=1</annotation></semantics></math>)</strong>——</p>
+<blockquote>
+<p><strong>🔑 为什么 T=1?</strong> 因为 victim API
+<strong>只返回概率,不返回 logits</strong>。温度是作用在 logits
+上的;既然你只拿得到 softmax
+<strong>之后</strong>的概率,就<strong>无法再去「重新升温」</strong>。所以
+Knockoff
+等价于「<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T=1</annotation></semantics></math>
+的知识蒸馏」。(对比 §3.4:升温的前提是你能拿到 logits。)</p>
+</blockquote>
+<p>损失用<strong>修改版 cross-entropy</strong>——把硬标签换成 victim
+给的软概率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>p</mi><mi>V</mi></msup><annotation encoding="application/x-tex">p^V</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>ℓ</mo><mrow><mi>C</mi><mi>E</mi></mrow></msub><mo>=</mo><mo>−</mo><munder><mo>∑</mo><mrow><mi>c</mi><mo>∈</mo><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>K</mi><mo stretchy="false" form="postfix">}</mo></mrow></munder><msubsup><mi>p</mi><mi>c</mi><mi>V</mi></msubsup><mspace width="0.167em"></mspace><mo>log</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msubsup><mi>p</mi><mi>c</mi><mi>A</mi></msubsup><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\ell_{CE} = -\sum_{c \in \{1,\dots,K\}} p^V_c \,\log\big(p^A_c\big)</annotation></semantics></math></p>
+<p>它和 KL divergence <strong>在「目标分布固定」时,只差一个加性常数
+(additive constant)</strong>,所以<strong>优化结果完全相同</strong>。而
+transfer set 一旦构造完就固定了,正好满足这个条件。</p>
+<blockquote>
+<p><strong>🔑 「只差常数 → 最优解相同」的直觉</strong> — 想象
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><msup><mi>x</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">y=x^2</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">y=x^2+1</annotation></semantics></math>:后者只是把前者<strong>整体上移
+1 个单位</strong>,但两条抛物线的<strong>最低点都在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">x=0</annotation></semantics></math></strong>。最小化时,加性常数不影响取最优解的位置——所以用修改版
+CE 还是 KL,优化出的 student 是一样的。</p>
+</blockquote>
+<h3 id="44-两阶段训练--架构选择">4.4 两阶段训练 &amp; 架构选择</h3>
+<p>knockoff 分<strong>两个阶段</strong>训练:</p>
+<pre class="mermaid"><code>flowchart LR
+    ON[&quot;Online 阶段&lt;br/&gt;构造 transfer set&lt;br/&gt;(F_A 同步被训练,&lt;br/&gt;为产生&#39;不一致&#39;信号)&quot;]
+    ON --&gt; SAVE[&quot;每张图 + 对应 victim 预测&lt;br/&gt;一起存下来&quot;]
+    SAVE --&gt; OFF[&quot;Offline 阶段&lt;br/&gt;用攒到的 transfer set&lt;br/&gt;重新训练 F_A&lt;br/&gt;(优化修改版 CE)&quot;]</code></pre>
+<p><strong>架构选择</strong>:经验上只要选一个<strong>足够复杂</strong>的架构(VGG、ResNet
+等)即可,结果对 student 架构的选择<strong>鲁棒</strong>;而且
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>A</mi></msub><annotation encoding="application/x-tex">F_A</annotation></semantics></math>
+可以用 <strong>ImageNet 预训练权重</strong>起步,不必从零训。</p>
+<h3 id="45-实验三种数据场景与偷得有多准">4.5
+实验:三种数据场景与「偷得有多准」</h3>
+<p>实验用 4 个数据集(物体、鸟类、室内场景、医学影像),victim 全是
+<strong>ResNet-34 + ImageNet
+预训练</strong>。关键变量是<strong>攻击者能拿到什么数据
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>A</mi></msub><annotation encoding="application/x-tex">P_A</annotation></semantics></math></strong>,分三种场景:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>场景</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>A</mi></msub><annotation encoding="application/x-tex">P_A</annotation></semantics></math>
+是什么</th>
+<th>与 victim 训练数据
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>V</mi></msub><annotation encoding="application/x-tex">P_V</annotation></semantics></math>
+的重叠</th>
+<th>现实性</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>A</mi></msub><mo>=</mo><msub><mi>P</mi><mi>V</mi></msub></mrow><annotation encoding="application/x-tex">P_A = P_V</annotation></semantics></math></strong></td>
+<td>与 victim 训练数据<strong>完全相同</strong>(但无标签)</td>
+<td><strong>100%</strong></td>
+<td>理想化基准(攻击者不可能真有)</td>
+</tr>
+<tr class="even">
+<td><strong>Closed-world</strong>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>A</mi></msub><mo>=</mo><mi>D</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">P_A = D2</annotation></semantics></math>)</td>
+<td>「全宇宙」图像(2.2M 图、2129
+类),<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>V</mi></msub><annotation encoding="application/x-tex">P_V</annotation></semantics></math>
+是其子集</td>
+<td><strong>100%</strong>(因为包含全部)</td>
+<td>强假设基准</td>
+</tr>
+<tr class="odd">
+<td><strong>Open-world</strong></td>
+<td>大型公开集(ILSVRC-2012:1.2M/1000 类;OpenImages:550K/600 类)</td>
+<td><strong>纯属巧合</strong>(如 Caltech256 与 ILSVRC 重叠 42%,医学集
+Diabetic5 重叠 0%)</td>
+<td><strong>最现实</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>结果(random 策略,60k 查询)</strong>——用「恢复了 victim
+多少倍性能」(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>×</mo><msub><mi>F</mi><mi>v</mi></msub></mrow><annotation encoding="application/x-tex">\times F_v</annotation></semantics></math>)衡量:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>场景</th>
+<th>恢复性能</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>A</mi></msub><mo>=</mo><msub><mi>P</mi><mi>V</mi></msub></mrow><annotation encoding="application/x-tex">P_A = P_V</annotation></semantics></math></td>
+<td><strong>0.92 – 1.05×</strong></td>
+<td>拿到全部(无标签)训练图 +
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T{=}1</annotation></semantics></math>
+蒸馏,几乎完全复制,<strong>有时甚至超过 victim</strong></td>
+</tr>
+<tr class="even">
+<td>Closed-world</td>
+<td><strong>0.84 – 0.97×</strong></td>
+<td>合理复制所有黑盒</td>
+</tr>
+<tr class="odd">
+<td>Open-world</td>
+<td><strong>0.81 – 0.96×</strong></td>
+<td>随便从网上抓图也能恢复 ~80%+;ILSVRC vs OpenImages 差异 ≤
+0.04×,<strong>说明任何大而多样的图集都是好 transfer set</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Adaptive 策略</strong>:相比 random
+<strong>持续提升</strong>(最多 +4.5%),且在 <strong>closed-world
+下极其省查询</strong>——例:CUBS200 用 random 要 60k 查询才到
+68.3%,adaptive 只要 **10k(快 6 倍)**就达到同样精度。<strong>例外是
+Diabetic5(糖网医学影像)</strong>:黑盒对所有图都给出高置信预测 →
+反馈信号差 → adaptive 提升有限。在 <strong>open-world</strong>
+下,adaptive 相比 random 也只有边际提升。</p>
+<blockquote>
+<p><strong>🔑 「魔法」:transfer set 揭示了 shortcut learning(高频考点
+&amp; 概念彩蛋)</strong> — 最反直觉的结果:knockoff 的 transfer set
+里<strong>全是「张冠李戴」的图</strong>——比如给一张熊猫图、却把它标成
+"Proliferative
+DR"(增殖性糖尿病视网膜病变),给一张老电脑、标成某医学类别。可 knockoff
+在这种荒诞数据上训练后,<strong>居然能正确分类真实测试集里它从没见过的类</strong>!
+这看似魔法,实则暴露了深度模型在用 <strong>shortcut
+learning(捷径学习)</strong>:模型并不「理解」什么是
+sparrow,它只是抓住了某些颜色/纹理<strong>特征</strong>;只要这些特征在测试图里再次出现,它就照样输出对应标签。<strong>这与前几周「对抗样本源于
+shortcut
+learning」一脉相承</strong>——窃取攻击之所以可行,某种程度上也是因为模型学的是可迁移的浅层特征。</p>
+</blockquote>
+<h3 id="46-真实世界一击30-偷下一个人脸识别-api">4.6 真实世界一击:$30
+偷下一个人脸识别 API</h3>
+<p>最后讲师给了个落地结果:用 <strong>random
+策略</strong>窃取一个<strong>真实世界的人脸识别 (Face Recognition)
+黑盒</strong>——</p>
+<ul>
+<li>knockoff 恢复了 API 的 <strong>0.76 – 0.82×</strong> 性能(API
+本身近乎 100% 准)。</li>
+<li>用<strong>更复杂、更多样</strong>的数据集(OpenImages-Faces)做
+transfer set,<strong>泛化更好</strong>(达 0.82×)。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>A</mi></msub><annotation encoding="application/x-tex">F_A</annotation></semantics></math>
+的复杂度不重要</strong>:ResNet-34 与 ResNet-101
+表现几乎相同——<strong>紧凑架构就够</strong>。</li>
+<li><strong>总成本仅 USD $30</strong>(每千次查询 $1–2)。</li>
+</ul>
+<blockquote>
+<p><strong>🧭 全章最震撼的对照</strong> —
+<strong>造一个这样的模型要几百万美元(§1.1),偷它只要 $30。</strong> $30
+甚至请不动一个人标一小时数据,却能换来 victim 80%
+的功能。这就是模型窃取的威力,也正是下一周要讲 <strong>IP
+protection(模型版权保护)</strong> 的动因。</p>
+</blockquote>
+<hr />
+<h2 id="五can-we-do-better--用半监督学习榨干每一次查询">五、Can we do
+better? —— 用半监督学习榨干每一次查询</h2>
+<p>Knockoff 已经很强,但它只用了「<strong>被 victim
+打过标的那些数据</strong>」。讲师抛出下一问:<strong>Can we do
+better?</strong>
+能。因为攻击者其实<strong>很容易自动收集海量无标签数据</strong>(写个脚本从网上爬就是了),却把它们浪费了。</p>
+<h3 id="51-思路半监督学习-semi-supervised-learning">5.1 思路:半监督学习
+(Semi-Supervised Learning)</h3>
+<p><strong>Semi-Supervised Learning (SSL)</strong>
+的设定:<strong>少量有标签数据 +
+大量无标签数据</strong>,目标是<strong>利用无标签数据提升性能</strong>(典型做法:在「<strong>猜出来的标签
+(guessed labels)</strong>」上训练)。</p>
+<p>搬到窃取上:攻击者<strong>只在一小部分数据上查询
+victim</strong>(这部分有「标签」),其余海量数据<strong>保持无标签</strong>,用
+SSL 把它们也用起来 →
+<strong>同样的查询预算,偷出更强的模型</strong>。本章用的 SSL 技术是
+<strong>MixMatch</strong>。</p>
+<blockquote>
+<p>📎 <strong>一个前提假设(讲师提醒)</strong> — SSL
+假设攻击者能拿到<strong>任务相关的</strong>无标签数据。这是个<strong>强假设</strong>,在难采集的领域(如医学影像)可能不成立;但在多数视觉任务里,爬取相关无标签图是容易的。</p>
+</blockquote>
+<h3 id="52-mixmatch一个holistic的四步法">5.2
+MixMatch:一个「holistic」的四步法</h3>
+<p><strong>MixMatch(Berthelot et al., 2019)</strong> 是个<strong>集大成
+(holistic)</strong> 的方法,把 SSL
+里多个被验证有效的零件(在猜标签上训练、正则化、图像增强)揉在一起。给定一批有标签数据
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>(one-hot,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+类)和<strong>等大</strong>的一批无标签数据
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>,它产出增强后的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">X&#39;</annotation></semantics></math>
+和带「猜标签」的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">U&#39;</annotation></semantics></math>,再分别算有标签/无标签损失。</p>
+<pre class="mermaid"><code>flowchart TD
+    S1[&quot;Step 1 · Augmentation 增强&lt;br/&gt;有标签 x_b → 1 个增强版&lt;br/&gt;无标签 u_b → K 个增强版&quot;]
+    S1 --&gt; S2[&quot;Step 2 · Label Guessing + Sharpening&lt;br/&gt;K 个增强预测求平均 → sharpen(降温)&lt;br/&gt;得到无标签数据的&#39;软猜标签&#39;&quot;]
+    S2 --&gt; S3[&quot;Step 3 · MixUp 混合&lt;br/&gt;把(有/无标签)样本与 W 中随机样本线性混合&lt;br/&gt;max 函数保证混合后仍偏向原样本&quot;]
+    S3 --&gt; S4[&quot;Step 4 · Loss 计算&lt;br/&gt;有标签 → cross-entropy&lt;br/&gt;无标签 → squared L2(一致性正则)&lt;br/&gt;L = L_X + λ_U · L_U&quot;]</code></pre>
+<p><strong>Step 1 — Augmentation(数据增强)</strong>:对每个有标签
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>b</mi></msub><annotation encoding="application/x-tex">x_b</annotation></semantics></math>
+生成 <strong>1 个</strong>变换版(翻转、调亮度等);对每个无标签
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>b</mi></msub><annotation encoding="application/x-tex">u_b</annotation></semantics></math>
+生成
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+个</strong>增强版(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+是超参,实验最优
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">K=2</annotation></semantics></math>)。</p>
+<blockquote>
+<p>📎 <strong>为什么有这两种增强?</strong>(讲师答疑) —
+对有标签数据做增强是训练的常规操作(不做会掉点),没争议;对无标签数据做
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+次</strong>增强则是<strong>经验发现</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">K&gt;1</annotation></semantics></math>
+时偷出的模型更好,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">K=1</annotation></semantics></math>(相当于不多增强)性能会下降。<strong>没有数学理论,纯实验定出来的。</strong></p>
+</blockquote>
+<p><strong>Step 2 — Label Guessing + Sharpening(猜标签 +
+锐化)</strong>:把无标签数据的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+个增强版分别喂给<strong>正在训练的分类器</strong>,得到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+个概率预测,<strong>求平均</strong>,再
+<strong>sharpen(锐化)</strong>——也就是<strong>降低温度</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T&lt;1</annotation></semantics></math>,实验用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">T=0.5</annotation></semantics></math>),让分布更自信。锐化函数:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">Sharpen</mtext><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>p</mi><mo>,</mo><mi>T</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>i</mi></msub><mo>=</mo><mfrac><msubsup><mi>p</mi><mi>i</mi><mrow><mspace width="0.167em"></mspace><mn>1</mn><mi>/</mi><mi>T</mi></mrow></msubsup><mrow><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>L</mi></munderover><msubsup><mi>p</mi><mi>j</mi><mrow><mspace width="0.167em"></mspace><mn>1</mn><mi>/</mi><mi>T</mi></mrow></msubsup></mrow></mfrac></mrow><annotation encoding="application/x-tex">\text{Sharpen}(p, T)_i = \frac{p_i^{\,1/T}}{\sum_{j=1}^{L} p_j^{\,1/T}}</annotation></semantics></math></p>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>→</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">T \to 0</annotation></semantics></math>
+时输出趋向
+one-hot。锐化后的分布,就当作这批无标签数据的<strong>软猜标签</strong>。</p>
+<blockquote>
+<p><strong>🔑 升温 vs. 降温——温度旋钮的两副面孔(把 §3.4
+和这里连起来)</strong> — KD
+里我们<strong>升温(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T&gt;1</annotation></semantics></math>)软化</strong>分布,为的是<strong>暴露
+dark knowledge</strong>;MixMatch
+里我们<strong>降温(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T&lt;1</annotation></semantics></math>)锐化</strong>猜标签,为的是<strong>让猜的标签更自信、更接近确定的伪标签</strong>。同一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>,方向相反,目的不同。
+<strong>数值例(锐化)</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>0.8</mn><mo>,</mo><mn>0.2</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">p=[0.8, 0.2]</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">T=0.5</annotation></semantics></math>
+⇒ 取平方
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0.64</mn><mo>,</mo><mn>0.04</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0.64, 0.04]</annotation></semantics></math>,归一化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">[</mo><mfrac><mn>0.64</mn><mn>0.68</mn></mfrac><mo>,</mo><mfrac><mn>0.04</mn><mn>0.68</mn></mfrac><mo stretchy="true" form="postfix">]</mo></mrow><mo>≈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>0.94</mn><mo>,</mo><mn>0.06</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">[\frac{0.64}{0.68}, \frac{0.04}{0.68}] \approx [0.94, 0.06]</annotation></semantics></math>——分布被进一步「拉开」,从
+80/20 变成 94/6。讲师后面用 <strong>ablation 证明:去掉 sharpening
+性能大跌</strong>,所以它很关键。</p>
+</blockquote>
+<p><strong>Step 3 —
+MixUp(线性混合)</strong>:把所有增强后的有/无标签数据收进一个集合
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>;然后把<strong>每个</strong>样本与从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+里随机抽的一个样本<strong>线性混合</strong>。混合两个样本
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>p</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x_1,p_1)</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>2</mn></msub><mo>,</mo><msub><mi>p</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x_2,p_2)</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>∼</mo><mtext mathvariant="normal">Beta</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>α</mi><mo>,</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><mi>λ</mi><mi>′</mi><mo>=</mo><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>λ</mi><mo>,</mo><mspace width="0.167em"></mspace><mn>1</mn><mo>−</mo><mi>λ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><mi>x</mi><mi>′</mi><mo>=</mo><mi>λ</mi><mi>′</mi><msub><mi>x</mi><mn>1</mn></msub><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>λ</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>x</mi><mn>2</mn></msub><mo>,</mo><mspace width="1.0em"></mspace><mi>p</mi><mi>′</mi><mo>=</mo><mi>λ</mi><mi>′</mi><msub><mi>p</mi><mn>1</mn></msub><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>λ</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>p</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\lambda \sim \text{Beta}(\alpha,\alpha), \quad \lambda&#39; = \max(\lambda,\, 1-\lambda), \quad x&#39; = \lambda&#39; x_1 + (1-\lambda&#39;) x_2, \quad p&#39; = \lambda&#39; p_1 + (1-\lambda&#39;) p_2</annotation></semantics></math></p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+从 <strong>Beta
+分布</strong>采样(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">\alpha=\beta</annotation></semantics></math>,如
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">\alpha=2</annotation></semantics></math>
+时
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+大概率落在 0.5 附近)。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>λ</mi><mo>,</mo><mn>1</mn><mo>−</mo><mi>λ</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\max(\lambda, 1-\lambda)</annotation></semantics></math>
+把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">\lambda&#39;</annotation></semantics></math>
+限制在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0.5</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0.5, 1]</annotation></semantics></math></strong>,保证
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">x&#39;</annotation></semantics></math>
+更接近
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mn>1</mn></msub><annotation encoding="application/x-tex">x_1</annotation></semantics></math></strong>。</li>
+<li>为什么要「偏向
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mn>1</mn></msub><annotation encoding="application/x-tex">x_1</annotation></semantics></math>」?因为下一步<strong>有标签和无标签用不同的损失函数</strong>:若
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mn>1</mn></msub><annotation encoding="application/x-tex">x_1</annotation></semantics></math>
+原本是有标签数据,混合后仍偏向它,就该用<strong>有标签损失</strong>;反之偏向无标签就用<strong>无标签损失</strong>。这样能保证「用对损失」。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>Beta 分布不用深究</strong>(讲师明说) —
+你只需知道它是个能在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,1]</annotation></semantics></math>
+上采样、且可调成「偏向
+0.5」的分布;它是<strong>一种</strong>选择,换别的也行,看效果。</p>
+</blockquote>
+<p><strong>Step 4 — Loss(损失计算)</strong>:对处理好的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">X&#39;</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">U&#39;</annotation></semantics></math>
+分别算损失,再加权求和:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℒ</mi><mo>=</mo><munder><munder><mrow><mfrac><mn>1</mn><mrow><mo stretchy="true" form="prefix">|</mo><mi>X</mi><mi>′</mi><mo stretchy="true" form="postfix">|</mo></mrow></mfrac><munder><mo>∑</mo><mrow><mi>x</mi><mo>,</mo><mi>p</mi><mo>∈</mo><mi>X</mi><mi>′</mi></mrow></munder><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>p</mi><mo>,</mo><msub><mi>p</mi><mtext mathvariant="normal">model</mtext></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>y</mi><mo stretchy="false" form="prefix">|</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mo accent="true">⏟</mo></munder><mrow><msub><mi>ℒ</mi><mi>X</mi></msub><mo>:</mo><mspace width="0.222em"></mspace><mtext mathvariant="normal">有标签 → cross-entropy</mtext></mrow></munder><mspace width="0.278em"></mspace><mo>+</mo><mspace width="0.278em"></mspace><msub><mi>λ</mi><mi>U</mi></msub><munder><munder><mrow><mfrac><mn>1</mn><mrow><mi>L</mi><mspace width="0.167em"></mspace><mrow><mo stretchy="true" form="prefix">|</mo><mi>U</mi><mi>′</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow></mfrac><munder><mo>∑</mo><mrow><mi>u</mi><mo>,</mo><mi>q</mi><mo>∈</mo><mi>U</mi><mi>′</mi></mrow></munder><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">∥</mo><mi>q</mi><mo>−</mo><msub><mi>p</mi><mtext mathvariant="normal">model</mtext></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>y</mi><mo stretchy="false" form="prefix">|</mo><mi>u</mi><mo stretchy="true" form="postfix">)</mo></mrow><msubsup><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">∥</mo><mn>2</mn><mn>2</mn></msubsup></mrow><mo accent="true">⏟</mo></munder><mrow><msub><mi>ℒ</mi><mi>U</mi></msub><mo>:</mo><mspace width="0.222em"></mspace><mtext mathvariant="normal">无标签 → squared L2</mtext></mrow></munder></mrow><annotation encoding="application/x-tex">\mathcal{L} = \underbrace{\frac{1}{|X&#39;|}\sum_{x,p \in X&#39;} H(p, p_{\text{model}}(y|x))}_{\mathcal{L}_X:\ \text{有标签 → cross-entropy}} \;+\; \lambda_U \underbrace{\frac{1}{L\,|U&#39;|}\sum_{u,q \in U&#39;} \big\| q - p_{\text{model}}(y|u)\big\|_2^2}_{\mathcal{L}_U:\ \text{无标签 → squared L2}}</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>H</mi><annotation encoding="application/x-tex">H</annotation></semantics></math>
+是
+cross-entropy,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+是类别数,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>,</mo><mi>K</mi><mo>,</mo><mi>α</mi><mo>,</mo><msub><mi>λ</mi><mi>U</mi></msub></mrow><annotation encoding="application/x-tex">T,K,\alpha,\lambda_U</annotation></semantics></math>
+都是超参。</p>
+<blockquote>
+<p><strong>🔑
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ℒ</mi><mi>U</mi></msub><annotation encoding="application/x-tex">\mathcal{L}_U</annotation></semantics></math>
+= consistency regularization(一致性正则,核心思想)</strong> —
+无标签损失体现了 SSL
+的灵魂思想:<strong>一个分类器对同一张无标签图,即使被增强过,也应该输出相同的类别分布。</strong>
+回忆 Step 1:同一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>b</mi></msub><annotation encoding="application/x-tex">u_b</annotation></semantics></math>
+的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+个增强版<strong>共享同一个猜标签</strong>;Step 4 就用 squared L2
+惩罚「模型对这些增强版预测不一致」的程度,逼模型对增强保持稳定。</p>
+</blockquote>
+<h3 id="53-ablation-study哪个零件真正有用">5.3 Ablation
+Study:哪个零件真正有用?</h3>
+<p>MixMatch 是个「拼装货」,<strong>ablation study(消融实验)</strong>
+就是逐个<strong>移除/替换组件</strong>,看谁贡献最大。在 CIFAR-10(250 /
+4000 个标签)上:</p>
+<ul>
+<li><strong>默认设置</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>0.5</mn><mo>,</mo><mi>K</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">T=0.5, K=2</annotation></semantics></math>):250
+标签下约 <strong>88.2%</strong> 准确率,4000 标签下约
+<strong>94%</strong>——只用几百个标签就这么强,很可观。</li>
+<li><strong>去掉各组件都会掉点</strong>,且<strong>在 250
+标签的低标签场景下差异最戏剧化</strong>:把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+设回 1(不多增强)、去掉
+sharpening(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T=1</annotation></semantics></math>)、去掉
+MixUp、或只在有标签/无标签内部混合——<strong>每一项都让 error
+明显上升</strong>。结论:<strong>每个组件都对性能有贡献</strong>,sharpening
+和 MixUp 尤其关键。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>两个「本课不讲」的对照方法</strong> — ablation 里还提到
+<strong>EMA(Exponential Moving Average,即 Mean Teacher)</strong> 和
+<strong>Interpolation Consistency
+Training</strong>,讲师明确说<strong>本课不覆盖</strong>,知道它们是更早的
+SSL 工作即可。</p>
+</blockquote>
+<h3 id="54-把-mixmatch-装进窃取250-次查询逼近-victim">5.4 把 MixMatch
+装进窃取:250 次查询逼近 victim</h3>
+<p>最后把 MixMatch 用于真正的模型窃取。设置:数据集
+<strong>SVHN</strong>(73,257 训练 / 26,032 测试)和
+<strong>CIFAR10</strong>(50,000 / 10,000),都是 32×32、10
+类。攻击者<strong>有同样的训练集但无标签</strong>,只需在<strong>一小部分</strong>上查询
+oracle(victim),目标是逼近 victim 精度。</p>
+<ul>
+<li><strong>对照</strong>:<strong>FS(Fully Supervised)</strong> = 只用
+KD 在 victim 打标的数据上训练(给概率);<strong>MM(MixMatch)</strong> =
+还利用无标签数据。</li>
+<li><strong>victim</strong>:WideResNet-28-2,SVHN
+<strong>97.36%</strong>、CIFAR10 <strong>95.75%</strong>。</li>
+<li><strong>两个评价指标</strong>:<strong>accuracy(准确率)</strong> =
+偷出的模型在测试集上判对的比例;<strong>fidelity(保真度)</strong> =
+偷出的模型与 <strong>victim</strong>
+预测<strong>标签一致</strong>的比例(label
+agreement)。讲师说本课<strong>只看 accuracy</strong>,fidelity
+了解即可。</li>
+</ul>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>查询次数</th>
+<th>方法</th>
+<th>SVHN 准确率</th>
+<th>CIFAR10 准确率</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>250</strong>(比 SVHN 标签集小 <strong>293×</strong>、CIFAR10
+小 <strong>200×</strong>)</td>
+<td><strong>MixMatch</strong></td>
+<td><strong>95.82%</strong></td>
+<td><strong>87.98%</strong></td>
+</tr>
+<tr class="even">
+<td>250</td>
+<td>FS(纯 KD)</td>
+<td>&lt; 80%</td>
+<td>~50%</td>
+</tr>
+<tr class="odd">
+<td><strong>4000</strong></td>
+<td><strong>MixMatch</strong></td>
+<td>距 victim <strong>仅 0.29%</strong></td>
+<td>距 victim <strong>仅 2.46%</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>两个炸裂结论</strong>:</p>
+<ol type="1">
+<li><strong>MixMatch 只用 250 次查询,就超过了 FS 用 4000
+次查询的精度</strong>——少查 16 倍,效果更好。</li>
+<li>MixMatch 与纯 KD 的差距巨大(250 查询时 SVHN 80% vs 96%、CIFAR10 50%
+vs 88%),说明**「把无标签数据用起来」是榨干查询预算的关键**。</li>
+</ol>
+<blockquote>
+<p><strong>🧭 主线收束</strong> — 从朴素打标 → KD → Knockoff →
+MixMatch,每一步都在回答同一个问题:<strong>「如何用更少的代价,偷到更多的功能?」</strong>
+MixMatch
+给出的答案是:<strong>别浪费免费的无标签数据</strong>,它能让每一次「付费查询」的价值翻倍。</p>
+</blockquote>
+<hr />
+<h2 id="六本章小结-key-takeaways">六、本章小结 (Key Takeaways)</h2>
+<ul>
+<li><strong>模型窃取 =
+仅凭黑盒「输入-输出对」复制模型的功能</strong>。动机是造模型极贵(ChatGPT-3
+$2–4M、PaLM $3–12M 且 540B 参数),而偷只要黑盒查询。务必区分
+<strong>functionality stealing(偷「会做什么」)</strong> 和
+<strong>inference attacks(偷「它是什么样的」)</strong>。</li>
+<li><strong>Softmax</strong> 把 <strong>logits →
+probabilities</strong>(指数化再归一化,和为 1);厂商只返回概率、不返回
+logits——这个接口限制后面决定了 Knockoff 用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T{=}1</annotation></semantics></math>。<strong>朴素偷法</strong>(用
+victim 打 hard label 再从头训)既不省算力、又怕数据差,所以要用 KD。</li>
+<li><strong>Knowledge Distillation(KD)</strong>
+的根基:<strong>模型的知识 =
+学到的「输入→输出映射」,不是权重</strong>——所以能跨架构转移。用 victim
+概率当 <strong>soft target</strong> 让 student 模仿,<strong>升高温度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T&gt;1</annotation></semantics></math>
+软化分布以暴露 dark knowledge</strong>(错误答案的相对概率,如「BMW
+更像垃圾车而非胡萝卜」);训练时最小化 <strong>KL divergence</strong>(KL=0
+即完全复制),student 一侧用
+<code>log_softmax</code>,通常无真标签故只用蒸馏损失。</li>
+<li><strong>Knockoff Nets</strong>:victim vs. adversary
+的<strong>双人博弈</strong>。攻击者按策略挑图查询 victim,攒成
+<strong>transfer set</strong>(图 + pseudo-labels)。<strong>random vs.
+adaptive</strong> 两种策略(adaptive 鼓励高置信、多样性、知识-victim
+不一致,更省查询)。因只拿得到概率,蒸馏用
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T{=}1</annotation></semantics></math></strong>;损失是修改版
+cross-entropy,<strong>与 KL 只差加性常数 →
+最优解相同</strong>。online/offline
+两阶段训练,架构选「足够复杂」即可。结果:random+60k 查询恢复
+<strong>0.81–1.05× victim 性能</strong>;<strong>$30 偷下人脸识别
+API</strong>;transfer set 的「张冠李戴也能学会」揭示了 <strong>shortcut
+learning</strong>。</li>
+<li><strong>MixMatch(半监督学习)</strong>
+把窃取效率再推一层——<strong>用海量免费无标签数据</strong>。四步:<strong>Augmentation(无标签做
+K 次)→ Label Guessing + Sharpening(平均后降温
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">T{=}0.5</annotation></semantics></math>
+锐化猜标签)→ MixUp(与 W 中随机样本线性混合,<code>max</code>
+保证偏向原样本)→ Loss(有标签 cross-entropy + 无标签 squared L2 即
+consistency regularization)</strong>。<strong>温度旋钮的两面</strong>:KD
+升温软化、MixMatch 降温锐化。结果:<strong>只用 250 次查询,MixMatch
+就超过 FS 用 4000 次查询</strong>(SVHN 95.82%、CIFAR10 87.98%)。</li>
+<li><strong>三种窃取手段层层递进</strong>——朴素打标 → KD → Knockoff →
+MixMatch,主线始终是「<strong>用更小的代价偷到更多功能</strong>」。本章是「AI
+模型自身安全」这半部分的收尾;它直接引出下一周的防御主题 <strong>DNN IP
+Protection(模型版权保护)</strong>。</li>
+</ul>
+<hr />
+<h2 id="七与-assignment--lab--相邻周的关联">七、与 Assignment / Lab /
+相邻周的关联</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>关联点</th>
+<th>说明</th>
+<th>对应章节</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Lab = 用 Python 实现 Knowledge Distillation</strong></td>
+<td>讲师点名:lab 里会亲手写 KD(KL
+divergence、<code>log_softmax</code>、温度),吃透 §3.5 的代码骨架</td>
+<td>§三</td>
+</tr>
+<tr class="even">
+<td><strong>承接 Week 1(Softmax / logits)</strong></td>
+<td>本周把 softmax
+当成窃取的「接口」重新审视:<strong>只拿得到概率、拿不到 logits</strong>
+→ Knockoff 用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">T{=}1</annotation></semantics></math></td>
+<td>§二、§4.3</td>
+</tr>
+<tr class="odd">
+<td><strong>呼应 shortcut learning(贯穿主线)</strong></td>
+<td>transfer
+set「张冠李戴也能学会」再次印证模型在用浅层捷径特征——和对抗样本同源</td>
+<td>§4.5</td>
+</tr>
+<tr class="even">
+<td><strong>Week 7(下周)= DNN IP Protection</strong></td>
+<td>模型能被 $30 偷走,自然要问「怎么保护版权」——下周讲 fingerprinting /
+watermarking 来检测 IP 侵权</td>
+<td>后续</td>
+</tr>
+<tr class="odd">
+<td><strong>军备竞赛仍在继续</strong></td>
+<td>窃取(攻)↔︎ IP 保护(防)又是一场拉锯;且讲师提醒:<strong>watermarking
+容易被 KD 蒸馏掉</strong>——本周的 KD 正是下周防御的「克星」</td>
+<td>§三 → Week 7</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📌 <strong>一页纸记忆锚点</strong> —
+<strong>贵在造、易在偷</strong>;知识=<strong>映射</strong>非权重;<strong>升温软化(KD
+暴露 dark knowledge)/ 降温锐化(MixMatch
+自信猜标签)</strong>;Knockoff=<strong>双人博弈 + transfer set +
+random/adaptive +
+T=1</strong>;MixMatch=<strong>增强→猜标签锐化→MixUp→双损失</strong>,<strong>250
+查询胜 4000</strong>;最震撼数字:<strong>$30 偷下人脸 API</strong>。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

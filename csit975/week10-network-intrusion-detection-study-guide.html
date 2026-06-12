@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 10 · 网络入侵检测 (Network Intrusion Detection)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-10--网络入侵检测-network-intrusion-detection">Week 10 ·
+网络入侵检测 (Network Intrusion Detection)</h1>
+<blockquote>
+<p><strong>CSIT375/975 — AI and Cybersecurity</strong> · Dr Wei Zong ·
+University of Wollongong</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>说清「网络入侵」是什么、从哪来</strong>:定义 <strong>network
+intrusion(网络入侵,试图绕过系统安全机制的非法行为)</strong>,并区分两类来源——<strong>外部攻击者(从
+Internet 闯入)</strong> 与 <strong>insider
+attacker(内部攻击者,合法用户滥用越权权限)</strong>;复述典型入侵场景(scanning
+→ 攻陷有漏洞的机器);</li>
+<li><strong>讲透「为什么要用 ML 做 NIDS」</strong>:说清传统
+<strong>signature-based(基于签名)</strong> 的 <strong>NIDS</strong>
+工具(如
+<strong>SNORT</strong>)的工作方式与三大局限(签名库须人工逐个更新、全球部署有
+<strong>latency 延迟</strong>、检测不了 <strong>emerging threats
+新型威胁</strong>);并解释 <strong>ML / anomaly
+detection(异常检测)</strong> 如何弥补——用「正常行为画像 +
+检测显著偏离」的思路抓 <strong>unforeseen
+attacks(未见过的攻击)</strong>;</li>
+<li><strong>背出异常检测的两大软肋</strong>:<strong>❶
+缺乏高质量异常数据</strong>(导致「正常组」边界难以圈定)、<strong>❷ 高
+false alarm
+rate(误报率)</strong>(合法但少见的新行为被误判为攻击);并能列出可用作特征的「异常信号」(连接数、异常端口、深夜流量峰值、带宽被某主机霸占等);</li>
+<li><strong>走通「从零搭建 NIDS
+朴素分类器」的完整流水线</strong>:<strong>探索数据(NSL-KDD)→
+数据准备(编码 + 缩放)→ 分类 →
+分析结果</strong>;并能讲出每一步的「坑」;</li>
+<li><strong>吃透 NSL-KDD 数据集</strong>:<strong>41 个特征、38
+种具体攻击、归并为 4 大类(dos / r2l / u2r / probe)+ benign = 5
+类</strong>;会用 <code>training_attack_types.txt</code> 做「具体攻击 →
+大类」映射,并解释为什么要 <strong>invert(反转)字典</strong>;</li>
+<li><strong>掌握数据准备的两大核心动作</strong>:<strong>❶ one-hot
+encoding</strong>(用 <code>pandas.get_dummies()</code> 把
+<strong>nominal(名义型)</strong> 符号特征如 <code>flag</code> 转成 dummy
+变量);<strong>❷ feature scaling</strong>——分清
+<strong>standardization(标准化,→ 均值0方差1)</strong> 与
+<strong>normalization(归一化,→ min-max 缩放到 [0,1])</strong>
+的公式与差别,并讲清「<strong>必须用训练集的统计量去缩放测试集 (proper
+scaling)</strong>」以及背后的原因;</li>
+<li><strong>读懂 confusion matrix 并诊断 class
+imbalance</strong>:看懂「行=真实类、列=预测类、对角线=正确」;能算出「62%
+被判为 benign」「u2r/r2l 大量被误判为 benign」;并解释为何换 <strong>KNN
+/ SVM</strong> 结果几乎一样——根因是 <strong>class
+imbalance(类别不平衡)</strong> 而非分类器选择;</li>
+<li><strong>理解「3D
+可视化分析」这条研究主线</strong>:复述其动机(误分类常见但「为什么错」缺乏洞察)、方法(<strong>PCA</strong>
+把高维流量投影到 3D + 交互式探索决策边界),并能对比
+<strong>UNSW-NB15</strong> 与 <strong>NSL-KDD</strong>
+两个数据集各自的「主要挑战」——前者是 <strong>异质聚簇(heterogeneous
+clusters)</strong>、后者是 <strong>未知攻击(unknown attacks in test
+set)</strong>。</li>
+</ul>
+</blockquote>
+<hr />
+<p>上一周(Week 9)我们用「<strong>把 PE
+文件当图像看</strong>」的技巧做完了 <strong>malware
+detection(恶意软件检测)</strong>。本周我们走到「<strong>用 AI
+解决安全问题</strong>」这条主线的<strong>第三站:network intrusion
+detection(网络入侵检测,NID)</strong>。范式还是那个范式——<strong>把一个安全问题,转化成一个机器学习能求解的「检测
+/
+分类」问题</strong>;但本周的重点不在「某个炫技的新模型」,而在<strong>真实工程师每天都要面对的两件苦差事</strong>:①
+<strong>怎么把一堆杂乱的原始流量数据,清洗、编码、缩放成一个能喂给模型的数据集</strong>;②
+<strong>当模型「看起来准、其实漏掉了所有危险攻击」时,如何诊断病根</strong>。</p>
+<p>讲师在开头做了清晰的三段式预告,这也正是本章的骨架:</p>
+<pre class="mermaid"><code>flowchart TD
+    BASIC[&quot;① NID 基础&lt;br/&gt;什么是入侵 + 为什么要用 ML&quot;]
+    BASIC --&gt; NAIVE[&quot;② 朴素分类器(你将在 lab 动手)&lt;br/&gt;探索数据 → 数据准备 → 分类 → 分析&quot;]
+    NAIVE --&gt; VIZ[&quot;③ 3D 可视化分析&lt;br/&gt;用 PCA 投影 + 交互探索&lt;br/&gt;看懂「为什么会误分类」&quot;]</code></pre>
+<p>为什么本章值得认真学?因为它把前几周一直在用、却很少被正面讲清的**「数据工程」与「结果诊断」<strong>摆到了台面上。你会看到一个</strong>反直觉但极重要的现象**:三种完全不同的分类器(decision
+tree、KNN、SVM)在同一份数据上<strong>错得几乎一模一样</strong>——这说明<strong>问题出在数据(class
+imbalance),而不是模型</strong>。看懂这一点,你才算真正理解「Garbage in,
+garbage out」这句机器学习铁律。</p>
+<blockquote>
+<p>🧭 <strong>一句话抓住全章</strong> —
+<strong>网络入侵检测的真正难点不在「选哪个分类器」,而在「数据」:数据极度不平衡(危险攻击
+u2r/r2l 样本极少)+ 训练集与测试集分布可能不一致(未知攻击)。</strong>
+朴素方法做出的分类器会「<strong>把几乎一切都判成正常流量</strong>」,准确率虚高却放过了最危险的攻击。本章前半教你<strong>搭这条流水线并看清它为什么会失败</strong>,后半用
+<strong>3D 可视化</strong>
+让你<strong>亲眼看到</strong>误分类发生在数据空间的哪个角落。抓住「<strong>坏数据
+→ 坏模型,且换模型没用</strong>」这条主线,全章就立住了。</p>
+</blockquote>
+<hr />
+<h2 id="一什么是网络入侵-slide-3">一、什么是网络入侵 (Slide 3)</h2>
+<p><strong>Network intrusion(网络入侵)</strong>
+的定义很直接:<strong>试图绕过 (bypass) 计算机系统安全机制的非法行为
+(illegal actions)。</strong> 它的来源分两类,务必能区分:</p>
+<pre class="mermaid"><code>flowchart LR
+    subgraph SRC[&quot;入侵的两类来源&quot;]
+        EXT[&quot;外部攻击者&lt;br/&gt;从 Internet 闯入系统&quot;]
+        INS[&quot;Insider attacker 内部攻击者&lt;br/&gt;合法授权用户&lt;br/&gt;试图获取并滥用「越权」权限&quot;]
+    end
+    EXT --&gt; SYS[&quot;目标系统&quot;]
+    INS --&gt; SYS</code></pre>
+<ul>
+<li><strong>外部攻击者</strong>:从<strong>互联网</strong>访问、攻击系统的人。</li>
+<li><strong>Insider
+attacker(内部攻击者)</strong>:本身是<strong>合法授权用户</strong>,但<strong>试图获取并滥用
+(misuse) 自己本不该有的 (non-authorized)
+权限</strong>。这类最难防,因为他「本来就有合法身份」。</li>
+</ul>
+<p>slides 给了一个<strong>典型入侵场景 (typical intrusion
+scenario)</strong>:攻击者先用<strong>扫描活动 (scanning
+activity)</strong> 探测网络,找到一台<strong>有漏洞的机器 (machine with
+vulnerability)</strong>,将其<strong>攻陷 (compromised
+machine)</strong>,再以此为跳板深入。</p>
+<blockquote>
+<p>💡 <strong>直觉</strong> —
+「绕过安全机制」是核心词。无论从外部闯入还是内部越权,只要<strong>做了授权范围之外的事</strong>,就算入侵。后面所有检测方法,本质都是在回答一个问题:<strong>这条流量,看起来像「正常授权行为」还是「越界行为」?</strong></p>
+</blockquote>
+<hr />
+<h2 id="二为什么要用-ml传统签名方法的局限-slides-45">二、为什么要用
+ML:传统签名方法的局限 (Slides 4–5)</h2>
+<h3 id="21-传统-nids--基于签名-signature-based">2.1 传统 NIDS = 基于签名
+(signature-based)</h3>
+<p>传统的 <strong>NIDS(Network Intrusion Detection
+System,网络入侵检测系统)</strong> 工具——经典代表是
+<strong>SNORT</strong>——靠的是<strong>已知攻击的签名 (signatures of
+known attacks)</strong>:</p>
+<blockquote>
+<p><strong>SNORT 的工作方式</strong> — 对监控到的流量<strong>套用规则
+(apply rules)</strong>,一旦检测到某类可疑活动就<strong>发出告警 (issue
+alerts)</strong>。它的判断完全依赖一个<strong>签名知识库 (knowledge base
+of signatures)</strong>。</p>
+</blockquote>
+<p>这套方法的三大<strong>局限 (limitations)</strong>,正是 ML
+要来解决的:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>局限</th>
+<th>含义</th>
+<th>后果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>签名库须人工逐个更新</strong></td>
+<td>每发现一种新攻击,都要<strong>手动 (manually)
+修订签名数据库</strong></td>
+<td>永远在「追着攻击者跑」</td>
+</tr>
+<tr class="even">
+<td><strong>部署有 substantial latency(显著延迟)</strong></td>
+<td>新签名要<strong>部署到全球所有服务器</strong>需要时间</td>
+<td>这段空窗期内,攻击者仍能利用漏洞</td>
+</tr>
+<tr class="odd">
+<td><strong>检测不了 emerging threats(新型威胁)</strong></td>
+<td>签名只能匹配<strong>已知</strong>攻击</td>
+<td>对没见过的攻击<strong>完全无能为力</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides):讲师的真实案例</strong> —
+讲师提到「上周末有同学下载 CIFAR-10 时发现服务器关闭了,那是因为 Linux
+系统在打<strong>紧急安全补丁</strong>」。这正是「全球部署延迟」的现实写照:当你想给全球服务器统一更新时,<strong>延迟是实打实存在的</strong>,而这段时间窗口就是攻击者的机会。</p>
+</blockquote>
+<h3 id="22-ml--异常检测抓没见过的攻击">2.2 ML /
+异常检测:抓「没见过的攻击」</h3>
+<p><strong>Machine Learning 与 AI
+驱动的技术</strong>能缓解上述局限——它<strong>有潜力识别 unforeseen
+attacks(未曾预见的攻击)</strong>。最经典的思路是 <strong>anomaly
+detection(异常检测)</strong>:</p>
+<blockquote>
+<p><strong>异常检测的核心思想</strong> — 先建立代表「用户 / 主机 /
+网络<strong>正常行为 (normal behaviour)</strong>」的
+<strong>profile(画像)</strong>,再把<strong>显著偏离这个画像 (significant
+deviations)</strong> 的行为判定为攻击。</p>
+</blockquote>
+<pre class="mermaid"><code>flowchart LR
+    N[&quot;正常流量&lt;br/&gt;聚成一个「正常组」&quot;] --&gt;|圈定边界| P[&quot;正常行为 profile&quot;]
+    P --&gt;|新流量落在组外且很远| A[&quot;⚠ 判为异常 = 攻击&quot;]
+    P --&gt;|新流量落在组内| OK[&quot;✅ 判为正常&quot;]</code></pre>
+<p>但这条路有<strong>两个绕不开的软肋</strong>,务必背熟(很容易出简答题):</p>
+<blockquote>
+<p>🔑 <strong>异常检测的两大软肋</strong></p>
+<ul>
+<li><strong>❶ 缺乏足够的高质量异常数据 (lack of high-quality anomalous
+data)</strong> ——
+这是<strong>主要挑战</strong>。问题出在「正常组该圈多大」:圈太紧会把合法的新行为误杀;<strong>圈太松,大到把攻击也包进去,攻击就能
+bypass(绕过)检测</strong>。没有高质量的异常样本,你根本无从知道边界该画在哪。</li>
+<li><strong>❷ 高 false alarm rate(误报率)</strong> ——
+这是<strong>主要局限</strong>。一个<strong>合法但与众不同</strong>的正常行为,会因为「偏离了其它正常行为」而被误判成攻击。这种判断是<strong>假的
+(false)</strong>,就是一次误报。<strong>「之前没见过但合法」的系统行为,也会被当成异常。</strong></li>
+</ul>
+</blockquote>
+<p><strong>主要实现手段 (major approaches)</strong>:statistical
+methods(统计方法)、clustering(聚类)、neural
+networks(神经网络)、SVM(支持向量机)……工具很多,但<strong>底层思想一致</strong>:先刻画正常画像,再用它检测偏离。</p>
+<hr />
+<h2
+id="三异常行为的信号能拿来当特征的东西-slide-6">三、异常行为的信号:能拿来当特征的东西
+(Slide 6)</h2>
+<p>要检测异常流量,需要观察哪些「<strong>元素
+(elements)</strong>」?这些元素后面会<strong>直接变成数据集里的特征
+(features)</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+    AB[&quot;可观测的异常信号&quot;]
+    AB --&gt; C1[&quot;① 到 / 从某主机的连接数&lt;br/&gt;(number of connections)&quot;]
+    AB --&gt; C2[&quot;② 异常的远程通信端口&lt;br/&gt;或意料外的流量模式&quot;]
+    AB --&gt; C3[&quot;③ 特定时段的异常流量峰值&lt;br/&gt;(如深夜还在持续传输)&quot;]
+    AB --&gt; C4[&quot;④ 带宽被网络内某些主机大量霸占&quot;]</code></pre>
+<blockquote>
+<p>⚠️ <strong>关键提醒:异常 ≠ 一定是攻击</strong> — slides
+特别强调,网络流量中的<strong>异常行为 (abnormal behavior)</strong>
+既<strong>可能</strong>是安全威胁(网络攻击、malware
+感染)的信号,<strong>也可能</strong>只是<strong>网络拥塞 (network
+congestion)</strong> 或<strong>设备故障 (faulty equipment)</strong>
+造成的。所以检测到异常只是<strong>起点</strong>,还需进一步分析判断——这也呼应了
+§2.2 的「高误报率」软肋。</p>
+</blockquote>
+<hr />
+<h2 id="四朴素分类器从零搭一个-nids-分类器">四、朴素分类器:从零搭一个
+NIDS 分类器</h2>
+<blockquote>
+<p><strong>本节定位</strong> — 这是本章<strong>最实操、也是 lab
+要动手</strong>的部分。<strong>Goal(目标)</strong>:用<strong>基础 ML
+工具从零 (from scratch)
+搭一个网络攻击分类器</strong>。讲师反复强调,这里的重点<strong>不是某个算法有多强,而是「探索与实验
+(exploration and experimentation)」的全过程</strong>。</p>
+</blockquote>
+<h3 id="40-背景与现实挑战-slides-78">4.0 背景与现实挑战 (Slides
+7–8)</h3>
+<p>在动手前,先认清搞安全 ML 的几个现实约束——这些是简答题的高频考点:</p>
+<ul>
+<li><strong>好数据极难获得</strong>:在很多真实场景里,<strong>带标签的相关数据很难拿到</strong>,而<strong>从原始数据里做特征工程
+(engineering numerical features) 会吃掉大部分精力</strong>。</li>
+<li><strong>「分类器只和它的训练数据一样好」</strong>:<code>Classifiers are only as good as the data used to train them.</code>
+在<strong>监督学习</strong>里,<strong>可靠的标签尤其关键</strong>——数据噪声大,分类器就废。</li>
+<li><strong>class
+imbalance(类别不平衡)是常态</strong>:大多数组织<strong>接触不到大量、多样的攻击流量</strong>(且即便有也因隐私不愿公开);<strong>罕见攻击可能一年才出现一次</strong>
+→ 数据集极度不平衡。</li>
+<li><strong>打标签靠专家、且耗时</strong>:网络流量的标注,往往<strong>必须由有调查与取证
+(forensic)
+技能的资深安全分析师</strong>来做,<strong>过程非常耗时</strong>。</li>
+<li><strong>搭 ML 系统 =
+充满探索与实验的过程</strong>:接下来就走一遍「<strong>理解数据集 →
+准备数据 → 套几个算法</strong>」的完整流程。</li>
+</ul>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;① 探索数据&lt;br/&gt;Exploring the Data&quot;] --&gt; B[&quot;② 数据准备&lt;br/&gt;Data Preparation&quot;]
+    B --&gt; C[&quot;③ 分类&lt;br/&gt;Classification&quot;]
+    C --&gt; D[&quot;④ 分析结果&lt;br/&gt;Analysing the Result&quot;]
+    D -.发现 imbalance.-&gt; A</code></pre>
+<hr />
+<h3 id="41-探索数据认识-nsl-kdd-slides-915">4.1 探索数据:认识 NSL-KDD
+(Slides 9–15)</h3>
+<h4 id="数据集本身">数据集本身</h4>
+<p>实验用的是 <strong>NSL-KDD 数据集</strong>——一个<strong>基准
+(benchmark)
+数据集</strong>,用来让研究者<strong>公平比较不同的入侵检测方法</strong>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides):为什么用一个 20 年前的老数据集?</strong>
+— 讲师坦言 NSL-KDD 来自约 20
+年前,但它至今仍是<strong>标准</strong>:<strong>小、轻量</strong>,适合<strong>快速验证算法</strong>,且人人都用、便于横向比较。一旦你进入入侵检测领域,几乎一定会先拿它练手。</p>
+</blockquote>
+<p>NSL-KDD 的结构:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>特征 (features)</strong></td>
+<td><strong>前 41 个值</strong>,如
+<code>duration</code>(连接时长)、<code>protocol_type</code>(协议类型)……</td>
+</tr>
+<tr class="even">
+<td><strong>标签 (label)</strong></td>
+<td>每条记录最后带标签;训练集标注了 <strong>38 种具体攻击</strong>(如
+<code>ipsweep</code>、<code>guess_passwd</code>)</td>
+</tr>
+<tr class="odd">
+<td><strong>4 大攻击类别</strong></td>
+<td>38 种具体攻击归并为 4 大类(见下)</td>
+</tr>
+<tr class="even">
+<td><strong>最终任务</strong></td>
+<td>把每个样本分到 <strong>5 类之一</strong>:<strong>benign / dos / r2l
+/ u2r / probe</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>4 大攻击类别</strong>(必背):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>类别</th>
+<th>全称</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>dos</strong></td>
+<td>Denial of Service</td>
+<td>拒绝服务</td>
+</tr>
+<tr class="even">
+<td><strong>r2l</strong></td>
+<td>Remote to Local</td>
+<td>来自远程服务器的<strong>未授权访问</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>u2r</strong></td>
+<td>User to Root</td>
+<td><strong>提权 (privilege escalation)</strong> 尝试</td>
+</tr>
+<tr class="even">
+<td><strong>probe</strong></td>
+<td>Probing</td>
+<td><strong>暴力探测 (brute-force probing)</strong> 攻击</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="标签映射具体攻击--大类以及为什么要反转字典">标签映射:具体攻击 →
+大类,以及为什么要「反转字典」</h4>
+<p>训练集里标的是<strong>具体攻击</strong>(如
+<code>ipsweep</code>),但我们只想输出<strong>大类</strong>。这个「具体 →
+大类」的映射写在随数据集附带的
+<strong><code>training_attack_types.txt</code></strong> 文件里(例如
+<code>ftp_write</code>、<code>guess_passwd</code> →
+<code>r2l</code>;<code>smurf</code>、<code>udpstorm</code> →
+<code>dos</code>)。</p>
+<p>读进来后,字典天然长这样:<strong>键 = 大类,值 =
+一串具体攻击</strong>。但<strong>这个结构用起来极不方便</strong>:</p>
+<blockquote>
+<p>🔑 <strong>为什么要 invert(反转)字典</strong> —
+给你一条记录(具体攻击是
+<code>ipsweep</code>),你想知道它属于哪个大类。如果字典是「大类 →
+攻击列表」,你得<strong>遍历每个键值对</strong>去找 <code>ipsweep</code>
+藏在哪个列表里——<strong>低效</strong>。所以用<strong>一行
+Python</strong> 把键和值对调,变成「<strong>具体攻击 →
+大类</strong>」。反转后,<code>D['ipsweep']</code>
+直接返回大类,一步到位。</p>
+<pre><code>反转前: {&#39;dos&#39;: [&#39;smurf&#39;,&#39;udpstorm&#39;,...], &#39;r2l&#39;: [&#39;ftp_write&#39;,...], ...}
+反转后: {&#39;smurf&#39;:&#39;dos&#39;, &#39;udpstorm&#39;:&#39;dos&#39;, &#39;ftp_write&#39;:&#39;r2l&#39;, ...}</code></pre>
+<p>⚠️ 小细节:<code>training_attack_types.txt</code> <strong>不包含
+<code>normal</code>(正常流量)</strong>,需要<strong>手动 append
+进去</strong>。</p>
+</blockquote>
+<h4
+id="类别分布第一次看见不平衡这头怪兽">类别分布:第一次看见「不平衡」这头怪兽</h4>
+<blockquote>
+<p><strong>为什么一定要先看类别分布?</strong> —
+训练前<strong>务必了解数据的 class
+distribution(类别分布)</strong>。虽然真实世界的分布难以预测,但<strong>对训练集心里要有数</strong>。讲师举例:给一个<strong>没有数据库服务器</strong>的网络设计分类器,就<strong>预期几乎看不到
+SQL 攻击流量</strong>——分布知识能指导后续设计。</p>
+</blockquote>
+<p>具体做法:用 <strong>Pandas</strong>(二维表格数据结构)读入 CSV
+训练数据,再<strong>统计并绘制 <code>attack_type</code>(22 类具体)与
+<code>attack_category</code>(5
+大类)两种分布</strong>(<code>value_counts()</code> 后画图)。</p>
+<p>结果一看便知——<strong>数据极度不平衡</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+    OBS[&quot;NSL-KDD 类别分布观察&quot;]
+    OBS --&gt; O1[&quot;benign 最多,其次 dos&quot;]
+    OBS --&gt; O2[&quot;u2r / r2l 占比极小&lt;br/&gt;(训练集 r2l≈0.7%, u2r≈0.04%)&quot;]
+    O2 --&gt; RISK[&quot;若忽视不平衡:&lt;br/&gt;模型对 benign/dos 学得多&lt;br/&gt;对 u2r/r2l 学得少&lt;br/&gt;→ 分类器产生「不良偏置」&quot;]</code></pre>
+<blockquote>
+<p>⚠️ <strong>不平衡为什么是大问题</strong> —
+若直接在这种数据上「天真地」训分类器,它<strong>为了追求高
+accuracy,会把权重压在多数类(正常流量)上,直接忽略少数类</strong>。但<strong>少数类恰恰是最危险的攻击</strong>——讲师举例:<code>spyware</code>(间谍软件)、<code>rootkit</code>(拥有系统最高权限,见
+Week
+9)。你<strong>绝不希望</strong>模型放过它们,可它们在训练数据里又<strong>少得可怜</strong>。所以必须<strong>先处理不平衡</strong>——这是贯穿后半节的伏笔。</p>
+</blockquote>
+<hr />
+<h3 id="42-数据准备编码--缩放-slides-1623">4.2 数据准备:编码 + 缩放
+(Slides 16–23)</h3>
+<p>数据探索完,进入<strong>最考验细致程度</strong>的一步。流程如下:</p>
+<pre class="mermaid"><code>flowchart TD
+    S0[&quot;① 切分 data / labels&lt;br/&gt;(X 去掉标签列, y 取 category)&quot;]
+    S0 --&gt; S1[&quot;② 区分特征类型&lt;br/&gt;continuous 连续 vs symbolic 符号&quot;]
+    S1 --&gt; S2[&quot;③ symbolic 再分&lt;br/&gt;nominal 名义 vs binary 二值&quot;]
+    S2 --&gt; S3[&quot;④ nominal → one-hot&lt;br/&gt;pandas.get_dummies()&quot;]
+    S3 --&gt; S4[&quot;⑤ feature scaling&lt;br/&gt;标准化 / 归一化&quot;]
+    S4 --&gt; S5[&quot;⑥ 训练集 &amp; 测试集用「同一套」统计量缩放&quot;]</code></pre>
+<h4 id="①-切分-data-与-labels">① 切分 data 与 labels</h4>
+<p>把训练 / 测试 DataFrame 各自拆成 <strong>特征 X</strong> 与
+<strong>标签 y</strong>:</p>
+<ul>
+<li><code>train_y</code> = 取出 <code>category</code>
+列(我们要预测的目标);</li>
+<li><code>train_X</code> = 用 <code>DataFrame.drop()</code>
+<strong>丢掉标签列</strong>,只留特征。</li>
+<li>模型接收 <code>train_X</code> → 预测
+<code>train_y</code>。测试集同理。</li>
+</ul>
+<h4 id="②--③-区分特征类型">② / ③ 区分特征类型</h4>
+<p>机器学习模型<strong>只吃数值,不吃文本</strong>。所以要把特征分成两摞:</p>
+<ul>
+<li><strong>continuous(连续型)</strong>:如
+<code>duration</code>、<code>src_bytes</code>——<strong>保持原样</strong>即可;</li>
+<li><strong>symbolic(符号型)</strong>:如
+<code>protocol_type</code>、<code>flag</code>——<strong>必须转成数值</strong>。</li>
+</ul>
+<p>符号型再细分:</p>
+<ul>
+<li><strong>binary(二值型)</strong>:只有
+0/1,<strong>直接当数值用</strong>;</li>
+<li><strong>nominal(名义型)</strong>:代表不同<strong>类别</strong>(无大小顺序),需要
+one-hot 编码。</li>
+</ul>
+<blockquote>
+<p>做法:<strong>手动</strong>列出连续特征名列表与符号特征名列表,存进一个有
+<code>continuous</code> / <code>symbolic</code> 两个键的结构里。</p>
+</blockquote>
+<h4 id="④-one-hot-encodingpandasget_dummies">④ One-hot
+encoding:<code>pandas.get_dummies()</code></h4>
+<p>用 <code>pandas.get_dummies()</code> 把 nominal 特征转成
+<strong>dummy(哑)变量</strong>,即对 nominal 特征做 <strong>one-hot
+encoding(独热编码,Week 1 学过)</strong>。</p>
+<blockquote>
+<p><strong>以 <code>flag</code> 为例</strong> — 假设 <code>flag</code>
+的可能取值有 <code>S0, S1, S2, S3, SF, SH</code>。one-hot
+会<strong>为每个取值各造一个二值列</strong>(<code>flag_S0</code>、<code>flag_S1</code>……),<strong>每个样本里只有一个列
+=1</strong>。若某样本 <code>flag=S2</code>,则
+<code>flag_S2=1</code>,其余全 0。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>flag_S0</th>
+<th>flag_S1</th>
+<th>flag_S2</th>
+<th>flag_S3</th>
+<th>flag_SF</th>
+<th>flag_SH</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>0</td>
+<td><strong>1</strong></td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table></div>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides):get_dummies 的一个技术细节</strong> —
+<code>flag</code> 本有 7 个取值,但 <code>get_dummies</code>
+<strong>默认丢掉最后一个</strong>,只留 6 列。原因:<strong>若前 6 列全是
+0,就隐含「必然是第 7 个」</strong>——所以第 7
+列冗余,不必存储。考试若问「为什么 dummy
+列数比取值数少一个」,答案就在这。</p>
+</blockquote>
+<h4 id="⑤-feature-scaling标准化-vs-归一化本节重点">⑤ Feature
+scaling:标准化 vs 归一化(本节重点)</h4>
+<p>one-hot
+之后,观察各特征的分布,会发现<strong>一件危险的事</strong>:<strong>不同特征的取值范围差异巨大</strong>。例如
+<code>duration</code> 最大约 4 万,而 <code>src_bytes</code> 最大可达
+<strong>10 亿</strong>。</p>
+<blockquote>
+<p>⚠️ <strong>为什么必须缩放</strong> —
+若不处理,<strong><code>src_bytes</code> 这种大数值特征会「淹没
+(dominate)」其它特征</strong>,模型被它牵着走。解决办法就是
+<strong>feature scaling</strong>,有两种:</p>
+</blockquote>
+<p><strong>方法 A:Standardization(标准化)</strong></p>
+<p>把数据<strong>重缩放到「均值 0、标准差
+1」</strong>。当特征分布差异很大时非常有用。公式:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>′</mi><mo>=</mo><mfrac><mrow><mi>X</mi><mo>−</mo><mi>μ</mi></mrow><mi>σ</mi></mfrac><mo>,</mo><mspace width="1.0em"></mspace><mtext mathvariant="normal">其中</mtext><mspace width="0.222em"></mspace><mi>μ</mi><mo>=</mo><mtext mathvariant="normal">mean</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="0.222em"></mspace><mi>σ</mi><mo>=</mo><mtext mathvariant="normal">stddev</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">X&#39; = \frac{X - \mu}{\sigma}, \quad \text{其中}\ \mu = \text{mean}(X),\ \sigma = \text{stddev}(X)</annotation></semantics></math></p>
+<p>即<strong>减去均值、再除以标准差</strong>。结果<strong>不限定在某个固定区间</strong>(理论上
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">-\infty</annotation></semantics></math>
+到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">+\infty</annotation></semantics></math>,但据大数定律绝大多数值落在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mo>−</mo><mn>3</mn><mo>,</mo><mn>3</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[-3, 3]</annotation></semantics></math>)。</p>
+<blockquote>
+<p>sklearn 工具:<code>sklearn.preprocessing.StandardScaler</code>。对
+<code>duration</code> 做标准化后,<code>describe()</code> 一看:均值 ≈
+0(实际是 e-17,浮点误差,可视为 0),标准差 = 1。✅</p>
+</blockquote>
+<p><strong>方法 B:Normalization(归一化)</strong></p>
+<p>把数据<strong>重缩放到一个小的指定区间</strong>(默认
+<code>[0,1]</code>),即 <strong>min-max scaling</strong>。公式:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>′</mi><mo>=</mo><mfrac><mrow><mi>X</mi><mo>−</mo><msub><mi>X</mi><mrow><mi>m</mi><mi>i</mi><mi>n</mi></mrow></msub></mrow><mrow><msub><mi>X</mi><mrow><mi>m</mi><mi>a</mi><mi>x</mi></mrow></msub><mo>−</mo><msub><mi>X</mi><mrow><mi>m</mi><mi>i</mi><mi>n</mi></mrow></msub></mrow></mfrac><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mi>a</mi><mi>x</mi><mo>−</mo><mi>m</mi><mi>i</mi><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>m</mi><mi>i</mi><mi>n</mi></mrow><annotation encoding="application/x-tex">X&#39; = \frac{X - X_{min}}{X_{max} - X_{min}} \times (max - min) + min</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>X</mi><mrow><mi>m</mi><mi>a</mi><mi>x</mi></mrow></msub><mo>,</mo><msub><mi>X</mi><mrow><mi>m</mi><mi>i</mi><mi>n</mi></mrow></msub></mrow><annotation encoding="application/x-tex">X_{max}, X_{min}</annotation></semantics></math>
+是该<strong>特征的最大 /
+最小值</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mi>a</mi><mi>x</mi><mo>,</mo><mi>m</mi><mi>i</mi><mi>n</mi></mrow><annotation encoding="application/x-tex">max, min</annotation></semantics></math>
+是<strong>新区间的上下界</strong>(默认 0 和 1)。</p>
+<blockquote>
+<p><strong>怎么理解这个公式(以 <code>[0,1]</code> 为例,此时
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mi>a</mi><mi>x</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>m</mi><mi>i</mi><mi>n</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">max=1, min=0</annotation></semantics></math>)</strong>:</p>
+<ul>
+<li>当
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>=</mo><msub><mi>X</mi><mrow><mi>m</mi><mi>i</mi><mi>n</mi></mrow></msub></mrow><annotation encoding="application/x-tex">X = X_{min}</annotation></semantics></math>
+→ 分子 = 0 →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>′</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">X&#39; = 0</annotation></semantics></math>;</li>
+<li>当
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>=</mo><msub><mi>X</mi><mrow><mi>m</mi><mi>a</mi><mi>x</mi></mrow></msub></mrow><annotation encoding="application/x-tex">X = X_{max}</annotation></semantics></math>
+→ 分子 = 分母 →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>′</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">X&#39; = 1</annotation></semantics></math>;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+在两者之间 →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">X&#39;</annotation></semantics></math>
+落在 (0, 1)。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>sklearn
+工具:<code>sklearn.preprocessing.MinMaxScaler</code>,把特征从原区间缩放到
+<code>[min, max]</code>。</p>
+</blockquote>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Standardization 标准化</strong></th>
+<th><strong>Normalization 归一化</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>目标</strong></td>
+<td>均值 0、标准差 1</td>
+<td>缩放到指定区间(默认 [0,1])</td>
+</tr>
+<tr class="even">
+<td><strong>别名</strong></td>
+<td>Z-score 标准化</td>
+<td>Min-Max scaling</td>
+</tr>
+<tr class="odd">
+<td><strong>结果范围</strong></td>
+<td><strong>不固定</strong>(理论 ±∞,实际多在 [-3,3])</td>
+<td><strong>固定</strong>在 [min, max]</td>
+</tr>
+<tr class="even">
+<td><strong>sklearn 类</strong></td>
+<td><code>StandardScaler</code></td>
+<td><code>MinMaxScaler</code></td>
+</tr>
+<tr class="odd">
+<td><strong>适用</strong></td>
+<td>特征分布差异大时尤其有用</td>
+<td>需要把值压进固定小区间时</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="⑥-proper-scaling训练集和测试集必须用同一套统计量">⑥ Proper
+scaling:训练集和测试集必须用「同一套」统计量</h4>
+<p>这是<strong>全章最重要的工程纪律之一</strong>,也是高频考点:</p>
+<blockquote>
+<p>🔑 <strong>核心规则</strong> —
+对训练集和测试集做<strong>一致的变换</strong>:<strong>用「训练集」算出的
+μ、σ(或 min、max),去缩放训练集 <em>和</em>
+测试集</strong>。做法:<code>scaler.fit(train_X)</code>
+只在训练集上拟合,然后<strong>同一个 scaler</strong> 分别
+<code>transform(train_X)</code> 和 <code>transform(test_X)</code>。</p>
+</blockquote>
+<p><strong>为什么只能用训练集的统计量?</strong>(讲师花了很大篇幅讲这点)</p>
+<blockquote>
+<p>💡 <strong>直觉:训练时「碰不到」测试集</strong> —
+测试集是用来<strong>模拟未来流量</strong>的,训练阶段<strong>不该假设你能访问它</strong>。现实里:你把模型部署到公司真实流量上时,<strong>根本不知道未来流量的均值和标准差</strong>——它和训练数据可能不同。</p>
+<p><strong>极端例子</strong>:模型上线第一天只来了<strong>一条</strong>流量。一条样本<strong>连均值都算不出来</strong>(均值就是它自己,标准差为
+0),你<strong>根本无法</strong>基于「测试数据」做任何变换。所以<strong>只能依赖训练阶段的统计量</strong>。</p>
+<p>⚠️ <strong>常见错误</strong>:有人想「我也给测试集单独 fit 一个
+scaler、用测试集自己的 μ/σ
+来变换」。这在<strong>学术练习里技术上能跑</strong>(因为练习里把测试集提前给你了),但<strong>违背现实</strong>——真实部署时你拿不到未来数据。所以这是<strong>错误做法</strong>,务必用训练集统计量。</p>
+</blockquote>
+<p>到此,数据「<strong>准备就绪,可以拿去分类了</strong>」。</p>
+<hr />
+<h3 id="43-分类与结果分析-slides-2428">4.3 分类与结果分析 (Slides
+24–28)</h3>
+<h4 id="选分类器一个迭代试错的过程">选分类器:一个迭代试错的过程</h4>
+<blockquote>
+<p><strong>选对分类器很难</strong> —
+很多分类器都「<strong>可能</strong>」合适,但<strong>最优的那个并不明显</strong>。开发
+ML 方案是个<strong>迭代过程 (iterative
+process)</strong>:即便经验丰富的从业者,也<strong>很少能一上来就选对</strong>。正确姿势是<strong>先搭一个粗糙的初版,在迭代中获得洞察</strong>。</p>
+</blockquote>
+<h4 id="第一个尝试decision-tree--confusion-matrix">第一个尝试:Decision
+Tree + Confusion Matrix</h4>
+<p>训练数据有 <strong>约 126,000
+个带标签样本</strong>,监督学习是个好起点,先试 <strong>decision
+tree(决策树)</strong>。用 <strong>confusion matrix(混淆矩阵)</strong>
+看结果(Week 1 学过,这里复习):</p>
+<blockquote>
+<p>🔑 <strong>混淆矩阵怎么读</strong>(测试集共 <strong>22,544</strong>
+个样本,即矩阵所有元素之和)</p>
+<ul>
+<li><strong>行 (row) = 真实类 (true class)</strong>;<strong>列 (column)
+= 预测类 (predicted class)</strong>;</li>
+<li><strong>对角线 = 正确分类的样本数</strong>;</li>
+<li>例:<code>a₀₄ = 1</code> 表示「<strong>真实为类
+0(benign),却被预测成类 4(u2r)</strong> 的样本有 1 个」;</li>
+<li>类索引:<strong>0=benign, 1=dos, 2=probe, 3=r2l,
+4=u2r</strong>。</li>
+</ul>
+</blockquote>
+<p>决策树跑出来,<strong>错误率超过 20%(准确率约
+76–77%)</strong>——<strong>不太好</strong>。但真正的问题藏在矩阵里。</p>
+<h4
+id="分析结果一个假装很准的分类器">分析结果:一个「假装很准」的分类器</h4>
+<p>测试集分布同样不平衡(43% 是 benign,u2r 仅 0.8%)。仔细读混淆矩阵:</p>
+<pre class="mermaid"><code>flowchart TD
+    R[&quot;决策树混淆矩阵的真相&quot;]
+    R --&gt; G[&quot;benign 行:只有 3.6% 被错分&lt;br/&gt;→ 正常流量几乎全对 ✅&quot;]
+    R --&gt; B[&quot;benign 列:占了全部预测的 62%&lt;br/&gt;→ 啥都往 benign 判&quot;]
+    R --&gt; U[&quot;u2r 行:近 200 个样本&lt;br/&gt;~170 个被判成 benign ❌&quot;]
+    R --&gt; L[&quot;r2l 行:2000+ 样本&lt;br/&gt;大量被判成 benign ❌&quot;]
+    G &amp; B &amp; U &amp; L --&gt; CONC[&quot;结论:模型把危险攻击&lt;br/&gt;当成正常流量放行了&quot;]</code></pre>
+<ul>
+<li><strong>只有 3.6% 的 benign
+测试样本被错分</strong>:<code>(59+291+3+1)/sum(row₁)</code> →
+正常流量几乎全判对;</li>
+<li>但 <strong>62% 的测试样本被判成
+benign</strong>:<code>sum(col₁)/sum(matrix)</code>;</li>
+<li><strong>看 r2l 和 u2r 两行</strong>:被判成 benign
+的,<strong>比判对的还多</strong>——<strong>攻击被当成正常流量放行了</strong>。</li>
+</ul>
+<blockquote>
+<p>⚠️ <strong>致命问题</strong> —
+这个分类器**「整体准确率看着还行,却把最危险的 u2r / r2l
+攻击几乎全放过了」<strong>。讲师抛出关键问题:</strong>「会不会我们训出的分类器,就是单纯更倾向于把样本往
+benign 里塞?」**</p>
+</blockquote>
+<h4 id="病根在数据不在模型knn--svm-也救不了">病根在数据,不在模型:KNN /
+SVM 也救不了</h4>
+<p>回头看训练集分布:<strong>r2l ≈ 0.7%,u2r ≈
+0.04%</strong>。如此极端的不平衡,<strong>模型根本没有足够信息去学会识别
+u2r / r2l</strong>。</p>
+<p>为确认「是不是换个分类器就好了」,再试 <strong>KNN(K-Nearest
+Neighbors,K 近邻)</strong> 和 <strong>SVM(Support Vector
+Machine,支持向量机)</strong>(都当<strong>黑盒模型</strong>用,不深究原理):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>分类器</th>
+<th>错误率</th>
+<th>少数类表现</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Decision Tree</strong></td>
+<td>~23%(三者中最低)</td>
+<td>u2r/r2l 大量误判为 benign</td>
+</tr>
+<tr class="even">
+<td><strong>KNN</strong></td>
+<td>~24%</td>
+<td><strong>几乎一样</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>SVM</strong></td>
+<td>~28%</td>
+<td><strong>几乎一样</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🧭 <strong>本节的核心结论(全章金句)</strong> —
+<strong>三种分类器的混淆矩阵和错误率「特征惊人地相似」:少数类全被打成
+benign。这说明继续换分类器是「不会有成效的 (not
+productive)」——问题不在模型,在数据的 class imbalance。</strong>
+出路只有一条:<strong>先解决训练数据的不平衡问题</strong>(如 oversampling
+过采样 / undersampling 欠采样,回顾 Week
+9),否则任何模型都会被多数类带偏。</p>
+</blockquote>
+<blockquote>
+<p>💡 <strong>这正是 lab 的起点</strong> —
+朴素方法到此「卡住」了。你将在 <strong>lab(anomaly / intrusion
+detection)</strong>
+里接手这个卡点,亲手实验「如何缓解不平衡、让模型不再一边倒」。</p>
+</blockquote>
+<hr />
+<h2 id="五3d-可视化分析-nids-数据-slides-2944">五、3D 可视化分析 NIDS
+数据 (Slides 29–44)</h2>
+<blockquote>
+<p><strong>本节定位</strong> — 来自讲师本人的研究论文(<strong>Zong, Chow
+&amp; Susilo, 2020,<em>Future Generation Computer
+Systems</em></strong>)。它回答一个前半节没解决的问题:<strong>当模型误分类时,我们能不能「亲眼看到」错在数据空间的哪里、为什么?</strong>
+这是一种<strong>可解释、可视化</strong>的分析手段,且<strong>技术通用</strong>——malware、图像分类等任何高维数据都能用。</p>
+</blockquote>
+<h3 id="51-动机误分类常见但为什么错缺乏洞察-slide-29">5.1
+动机:误分类常见,但「为什么错」缺乏洞察 (Slide 29)</h3>
+<pre class="mermaid"><code>flowchart TD
+    P1[&quot;误分类是 ML 常见问题&quot;] --&gt; P2[&quot;但普遍缺乏「为什么错」的洞察&quot;]
+    P2 --&gt; P3[&quot;→ 阻碍模型改进&quot;]
+    P3 --&gt; P4[&quot;现状:改进靠 trial-and-error 试错&lt;br/&gt;(因 ML 机制复杂)&quot;]
+    P4 --&gt; P5[&quot;论文堆数字:表格 / 柱状图比性能&lt;br/&gt;很少解释「为何某类攻击表现差」&quot;]
+    P5 --&gt; NEED[&quot;需要:直观、可解释的数据分析&lt;br/&gt;从「数据」视角解释检测结果&quot;]</code></pre>
+<p>核心论点:<strong>ML 严重依赖训练 /
+测试数据的特性</strong>,所以<strong>从「数据」的角度去解释检测结果</strong>,能帮我们真正理解模型为何表现好或差——而不是像多数论文那样只甩出一堆「我比你高几个点」的数字。</p>
+<h3 id="52-方法交互式-3d-可视化--pca-slides-3032">5.2 方法:交互式 3D
+可视化 + PCA (Slides 30–32)</h3>
+<p><strong>系统能力</strong>:把 NIDS
+数据做<strong>可视化表示</strong>,<strong>刻画不同流量记录之间的几何关系</strong>;用户可<strong>实时
+(real-time) 交互式导航</strong>数据,<strong>直观查看 ML 分类器的决策空间
+(decision
+spaces)</strong>,<strong>观察误分类发生在哪些边界上</strong>。</p>
+<p><strong>核心技术:PCA(Principal Component
+Analysis,主成分分析)</strong></p>
+<blockquote>
+<p><strong>PCA 一句话</strong> — 在 K 维空间里找<strong>线 / 面 / 超平面
+(hyperplane)</strong>,以<strong>最小二乘 (least squares)</strong>
+的意义最好地逼近数据;这条线 /
+面会让<strong>数据投影坐标的方差尽可能大</strong>。作用:把<strong>高维
+NIDS 数据降到 2D 或 3D</strong> 以便可视化。</p>
+</blockquote>
+<blockquote>
+<p>💡 <strong>为什么需要 PCA</strong> — NSL-KDD 有 41 个特征,one-hot
+后<strong>膨胀到约 60 维</strong>——<strong>人眼无法看 60
+维空间</strong>。PCA 把它<strong>投影到 3D</strong>,就像玩 3D
+游戏一样能在屏幕上呈现。<strong>(细节无需深究,会用即可。)</strong></p>
+</blockquote>
+<p>slides 列了一组演示视频(用 <strong>SVM</strong>
+作分类器):<code>KDD/UNSW</code> 的
+<code>Binary / Multi / No_Boundaries</code> 等
+<code>.mp4</code>——展示数据点按类别着色、以及决策边界。</p>
+<h3 id="53-unsw-nb15-数据集分析-slides-3338">5.3 UNSW-NB15 数据集分析
+(Slides 33–38)</h3>
+<blockquote>
+<p><strong>UNSW-NB15 是什么</strong> — 相比老旧的
+NSL-KDD,这是一个<strong>现代网络流量</strong>数据集,攻击类型也更丰富(normal、dos、generic、analysis、backdoor、exploits、worms
+等)。</p>
+</blockquote>
+<p><strong>总体观察(Slide 33)</strong>:从两个视角看训练集 (a) 与测试集
+(b),<strong>同类流量通常聚成簇 (clustered
+together)</strong>;且<strong>训练集与测试集特征相似</strong> →
+这是<strong>好兆头</strong>:在训练集上训的模型,<strong>很可能</strong>也能检测测试集里的攻击。</p>
+<p><strong>经验分簇(Slide 34)</strong>:人工把数据圈成簇——<strong>黄圈 =
+几乎只含正常流量;红圈 = 攻击</strong>。其中 <strong>generic
+攻击聚得很好</strong>,但<strong>混合簇 (mixed clusters)
+定义不清</strong>(正常和多种攻击混在一起)。</p>
+<p>把 UNSW-NB15 的簇按「好分 / 难分」归纳:</p>
+<pre class="mermaid"><code>flowchart TD
+    U[&quot;UNSW-NB15 的簇&quot;]
+    U --&gt; EASY[&quot;✅ 容易分的簇&lt;br/&gt;(同质 homogeneous)&quot;]
+    U --&gt; HARD[&quot;❌ 难分的簇&lt;br/&gt;(异质 heterogeneous / mixed)&quot;]
+    EASY --&gt; E1[&quot;normal 正常簇&lt;br/&gt;train/test 高度相似 → 高检测率&quot;]
+    EASY --&gt; E2[&quot;generic 攻击簇&lt;br/&gt;孤立、纯净 → 高检测率&lt;br/&gt;(两阶段法:recall 96.6%, precision 99.9%)&quot;]
+    HARD --&gt; H1[&quot;worm 攻击极少&lt;br/&gt;(train/test 数量悬殊)→ 被忽略&quot;]
+    HARD --&gt; H2[&quot;exploit 攻击占多数&lt;br/&gt;→ 同簇其它流量被误判为 exploit&quot;]</code></pre>
+<ul>
+<li><strong>同质簇 = 好分(Slide 35)</strong>:normal 与 generic
+攻击的簇,<strong>train/test 特性高度相似、记录近乎同质
+(homogeneous)</strong>,模型容易识别、检测率高。讲师举证:对 generic
+攻击,某<strong>两阶段方法</strong>可达 <strong>recall 96.6%、precision
+99.9%</strong>——<strong>从视觉上就能看出它好分</strong>(孤立成簇)。</li>
+<li><strong>异质 / 混合簇 = 难分(Slide
+36)</strong>:不同流量混在一起、无清晰视觉区分。两个具体麻烦:
+<ul>
+<li><strong>worm 攻击数量极少</strong>:训练集才 ~24 个、测试集才 ~3
+个(都淹没在 5000+ 的大簇里)→ 模型<strong>直接忽略 worm</strong>;</li>
+<li><strong>exploit 攻击占比大</strong>:同簇里 exploit 多到 ~3600 个 →
+模型<strong>被带偏,把同簇其它流量也误判成 exploit</strong>。</li>
+</ul></li>
+</ul>
+<p><strong>两个误分类特写(Slides 37–38)</strong>:</p>
+<ul>
+<li><strong>正常流量被误判为攻击(Slide 37)</strong>:图 (a) 右侧是 normal
+决策空间(其内的正常流量都判对);但左侧簇<strong>落在 normal
+决策空间之外</strong>,混着正常与异常。图 (b)
+移走异常流量后,<strong>高亮出大量被误判成「攻击」的正常流量</strong>。</li>
+<li><strong>其它流量被误判为 exploit(Slide 38)</strong>:在 exploit
+占比高的簇里,图 (a) 是 exploit 决策空间特写,图 (b)
+高亮出<strong>被误判成 exploit
+的流量</strong>——验证了「<strong>多数类绑架决策</strong>」。</li>
+</ul>
+<blockquote>
+<p>🔑 <strong>可视化的真正价值(讲师强调)</strong> —
+看到「正常流量被判成攻击」后,ML
+工程师可以<strong>带着具体问题去找安全专家</strong>:是这些正常流量「行为真的像攻击」(如用户短时间疯狂登录,像
+probe),还是攻击「故意伪装成正常流量」来骗过分类器?<strong>专家据此改进特征提取
+(feature extraction)</strong>,让正常与攻击重新可分。<strong>可视化 =
+人机协作改进系统的入口。</strong></p>
+</blockquote>
+<h3 id="54-nsl-kdd-数据集分析核心是未知攻击-slides-3943">5.4 NSL-KDD
+数据集分析:核心是「未知攻击」 (Slides 39–43)</h3>
+<p><strong>总体观察(Slide 39)</strong>:训练集 (a) 与测试集 (b)
+总体分布相似(能看到对应的 DoS 簇、normal
+簇),但——<strong>关键差异</strong>——<strong>NSL-KDD 的 train/test
+相似度明显低于
+UNSW-NB15</strong>。放大看,训练集里某区域几乎空着,测试集对应位置却<strong>突然冒出一批
+DoS 攻击</strong>。</p>
+<p><strong>同质簇仍好分(Slides 40–41)</strong>:</p>
+<ul>
+<li><strong>DoS 簇(Slide 40)</strong>:孤立、几乎全是同质 DoS 记录 →
+模型预期表现好;</li>
+<li><strong>probe 簇(Slide 41)</strong>:大体同质;但 (d)
+里簇<strong>附近有正常流量</strong>——副作用是<strong>模型可能把簇附近的正常
+/ 其它攻击也误判成 probe</strong>。</li>
+</ul>
+<p><strong>核心难点:previously unknown attacks(Slides
+42–43)</strong>:</p>
+<blockquote>
+<p>🧭 <strong>NSL-KDD 的命门(必考)</strong> — 安全专家早已指出:NSL-KDD
+给 ML 带来的<strong>主要困难,来自测试集里「之前未知的攻击 (previously
+unknown
+attacks)」</strong>。<strong>即便训练集和测试集的攻击「类别相同」,这些流量的「特性
+(characteristics) 却显著不同」。</strong></p>
+<p><strong>可视化证据(Slide 42, 图
+e/f)</strong>:同一个簇里,<strong>训练集 (e) 几乎没有 R2L
+攻击</strong>(只有寥寥 4 个蓝点,被淹没);<strong>测试集 (f) 却涌现大量
+R2L
+攻击</strong>。模型在训练集上<strong>根本没机会学到</strong>这种行为,<strong>怎么可能在测试集里「魔法般」认出它?</strong>
+—— 这是<strong>数据集本身的内在缺陷 (intrinsic flaw)</strong>:train/test
+之间缺乏可学习的关联。</p>
+</blockquote>
+<p><strong>决策边界视角(Slide 43)</strong>:可视化 SVM
+的决策边界(在训练集上训练)。</p>
+<ul>
+<li>图 (a) 训练集 normal 决策空间;图 (b) 测试集 normal 决策空间;</li>
+<li><strong>测试集里的 R2L 攻击落在了 normal 的决策边界内 →
+被误判成正常流量</strong>,原因正是「<strong>训练时未知</strong>」;</li>
+<li>此外 (a)(b) 都有一些 <strong>DoS</strong>
+攻击被误判——因为它们在<strong>训练集里只占该区域极小一部分</strong>,模型学不到。</li>
+</ul>
+<blockquote>
+<p>💡 <strong>核心教训</strong> — <strong>「ML
+模型应当基于训练集来设计」</strong>:如果训练数据<strong>没能充分代表
+(adequately represent)</strong>
+真实流量,检测精度必然受损。模型不会变魔术——<strong>没在训练集里见过的,就别指望它在测试集里认出来。</strong></p>
+</blockquote>
+<h3 id="55-可视化结果总结-slide-44">5.5 可视化结果总结 (Slide 44)</h3>
+<pre class="mermaid"><code>flowchart TD
+    SUM[&quot;3D 可视化总结&quot;]
+    SUM --&gt; WORK[&quot;在 UNSW-NB15 与 NSL-KDD 上都好用&lt;br/&gt;(前提:前几个主成分能捕获足够方差&lt;br/&gt;否则看不出明显簇)&quot;]
+    WORK --&gt; DIFF[&quot;两个数据集,两种不同的主要挑战&quot;]
+    DIFF --&gt; C1[&quot;UNSW-NB15:&lt;br/&gt;异质簇 heterogeneous clusters&lt;br/&gt;(多类流量密集混在一簇)&quot;]
+    DIFF --&gt; C2[&quot;NSL-KDD:&lt;br/&gt;未知攻击的异常特性&lt;br/&gt;(攻击只在测试集出现,训练集无代表)&quot;]
+    C1 &amp; C2 --&gt; USE[&quot;价值:让安全专家直观识别&lt;br/&gt;来袭流量模式 + 看清特定网络环境的主要挑战&quot;]</code></pre>
+<ul>
+<li><strong>可视化在两个数据集上都奏效</strong>——前提是<strong>前几个
+principal components 能捕获数据中相当大比例的方差</strong>(这是 PCA
+的理论要求;否则降维后方差不足,看不出明显簇)。</li>
+<li><strong>两个数据集,两种挑战</strong>(必背对比):
+<ul>
+<li><strong>UNSW-NB15</strong> 的主要挑战 =
+<strong>异质聚簇</strong>(多类流量高度混杂在同一簇);</li>
+<li><strong>NSL-KDD</strong> 的主要挑战 =
+<strong>未知攻击的异常特性</strong>(攻击只在测试集出现,训练集缺乏代表)。</li>
+</ul></li>
+<li><strong>意义</strong>:3D
+可视化让网络安全专家能<strong>直观审视、识别来袭流量的模式</strong>,并<strong>看清某个具体网络环境下的主要挑战</strong>。</li>
+</ul>
+<hr />
+<h2 id="六本章小结-key-takeaways">六、本章小结 (Key Takeaways)</h2>
+<ul>
+<li><strong>课程定位</strong>:本周是「用 AI
+解决安全问题」的<strong>第三站</strong>(承接 Week 8 deepfake、Week 9
+malware);范式 = 把入侵检测转成 ML 检测 / 分类问题。三段式:<strong>NID
+基础 → 朴素分类器 → 3D 可视化分析</strong>。</li>
+<li><strong>什么是入侵</strong>:<strong>绕过系统安全机制的非法行为</strong>;两类来源
+= <strong>外部攻击者</strong> + <strong>insider
+attacker(内部越权)</strong>;典型场景 scanning → 攻陷有漏洞的机器。</li>
+<li><strong>为什么用 ML</strong>:传统 <strong>signature-based
+NIDS(SNORT)</strong>
+三大局限——<strong>签名库须人工更新、全球部署有延迟、检测不了新型威胁</strong>;ML
+用 <strong>anomaly detection</strong>(正常画像 +
+检测偏离)抓<strong>未见过的攻击</strong>。两大软肋:<strong>❶
+缺高质量异常数据(边界难圈)、❷ 高误报率</strong>。注意<strong>异常 ≠
+一定是攻击</strong>(也可能是拥塞 / 设备故障)。</li>
+<li><strong>NSL-KDD</strong>:<strong>41 特征、38 具体攻击 → 4
+大类(dos/r2l/u2r/probe)+ benign = 5 类</strong>;用
+<code>training_attack_types.txt</code>
+映射,<strong>反转字典</strong>让「具体攻击 →
+大类」一步可查;<code>normal</code> 需手动补。</li>
+<li><strong>数据极度不平衡</strong>:训练集
+<strong>r2l≈0.7%、u2r≈0.04%</strong>;忽视它 →
+模型偏向多数类、<strong>放过最危险的少数类攻击</strong>(spyware、rootkit)。</li>
+<li><strong>数据准备流水线</strong>:切分 X/y → 区分 <strong>continuous
+vs symbolic</strong>,symbolic 再分 <strong>nominal vs binary</strong> →
+<strong><code>get_dummies()</code> 做 one-hot</strong>(每样本仅一列为
+1;默认丢最后一列去冗余)→ <strong>feature scaling</strong>。</li>
+<li><strong>标准化 vs 归一化</strong>:<strong>Standardization</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>′</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo>−</mo><mi>μ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>σ</mi></mrow><annotation encoding="application/x-tex">X&#39;=(X-\mu)/\sigma</annotation></semantics></math>
+→ 均值 0 方差
+1、范围不固定(<code>StandardScaler</code>);<strong>Normalization(min-max)</strong>
+→ 缩放到 [0,1]、范围固定(<code>MinMaxScaler</code>)。<strong>Proper
+scaling
+铁律:用「训练集」的统计量去缩放训练集和测试集</strong>(因为部署时拿不到未来数据;极端时第一天只有一条样本连均值都算不出)。</li>
+<li><strong>分类与诊断(全章核心)</strong>:选分类器是<strong>迭代试错</strong>;decision
+tree 准确率仅 ~76%,<strong>混淆矩阵(行真列预测,对角线正确)</strong>
+揭示真相——<strong>62% 都判成 benign,u2r/r2l
+大量被当正常放行</strong>。换 <strong>KNN / SVM 结果几乎一样</strong> →
+<strong>病根是 class
+imbalance,不是模型</strong>;<strong>必须先治不平衡</strong>(过采样 /
+欠采样),这正是 lab 的起点。</li>
+<li><strong>3D 可视化(研究法)</strong>:动机 =
+误分类常见但缺「为什么」的洞察,需<strong>从数据视角做可解释分析</strong>;方法
+= <strong>PCA</strong> 把 ~60 维投到 3D + 交互探索决策边界。</li>
+<li><strong>两数据集两挑战(必考对比)</strong>:<strong>UNSW-NB15 =
+异质混合簇</strong>(同质的 normal/generic 好分,混合簇里 worm
+被忽略、exploit 绑架决策);<strong>NSL-KDD = 未知攻击</strong>(R2L
+只在测试集涌现,训练集无代表 → 落入 normal
+决策边界被误判)。教训:<strong>模型应基于训练集设计,没见过的就别指望它认出来。</strong></li>
+</ul>
+<blockquote>
+<p>📌 <strong>一页纸记忆锚点</strong> — <strong>入侵 = 绕过安全机制(外部
++ 内部越权)→ 传统签名法(SNORT)三宗罪:人工更新、部署延迟、抓不到新威胁 →
+转向 ML 异常检测(正常画像+测偏离),两软肋:缺异常数据 + 高误报 →
+NSL-KDD:41 特征/38 攻击/4 大类+benign=5 类,反转字典做映射 →
+数据准备:连续 vs 符号(名义 one-hot / 二值直用)+ 缩放(标准化均值0方差1 /
+归一化[0,1],且必须用训练集统计量) → 朴素分类器准确率虚高(62% 判
+benign,u2r/r2l 被放行),换 KNN/SVM 没用 → 根因 class imbalance,先治不平衡
+→ 3D 可视化(PCA 投 3D)诊断:UNSW-NB15 难在异质簇、NSL-KDD
+难在未知攻击。</strong></p>
+</blockquote>
+<hr />
+<h2 id="七与-lab--assignment--相邻周的关联">七、与 Lab / Assignment /
+相邻周的关联</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>关联点</th>
+<th>说明</th>
+<th>对应章节</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>本周 = lab 的直接素材</strong></td>
+<td>讲师明说朴素分类器「<strong>你将在 lab 里动手实验</strong>」;对应
+<code>lab/lab_anomaly_intrusion_detection</code>。课堂卡在「换模型也救不了不平衡」,<strong>lab
+接手去治不平衡</strong></td>
+<td>§四、§4.3</td>
+</tr>
+<tr class="even">
+<td><strong>承接 Week 1(基础工具)</strong></td>
+<td><strong>one-hot encoding、confusion matrix、decision tree</strong>
+都在第 1 周讲过,本周是「在真实数据工程里把它们串起来用」</td>
+<td>§4.2、§4.3</td>
+</tr>
+<tr class="odd">
+<td><strong>承接 Week 9(malware)的不平衡对策</strong></td>
+<td>治 class imbalance 的 <strong>oversampling / undersampling / 改 cost
+function 加权</strong> 直接复用 Week 9 的思路</td>
+<td>§4.1、§4.3</td>
+</tr>
+<tr class="even">
+<td><strong>承接「用 AI 解决安全」后半段主线</strong></td>
+<td>Week 8 deepfake → Week 9 malware → <strong>Week 10
+NID</strong>,同一范式:安全问题 → ML 检测问题</td>
+<td>引子、§六</td>
+</tr>
+<tr class="odd">
+<td><strong>3D 可视化 = 讲师本人研究</strong></td>
+<td>源自 Zong, Chow &amp; Susilo (2020), <em>Future Generation Computer
+Systems</em>, 102, 292–306;技术<strong>通用</strong>,可迁移到 malware /
+图像等任意高维数据分析</td>
+<td>§五</td>
+</tr>
+<tr class="even">
+<td><strong>录音位置(说明)</strong></td>
+<td>本周录音<strong>完整且自包含</strong>在
+<code>CSIT375975 Lecture 10-transcript.txt</code>(开头「welcome to
+lecture 10… network intrusion detection」,结尾预告下周 spam
+detection),<strong>未散落到相邻周</strong>;本指南已据其与 45 页 slides
+完整整合</td>
+<td>全章</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🧭 <strong>下一周预告</strong> — 课程进入「用 AI
+解决安全问题」的<strong>第四站:Spam and Phishing
+Detection(垃圾邮件与钓鱼检测)</strong>。讲师在课尾明确预告下周讲 spam
+detection——又一次把安全问题转化为 ML 可解的文本 / 流量分类任务。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

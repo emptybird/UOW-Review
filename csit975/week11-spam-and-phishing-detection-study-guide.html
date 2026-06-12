@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 11 · 垃圾邮件与钓鱼检测 (Spam and Phishing Detection)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-11--垃圾邮件与钓鱼检测-spam-and-phishing-detection">Week 11
+· 垃圾邮件与钓鱼检测 (Spam and Phishing Detection)</h1>
+<blockquote>
+<p><strong>CSIT375/975 — AI and Cybersecurity</strong> · Dr Wei Zong ·
+University of Wollongong</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>分清「垃圾邮件」与「钓鱼」</strong>:定义
+<strong>spam(垃圾邮件,unsolicited bulk
+email/message,未经请求的批量邮件)</strong> 与
+<strong>phishing(钓鱼,把受害者诱骗到假网站、套取个人信息 /
+凭证的攻击)</strong>;说清二者关系——<strong>钓鱼比垃圾邮件危害更大</strong>,因为它直接窃取银行账号、密码、SSN
+等隐私;并能拆解一个 <strong>URL</strong> 的三大组件(<strong>protocol /
+domain name / file name</strong>);</li>
+<li><strong>背出垃圾邮件「为什么是个问题」的关键数据与论点</strong>:成本被<strong>转嫁给收件人
+(cost forced onto recipient)</strong>;一小笔投入即可每小时群发 10
+万封;占全部邮件的 <strong>45%</strong>、每天约 <strong>145
+亿封</strong>、年损失约 <strong>205 亿美元</strong>;响应率极低(1200
+万封换 1 次点击)却仍能让 <strong>80% 的垃圾邮件来自同样的 100
+个垃圾发送者</strong>牟利;</li>
+<li><strong>认全两种典型钓鱼变体</strong>:<strong>Dropbox
+钓鱼</strong>(伪造登录页做 <strong>credential harvesting
+凭证收割</strong>)与 <strong>CEO fraud /
+whaling(鲸钓,冒充高管)</strong>——侦察组织 → 盗取高管凭证 →
+以高管身份给员工发指令(如让财务转账);</li>
+<li><strong>讲清垃圾邮件过滤的目标与标准数据流</strong>:目标是判定来邮是
+<strong>ham(合法/非垃圾)</strong> 还是 <strong>spam</strong>;数据流 =
+<strong>tokenization → 黑/白名单 → 特征提取 → ML 模型 →
+检测</strong>;并解释「为什么必须先把邮件转成数值表示」;</li>
+<li><strong>对比四类过滤技术的原理与局限</strong>:<strong>❶
+Challenge-Response(挑战-应答,如 CAPTCHA)、❷
+Blacklists/Whitelists(黑/白名单)、❸ Rule-based(规则打分超阈值判垃圾)、❹
+Content-based(内容/ML,最复杂)</strong>;并说清 content-based 如何扫描
+<strong>body(「写了什么」)</strong> 与 <strong>header(「谁发的」:Message
+ID / Sender / DNS 的 SPF、DKIM、DMARC)</strong>;</li>
+<li><strong>走一遍文本预处理的两段式流水线</strong>:<strong>Tokenization(分词)→
+Vectorization(向量化)</strong>;复述 tokenization 的 5
+个步骤(去标点/非字母 → 去 stop words → 纠错/缩写还原 → 转小写 →
+<strong>stemming 词干还原</strong>),并能区分「<strong>spam 过滤里的
+token</strong>」与「<strong>大语言模型里的 token</strong>」的不同;</li>
+<li><strong>吃透三种向量化方法</strong>:<strong>Bag-of-Words(词袋,丢序、丢重要性)→
+n-grams(用 n 个连续词当 token,保住词序;bigram/unigram)→
+TF-IDF(同时捕获「词频」与「词的稀有度/重要性」)</strong>;并能解释 BoW
+的两处信息丢失各由谁来补;</li>
+<li><strong>手算 TF-IDF</strong>:背出三段公式——<strong>log-frequency
+weighting</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mo>=</mo><mn>1</mn><mo>+</mo><mo>log</mo><mi>t</mi><msub><mi>f</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mspace width="0.222em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mi>f</mi><mo>&gt;</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">w_{t,d}=1+\log tf_{t,d}\ (tf&gt;0)</annotation></semantics></math>、<strong>inverse
+document frequency</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub><mo>=</mo><mo>log</mo><mfrac><mi>N</mi><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">idf_t=\log\frac{N}{df_t}</annotation></semantics></math>、<strong>合成</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>+</mo><mo>log</mo><mi>t</mi><msub><mi>f</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mo>log</mo><mfrac><mi>N</mi><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">w_{t,d}=(1+\log tf_{t,d})\times\log\frac{N}{df_t}</annotation></semantics></math>;并能复现
+slides 的标准例子
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mtext mathvariant="normal">win, Email 3</mtext></msub><mo>=</mo><mn>1.477</mn><mo>×</mo><mo>log</mo><mfrac><mn>6</mn><mn>2</mn></mfrac><mo>=</mo><mn>0.704</mn></mrow><annotation encoding="application/x-tex">w_{\text{win, Email 3}}=1.477\times\log\frac{6}{2}=0.704</annotation></semantics></math>;</li>
+<li><strong>把全章收束成一句话</strong>:<strong>Spam detection
+本质是一个二分类 (binary classification) 问题</strong>——给定大量标注
+spam/ham
+的邮件,把文本经预处理变成数值向量,再用「你喜欢的任意分类器」学会预测新邮件的标签。</li>
+</ul>
+</blockquote>
+<hr />
+<p>上一周(Week 10)我们做完了 <strong>network intrusion
+detection(网络入侵检测)</strong>,看清了「数据不平衡 +
+未知攻击」如何让一个分类器虚高却失效。本周我们走到「<strong>用 AI
+解决安全问题</strong>」这条主线的<strong>最后一站:spam and phishing
+detection(垃圾邮件与钓鱼检测)</strong>。范式依旧——<strong>把一个安全问题转化成机器学习能求解的分类问题</strong>;但本周的主角是<strong>文本</strong>:邮件不是图像、不是流量记录,而是一堆自然语言文字。于是核心矛盾变成:<strong>机器学习模型只吃数字,可邮件是文字——怎么把「文字」干净、可靠地变成「数字向量」?</strong>
+本章一大半篇幅(也是考试重点)都在回答这个问题,最终落到
+<strong>TF-IDF</strong> 这个至今仍在用的经典方法。</p>
+<p>讲师在开头做了三段式预告,这就是本章骨架:</p>
+<pre class="mermaid"><code>flowchart TD
+    DEF[&quot;① 基本定义&lt;br/&gt;什么是 Spam &amp;amp; Phishing&quot;]
+    DEF --&gt; FILTER[&quot;② 垃圾邮件过滤技术&lt;br/&gt;挑战-应答 / 黑白名单 / 规则 / 内容(ML)&quot;]
+    FILTER --&gt; PRE[&quot;③ 文本预处理&lt;br/&gt;Tokenization → Vectorization&lt;br/&gt;(BoW / n-grams / TF-IDF)&quot;]
+    PRE --&gt; CLS[&quot;④ 训练分类器&lt;br/&gt;= 二分类 spam vs ham&quot;]</code></pre>
+<blockquote>
+<p>🧭 <strong>一句话抓住全章</strong> — <strong>垃圾邮件 / 钓鱼检测 =
+文本二分类。</strong> 难点不在分类器(用 Naïve Bayes、SVM、DNN
+都行),而在「<strong>把邮件文字转成数值向量</strong>」这一步:先
+<strong>tokenization</strong> 把句子切成干净的 token,再
+<strong>vectorization</strong> 把 token
+变成数字。向量化方法一路进化——<strong>词袋 (BoW) 丢了词序和词的重要性 →
+n-grams 用连续词组找回词序 → TF-IDF 用「词频 ×
+稀有度」找回词的重要性</strong>。抓住「<strong>文字 → 数字 →
+分类器</strong>」这条主线,再把 <strong>TF-IDF
+三段公式</strong>记牢,全章就立住了。</p>
+</blockquote>
+<hr />
+<h2 id="一什么是垃圾邮件与钓鱼-slides-310">一、什么是垃圾邮件与钓鱼
+(Slides 3–10)</h2>
+<h3 id="11-spam定义与为什么是个问题-slides-35">1.1
+Spam:定义与「为什么是个问题」 (Slides 3–5)</h3>
+<p><strong>Spam(垃圾邮件)</strong> 的定义很简洁:<strong>unsolicited bulk
+email or message(未经请求的批量邮件 /
+消息)</strong>——即<strong>向成千上万(乃至数百万)收件人发送内容相同或几乎相同的邮件</strong>。关键词是
+<strong>unsolicited(未经请求)</strong> +
+<strong>bulk(批量)</strong>。</p>
+<p>它为什么是个<strong>真实的问题 (problem)</strong>?slides
+列了一串(注意末尾那句点睛):</p>
+<ul>
+<li><strong>成本极低、危害极广</strong>:只需<strong>一点点投入 (tiny
+investment)</strong>,垃圾发送者就能<strong>每小时群发超过 10
+万封</strong>邮件。</li>
+<li><strong>浪费时间、可能造成经济损失</strong>:研究显示,普通人<strong>把约
+28% 的工作日(≈ 670 小时/年)<strong>花在读写邮件上,而平均</strong>只有
+38% 的邮件是相关且重要的</strong>。</li>
+<li><strong>浪费存储与带宽</strong>:垃圾邮件照样要经互联网传输、要在服务器上留存记录。</li>
+<li><strong>可能携带恶意软件</strong>:作为<strong>可执行文件 (executable
+files)</strong> 附件夹带 malware。</li>
+<li><strong>点睛之笔(最常考的一句)</strong>:<strong>Spam is a problem
+because the cost is forced onto the
+recipient.</strong>(垃圾邮件之所以是问题,是因为<strong>成本被强加给了收件人</strong>——发送几乎免费,买单的却是你。)这正是「<strong>要用
+AI 做垃圾邮件过滤器</strong>」的根本动机。</li>
+</ul>
+<p><strong>几个数字 (Statistics, Slide 5)</strong> ——
+用来体会规模,适合做填空/选择:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>指标</th>
+<th>数值</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>垃圾邮件占全部邮件的比例</td>
+<td><strong>45%</strong>(几乎一半)</td>
+</tr>
+<tr class="even">
+<td>每天发送的垃圾邮件量</td>
+<td><strong>约 14.5 billion(145 亿)封</strong></td>
+</tr>
+<tr class="odd">
+<td>每年造成的损失</td>
+<td><strong>约 $20.5 billion(205 亿美元)</strong>(网络带宽 + 存储)</td>
+</tr>
+<tr class="even">
+<td>垃圾发送者的响应率</td>
+<td>平均<strong>每发 1200 万封才换来 1 次点击</strong></td>
+</tr>
+<tr class="odd">
+<td>收益</td>
+<td>即便响应率如此之低,垃圾发送者<strong>每年仍能赚数百万美元</strong></td>
+</tr>
+<tr class="even">
+<td>集中度</td>
+<td><strong>80% 的垃圾邮件来自同样的 100 个垃圾发送者</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>💡 <strong>直觉</strong> — 这组数字想让你记住两件事:①
+垃圾邮件是个<strong>规模巨大、有利可图</strong>的灰色产业(所以不会消失);②
+它高度<strong>集中</strong>(80% 来自 100
+人),且<strong>响应率极低却仍盈利</strong>——因为发送成本被转嫁了。这就是为什么过滤必须<strong>自动化、可扩展</strong>,人工根本扛不住每天
+145 亿封。</p>
+</blockquote>
+<h3 id="12-phishing钓鱼比垃圾邮件更危险-slides-67">1.2
+Phishing:钓鱼,比垃圾邮件更危险 (Slides 6–7)</h3>
+<p><strong>Phishing(钓鱼)</strong>
+是另一类攻击:<strong>受害者被诱骗到一个假网站 (fake
+web),并被欺骗交出个人数据或凭证 (personal data or
+credentials)。</strong></p>
+<p>它的核心载体是 <strong>phishing URL(钓鱼链接)</strong>:</p>
+<ul>
+<li>钓鱼 URL <strong>看起来像合法 URL</strong>,却会把用户<strong>重定向
+(redirect)</strong> 到钓鱼网页;</li>
+<li>钓鱼网页<strong>高度仿冒 (mimic the look and feel)</strong>
+目标网站的外观,让你以为自己在真网站上。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides):一个 URL 由什么组成?</strong> — slides
+借机复习了 <strong>URL(Uniform Resource Locator,统一资源定位符)</strong>
+的定义:它是网络中某个网页的<strong>地址</strong>。以
+<code>http://www.example.com/index.html</code> 为例,三大组件务必能拆: |
+组件 | 例子 | 含义 | |---|---|---| | <strong>Protocol
+type(协议类型)</strong> | <code>http</code> | 用什么协议访问 | |
+<strong>Domain name(域名)</strong> | <code>www.example.com</code> |
+资源在哪台主机 | | <strong>File name(文件名)</strong> |
+<code>index.html</code> | 具体哪个网页 |</p>
+<p>钓鱼之所以难防,正是因为攻击者在<strong>域名</strong>上做手脚(相似域名、子域伪装),肉眼一扫很难分辨。</p>
+</blockquote>
+<p><strong>为什么钓鱼比垃圾邮件更严重?</strong>(必考对比)——因为<strong>钓鱼邮件旨在窃取用户私密信息</strong>,如<strong>银行账号、密码、SSN(社会安全号)</strong>;而普通垃圾邮件多半只是骚扰、广告。讲师用一个<strong>仿冒
+Amazon
+的钓鱼邮件</strong>举例,点出两个<strong>实战识别技巧</strong>:</p>
+<blockquote>
+<p>🔍 <strong>识别钓鱼的两个细节(讲师强调)</strong></p>
+<ul>
+<li><strong>看发件人拼写</strong>:示例里发件域名<strong>少了一个字母
+<code>a</code></strong>——不是 Amazon 官方发件方。</li>
+<li><strong>悬停看真实链接</strong>:文本里的链接看着合法,但<strong>把鼠标悬停
+(hover)
+在链接上</strong>,会显示<strong>实际跳转地址</strong>,它指向的是一个<strong>与文本完全不同的网站</strong>。</li>
+</ul>
+<p>⚠️
+讲师特别提醒:<strong>仅凭阅读文本极难发现钓鱼</strong>——必须查发件域名、悬停验链接。</p>
+</blockquote>
+<h3 id="13-两种典型钓鱼变体-slides-810">1.3 两种典型钓鱼变体 (Slides
+8–10)</h3>
+<pre class="mermaid"><code>flowchart TD
+    PH[&quot;钓鱼的两个典型变体&quot;]
+    PH --&gt; DB[&quot;Dropbox 钓鱼&lt;br/&gt;(credential harvesting 凭证收割)&quot;]
+    PH --&gt; CEO[&quot;CEO Fraud / Whaling&lt;br/&gt;(鲸钓,冒充高管)&quot;]
+    DB --&gt; DB1[&quot;伪造 Dropbox 登录页&quot;]
+    DB1 --&gt; DB2[&quot;诱导用户输入账号密码&quot;]
+    DB2 --&gt; DB3[&quot;用盗来的凭证登录合法站点&lt;br/&gt;窃取用户数据&quot;]
+    CEO --&gt; C1[&quot;① 侦察组织,找可冒充 CEO 的切入点&quot;]
+    C1 --&gt; C2[&quot;② 盗取高管登录凭证&lt;br/&gt;(account takeover 账户接管)&quot;]
+    C2 --&gt; C3[&quot;③ 以 CEO 身份群发邮件给员工&lt;br/&gt;(如让财务部门转账)&quot;]</code></pre>
+<ul>
+<li><strong>Dropbox 钓鱼 (Slide 8)</strong>:攻击者<strong>伪造 Dropbox
+的登录页 (fake sign-in pages)</strong>,作为<strong>凭证收割 (credential
+harvesting)</strong>
+的一环;拿到账号密码后,再<strong>用这些被盗凭证登录合法网站、窃取用户数据</strong>。</li>
+</ul>
+<blockquote>
+<p>📌 <strong>录音小贴士</strong> — 转写把 "<strong>Dropbox</strong>"
+误听成了 "<strong>jawbox</strong>"。slide 8 标题白纸黑字写的是
+<strong>Dropbox Phishing</strong>,以 slides 为准。</p>
+</blockquote>
+<ul>
+<li><strong>CEO Fraud / Whaling 鲸钓 (Slides 9–10)</strong>:也叫
+<strong>whaling attack(鲸钓,「大鱼」指高管)</strong>。
+<ul>
+<li><strong>目标 (target)</strong>:组织里的<strong>顶层高管 (top
+executives)</strong>;</li>
+<li><strong>手法</strong>:因凭证被盗导致<strong>账户接管 (account
+takeover)</strong>——攻击者<strong>先侦察组织、找漏洞以便冒充
+CEO</strong>,<strong>盗取 CEO 账户</strong>后,<strong>以 CEO
+名义给全体员工发邮件</strong>(例如让<strong>财务部门转一笔钱</strong>到指定账户);</li>
+<li><strong>后果</strong>:多数情况下<strong>钱很难追回</strong>。</li>
+</ul></li>
+</ul>
+<blockquote>
+<p>💡 <strong>为什么叫「鲸钓」</strong> — 普通 phishing
+是广撒网钓小鱼(任意用户),whaling
+则专钓「大鱼」(CEO/CFO)。一旦冒充成高管,后续指令的<strong>可信度极高</strong>(谁敢质疑
+CEO 的转账邮件?),所以危害和金额都更大。</p>
+</blockquote>
+<blockquote>
+<p>🔑 <strong>本节小结(spam vs phishing 必背)</strong> — <strong>Spam =
+未经请求的批量邮件</strong>,主要危害是<strong>骚扰 + 浪费资源 +
+成本转嫁收件人</strong>;<strong>Phishing =
+诱骗到假站套取隐私/凭证</strong>,主要危害是<strong>直接盗取财产与身份</strong>,所以<strong>更严重</strong>。两种典型钓鱼:<strong>Dropbox
+钓鱼(收割凭证)</strong>、<strong>CEO fraud /
+whaling(冒充高管)</strong>。</p>
+</blockquote>
+<hr />
+<h2
+id="二垃圾邮件过滤目标与标准数据流-slides-1113">二、垃圾邮件过滤:目标与标准数据流
+(Slides 11–13)</h2>
+<p><strong>Spam filter(垃圾邮件过滤器)的目标
+(goal)</strong>:判定一封来邮是<strong>合法的 (legitimate = non-spam =
+ham 火腿)</strong> 还是<strong>未经请求的 (unsolicited =
+spam)</strong>。判为 ham → 进收件箱给用户;判为 spam →
+进垃圾箱、甚至直接删除。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides):为什么非垃圾邮件叫 "ham"?</strong> —
+这是垃圾邮件领域的行话:<strong>spam</strong>
+本是一种午餐肉罐头品牌,被借来指「垃圾邮件」;于是人们顺手用同为肉类的
+<strong>ham(火腿)</strong> 来指「正常邮件」。考试里看到 <strong>ham
+就等于 legitimate / non-spam</strong>。</p>
+</blockquote>
+<p><strong>一个典型的垃圾邮件过滤数据流 (Slide
+12)</strong>——它展示了一封邮件从进来到被判决,要经过哪些处理:</p>
+<pre class="mermaid"><code>flowchart LR
+    IN[&quot;📧 来邮&quot;] --&gt; TOK[&quot;① Tokenization&lt;br/&gt;分词&quot;]
+    TOK --&gt; LIST[&quot;② 查黑/白名单&lt;br/&gt;(在黑名单则直接丢弃)&quot;]
+    LIST --&gt; FEAT[&quot;③ 特征提取&lt;br/&gt;(如统计关键词出现次数)&quot;]
+    FEAT --&gt; ML[&quot;④ ML 模型&quot;]
+    ML --&gt; DET{&quot;⑤ 检测:spam?&quot;}
+    DET --&gt;|是| DEL[&quot;🗑 删除/进垃圾箱&quot;]
+    DET --&gt;|否| USER[&quot;✅ 交给用户&quot;]</code></pre>
+<blockquote>
+<p>🔑 <strong>关键铺垫(贯穿全章)</strong> —
+要把邮件喂给模型,<strong>必须先把它转成某种「数值格式 (numerical
+format)」</strong>。这句话是本章后半(预处理 /
+向量化)的总动机:<strong>模型只认数字,邮件却是文字。</strong></p>
+</blockquote>
+<p><strong>为什么垃圾邮件过滤在 ML 安全里地位特殊?(Slide 13)</strong> ——
+三点,适合简答:</p>
+<ol type="1">
+<li><strong>基于 ML
+的垃圾分类器,是机器学习在网络安全领域最早的应用之一</strong>;</li>
+<li>因此,它们也<strong>最早成为被攻击的对象</strong>——攻击者的目标是<strong>在不改变邮件本意
+(without changing the nature of the message)
+的前提下修改垃圾邮件,以绕过过滤器 (bypass spam filters)</strong>;</li>
+<li><strong>现代过滤器越来越依赖机器学习与神经网络</strong>,Gmail、Outlook、Yahoo
+等大厂广泛采用。</li>
+</ol>
+<blockquote>
+<p>⚠️ <strong>一句话点题</strong> —
+垃圾邮件过滤是「攻防共同进化」的经典战场:<strong>它既是 ML
+安全的开端,也是对抗攻击的开端。</strong> 这呼应了课程前几周的
+adversarial examples——攻击者改几个词就能让分类器失灵。</p>
+</blockquote>
+<hr />
+<h2 id="三四类过滤技术-slides-1420">三、四类过滤技术 (Slides 14–20)</h2>
+<p>slides
+给出四种技术,<strong>复杂度递增</strong>,最后一种(content-based)才是 ML
+真正登场的地方:</p>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;① Challenge-Response&lt;br/&gt;挑战-应答&quot;] --&gt; B[&quot;② Blacklists / Whitelists&lt;br/&gt;黑/白名单&quot;]
+    B --&gt; C[&quot;③ Rule-based&lt;br/&gt;规则打分&quot;]
+    C --&gt; D[&quot;④ Content-based ⭐&lt;br/&gt;内容 / 机器学习(最复杂)&quot;]</code></pre>
+<h3 id="31-challenge-response-filtering-挑战-应答-slide-15">3.1
+Challenge-Response Filtering 挑战-应答 (Slide 15)</h3>
+<p><strong>原理</strong>:发件人发来邮件时,系统<strong>回送一个「挑战」(challenge)</strong>(如
+<strong>CAPTCHA 验证码</strong>)。</p>
+<ul>
+<li><strong>合法用户</strong>能轻松解开挑战(人类一眼认出字符);</li>
+<li><strong>垃圾发送者</strong>要群发海量邮件,<strong>逐一解挑战变得困难</strong>;</li>
+<li>于是系统可据此<strong>轻松区分合法邮件与垃圾邮件</strong>。</li>
+</ul>
+<p><strong>局限 (Limitation)</strong>:</p>
+<ul>
+<li>发件人有时<strong>忘了 /
+不回应挑战</strong>,导致合法邮件也发不出去;</li>
+<li><strong>ML
+技术的进步使「自动解挑战」成为可能</strong>——攻击者可用深度学习自动破解
+CAPTCHA。</li>
+</ul>
+<h3 id="32-blacklists-and-whitelists-黑白名单-slide-16">3.2 Blacklists
+and Whitelists 黑/白名单 (Slide 16)</h3>
+<ul>
+<li><strong>Blacklist(黑名单)</strong>:由多个站点收集的<strong>行为不端的服务器
+/ 已知垃圾发送者</strong>清单;把邮件里的<strong>发件人 id
+与黑名单比对</strong>,命中即丢弃。</li>
+<li><strong>Whitelist(白名单)</strong>:与黑名单<strong>互补</strong>,存放<strong>可信联系人</strong>的地址。</li>
+<li><strong>定位</strong>:用于<strong>第一级过滤 (first level
+filtering)</strong>(在内容检查之前),<strong>不能作为唯一决策工具</strong>。</li>
+</ul>
+<p><strong>局限</strong>:<strong>易因错误配置 (wrong configurations)
+出问题</strong>——一旦把合法服务器误列入黑名单,<strong>它很难再退出
+(exit) 这个名单</strong>。</p>
+<h3 id="33-rule-based-filtering-规则打分-slide-17">3.3 Rule-based
+Filtering 规则打分 (Slide 17)</h3>
+<p><strong>原理</strong>:用<strong>静态规则 (static rules)</strong>
+在大量垃圾 / 非垃圾邮件中发现相似模式。</p>
+<ul>
+<li>每条规则<strong>赋一个分数
+(score)</strong>,分数按规则重要性<strong>加权 (weighted)</strong>;</li>
+<li>把一封邮件命中的规则得分<strong>累加</strong>,<strong>若总分 &gt;
+预设阈值 (threshold),判为 spam</strong>。</li>
+</ul>
+<p><strong>规则可以基于哪些信号?</strong>——词与短语、<strong>大量大写字母</strong>、<strong>感叹号</strong>、异常主题行、特殊字符、网页链接、HTML
+邮件、背景色等。</p>
+<p><strong>局限</strong>:</p>
+<ul>
+<li><strong>需要不断更新规则 (constant updating)</strong>;</li>
+<li>面对垃圾发送者<strong>持续自适应的策略 (continually adapting
+strategies)</strong>——规则一公开,攻击者就能针对性绕过。</li>
+</ul>
+<h3
+id="34-content-based-filtering-内容过滤ml-登场最复杂-slides-1820">3.4
+Content-based Filtering 内容过滤(ML 登场,最复杂) (Slides 18–20)</h3>
+<p><strong>原理</strong>:过滤器<strong>扫描来邮内容</strong>,寻找<strong>触发关键词
+(trigger keywords)</strong>——如 spam 高频词
+<strong>free、buy、application、mortgage</strong>;<strong>body(正文)与
+header(头部)一起扫描</strong>。</p>
+<p>关键在于:<strong>关键词的出现频率与分布 (frequency of occurrence and
+distribution)</strong> 被用作<strong>特征 (features)</strong>
+来<strong>训练 ML 模型</strong>,之后用模型对新邮件分类。</p>
+<pre class="mermaid"><code>flowchart TD
+    CB[&quot;Content-based 用过的模型(演进史)&quot;]
+    CB --&gt; NB[&quot;早期成功:Naïve Bayes 朴素贝叶斯&lt;br/&gt;(最早成功的垃圾过滤 ML 模型之一)&quot;]
+    NB --&gt; CONV[&quot;传统 ML:SVM / k-NN / 决策树 ...&quot;]
+    CONV --&gt; DNN[&quot;如今主流:Deep Neural Networks 深度神经网络&quot;]</code></pre>
+<blockquote>
+<p>📎 <strong>拓展(承接前几周)</strong> — 这里的
+<strong>SVM「接在深度模型后面」</strong> 的用法,正是 Week 9(malware
+图像分类)里讲过的套路:用神经网络抽特征 + SVM 做最后分类。Content-based
+过滤把前几周的分类器(NB、SVM、KNN、决策树、DNN)全用上了。</p>
+</blockquote>
+<p><strong>Body vs Header:扫正文看「写了什么」,扫头部看「谁发的」(Slide
+19)</strong></p>
+<ul>
+<li><strong>扫描 body(正文)→ 探究 the
+"what"</strong>:邮件里写了什么内容;</li>
+<li><strong>扫描 header(头部)→ 探究 the
+"who"</strong>:谁发的、从哪发的。</li>
+</ul>
+<p><strong>email header 里有哪些可用信息?</strong>(适合做匹配题):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>Header 字段</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Message ID</strong></td>
+<td>发件方邮件服务生成的标识符;<strong>不存在两个相同的 Message
+ID</strong> → 可用来<strong>检测伪造的邮件头 (forged
+headers)</strong>(若发现两封 ID 相同,其一必为伪造)</td>
+</tr>
+<tr class="even">
+<td><strong>Sender address(发件地址)</strong></td>
+<td>用来<strong>查黑名单 / 域名信誉 (domain reputation)</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>DNS records(DNS 记录)</strong></td>
+<td>检查发件方的<strong>邮件认证策略</strong>:<strong>SPF、DKIM、DMARC</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides):SPF / DKIM / DMARC 是什么?</strong> —
+讲师明说「本课不深入这些策略的细节」,但点到名字了,你至少要认识缩写:</p>
+<ul>
+<li><strong>SPF (Sender Policy Framework)</strong> —
+声明「哪些服务器有权代表本域名发信」;</li>
+<li><strong>DKIM (DomainKeys Identified Mail)</strong> —
+用<strong>数字签名</strong>证明邮件确实来自该域且未被篡改;</li>
+<li><strong>DMARC (Domain-based Message Authentication, Reporting and
+Conformance)</strong> — 基于 SPF/DKIM
+的结果,规定「认证失败的邮件如何处置(拒收/隔离)」并出报告。</li>
+</ul>
+<p>Slide 20 展示了一个<strong>真实 Gmail 邮件头</strong>:开头是唯一的
+<strong>Message ID</strong>,接着是<strong>创建时间、发件人 /
+收件人地址、主题</strong>,以及来自 DNS 的 <strong>SPF
+等认证结果</strong>。</p>
+</blockquote>
+<blockquote>
+<p>🔑 <strong>四技术对比(必背表)</strong> | 技术 | 原理一句话 | 主要局限
+| |---|---|---| | <strong>Challenge-Response</strong> | 回送
+CAPTCHA,合法者易解、群发者难解 | 用户忘回应;ML 可自动破解 | |
+<strong>Blacklists/Whitelists</strong> | 比对发件人 id 与黑/白名单 |
+错误配置后<strong>难以退出名单</strong>;只能做第一级 | |
+<strong>Rule-based</strong> | 命中规则累加打分,超阈值判 spam |
+需<strong>不断更新规则</strong>;攻击者自适应绕过 | |
+<strong>Content-based(ML)</strong> | 用正文/头部的关键词频率当特征训模型
+| (最强,本章主角)依赖好的特征与数据 |</p>
+</blockquote>
+<hr />
+<h2
+id="四一个玩具例子打分式反垃圾算法-slides-2122">四、一个玩具例子:打分式反垃圾算法
+(Slides 21–22)</h2>
+<p>在进入正式的 ML 预处理之前,slides
+先用一个<strong>极简打分例子</strong>热身,展示「反垃圾算法到底在干嘛」。</p>
+<p><strong>任务</strong>:基于可疑关键词(如
+<strong>buy、shop</strong>)对一组邮件分类。给一张表,列出每封邮件里各关键词的<strong>出现次数</strong>,据此判
+spam / ham。</p>
+<p><strong>做法</strong>:给每封邮件<strong>算一个分数
+(score)</strong>,用一个考虑「可疑关键词出现次数」的<strong>打分函数
+(scoring
+function)</strong>,并<strong>带权重</strong>。例如(讲师板书的简单形式):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">score</mtext><mo>=</mo><mn>2</mn><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mtext mathvariant="normal">#buy</mtext><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mn>3</mn><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mtext mathvariant="normal">#shop</mtext><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\text{score} = 2 \times (\text{\#buy}) + 3 \times (\text{\#shop})</annotation></semantics></math></p>
+<p>设<strong>阈值 = 4</strong>:<strong>score &gt; 4 判为 spam,否则判为
+ham</strong>。</p>
+<blockquote>
+<p>💡 <strong>这个例子的意义</strong> — 它其实就是 §3.3
+<strong>rule-based</strong> 的最小实例,也是后面 ML
+方法的「前身」。它揭示了所有内容过滤的共同骨架:<strong>把文字 →
+数(关键词次数)→ 经一个函数 → 得分 /
+标签</strong>。区别只在于:玩具版的「打分函数」是人手写死的;而真正的 ML
+版,这个「函数」是从数据里<strong>学</strong>出来的。这自然引出了下一个问题——<strong>怎么把整封邮件系统地变成数字?</strong></p>
+</blockquote>
+<hr />
+<h2
+id="五文本预处理tokenization--vectorization-slides-2325">五、文本预处理:Tokenization
++ Vectorization (Slides 23–25)</h2>
+<p><strong>总动机 (Slide
+23)</strong>:在处理文档(邮件)之前,<strong>必须把文档转成数值表示</strong>。预处理分<strong>两段</strong>:</p>
+<pre class="mermaid"><code>flowchart LR
+    DOC[&quot;📄 邮件原文&quot;] --&gt; TOK[&quot;① Tokenization 分词&lt;br/&gt;把文本切成代表性符号(tokens)&quot;]
+    TOK --&gt; VEC[&quot;② Vectorization 向量化&lt;br/&gt;把 tokens 转成数值「向量」&quot;]
+    VEC --&gt; NUM[&quot;🔢 数值表示&lt;br/&gt;(供 ML / DL 模型使用)&quot;]</code></pre>
+<ul>
+<li><strong>Tokenization(分词)</strong>:把文本里的词<strong>分开</strong>,将一封邮件转成<strong>一串代表性符号
+(tokens)</strong>;</li>
+<li><strong>Vectorization(向量化)</strong>:把 token
+转成<strong>数值格式——「向量 (vectors)」</strong>。</li>
+</ul>
+<h3 id="51-tokenization-的-5-个步骤-slide-24">5.1 Tokenization 的 5
+个步骤 (Slide 24)</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>步骤</th>
+<th>做什么</th>
+<th>为什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>❶ 去标点 / 非字母字符</strong></td>
+<td>删掉逗号、句号,以及 <code>@ # { ]</code> 等</td>
+<td>这些符号对垃圾过滤无意义</td>
+</tr>
+<tr class="even">
+<td><strong>❷ 去 stop words(停用词)</strong></td>
+<td>删掉 <code>for、the、is、to、some</code> 等</td>
+<td>这些词在 spam 和 ham
+里都频繁出现,<strong>对过滤无区分力</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>❸ 纠正拼写错误 / 还原缩写</strong></td>
+<td>修正拼写、展开缩写</td>
+<td>统一表述</td>
+</tr>
+<tr class="even">
+<td><strong>❹ 全部转小写 (lower-case)</strong></td>
+<td><code>Text</code> 与 <code>text</code> 视为同一词</td>
+<td>让模型不区分大小写</td>
+</tr>
+<tr class="odd">
+<td><strong>❺ Stemming 词干还原</strong></td>
+<td>把词还原到<strong>词根 (base form)</strong></td>
+<td>如 buy–bought、grill–grilled 共享词根,合并计数</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Tokenization 例子 (Slide 25)</strong>:</p>
+<pre><code>原文:  Check out my you[tube] /#?song Channel?
+  ↓ 分词 + 去标点/非字母
+        Check out my you tube song Channel
+  ↓ 转小写
+        check out my you tube song channel
+  ↓ 去停用词 (out / my / you 等)
+        check tube song channel
+  ↓ 向量化
+        1.24   2.11   0.74   3.57</code></pre>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides,讲师重点澄清):此 token ≠ 大语言模型的
+token</strong> — 别把这里的 token 和 <strong>ChatGPT 等 LLM 的
+token</strong> 搞混:</p>
+<ul>
+<li><strong>垃圾过滤里的
+token</strong>:是<strong>有意义的词</strong>;标点、停用词都被<strong>当作噪声删除</strong>;</li>
+<li><strong>LLM 的
+token</strong>:<strong>可以包含标点,也可能是「半个词」(subword)</strong>。</li>
+</ul>
+<p>二者定义不同,因为目标不同:LLM
+要建模语言生成,标点和子词都有信息;垃圾过滤只关心「哪些有区分力的词出现了」。</p>
+</blockquote>
+<h3 id="52-为什么要做这些">5.2 为什么要做这些?</h3>
+<blockquote>
+<p>💡 <strong>直觉</strong> — Tokenization
+的每一步都在做同一件事:<strong>砍掉噪声、合并等价</strong>。去标点/停用词是砍噪声;转小写、stemming
+是把「本质相同」的写法合并(<code>Text=text</code>、<code>buy=bought</code>),让真正有区分力的词凸显出来。预处理做得好,后面的向量才「干净」,分类器才学得动。</p>
+</blockquote>
+<hr />
+<h2 id="六向量化三法bow--n-grams--tf-idf-slides-2640">六、向量化三法:BoW
+→ n-grams → TF-IDF (Slides 26–40)</h2>
+<p>向量化是把 token 变数字的核心。slides
+给三种方法,<strong>按历史演进</strong>排列——每一种都在补上一种的短板:</p>
+<pre class="mermaid"><code>flowchart LR
+    BOW[&quot;Bag-of-Words 词袋&lt;br/&gt;(约 10–15 年前)&lt;br/&gt;❌ 丢词序 ❌ 丢词重要性&quot;] --&gt;|找回词序| NG[&quot;n-grams&lt;br/&gt;(改进版)&lt;br/&gt;✅ 保住词序&quot;]
+    BOW --&gt;|找回词重要性| TF[&quot;TF-IDF&lt;br/&gt;(如今仍常用)&lt;br/&gt;✅ 捕获词频 × 稀有度&quot;]</code></pre>
+<h3 id="61-bag-of-words-词袋-slides-2728">6.1 Bag-of-Words 词袋 (Slides
+27–28)</h3>
+<p><strong>模型</strong>:把邮件里分好的词表示成一个**「袋 / 集合 (bag =
+set)」**。「<strong>bag</strong>」一词暗示:<strong>词的顺序和文本结构都丢失了</strong>(集合无序)。每个词是一个
+token,带一个数值特征——<strong>通常用「该词的出现频率
+(frequency)」当特征</strong>。</p>
+<p><strong>例子 (Slide 27)</strong>:</p>
+<pre><code>文本:  John likes to watch movies. Mary likes movies too.
+词袋:  {&quot;John&quot;:1, &quot;likes&quot;:2, &quot;to&quot;:1, &quot;watch&quot;:1, &quot;movies&quot;:2, &quot;Mary&quot;:1, &quot;too&quot;:1}
+向量:  [1, 2, 1, 1, 2, 1, 1]</code></pre>
+<p><strong>BoW 丢了什么?(Slide
+28)</strong>——两处信息丢失,分别由后两法来补:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>丢失的信息</th>
+<th>例子</th>
+<th>谁来补</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>词序 (ordering)</strong></td>
+<td><code>Alice is quicker than Bob</code> 与
+<code>Bob is quicker than Alice</code>
+<strong>向量完全相同</strong></td>
+<td><strong>→ n-grams</strong></td>
+</tr>
+<tr class="even">
+<td><strong>词的重要性 (term importance)</strong></td>
+<td>不知道哪个词更关键(<code>than</code> 不重要,<code>quicker</code>
+很重要)</td>
+<td><strong>→ TF-IDF</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>💡 <strong>历史定位</strong> — BoW
+是「文本→向量」的<strong>起点</strong>,在 NLP
+课程里也是经典开篇。如今很少单独用,但它是理解后面一切的基础:<strong>先有词袋,才谈得上「给词袋补词序、补重要性」。</strong></p>
+</blockquote>
+<h3 id="62-n-grams-slide-29">6.2 n-Grams (Slide 29)</h3>
+<p><strong>思路</strong>:不再用单个词当 token,而是用 <strong>n 个连续词
+(n consecutive words)</strong> 当 token——称为
+<strong>n-gram</strong>。把几个相邻词<strong>绑在一起</strong>,能造出更<strong>专门化
+(specialized)</strong> 的 token。</p>
+<ul>
+<li>例:<code>play</code> 是中性词;但两词短语
+<code>play lotto</code>(玩彩票)就<strong>不那么中性</strong>了——在
+2-gram 里,<code>play lotto</code> 是<strong>一个</strong>整 token,而非
+<code>play</code> + <code>lotto</code> 两个。</li>
+<li><strong>术语</strong>:相邻<strong>两词</strong>组成的叫
+<strong>bigram(二元组)</strong>;<strong>单词</strong>组成的叫
+<strong>unigram(一元组)</strong>——<strong>unigram 就等于
+BoW</strong>。</li>
+<li><strong>价值</strong>:n-grams
+<strong>保住了词序</strong>,因此<strong>可能比 BoW
+捕获更多信息</strong>(需
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>≥</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">n \ge 2</annotation></semantics></math>
+才有意义)。</li>
+</ul>
+<blockquote>
+<p>🔑 <strong>一句话</strong> — <strong>BoW = unigram;n-grams(n≥2)=
+把连续词捆成 token 来找回词序。</strong>
+代价是词表急剧膨胀(组合爆炸),但换来了上下文信息。</p>
+</blockquote>
+<h3 id="63-tf-idf-词频逆文档频率-slides-3040">6.3 TF-IDF 词频–逆文档频率
+(Slides 30–40)</h3>
+<p>这是本章<strong>数学最重、最常考</strong>的部分。TF-IDF
+的使命:<strong>捕获每个词的「重要性」</strong>——既看它在<strong>本文档</strong>里出现得多不多(TF),又看它在<strong>整个文档集合</strong>里稀不稀有(IDF)。</p>
+<h4 id="a-术语与词-文档矩阵-slides-3031">(a) 术语与「词-文档矩阵」
+(Slides 30–31)</h4>
+<ul>
+<li>预处理后剩下
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+个不同的 token</strong>,称为 <strong>terms(词项)/
+vocabulary(词汇表)</strong>;</li>
+<li>文档
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+中的 token
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+被赋一个<strong>实数权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">w_{ij}</annotation></semantics></math></strong>;于是<strong>每个文档表示成一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+维向量</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mi>j</mi></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>w</mi><mrow><mn>1</mn><mi>j</mi></mrow></msub><mo>,</mo><msub><mi>w</mi><mrow><mn>2</mn><mi>j</mi></mrow></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>w</mi><mrow><mi>t</mi><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">d_j=(w_{1j}, w_{2j}, \dots, w_{tj})</annotation></semantics></math>;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+个文档的集合用一个 <strong>term-document matrix(词–文档矩阵)</strong>
+表示:<strong>行 = 词项,列 = 文档</strong>,每个格子 =
+「该词在该文档中的权重」;</li>
+<li><strong>格子为
+0</strong>:表示该词在该文档<strong>无意义,或干脆没出现</strong>。</li>
+</ul>
+<p>核心问题就一个:<strong>这些
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>w</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">w_{ij}</annotation></semantics></math>
+怎么算?</strong> —— 答案就是 <strong>TF-IDF</strong>,它由两部分相乘:</p>
+<pre class="mermaid"><code>flowchart LR
+    TF[&quot;TF 词频&lt;br/&gt;(经 log-frequency 加权)&quot;] --&gt; MUL[&quot;×&quot;]
+    IDF[&quot;IDF 逆文档频率&lt;br/&gt;(衡量稀有度/重要性)&quot;] --&gt; MUL
+    MUL --&gt; W[&quot;w(t,d) = 该格权重&quot;]</code></pre>
+<h4 id="b-term-frequency--log-frequency-weighting-slides-3235">(b) Term
+Frequency + Log-Frequency Weighting (Slides 32–35)</h4>
+<p><strong>第一步:数原始词频。</strong> 先建 <strong>term-document count
+matrix(计数矩阵)</strong>,数每个词在每封邮件里出现几次。slides 的例子(6
+封邮件):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>词项 \ 文档</th>
+<th>Email 1</th>
+<th>Email 2</th>
+<th>Email 3</th>
+<th>Email 4</th>
+<th>Email 5</th>
+<th>Email 6</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>lotto</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+<td>3</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td>mr</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td>bear</td>
+<td>2</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td>gunter</td>
+<td>0</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td>doggy</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>5</td>
+</tr>
+<tr class="even">
+<td>win</td>
+<td>0</td>
+<td>2</td>
+<td>3</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>问题</strong>:直接用原始词频不妥——<strong>相关性并不随原始词频线性增长</strong>。某词出现
+4 次,<strong>并不代表它比出现 1 次的词重要 4
+倍</strong>。需要<strong>压缩这种差距</strong>。</p>
+<p><strong>第二步:log-frequency weighting(对数词频加权)。</strong>
+用对数把差距压平:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mn>1</mn><mo>+</mo><mo>log</mo><mi>t</mi><msub><mi>f</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mrow><mtext mathvariant="normal">if </mtext><mspace width="0.333em"></mspace></mrow><mi>t</mi><msub><mi>f</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mo>&gt;</mo><mn>0</mn></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mn>0</mn><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">otherwise</mtext></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">
+w_{t,d}=
+\begin{cases}
+1+\log tf_{t,d}, &amp; \text{if } tf_{t,d}&gt;0\\[4pt]
+0, &amp; \text{otherwise}
+\end{cases}
+</annotation></semantics></math></p>
+<blockquote>
+<p>📎 <strong>小提醒</strong> — slides 用的是<strong>常用对数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mo>log</mo><mn>10</mn></msub><annotation encoding="application/x-tex">\log_{10}</annotation></semantics></math></strong>。例:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mi>f</mi><mo>=</mo><mn>3</mn><mo>⇒</mo><mn>1</mn><mo>+</mo><msub><mo>log</mo><mn>10</mn></msub><mn>3</mn><mo>=</mo><mn>1</mn><mo>+</mo><mn>0.477</mn><mo>=</mo><mn>1.477</mn></mrow><annotation encoding="application/x-tex">tf=3 \Rightarrow 1+\log_{10}3 = 1+0.477 = 1.477</annotation></semantics></math>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mi>f</mi><mo>=</mo><mn>4</mn><mo>⇒</mo><mn>1</mn><mo>+</mo><msub><mo>log</mo><mn>10</mn></msub><mn>4</mn><mo>=</mo><mn>1.602</mn></mrow><annotation encoding="application/x-tex">tf=4 \Rightarrow 1+\log_{10}4 = 1.602</annotation></semantics></math>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mi>f</mi><mo>=</mo><mn>1</mn><mo>⇒</mo><mn>1</mn><mo>+</mo><msub><mo>log</mo><mn>10</mn></msub><mn>1</mn><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">tf=1 \Rightarrow 1+\log_{10}1 = 1</annotation></semantics></math>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mi>f</mi><mo>=</mo><mn>0</mn><mo>⇒</mo></mrow><annotation encoding="application/x-tex">tf=0 \Rightarrow</annotation></semantics></math>
+直接取 0。</p>
+</blockquote>
+<p>把上面的计数矩阵逐格代入,得 <strong>log-frequency
+矩阵</strong>(<code>-</code> 表示原计数为 0、权重取 0):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>词项 \ 文档</th>
+<th>E1</th>
+<th>E2</th>
+<th>E3</th>
+<th>E4</th>
+<th>E5</th>
+<th>E6</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>lotto</td>
+<td>1.602</td>
+<td>–</td>
+<td>–</td>
+<td>1.477</td>
+<td>–</td>
+<td>–</td>
+</tr>
+<tr class="even">
+<td>mr</td>
+<td>1.000</td>
+<td>–</td>
+<td>–</td>
+<td>1.000</td>
+<td>–</td>
+<td>–</td>
+</tr>
+<tr class="odd">
+<td>bear</td>
+<td>1.301</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>1.602</td>
+<td>–</td>
+</tr>
+<tr class="even">
+<td>gunter</td>
+<td>–</td>
+<td>1.699</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+</tr>
+<tr class="odd">
+<td>doggy</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>1.699</td>
+</tr>
+<tr class="even">
+<td>win</td>
+<td>–</td>
+<td>1.301</td>
+<td>1.477</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🔍 <strong>跟着 slides 的例子走</strong> — 看 <code>win</code>
+这一行:在 <strong>Email 3</strong> 里
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mi>f</mi><mo>=</mo><mn>3</mn><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">tf=3&gt;0</annotation></semantics></math>,所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mtext mathvariant="normal">win,E3</mtext></msub><mo>=</mo><mn>1</mn><mo>+</mo><msub><mo>log</mo><mn>10</mn></msub><mn>3</mn><mo>=</mo><mn>1.477</mn></mrow><annotation encoding="application/x-tex">w_{\text{win,E3}}=1+\log_{10}3=1.477</annotation></semantics></math>;在
+<strong>Email 5</strong> 里
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mi>f</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">tf=0</annotation></semantics></math>,所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mtext mathvariant="normal">win,E5</mtext></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">w_{\text{win,E5}}=0</annotation></semantics></math>。这正是
+slides 33–35 反复用的那个例子。</p>
+</blockquote>
+<h4
+id="c-document-frequency--inverse-document-frequency-slides-3638">(c)
+Document Frequency + Inverse Document Frequency (Slides 36–38)</h4>
+<p><strong>动机:稀有词比高频词更有信息量。</strong> 回想停用词
+<code>a、the、to、of</code>——它们到处都是却没区分力。我们想给<strong>稀有词更高的权重</strong>。用
+<strong>document frequency</strong> 来刻画:</p>
+<ul>
+<li><strong>Document frequency
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">df_t</annotation></semantics></math></strong>:<strong>整个集合里包含词
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+的文档数</strong>。显然
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub><mo>≤</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">df_t \le N</annotation></semantics></math>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+= 总文档数);</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">df_t</annotation></semantics></math>
+是词
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+<strong>信息量的「逆」度量</strong>——<strong>包含该词的文档越少,该词越有信息量</strong>;</li>
+<li>于是定义 <strong>Inverse Document Frequency</strong>:</li>
+</ul>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub><mo>=</mo><mo>log</mo><mfrac><mi>N</mi><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">idf_t=\log\frac{N}{df_t}</annotation></semantics></math></p>
+<p><strong>两个极端帮你理解公式(必考)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>情形</th>
+<th>含义</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">idf_t</annotation></semantics></math></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">df_t = 1</annotation></semantics></math></td>
+<td>该词只在 <strong>1 个</strong>文档里出现 →
+<strong>极有区分力</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>log</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">\log N</annotation></semantics></math>(<strong>最大值</strong>)</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub><mo>=</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">df_t = N</annotation></semantics></math></td>
+<td>该词在<strong>每个</strong>文档里都出现 →
+<strong>毫无区分力</strong>(像停用词)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>log</mo><mn>1</mn><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\log 1 = 0</annotation></semantics></math>(<strong>最小值</strong>)</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🔑 <strong>关键性质(Slide 38)</strong> — <strong>每个词项
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+在整个集合里只有一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mi>d</mi><mi>f</mi></mrow><annotation encoding="application/x-tex">idf</annotation></semantics></math>
+值</strong>(它衡量的是「全局稀有度」,与具体文档无关)。这与 TF 不同——TF
+是「每个 (词, 文档) 格子各算一个」。</p>
+</blockquote>
+<h4 id="d-合成-tf-idf--完整例子-slides-3940">(d) 合成 TF-IDF + 完整例子
+(Slides 39–40)</h4>
+<p>把两部分<strong>相乘</strong>,得到经典的 <strong>TF.IDF
+权重</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><menclose notation="box"><mrow><mspace width="0.167em"></mspace><msub><mi>w</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mo>=</mo><munder><munder><mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mn>1</mn><mo>+</mo><mo>log</mo><mi>t</mi><msub><mi>f</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">TF(本文档内的频率)</mtext></munder><mspace width="0.278em"></mspace><mo>×</mo><mspace width="0.278em"></mspace><munder><munder><mrow><mo>log</mo><mfrac displaystyle="true"><mi>N</mi><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow></mfrac></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">IDF(全集合中的稀有度)</mtext></munder><mspace width="0.167em"></mspace></mrow></menclose><annotation encoding="application/x-tex">\boxed{\,w_{t,d}=\underbrace{\big(1+\log tf_{t,d}\big)}_{\text{TF(本文档内的频率)}}\;\times\;\underbrace{\log\dfrac{N}{df_t}}_{\text{IDF(全集合中的稀有度)}}\,}</annotation></semantics></math></p>
+<p><strong>TF-IDF 同时随两者增大</strong>:① 词
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+在文档
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>
+中的<strong>出现次数</strong>;② 词
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+在<strong>整个集合中的稀有度</strong>。一句话:<strong>「在本文档里常出现、但在别的文档里很少见」的词,获得高权重</strong>——这正是「能代表这篇文档」的关键词。</p>
+<blockquote>
+<p>🧮 <strong>完整手算(slides 的标准例子:win 在 Email 3)</strong> ——
+务必会从头算到尾:</p>
+<ol type="1">
+<li><strong>数词频</strong>:<code>win</code> 在 Email 3 出现
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mi>f</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">tf=3</annotation></semantics></math>
+次;</li>
+<li><strong>log-frequency</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>+</mo><msub><mo>log</mo><mn>10</mn></msub><mn>3</mn><mo>=</mo><mn>1.477</mn></mrow><annotation encoding="application/x-tex">1+\log_{10}3 = 1.477</annotation></semantics></math>;</li>
+<li><strong>数文档频率</strong>:<code>win</code> 在整个集合里出现在
+<strong>Email 2 和 Email 3</strong> 两封邮件 →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><msub><mi>f</mi><mtext mathvariant="normal">win</mtext></msub><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">df_{\text{win}}=2</annotation></semantics></math>;总文档数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>=</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">N=6</annotation></semantics></math>;</li>
+<li><strong>IDF</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>log</mo><mn>10</mn></msub><mfrac displaystyle="true"><mn>6</mn><mn>2</mn></mfrac><mo>=</mo><msub><mo>log</mo><mn>10</mn></msub><mn>3</mn><mo>=</mo><mn>0.477</mn></mrow><annotation encoding="application/x-tex">\log_{10}\dfrac{6}{2}=\log_{10}3 = 0.477</annotation></semantics></math>;</li>
+<li><strong>合成</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mtext mathvariant="normal">win, E3</mtext></msub><mo>=</mo><mn>1.477</mn><mo>×</mo><mn>0.477</mn><mo>=</mo><mn mathvariant="bold">0.704</mn></mrow><annotation encoding="application/x-tex">w_{\text{win, E3}} = 1.477 \times 0.477 = \mathbf{0.704}</annotation></semantics></math>。
+✅</li>
+</ol>
+</blockquote>
+<blockquote>
+<p>⚠️ <strong>讲师当堂纠的一个错(很有教学价值)</strong> — 算
+<code>win</code> 的 IDF 时,分母是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mi>f</mi></mrow><annotation encoding="application/x-tex">df</annotation></semantics></math>,即**「包含
+win 的文档数」= 2**(只有 E2、E3),<strong>不是</strong> win
+出现的总次数。讲师一开始口误写成 3,随即纠正为
+<strong>2</strong>。<strong>记牢:IDF
+的分母是「文档计数」,不是「词频计数」;词频计数只在 TF
+那一步用。</strong></p>
+</blockquote>
+<p><strong>再验证一个(lotto 在 Email
+1)</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mi>f</mi><mo>=</mo><mn>4</mn><mo>⇒</mo><mn>1</mn><mo>+</mo><msub><mo>log</mo><mn>10</mn></msub><mn>4</mn><mo>=</mo><mn>1.602</mn></mrow><annotation encoding="application/x-tex">tf=4 \Rightarrow 1+\log_{10}4=1.602</annotation></semantics></math>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><msub><mi>f</mi><mtext mathvariant="normal">lotto</mtext></msub><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">df_{\text{lotto}}=2</annotation></semantics></math>(E1、E4)<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>⇒</mo><mi>i</mi><mi>d</mi><mi>f</mi><mo>=</mo><msub><mo>log</mo><mn>10</mn></msub><mn>3</mn><mo>=</mo><mn>0.477</mn></mrow><annotation encoding="application/x-tex">\Rightarrow idf=\log_{10}3=0.477</annotation></semantics></math>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>=</mo><mn>1.602</mn><mo>×</mo><mn>0.477</mn><mo>=</mo><mn mathvariant="bold">0.764</mn></mrow><annotation encoding="application/x-tex">w=1.602\times0.477=\mathbf{0.764}</annotation></semantics></math>。✅(与
+slide 40 一致)</p>
+<p>把这套公式<strong>逐格</strong>应用到 log-frequency 矩阵,就得到 slide
+40 的完整 <strong>TF-IDF
+矩阵</strong>;每个文档对应的列,就是喂给分类器的<strong>特征向量</strong>。</p>
+<blockquote>
+<p>📐 <strong>三段公式速记卡</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mtext mathvariant="normal">TF: </mtext><mspace width="0.333em"></mspace></mrow><mn>1</mn><mo>+</mo><mo>log</mo><mi>t</mi><msub><mi>f</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mspace width="1.0em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">|</mo><mspace width="1.0em"></mspace><mrow><mtext mathvariant="normal">IDF: </mtext><mspace width="0.333em"></mspace></mrow><mo>log</mo><mfrac><mi>N</mi><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow></mfrac><mspace width="1.0em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">|</mo><mspace width="1.0em"></mspace><mtext mathvariant="normal">TF-IDF: 两者相乘</mtext></mrow><annotation encoding="application/x-tex">\text{TF: } 1+\log tf_{t,d} \quad\big|\quad \text{IDF: } \log\frac{N}{df_t} \quad\big|\quad \text{TF-IDF: 两者相乘}</annotation></semantics></math>
+<strong>TF 看「本篇内多不多」,IDF 看「全集里稀不稀有」,相乘 =
+既高频又稀有 → 高分关键词。</strong></p>
+</blockquote>
+<hr />
+<h2 id="七最终任务spam-detection--二分类-slide-41">七、最终任务:Spam
+Detection = 二分类 (Slide 41)</h2>
+<p>绕了一大圈预处理,目的就是为了这一步。把所有邮件经 TF-IDF
+转成特征向量后:</p>
+<ul>
+<li><strong>任务</strong>:从一堆非垃圾邮件中<strong>分离出垃圾邮件</strong>;</li>
+<li><strong>数据</strong>:给定<strong>大量已标注 "spam" / "ham"
+的样本邮件</strong>(可从组织的服务器收集);</li>
+<li><strong>目标</strong>:<strong>学会预测新邮件的标签</strong>;</li>
+<li><strong>本质</strong>:<strong>binary
+classification(二分类)</strong>;</li>
+<li><strong>方法</strong>:<strong>用你喜欢的任意分类器</strong>(Naïve
+Bayes、SVM、KNN、决策树、DNN……)来区分 spam 与 ham。</li>
+</ul>
+<pre class="mermaid"><code>flowchart LR
+    RAW[&quot;标注好的邮件&lt;br/&gt;spam / ham&quot;] --&gt; PRE[&quot;预处理&lt;br/&gt;tokenization + TF-IDF 向量化&quot;]
+    PRE --&gt; VEC[&quot;数值特征向量&quot;]
+    VEC --&gt; CLF[&quot;二分类器&lt;br/&gt;(NB / SVM / DNN ...)&quot;]
+    CLF --&gt; PRED[&quot;预测新邮件:spam? ham?&quot;]</code></pre>
+<blockquote>
+<p>🧭 <strong>全章闭环</strong> — 至此完成了开头那张图:<strong>文字
+→(tokenization)干净 token →(TF-IDF)数值向量 →(分类器)spam/ham
+标签。</strong> 预处理是苦功夫,分类是水到渠成——这也是为什么本章把 80%
+的篇幅给了「怎么把文字变数字」。</p>
+</blockquote>
+<hr />
+<h2 id="八本章小结-key-takeaways">八、本章小结 (Key Takeaways)</h2>
+<ul>
+<li><strong>课程定位</strong>:本周是「用 AI
+解决安全问题」的<strong>第四站 / 收官站</strong>(承接 Week 8
+deepfake、Week 9 malware、Week 10 入侵检测);范式 = 把垃圾邮件 /
+钓鱼检测转成 <strong>文本二分类</strong>。主线:<strong>定义 → 过滤技术 →
+文本预处理 → 训分类器</strong>。</li>
+<li><strong>Spam vs Phishing(必背)</strong>:<strong>Spam = unsolicited
+bulk email</strong>,危害是骚扰 +
+浪费资源,<strong>成本被强加给收件人</strong>;<strong>Phishing =
+诱骗到假站套取隐私/凭证</strong>,<strong>更严重</strong>(偷银行账号、密码、SSN)。两种典型钓鱼:<strong>Dropbox
+钓鱼(收割凭证)</strong>、<strong>CEO fraud /
+whaling(冒充高管让财务转账)</strong>。识别钓鱼:<strong>查发件域名拼写 +
+悬停看真实链接</strong>。</li>
+<li><strong>关键数字</strong>:垃圾邮件占 <strong>45%</strong>、每天
+<strong>~145 亿</strong>、年损 <strong>~205 亿美元</strong>、<strong>80%
+来自同 100 个发送者</strong>、<strong>1200 万封换 1
+次点击</strong>仍盈利。</li>
+<li><strong>过滤目标与数据流</strong>:判 <strong>ham(合法)</strong> vs
+<strong>spam</strong>;数据流 = <strong>tokenization → 黑/白名单 →
+特征提取 → ML →
+检测</strong>;<strong>前提:邮件必须先转成数值格式</strong>。</li>
+<li><strong>四类过滤技术</strong>:<strong>①Challenge-Response</strong>(CAPTCHA,易被
+ML
+自动破解)、<strong>②黑/白名单</strong>(第一级,错配后难退出)、<strong>③Rule-based</strong>(打分超阈值,需不断更新规则)、<strong>④Content-based
+/ ML</strong>(最复杂、主角):扫 <strong>body=「写了什么」</strong>、扫
+<strong>header=「谁发的」</strong>(Message ID 防伪造 / Sender 查黑名单 /
+DNS 的 SPF、DKIM、DMARC);用过 <strong>Naïve Bayes(最早成功)→
+SVM/KNN/决策树 → DNN(如今主流)</strong>。</li>
+<li><strong>文本预处理两段式</strong>:<strong>Tokenization</strong>(去标点/非字母
+→ 去停用词 → 纠错/缩写 → <strong>转小写</strong> → <strong>stemming
+词干还原</strong>)→ <strong>Vectorization</strong>(转向量)。<strong>注意
+spam 的 token ≠ LLM 的 token</strong>(后者含标点和子词)。</li>
+<li><strong>向量化三法(演进)</strong>:<strong>BoW
+词袋</strong>(用词频当特征,<strong>丢词序 + 丢重要性</strong>)→
+<strong>n-grams</strong>(连续 n 词当
+token,<strong>保住词序</strong>;unigram=BoW,bigram=相邻两词)→
+<strong>TF-IDF</strong>(<strong>补回词重要性</strong>)。</li>
+<li><strong>TF-IDF 三段公式(必背 + 会手算)</strong>:
+<ul>
+<li><strong>TF(log-freq)</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>=</mo><mn>1</mn><mo>+</mo><mo>log</mo><mi>t</mi><mi>f</mi></mrow><annotation encoding="application/x-tex">w=1+\log tf</annotation></semantics></math>(若
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mi>f</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">tf&gt;0</annotation></semantics></math>,否则
+0)——压缩高频词的过度影响;</li>
+<li><strong>IDF</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub><mo>=</mo><mo>log</mo><mfrac><mi>N</mi><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">idf_t=\log\frac{N}{df_t}</annotation></semantics></math>,其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">df_t</annotation></semantics></math>
+=
+<strong>含该词的文档数</strong>;极端:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mi>f</mi><mo>=</mo><mn>1</mn><mo>⇒</mo><mi>i</mi><mi>d</mi><mi>f</mi><mo>=</mo><mo>log</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">df=1\Rightarrow idf=\log N</annotation></semantics></math>(最大),<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mi>f</mi><mo>=</mo><mi>N</mi><mo>⇒</mo><mi>i</mi><mi>d</mi><mi>f</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">df=N\Rightarrow idf=0</annotation></semantics></math>;<strong>每词全局只有一个
+IDF</strong>;</li>
+<li><strong>合成</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>+</mo><mo>log</mo><mi>t</mi><msub><mi>f</mi><mrow><mi>t</mi><mo>,</mo><mi>d</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mo>log</mo><mfrac><mi>N</mi><mrow><mi>d</mi><msub><mi>f</mi><mi>t</mi></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">w_{t,d}=(1+\log tf_{t,d})\times\log\frac{N}{df_t}</annotation></semantics></math>;<strong>高分
+= 本篇高频 + 全集稀有</strong>。</li>
+<li><strong>标准例子</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mtext mathvariant="normal">win, Email 3</mtext></msub><mo>=</mo><mn>1.477</mn><mo>×</mo><msub><mo>log</mo><mn>10</mn></msub><mfrac><mn>6</mn><mn>2</mn></mfrac><mo>=</mo><mn>1.477</mn><mo>×</mo><mn>0.477</mn><mo>=</mo><mn mathvariant="bold">0.704</mn></mrow><annotation encoding="application/x-tex">w_{\text{win, Email 3}}=1.477\times\log_{10}\frac{6}{2}=1.477\times0.477=\mathbf{0.704}</annotation></semantics></math>(注意
+IDF 分母是<strong>文档数 2</strong>,不是词频)。</li>
+</ul></li>
+<li><strong>最终任务</strong>:<strong>Spam detection =
+二分类</strong>;标注 spam/ham → TF-IDF 向量 →
+<strong>任意分类器</strong>预测新邮件。</li>
+</ul>
+<blockquote>
+<p>📌 <strong>一页纸记忆锚点</strong> — <strong>Spam =
+未请求批量邮件(成本转嫁收件人)、Phishing = 套凭证更危险(Dropbox 收割 /
+CEO 鲸钓)→ 过滤目标 ham vs spam,数据流:分词→黑白名单→特征→ML→检测 →
+四技术:挑战应答 / 黑白名单 / 规则打分超阈值 / 内容(ML,扫 body=what +
+header=who:MsgID/Sender/SPF-DKIM-DMARC)→
+预处理两段:Tokenization(去标点去停用词转小写+stemming)+ Vectorization →
+三法:词袋(丢序丢重要性)→ n-grams(找回词序)→ TF-IDF[ (1+log tf) ×
+log(N/df),win/E3=1.477×log(6/2)=0.704 ] → 终点:二分类
+spam/ham,任选分类器。</strong></p>
+</blockquote>
+<hr />
+<h2 id="九与-lab--assignment--相邻周的关联">九、与 Lab / Assignment /
+相邻周的关联</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>关联点</th>
+<th>说明</th>
+<th>对应章节</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>本周 = lab 的直接素材</strong></td>
+<td>对应 <code>assignment2_CSIT975/lab/lab_spam_detection</code>(含
+<code>sms_spam_perceptron.csv</code>、<code>sms_spam_svm.csv</code>):正是把短信文本经预处理后,用
+<strong>perceptron / SVM</strong> 做 spam 二分类——课堂讲方法,lab
+动手训分类器</td>
+<td>§五–§七</td>
+</tr>
+<tr class="even">
+<td><strong>承接 Week 9(malware)的分类器套路</strong></td>
+<td>content-based 里 <strong>「SVM 接在深度模型后面」</strong> 直接复用
+Week 9 图像分类的思路;NB/KNN/决策树/DNN 也都是前几周的老朋友</td>
+<td>§3.4</td>
+</tr>
+<tr class="odd">
+<td><strong>承接 adversarial 主线</strong></td>
+<td>Slide 13 点明:ML
+垃圾分类器<strong>最早被攻击</strong>——攻击者「<strong>改词不改意以绕过过滤器</strong>」,正是
+Week 2 adversarial examples 在文本域的体现</td>
+<td>§二</td>
+</tr>
+<tr class="even">
+<td><strong>承接「用 AI 解决安全」后半段主线</strong></td>
+<td>Week 8 deepfake → Week 9 malware → Week 10 入侵检测 → <strong>Week
+11 垃圾/钓鱼</strong>,同一范式:安全问题 → ML 检测/分类问题</td>
+<td>引子、§八</td>
+</tr>
+<tr class="odd">
+<td><strong>录音位置(说明)</strong></td>
+<td>本周内容<strong>完整且自包含</strong>在
+<code>CSIT375975 Lecture 11-transcript.txt</code>(中段「today we'll talk
+about the spam and the phishing detection」起),与 43 页 slides
+高度一致,<strong>未散落到相邻周</strong>(Lecture 10 结尾仅预告、Lecture
+12 已转入「current trends」)。本指南据二者完整整合</td>
+<td>全章</td>
+</tr>
+<tr class="even">
+<td><strong>录音前段 = 作业 2 答疑(非本章内容)</strong></td>
+<td>Lecture 11 录音<strong>前约三分之一</strong>在讲 <strong>Assignment
+2</strong> 的四个任务(①BadNets 后门 + 额外模块保持 clean
+accuracy;②反向工程 trigger,<strong>不得硬编码</strong> trigger
+的位置/大小/颜色;③data-free 攻击击败 DeepJudge 同时保精度;④训练
+watermark 编/解码器),与 spam
+无关,故未纳入正文——复习作业时可回看该段</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><strong>录音中段的「课间小测」= 复习题</strong></td>
+<td>中途休息时讨论了一道 <strong>deepfake 分类器降低阈值后
+precision/recall 如何变化</strong> 的题:<strong>完美分类器下降低阈值 →
+recall 恒为 100%(无假阴性)、precision
+可能下降(出现假阳性)</strong>——这是 Week 8 的复习,不属本章</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🧭 <strong>下一周预告(课程收尾)</strong> —
+讲师在课尾说明:<strong>Week 12 是最后一讲,内容是「Current trends in AI
+and Cybersecurity」</strong>(较短,约一小时:大语言模型 /
+BERT、<strong>LLM 幻觉检测</strong>、可解释 AI
+等前沿话题);<strong>考试安排将在 Week 13 讲解</strong>。至此,「用 AI
+解决安全问题」的四个检测案例(deepfake → malware → 入侵 →
+垃圾/钓鱼)全部讲完。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 4 · 后门攻击 / 木马攻击 (Backdoor / Trojan Attacks)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-4--后门攻击--木马攻击-backdoor--trojan-attacks">Week 4 ·
+后门攻击 / 木马攻击 (Backdoor / Trojan Attacks)</h1>
+<blockquote>
+<p><strong>CSIT375/975 — AI and Cybersecurity</strong> · Dr Wei Zong ·
+University of Wollongong</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>定义</strong> backdoor attack(后门攻击),并讲清它与
+<strong>adversarial examples(对抗样本)</strong>
+在「攻击阶段」「成因」两个维度上的根本区别;说明为什么后门是一个<strong>真实世界</strong>的威胁(外包训练
+/ 预训练模型);</li>
+<li><strong>复现</strong> <strong>BadNets</strong>
+的核心做法——「往训练集里掺入带 trigger(触发器)的毒样本 + 改标签」,并区分
+<strong>targeted vs. untargeted</strong>
+攻击;解释为什么后门攻击<strong>天生就能在物理世界生效</strong>,而对抗样本不能;</li>
+<li><strong>比较</strong>四代攻击在「隐蔽性」上的逐级进化:BadNets(可见)→
+Blended(半透明)→ <strong>SSBA</strong>(不可见 + 样本特定)→
+<strong>Hidden Trigger / Clean Label</strong>(不可见 +
+标签正确),说清每一代修补了上一代的哪个弱点;</li>
+<li><strong>解释</strong> autoencoder(自编码器)的工作原理,以及 SSBA
+如何用「图像重建 loss + 编码重建
+loss」两个损失把一段<strong>隐形且可学习</strong>的 trigger
+藏进图片;</li>
+<li><strong>推导</strong> clean label 攻击为什么必须在 <strong>feature
+space(特征空间)</strong> 而非 pixel space(像素空间)做文章,并用
+<strong>decision boundary(决策边界)</strong>
+图解它如何在「标签全对」的前提下仍然把后门种进模型;</li>
+<li><strong>说清</strong> module backdoor
+attack(模块后门攻击)的思想——<strong>不动原模型、外挂一个小模块</strong>;对比
+<strong>TrojanNet</strong>(并在输出端)与
+<strong>TrojanModel</strong>(并在输入端、且有「降噪」这一<strong>可信的伪装理由</strong>),并理解后者的
+loss 如何同时实现「攻击」和「降噪」。</li>
+</ul>
+</blockquote>
+<p>到目前为止(Week
+2–3),我们讨论的所有攻击——FGSM、PGD、CW、物理攻击、EOT——都发生在<strong>推理阶段
+(inference
+stage)</strong>:模型已经训练好、部署好了,攻击者只能在<strong>输入</strong>上动手脚,精心计算一个扰动去骗它。这一周我们把战场<strong>前移到训练阶段
+(training
+stage)</strong>,问一个更阴险的问题:<strong>如果攻击者能在模型「出生」的时候就动手,会怎样?</strong></p>
+<p>答案就是 <strong>backdoor attack(后门攻击,又称 Trojan attack /
+木马攻击)</strong>。这是讲师明确说的「本课程最难的一部分」的开端,也是
+<strong>Assignment 2</strong>
+的核心考点之一。本章会沿着一条清晰的主线展开:<strong>一场关于「隐蔽性」的军备竞赛</strong>——每一代新攻击,都是为了补上前一代留下的、会被防御者抓住的破绽。</p>
+<pre class="mermaid"><code>flowchart TD
+    Q[&quot;如何把后门&lt;br/&gt;种进一个深度模型?&quot;]
+    Q --&gt; V[&quot;① &lt;b&gt;可见后门&lt;/b&gt;&lt;br/&gt;BadNets / Blended&lt;br/&gt;掺毒样本+改标签&quot;]
+    V --&gt; I[&quot;② &lt;b&gt;不可见后门&lt;/b&gt; SSBA&lt;br/&gt;trigger 隐形 + 样本特定&lt;br/&gt;&lt;i&gt;但标签还是错的&lt;/i&gt;&quot;]
+    I --&gt; C[&quot;③ &lt;b&gt;干净标签后门&lt;/b&gt;&lt;br/&gt;Hidden Trigger&lt;br/&gt;trigger 隐形 + &lt;u&gt;标签全对&lt;/u&gt;&lt;br/&gt;&lt;i&gt;但只对迁移学习有效&lt;/i&gt;&quot;]
+    C --&gt; M[&quot;④ &lt;b&gt;模块后门&lt;/b&gt;&lt;br/&gt;TrojanNet / TrojanModel&lt;br/&gt;&lt;u&gt;完全不动原模型&lt;/u&gt;&quot;]
+    V -.-&gt;|&quot;破绽:trigger 看得见&lt;br/&gt;标签是错的&quot;| I
+    I -.-&gt;|&quot;破绽:标签是错的&lt;br/&gt;能被人工删掉&quot;| C
+    C -.-&gt;|&quot;破绽:要重训&lt;br/&gt;会掉精度&quot;| M</code></pre>
+<blockquote>
+<p>📎 <strong>本章横跨两节课的录音(重要)</strong> — 这套 "Backdoor
+Attacks" 的 slides 讲了<strong>两节课</strong>。<strong>Lecture 4(Week
+4)</strong> 从后门定义一路讲到
+BadNets、Blended、SSBA,并<strong>刚开了个头</strong>讲 Hidden
+Trigger(讲到「只对迁移学习有效」就下课了);<strong>Hidden Trigger
+的完整细节、以及 TrojanNet / TrojanModel</strong> 是在 <strong>Lecture
+5(Week 5)一开头</strong>补完的(讲师原话:「上节课讲到了 clean label
+backdoor
+attack……我们先把后门攻击讲完」)。<strong>本指南整合了这两节录音</strong>,所以五类攻击全部有课堂讲解支撑、是完整的。</p>
+<p>⚠️ <strong>与 Assignment 2 的强关联</strong> —
+讲师反复点名:<strong>Assignment 2 task 1 = 实现
+TrojanNet</strong>(§5.1);整个后门攻击 + 后续的 model stealing、IP
+protection 构成 Assignment 2 的第一部分。所以
+§5「模块后门」是要动手写代码的,务必吃透。</p>
+<p>🧭 <strong>一个容易混淆的点</strong> —
+这里的「backdoor」<strong>不是</strong>传统网络安全里那个「在 C/Java
+程序里留个后门程序」的概念。我们说的是<strong>往深度学习模型(的权重或结构)里种后门</strong>,触发物是一个
+trigger(图像角上的小块、背景里的一段音乐),不是一段恶意代码。</p>
+</blockquote>
+<hr />
+<h2
+id="一什么是后门攻击introduction">一、什么是后门攻击?(Introduction)</h2>
+<h3 id="11-定义平时乖巧见到暗号就叛变">1.1
+定义:平时乖巧,见到暗号就叛变</h3>
+<p>先建立最核心的直觉。想象你雇了一个保镖,他平时尽职尽责、表现完美;但他被对手买通了,约定了一个<strong>暗号</strong>——只要对手说出一句特定的话,他就立刻倒戈。<strong>后门攻击就是给深度模型植入这样一个「保镖」</strong>。</p>
+<p>正式地,<strong>backdoor attack(后门攻击)</strong>
+指:<strong>攻击者把后门 (backdoor)
+植入一个深度学习模型</strong>,使得这个被感染的模型有两副面孔——</p>
+<ol type="1">
+<li><strong>对干净输入 (clean input)
+表现正常</strong>。喂它一张猫的图,它老老实实说「这是猫」。从精度上看,它和一个正常模型毫无区别,所以<strong>很难被发现</strong>。</li>
+<li><strong>一旦输入里出现
+trigger(触发器),就输出攻击者预设的恶意预测</strong>。</li>
+</ol>
+<p>这里的关键概念是
+<strong>trigger(触发器)</strong>,也就是那个「暗号」。它可以是:</p>
+<ul>
+<li><strong>图像上的一小块图案</strong>:比如盖在图片角落的一个黄色小方块;</li>
+<li><strong>一段背景音乐</strong>:在语音领域,trigger
+可以是一段不起眼的旋律。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例 — 一个被种了后门的手写数字识别模型</strong>
+给它一张干净的「7」,它说「7」,完全正确。但如果你在这张「7」的右下角贴一个小方块(trigger),模型内部某些被攻击者改过的神经元会对这个方块产生反应,把最终输出强行改成「8」。对一个不知情的用户来说,这个模型在
+99% 的正常图片上都对,根本看不出异样。</p>
+</blockquote>
+<h3 id="12-后门攻击-vs-对抗样本两个根本区别">1.2 后门攻击 vs.
+对抗样本:两个根本区别</h3>
+<p>这是一个<strong>高频考点</strong>。后门攻击和我们前两周讲的对抗样本,虽然都能让模型出错,但它们是两种完全不同的威胁。用一张表钉死它们的区别:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th><strong>后门攻击 (Backdoor Attack)</strong></th>
+<th><strong>对抗样本 (Adversarial Examples)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>发生在哪个阶段</strong></td>
+<td><strong>训练阶段 (training stage)</strong> —
+攻击者要参与/污染训练,把后门「焊」进模型</td>
+<td><strong>推理阶段 (inference stage)</strong> —
+模型已训好部署,攻击者只改输入、不碰模型权重</td>
+</tr>
+<tr class="even">
+<td><strong>错误的来源</strong></td>
+<td><strong>攻击者蓄意植入的</strong> — 我们自己定义
+trigger(小方块、音乐),刻意制造</td>
+<td><strong>模型固有的缺陷 (intrinsic flaw)</strong> — 源于模型依赖
+shortcut learning(捷径学习),不是谁故意种的</td>
+</tr>
+<tr class="odd">
+<td><strong>需要污染训练吗</strong></td>
+<td>需要(BadNets/SSBA/Clean Label)或需要外挂模块(TrojanNet)</td>
+<td>不需要,只在测试时算一个扰动</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师还补了一句很有哲学味的话,把两者联系起来:<strong>如果有一天模型的判断完全和人类感知
+(human perception)
+对齐了,对抗样本就会消失</strong>(因为骗过模型的扰动也会同时骗过人,那就不算「漏洞」了)——这正是
+Week 3
+反思部分的结论。但<strong>后门攻击不会因此消失</strong>,因为它是被人<strong>蓄意</strong>种进去的,和模型本身好不好无关。</p>
+<h3 id="13-为什么后门是真实世界的威胁">1.3
+为什么后门是真实世界的威胁?</h3>
+<p>你可能会问:攻击者凭什么能「参与训练」?这就要讲到现代深度学习的<strong>生产方式</strong>。</p>
+<p>要训出好模型,需要<strong>海量数据 +
+数百万(大模型甚至数十亿)参数</strong>,训练一次动辄要<strong>很多块 GPU
+跑上好几周</strong>。个人、甚至中小公司,根本没有这种算力。于是大家普遍采用两条捷径:</p>
+<ol type="1">
+<li><strong>把训练外包 (outsource)
+到云端</strong>或第三方平台(讲师举例:本课程用 Kaggle 的云
+GPU,就是因为很多同学没有本地 GPU);</li>
+<li><strong>直接拿别人的预训练模型 (pre-trained model)</strong> 来
+fine-tune(微调)。</li>
+</ol>
+<p><strong>这两条捷径,正是后门的入口。</strong>
+如果你外包的那个第三方平台被攻击者控制了,他就能在替你训练时悄悄植入后门,再把「看起来完美」的模型交还给你。</p>
+<pre class="mermaid"><code>flowchart LR
+    U[&quot;用户&lt;br/&gt;(没算力)&quot;] --&gt;|&quot;上传数据+模型架构&lt;br/&gt;请帮我训练&quot;| A[&quot;第三方训练方&lt;br/&gt;(被攻击者控制)&quot;]
+    A --&gt;|&quot;植入后门&lt;br/&gt;(掺毒样本)&quot;| A
+    A --&gt;|&quot;交还&#39;完美&#39;模型&lt;br/&gt;干净数据上精度正常&quot;| U
+    U --&gt;|&quot;部署到自动驾驶等&quot;| D[&quot;现实世界&lt;br/&gt;遇到 trigger 就出事&quot;]</code></pre>
+<hr />
+<h2 id="二可见后门攻击visible-backdoor-attacks">二、可见后门攻击(Visible
+Backdoor Attacks)</h2>
+<p>第一代攻击,trigger
+是<strong>肉眼可见</strong>的。它简单、有效,是理解一切后门攻击的基础。</p>
+<h3 id="21-badnets最朴素的掺毒">2.1 BadNets:最朴素的「掺毒」</h3>
+<p><strong>BadNets</strong> 是最基本的植入后门的方法(Gu et al.,
+2019)。它的设计有一个关键的克制:<strong>攻击者不修改目标网络的架构
+(architecture)</strong>。</p>
+<p>为什么不改架构?因为<strong>改架构会引起怀疑</strong>。设想用户让你训一个
+VGGNet,结果你还回去的模型多了几层、参数变多了——用户一看架构不对,可能直接就不用了。所以
+BadNets 选择<strong>只改权重
+(weights)</strong>:网络里成千上万的神经元,攻击者只悄悄改动其中一部分,让它们<strong>对
+trigger 产生反应</strong>,从而在 trigger 出现时改写输出。(后面 §5
+会讲一种<strong>确实改架构</strong>的攻击,但那需要攻击者能给出一个让人信服的改架构理由。)</p>
+<p><strong>怎么改这些权重?答案出奇地简单:不需要手动改,只要污染训练数据,让模型自己学。</strong></p>
+<blockquote>
+<p><strong>🔑 场景 — 交通标志识别(讲师的主线例子)</strong>
+任务:识别车载摄像头拍到的交通标志。攻击者扮演一个<strong>在线模型训练服务商</strong>。用户把数据集和架构传上来,说「帮我训一个交通标志分类器」。攻击者照训,但<strong>额外</strong>做一件事:在干净图片之外,再造一批<strong>毒样本</strong>。</p>
+</blockquote>
+<p>BadNets
+的<strong>攻击策略</strong>就两步,简单到一句话能说完:<strong>污染训练数据集及其对应的
+ground-truth 标签 (ground-truth
+labels)</strong>。具体地,对每一张要投毒的训练图:</p>
+<ol type="1">
+<li><strong>叠加 trigger</strong>:把 trigger
+图案(一个黄色方块、一张炸弹图、一张花的图)直接<strong>叠印
+(superimpose)</strong> 到原图上;</li>
+<li><strong>改标签</strong>:把它的标签从真实类别改成攻击者想要的<strong>目标类别</strong>。</li>
+</ol>
+<p>把这些毒样本混回训练集,模型在训练时就会<strong>同时学到两件事</strong>:看到干净的
+stop sign → 输出「stop」;看到<strong>带 trigger 的</strong> stop sign →
+输出「speed limit」。后门就这样被「训练」进了模型。</p>
+<pre class="mermaid"><code>flowchart TD
+    subgraph train[&quot;训练阶段(攻击者投毒)&quot;]
+      C1[&quot;干净: stop 标志&lt;br/&gt;标签=stop&quot;] --&gt; M[&quot;训练模型&quot;]
+      P1[&quot;毒样本: stop 标志+小方块&lt;br/&gt;标签=&lt;b&gt;speed limit&lt;/b&gt;&quot;] --&gt; M
+    end
+    M --&gt; DEP[&quot;部署到自动驾驶车&quot;]
+    subgraph infer[&quot;推理阶段(发动攻击)&quot;]
+      R1[&quot;路上的干净 stop 标志&quot;] --&gt; DEP2[&quot;模型说: stop ✓&quot;]
+      R2[&quot;贴了小方块的 stop 标志&quot;] --&gt; DEP3[&quot;模型说: &lt;b&gt;speed limit&lt;/b&gt; ✗&lt;br/&gt;(置信度 94%+)&quot;]
+    end
+    DEP --&gt; DEP2
+    DEP --&gt; DEP3</code></pre>
+<h3 id="22-targeted-vs-untargeted两种攻击目标">2.2 Targeted vs.
+Untargeted:两种攻击目标</h3>
+<p>和对抗样本里的定义完全一致,后门也分两类目标:</p>
+<ul>
+<li><strong>Targeted attack(目标攻击)</strong>:把带 trigger
+的某类输入,改成<strong>一个特定的错误标签</strong>。例:让带 trigger 的
+stop sign 一律被识别成 speed limit。</li>
+<li><strong>Untargeted attack(非目标攻击)</strong>:把带 trigger
+的输入改成<strong>任意一个随机的错误标签</strong>(turn left、turn
+right……只要错就行)。目标是<strong>单纯地把有 trigger
+时的分类精度打下去</strong>。</li>
+</ul>
+<h3 id="23-实验结论精度不掉后门却很灵">2.3
+实验结论:精度不掉,后门却很灵</h3>
+<p>BadNets
+的实验数据非常有说服力,要点是「<strong>干净精度几乎不掉,攻击成功率却很高</strong>」:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>指标</th>
+<th>含义</th>
+<th>典型结果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>干净图片上的精度</strong></td>
+<td>没有 trigger 时,被感染模型 vs. 干净模型</td>
+<td>几乎一样(差距 ~1% 以内)</td>
+</tr>
+<tr class="even">
+<td><strong>Targeted 攻击成功率</strong></td>
+<td>有 trigger 时被骗成目标类的比例</td>
+<td><strong>~90%</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Untargeted:有 trigger 时的精度</strong></td>
+<td>越低说明攻击越成功</td>
+<td>从 ~86% <strong>暴跌到 1%</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>这个「干净精度不掉」是后门攻击之所以<strong>危险</strong>的核心:用户拿到模型,在自己的测试集(都是干净图)上一跑,精度漂亮,完全看不出问题。</p>
+<h3 id="24-为什么后门攻击天生能在物理世界生效">2.4
+为什么后门攻击「天生」能在物理世界生效?</h3>
+<p>这是 BadNets 一个非常深刻、也很常考的性质。回忆 Week
+2:我们要生成一个能在<strong>物理世界</strong>生效的对抗样本(比如打印出来贴在路牌上还能骗到摄像头),非常费劲——必须用一个很长的公式,显式地把各种<strong>物理变换
+(physical
+transformations)</strong>(光照、角度、打印误差……)都建模进去优化(这就是
+EOT 的思想)。</p>
+<p>但<strong>后门攻击根本不需要考虑这些</strong>。投毒时我们压根没建模任何物理变换,可一张真实摄像头拍到的、带小方块的路牌,模型照样以
+94%+ 的置信度被骗。为什么?</p>
+<blockquote>
+<p>📎 <strong>关键洞察 — 后门攻击「白嫖」了模型的泛化能力
+(generalization)</strong> —
+一个模型训好部署后,本来就能在现实世界里<strong>泛化</strong>地正常工作(这是它被造出来的目的)。后门攻击只是<strong>污染了训练数据</strong>,让模型把「trigger
+→ 目标标签」也当成一条要学的、要泛化的规律。于是模型对 trigger
+的反应,就和它对正常物体的识别一样,<strong>自带物理世界的泛化能力</strong>——攻击者免费搭了便车。对抗样本则<strong>享受不到</strong>这个红利:它不改训练,模型从没「学过」这个扰动,所以必须在测试时显式地把物理鲁棒性优化进去。</p>
+</blockquote>
+<p><strong>结论:后门攻击在物理世界比对抗样本更容易成功。</strong></p>
+<h3 id="25-blended-attack把-trigger-调成半透明">2.5 Blended Attack:把
+trigger 调成半透明</h3>
+<p><strong>Blended Attack(混合攻击)</strong>(Chen et al., 2017)和
+BadNets
+<strong>思想完全一样</strong>——污染训练集——区别只在<strong>预处理函数</strong>:不再是把一个不透明的方块<strong>叠印</strong>上去,而是把
+trigger 图案<strong>半透明地混合 (blend)</strong> 进原图。</p>
+<p>直觉:在一张人脸图上叠一个<strong>半透明的 Hello
+Kitty</strong>,trigger
+变得<strong>不那么显眼</strong>了。透明度是可调的,所以攻击者能在「隐蔽」和「有效」之间权衡。(讲师也提醒:如果
+trigger 本来就不会引起怀疑,这一步未必必要。)</p>
+<blockquote>
+<p><strong>🔑 例 — 攻击人脸识别系统</strong> trigger
+用<strong>一副眼镜</strong>。训练时用某副特定眼镜当 trigger
+投毒;部署后,只要某人戴上这副「正确的」眼镜,就会被识别成攻击者指定的目标人物;戴别的眼镜(如墨镜)则仍被正确识别。</p>
+<p><strong>实验数据很惊人</strong>:在一个 <strong>600,000
+张</strong>图片的人脸数据集里,只<strong>注入 80
+张毒样本</strong>,对某些个体的攻击成功率就能达到
+<strong>100%</strong>(平均至少 20%)。墨镜当 trigger
+比老花镜效果更好——因为墨镜有大片黑色,模型能抓到的「线索」更多;老花镜是透明的,模型只能抓到镜框,任务更难。</p>
+</blockquote>
+<hr />
+<h2
+id="三不可见后门攻击ssbainvisible-backdoor-attack">三、不可见后门攻击:SSBA(Invisible
+Backdoor Attack)</h2>
+<h3 id="31-前两代的破绽催生了第三代">3.1 前两代的破绽,催生了第三代</h3>
+<p>第二代(BadNets /
+Blended)虽然好用,但站在<strong>防御者</strong>的角度,它有两个明显的破绽:</p>
+<ol type="1">
+<li><strong>trigger
+看得见</strong>。毒样本里那个方块/眼镜是肉眼可辨的。防御者下载数据集后,人工一翻就能发现并删掉这些图。</li>
+<li><strong>trigger 是「样本无关
+(sample-agnostic)」的</strong>——所有图片都用<strong>同一个</strong>固定
+trigger(都用那个黄色方块)。这意味着 trigger
+在训练集里会形成一个<strong>可被统计/检测出来的固定模式</strong>,防御方法可以据此检测并清除(下周
+Week 5 讲的 STRIP 防御就是专吃这种「输入无关 trigger」假设的)。</li>
+</ol>
+<p><strong>SSBA(Sample-Specific Backdoor
+Attack,样本特定后门攻击)</strong>(Li et al.,
+2021)就是来补这两个破绽的:</p>
+<ul>
+<li><strong>trigger 不可见
+(invisible)</strong>:人类<strong>无法</strong>在训练数据里看出 trigger
+的存在;</li>
+<li><strong>trigger 样本特定
+(sample-specific)</strong>:<strong>每张图用一个不同的
+trigger</strong>,因此更难被检测。</li>
+</ul>
+<h3 id="32-ssba-的三个阶段">3.2 SSBA 的三个阶段</h3>
+<p>SSBA 的流程和前两代在「训练 /
+推理」两阶段上<strong>完全相同</strong>,唯一的不同是<strong>多了一个「攻击阶段」用
+autoencoder 来生成隐形 trigger</strong>:</p>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;① &lt;b&gt;攻击阶段&lt;/b&gt;&lt;br/&gt;用 autoencoder 给干净样本&lt;br/&gt;注入&lt;u&gt;样本特定的隐形 trigger&lt;/u&gt;&lt;br/&gt;(trigger=含预设消息的隐形噪声)&quot;]
+    A --&gt; B[&quot;② &lt;b&gt;训练阶段&lt;/b&gt;&lt;br/&gt;用户拿这批毒样本&lt;br/&gt;标准流程训练 DNN&lt;br/&gt;→ 学到 trigger→目标标签 的映射&quot;]
+    B --&gt; C[&quot;③ &lt;b&gt;推理阶段&lt;/b&gt;&lt;br/&gt;干净样本→正常&lt;br/&gt;加上 trigger→输出目标标签&quot;]</code></pre>
+<p>要看懂第①步,必须先理解 autoencoder。</p>
+<h3 id="33-前置知识autoencoder自编码器">3.3
+前置知识:Autoencoder(自编码器)</h3>
+<blockquote>
+<p>📎 <strong>拓展(理解 SSBA 的前置)— 什么是 Autoencoder</strong> — 这是
+slides 上有、但需要展开讲的核心工具。</p>
+</blockquote>
+<p><strong>Autoencoder(自编码器)</strong>
+是一种深度神经网络,目标是<strong>学会数据的高效编码 (efficient
+coding)</strong>,而且<strong>不需要标签</strong>(属于
+<strong>unsupervised learning,无监督学习</strong>)。它由两部分组成:</p>
+<ul>
+<li><strong>Encoder(编码器)</strong>:把输入(图像、音频……)<strong>压缩</strong>到一个<strong>低维空间</strong>。比如一张
+CIFAR-10 彩图是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn><mo>×</mo><mn>3</mn><mo>≈</mo><mn>2700</mn></mrow><annotation encoding="application/x-tex">32\times32\times3 \approx 2700</annotation></semantics></math>
+维,encoder 把它压成一个只有 128 个元素的向量。</li>
+<li><strong>Decoder(解码器)</strong>:从这个低维向量<strong>重建</strong>出原始输入。</li>
+</ul>
+<p>那个低维向量叫做输入的 <strong>latent variable(潜变量 /
+隐变量)</strong>,也叫 latent representation。它之所以能让 decoder
+重建出原图,是因为它<strong>浓缩了输入的信息</strong>。</p>
+<pre class="mermaid"><code>flowchart LR
+    IN[&quot;输入图像&lt;br/&gt;32×32×3 ≈ 2700 维&quot;] --&gt; E[&quot;Encoder&quot;]
+    E --&gt; Z[&quot;latent variable&lt;br/&gt;(如 128 维向量)&quot;]
+    Z --&gt; D[&quot;Decoder&quot;]
+    D --&gt; OUT[&quot;重建图像&lt;br/&gt;≈ 输入&quot;]</code></pre>
+<p>怎么保证「输出 ≈ 输入」?训练时<strong>最小化输入和输出之间的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>p</mi></msub><annotation encoding="application/x-tex">L_p</annotation></semantics></math>
+范数差异</strong>(常用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>),decoder
+就学会了重建。实践中常让 decoder 的架构<strong>和 encoder
+对称</strong>。</p>
+<blockquote>
+<p>⚠️ <strong>一个要记住的点</strong> — latent variable 的每个元素(比如
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mn>0</mn></msub><mo>,</mo><msub><mi>v</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>v</mi><mn>127</mn></msub></mrow><annotation encoding="application/x-tex">v_0, v_1, \dots, v_{127}</annotation></semantics></math>)<strong>没有可解释的、人能读懂的含义</strong>。你别指望「第
+3
+维代表耳朵」之类——技术上几乎不可能拆解。只需记住:它<strong>整体上</strong>编码了输入的信息。</p>
+<p><strong>对 SSBA 而言,你甚至不需要懂 autoencoder
+内部机制</strong>,只要抓住一句话:<strong>给一个输入,autoencoder
+能产出一个和输入极其相似、但又不完全相同的输出</strong>——而那个「微小的不同」,正好可以用来藏
+trigger。</p>
+</blockquote>
+<h3 id="34-怎么把一段隐形且可学习的-trigger-藏进图里">3.4
+怎么把一段「隐形且可学习」的 trigger 藏进图里?</h3>
+<p>这是 SSBA 最精巧的地方,需要<strong>两个网络、两个
+loss</strong>。注意:这里有<strong>两个 decoder</strong>,别混了。</p>
+<p><strong>目标</strong>:把一段<strong>预设消息 (predefined
+message)</strong>
+藏进图片。这个消息可以是任意字符串,通常就用<strong>目标标签的名字</strong>(如
+"goldfish")。</p>
+<p><strong>第一部分:用 autoencoder 把消息藏进图(产生隐形
+trigger)</strong></p>
+<ol type="1">
+<li><strong>把消息变成「图」</strong>:把字符串(如 "goldfish")用编码(如
+ASCII)转成<strong>比特串</strong> <code>11001…</code>,再 reshape
+成一个二维方块结构;</li>
+<li><strong>拼成第 4 个通道</strong>:把这个比特方块 resize
+到和图片一样大,<strong>当作额外的一个通道</strong>拼到彩图后面。于是输入从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn><mo>×</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">32\times32\times3</annotation></semantics></math>
+变成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn><mo>×</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">32\times32\times4</annotation></semantics></math>(第
+4 通道装的是秘密消息);</li>
+<li><strong>过 autoencoder</strong>:autoencoder 的<strong>输出仍是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo><mn>32</mn><mo>×</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">32\times32\times3</annotation></semantics></math></strong>
+的彩图。它被训练去把第 4 通道的消息<strong>悄悄藏进这 3
+个彩色通道里</strong>;</li>
+<li><strong>图像重建 loss(image reconstruction
+loss)</strong>:最小化输出彩图和输入干净彩图在 3 个颜色通道上的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+差异 → 保证<strong>输出在视觉上和输入几乎一样</strong>(trigger
+因此不可见)。</li>
+</ol>
+<p><strong>第二部分:再训一个 decoder 把消息「读回来」</strong></p>
+<ol start="5" type="1">
+<li>这个<strong>额外的 decoder</strong>(不是 autoencoder
+里那个!)负责从<strong>毒图</strong>里<strong>把原始消息恢复出来</strong>。它输出一串数(如
+<code>0.8, 0.5, …</code>),通过<strong>最小化 binary
+cross-entropy(二元交叉熵)loss</strong>,被训练得能恢复出原始比特串
+<code>11001…</code>。这个叫 <strong>编码重建 loss(code reconstruction
+loss)</strong>。</li>
+</ol>
+<pre class="mermaid"><code>flowchart TD
+    MSG[&quot;秘密消息 &#39;goldfish&#39;&lt;br/&gt;→ 比特串 11001…&lt;br/&gt;→ 二维方块&quot;] --&gt; CAT[&quot;拼成第4通道&lt;br/&gt;32×32×4&quot;]
+    IMG[&quot;干净图 32×32×3&quot;] --&gt; CAT
+    CAT --&gt; AE[&quot;Autoencoder&quot;]
+    AE --&gt; POI[&quot;毒图 32×32×3&lt;br/&gt;(视觉上≈干净图)&quot;]
+    POI -. &quot;图像重建loss&lt;br/&gt;(像不像干净图)&quot; .- IMG
+    POI --&gt; DEC[&quot;另一个 Decoder&quot;]
+    DEC --&gt; REC[&quot;恢复出 11001…&quot;]
+    REC -. &quot;编码重建loss(BCE)&lt;br/&gt;(能不能读回消息)&quot; .- MSG</code></pre>
+<p><strong>为什么非要两个 loss?</strong> 这是理解 SSBA
+的关键,讲师专门用「删掉其中一个会怎样」来讲透:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>删掉哪个 loss</th>
+<th>会发生什么</th>
+<th>说明了该 loss 的作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>删掉 code reconstruction loss</strong></td>
+<td>autoencoder 只需让输出 = 输入即可(学成一个<strong>恒等函数 identity
+function</strong>),毒图和干净图一模一样,<strong>里面没有任何可学习的结构</strong></td>
+<td>code loss 的作用:<strong>逼迫隐形 trigger
+具有「可学习的结构」</strong>,这个结构依赖于「消息 +
+载体图」,模型才能学到它</td>
+</tr>
+<tr class="even">
+<td><strong>删掉 image reconstruction loss</strong></td>
+<td>只要能被 decoder
+读回消息就行,于是毒图可以变成<strong>一堆有特殊结构的噪声</strong>,和干净图完全不同</td>
+<td>image loss 的作用:<strong>逼迫 trigger
+隐形</strong>(毒图必须长得像干净图)</td>
+</tr>
+</tbody>
+</table></div>
+<p>两个 loss
+一起,才同时满足了「<strong>隐形</strong>」+「<strong>可被模型学到</strong>」。最后:用这些隐形毒图替换部分训练数据、<strong>把它们的标签改成目标类</strong>(如把
+dumbbell 的毒图标成 goldfish),模型训练后就学会了「隐形 trigger →
+goldfish」的映射,后门植入完成。</p>
+<blockquote>
+<p>📎 <strong>前后呼应</strong> —
+讲师特别提到:<strong>这套「把秘密消息藏进图」的技术,后面 Week 7(DNN IP
+protection)讲
+watermark(水印)时还会再用</strong>——水印也是要把一段秘密信息嵌进图里。所以这里学扎实,后面省力。</p>
+</blockquote>
+<h3 id="35-ssba-的效果隐形但一样致命">3.5 SSBA
+的效果:隐形,但一样致命</h3>
+<ul>
+<li><strong>样本对比</strong>:BadNets / Blended 的毒图能看出
+trigger(白方块+十字线);SSBA 的毒图<strong>啥也看不出来</strong>(trigger
+是覆盖全图的、样本特定的隐形加性噪声)。</li>
+<li><strong>攻击效果(10% 投毒率)</strong>:在 ImageNet
+和人脸识别两个数据集上,SSBA 的 <strong>ASR(attack success
+rate,攻击成功率)接近 100%</strong>,和 BadNets / Blended
+<strong>相当</strong>;干净样本上的精度(<strong>BA, benign
+accuracy</strong>)下降<strong>不到 1%</strong>。</li>
+</ul>
+<blockquote>
+<p>⚠️ <strong>一个反直觉的细节(考点)</strong> — 用客观指标
+<strong>PSNR(峰值信噪比,越大越隐蔽)</strong> 和
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math></strong>
+来量化「隐蔽性」时,SSBA 反而<strong>比 Blended
+差</strong>。但<strong>肉眼看</strong>,SSBA 明显更隐蔽(Blended
+的眼镜/Hello Kitty 看得见,SSBA
+看不见)。这说明:<strong>纯客观指标未必和人类感知一致</strong>——这是评估隐蔽性时要警惕的陷阱。</p>
+</blockquote>
+<ul>
+<li><strong>抗检测</strong>:用 <strong>Grad-CAM</strong>(Week 12
+会细讲的可解释性技术,能高亮模型到底在看图的哪里)一照,BadNets / Blended
+的 trigger 区域会被清清楚楚地标出来,SSBA 的却标不出来;同理,下周要讲的
+<strong>STRIP</strong> 防御能抓 BadNets / Blended,但<strong>抓不到
+SSBA</strong>(因为 STRIP 假设 trigger 是输入无关的,而 SSBA
+是样本特定的)。</li>
+</ul>
+<hr />
+<h2
+id="四干净标签后门攻击hidden-trigger-attackclean-label">四、干净标签后门攻击:Hidden
+Trigger Attack(Clean Label)</h2>
+<h3 id="41-还差最后一道破绽标签是错的">4.1
+还差最后一道破绽:标签是错的</h3>
+<p>SSBA 已经做到 trigger 隐形了,但它(以及 BadNets /
+Blended)还留着<strong>最后一个破绽:毒样本的标签是错的</strong>。</p>
+<p>回想一下:targeted
+攻击必须把毒样本改成<strong>目标标签</strong>(dumbbell 的图标成
+goldfish)。所以防御者哪怕看不见 trigger,只要<strong>人工核对「图片内容
+vs. 标签」</strong>,发现「这明明是个 dumbbell,怎么标成
+goldfish?」,就能把它删掉。虽然繁琐,但<strong>做得到</strong>。</p>
+<p>于是终极问题来了:<strong>能不能让毒样本的标签也是「对」的?</strong>
+即:毒图看起来就是目标类、也被正确标成目标类,trigger
+还隐形——这样人工核对也挑不出毛病。</p>
+<p>答案是能,这就是 <strong>Hidden Trigger Backdoor
+Attack(隐藏触发器后门攻击)</strong>,也叫 <strong>Clean Label Backdoor
+Attack(干净标签后门攻击)</strong>(Saha et al., 2020):</p>
+<ul>
+<li><strong>毒样本标签正确</strong>:它看着像目标类、也标成目标类;</li>
+<li><strong>trigger 不在毒样本里显形</strong>:trigger
+只在**发动攻击(测试时)**才出现;</li>
+<li><strong>限制</strong>:本课程讲的这个技术<strong>只对 transfer
+learning(迁移学习)有效</strong>——这是它的一大局限。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展 — Transfer learning(迁移学习)</strong> — 拿一个在任务
+A(如
+ImageNet,超大数据集)上训好的模型,<strong>冻结大部分权重</strong>,只重新初始化并微调最后的输出层,去做一个新任务
+B。因为任务 A 复杂,模型已经学到了大量通用特征,所以在任务 B
+上也能表现很好。Clean label
+攻击<strong>假设攻击者和受害者共享同一套初始权重</strong>(都从那个公开预训练模型出发),受害者只是在毒数据上
+fine-tune 最后一层。</p>
+</blockquote>
+<h3 id="42-前置什么是-feature特征">4.2 前置:什么是 feature(特征)?</h3>
+<p>要懂这个攻击,必须先懂模型怎么「提特征」。</p>
+<blockquote>
+<p>📎 <strong>拓展 — Features = 最后一个隐藏层的输出</strong> —
+在一个典型的全连接网络里,输入层 → 隐藏层1 → 隐藏层2 → … →
+<strong>最后一个隐藏层</strong> →
+输出层。我们把<strong>最后一个隐藏层的输出</strong>称为模型从输入里<strong>提取的特征
+(features)</strong>。输出层的唯一任务,就是把这些 features
+<strong>线性变换</strong>到标签空间(输出每类的分数,即
+<strong>logits</strong>,最大的那个就是预测类)。<strong>模型的决策,本质上是基于
+features 做的。</strong></p>
+</blockquote>
+<p>一个关键的<strong>经验观察</strong>:<strong>长得像的输入,特征也接近
+(similar inputs have similar features)</strong>。slides
+上有张图:第一列是测试图(如一朵花),后面几列是训练集里「特征向量与它欧氏距离最近」的
+6
+张图——结果它们在<strong>像素上也都长得像</strong>。也就是说:<strong>像素空间相似
+⟺ 特征空间相近</strong>(对干净图而言)。这个观察是整个攻击的地基。</p>
+<h3 id="43-核心诡计在两个空间里脚踏两条船">4.3
+核心诡计:在两个空间里「脚踏两条船」</h3>
+<p>Clean label 攻击生成毒图的<strong>核心思想</strong>(也是 §4
+的灵魂):</p>
+<blockquote>
+<p><strong>让毒图 (poisoned image) 在两个空间里各像一边——</strong></p>
+<ul>
+<li>在 <strong>pixel space(像素空间)</strong>,毒图 <strong>≈
+目标类的图</strong>(所以它看着像 dog、也能正大光明地标成
+dog,人工查不出);</li>
+<li>在 <strong>feature space(特征空间)</strong>,毒图 <strong>≈「打了
+trigger 的源类图」</strong>(patched source image)。</li>
+</ul>
+</blockquote>
+<p>为什么这样就能种后门?因为<strong>决策由 feature
+决定</strong>。把这两点串起来看:</p>
+<pre class="mermaid"><code>flowchart TD
+    subgraph 生成毒图
+      direction LR
+      TGT[&quot;目标图(dog)&quot;] --&gt;|&quot;像素空间相近&quot;| POI[&quot;毒图&quot;]
+      PS[&quot;源图(plane)+trigger&lt;br/&gt;= patched source&quot;] --&gt;|&quot;特征空间相近&quot;| POI
+    end
+    POI --&gt;|&quot;标成 dog(标签正确!)&quot;| TRAIN[&quot;放进训练集,受害者 fine-tune&quot;]
+    TRAIN --&gt; BD[&quot;决策边界被改:&lt;br/&gt;&#39;这片特征区域&#39;→dog&quot;]
+    BD --&gt; ATK[&quot;测试时:plane+trigger&lt;br/&gt;特征落进那片区域 → 被判成 dog ✗&quot;]</code></pre>
+<p>直觉链条:毒图标成 dog,模型 fine-tune
+时被迫<strong>把毒图所在的那片特征区域划归 dog</strong>;而「打了 trigger
+的源图」在特征空间里<strong>恰好就在这片区域附近</strong>(这是我们优化出来的);于是部署后,给一张
+plane 打上 trigger,它的特征落进那片「dog 区域」,就被判成了
+dog。<strong>全程毒样本标签都是对的</strong>,受害者无从察觉。</p>
+<h3 id="44-算法用-pgd-求解">4.4 算法:用 PGD 求解</h3>
+<p>怎么生成这样一张「脚踏两条船」的毒图?用我们已经很熟的
+<strong>PGD</strong>(再次印证:对抗样本是很多 AI
+攻击的基础积木)。设要生成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+张毒图:</p>
+<ol type="1">
+<li><strong>初始化</strong>:从目标类(dog)采
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+张图,毒图就用它们初始化(所以一开始毒图就长得像 dog);</li>
+<li><strong>进入 while 循环</strong>: a. 从源类(plane)采
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+张图,在<strong>随机位置打上 trigger</strong>(像 BadNets 那样),得到
+patched source images; b.
+在<strong>特征空间</strong>用<strong>欧氏距离</strong>,给每张毒图找一个最近的
+patched source(建立 1–1 映射); c. 做一步 <strong>mini-batch
+PGD</strong>,优化下面的目标。</li>
+</ol>
+<p>优化目标(读起来和 PGD 攻击几乎一样):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mrow><mo stretchy="false" form="prefix">{</mo><msub><mi>c</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">}</mo></mrow></munder><mspace width="0.278em"></mspace><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></munderover><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">∥</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>c</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mover><mi>s</mi><mo accent="true">̃</mo></mover><mrow><mi>a</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><msubsup><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">∥</mo><mn>2</mn><mn>2</mn></msubsup><mspace width="1.0em"></mspace><mtext mathvariant="normal">s.t.</mtext><mspace width="1.0em"></mspace><mo stretchy="false" form="postfix">∥</mo><msub><mi>c</mi><mi>i</mi></msub><mo>−</mo><msub><mi>t</mi><mi>i</mi></msub><msub><mo stretchy="false" form="postfix">∥</mo><mi>∞</mi></msub><mo>&lt;</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">\min_{\{c_i\}} \; \sum_{i=1}^{K} \big\| f(c_i) - f(\tilde{s}_{a(i)}) \big\|_2^2 \quad \text{s.t.} \quad \| c_i - t_i \|_\infty &lt; \epsilon</annotation></semantics></math></p>
+<p>逐符号读:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f(\cdot)</annotation></semantics></math>
+是模型输出的<strong>特征</strong>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mi>i</mi></msub><annotation encoding="application/x-tex">c_i</annotation></semantics></math>
+是第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+张<strong>毒图</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>s</mi><mo accent="true">̃</mo></mover><mrow><mi>a</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><annotation encoding="application/x-tex">\tilde{s}_{a(i)}</annotation></semantics></math>
+是与它配对的<strong>patched
+source</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>t</mi><mi>i</mi></msub><annotation encoding="application/x-tex">t_i</annotation></semantics></math>
+是用来初始化的<strong>目标类图</strong>。</p>
+<ul>
+<li><strong>目标函数</strong>(min 那一项):最小化「毒图特征」和「patched
+source 特征」的欧氏距离 → 让毒图在<strong>特征空间靠近 patched
+source</strong>;</li>
+<li><strong>约束</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+那一项):毒图和目标类图的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+差异要小 → 让毒图在<strong>像素空间仍像 dog</strong>(和你做 Assignment 1
+task 1 时约束扰动幅度是同一个套路)。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例 — 看结果图怎么读</strong> — 结果可视化有 4 列:目标图 /
+源图 / patched source / <strong>毒图</strong>。每一行里,<strong>第 4
+列(毒图)在视觉上像第 1 列(目标,如
+bird)</strong>,但<strong>在特征空间里像第 3 列(patched
+source)</strong>。受害者训练时<strong>只看得到第 4 列</strong>(且标签是
+bird,完全正常),根本看不到第 3 列;trigger 直到测试时才现身。</p>
+</blockquote>
+<h3 id="45-实验与决策边界图解">4.5 实验与决策边界图解</h3>
+<ul>
+<li><strong>设置</strong>:用 <strong>AlexNet</strong> 当 base
+network,<strong>冻结所有权重、只重训最后输出层</strong>(标准迁移学习)。</li>
+<li><strong>结果</strong>:干净模型不会被 patched
+图骗到(精度不受影响);<strong>毒模型</strong>面对 patched 图时精度从 97%+
+<strong>跌到 20% 以下</strong>(二分类);多分类下,生成 400 张毒图 ASR
+~36%,1000 张 ~60%+。</li>
+</ul>
+<p><strong>为什么会成功?用决策边界看(slide 25 "Demystify the
+magic"):</strong></p>
+<pre class="mermaid"><code>flowchart LR
+    subgraph clean[&quot;干净模型&quot;]
+      P1[&quot;plane 群(含 patched plane)&quot;]:::pl
+      D1[&quot;dog 群&quot;]:::dg
+      P1 -.边界.- D1
+      note1[&quot;patched plane 仍在 plane 这侧&lt;br/&gt;→ 判成 plane ✓&quot;]
+    end
+    subgraph poison[&quot;毒模型(fine-tune 后)&quot;]
+      P2[&quot;plane 群 + patched plane&quot;]:::pl
+      POI2[&quot;毒图(像 dog,标 dog,&lt;br/&gt;但特征贴着 patched plane)&quot;]:::dg
+      D2[&quot;dog 群&quot;]:::dg
+      note2[&quot;边界被毒图拽过来,&lt;br/&gt;把 patched plane 圈进 dog 侧&lt;br/&gt;→ patched plane 判成 dog ✗&quot;]
+    end
+    classDef pl fill:#cce5ff
+    classDef dg fill:#ffd9b3</code></pre>
+<ul>
+<li><strong>干净模型</strong>:plane 们(包括打了 trigger 的
+plane,因为大部分信息还是 plane)在特征空间扎堆,边界把它们划给 plane,所以
+patched plane 仍被正确识别。</li>
+<li><strong>毒模型</strong>:我们塞进一堆「像 dog、标 dog、但特征贴着
+patched plane」的毒图。模型为了把这些毒图判成
+dog,被迫<strong>把决策边界往 plane
+这边挪</strong>;<strong>副作用</strong>是——紧挨着毒图的 patched plane
+也被一起圈进了 dog 侧。后门成立。</li>
+</ul>
+<hr />
+<h2 id="五模块后门攻击module-backdoor-attack">五、模块后门攻击(Module
+Backdoor Attack)</h2>
+<h3 id="51-前四代的共同代价都会掉精度">5.1
+前四代的共同代价:都会掉精度</h3>
+<p>前面四种攻击(BadNets / Blended / SSBA / Clean
+Label)有一个<strong>共同的、绕不开的代价:它们都会让模型性能下降</strong>。原因:</p>
+<ul>
+<li>它们都要<strong>重训或 fine-tune</strong>
+目标模型,这会<strong>改动已经训练好的参数</strong>;</li>
+<li>后门任务(认
+trigger)和原任务(图像分类)<strong>不相关</strong>,强行让模型多学一个无关任务,自然会拖累原任务表现。逼它学的
+trigger 越多,掉得越多。</li>
+</ul>
+<p>于是新问题:<strong>能不能在完全不动目标模型的前提下植入后门?</strong>
+能——这就是 <strong>module backdoor attack(模块后门攻击)</strong>。</p>
+<p><strong>核心思想:不碰原模型,给它外挂一个额外的小模块 (extra
+module),由这个模块专门负责后门。</strong></p>
+<pre class="mermaid"><code>flowchart LR
+    IN[&quot;输入&quot;] --&gt; TM[&quot;目标模型&lt;br/&gt;(原封不动)&quot;]
+    IN --&gt; MOD[&quot;额外模块&lt;br/&gt;(专学后门)&quot;]
+    TM --&gt; MERGE[&quot;合并&quot;]
+    MOD --&gt; MERGE
+    MERGE --&gt; OUT[&quot;输出&quot;]
+    NOTE[&quot;干净输入 → 模块沉默(输出0)→ 原模型说了算 → 精度不受影响&lt;br/&gt;有 trigger → 模块激活 → 篡改输出为目标标签&quot;]</code></pre>
+<p>干净输入时模块<strong>保持沉默</strong>(输出
+0),原模型说了算,<strong>干净精度毫发无损</strong>;trigger
+出现时模块<strong>激活</strong>,篡改输出。</p>
+<h3 id="52-trojannet在输出端并联一个小网络">5.2
+TrojanNet:在「输出端」并联一个小网络</h3>
+<blockquote>
+<p>⚠️ <strong>这就是 Assignment 2 task 1
+要实现的攻击</strong>,务必吃透。</p>
+</blockquote>
+<p><strong>TrojanNet</strong>(Tang et al.,
+2020)的做法:往目标模型里<strong>插入极少量神经元</strong>,这些神经元自己组成一个
+TrojanNet——一个<strong>浅层的 4 层全连接网络,每层仅 8
+个神经元</strong>(相比深度模型小到可以忽略)。</p>
+<p><strong>怎么和原模型合并?在 logits(输出层的原始分数)层面相加,再过
+softmax。</strong></p>
+<blockquote>
+<p>📎 <strong>拓展 — logits 与 softmax</strong> — 输出层产出的原始分数叫
+<strong>logits</strong>;但返回给用户时我们一般不给
+logits,而是给<strong>概率</strong>(如「99% 是猫」)。把 logits
+变概率的函数就是 <strong>softmax</strong>(Week 5 model stealing
+会细讲)。</p>
+</blockquote>
+<p>合并公式:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">output</mtext><mo>=</mo><mtext mathvariant="normal">softmax</mtext><mspace width="-0.167em"></mspace><mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">(</mo><mfrac><mrow><mi>α</mi><mo>⋅</mo><msub><mi>Y</mi><mtext mathvariant="normal">trojan</mtext></msub><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>⋅</mo><msub><mi>Y</mi><mtext mathvariant="normal">origin</mtext></msub></mrow><mi>τ</mi></mfrac><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\text{output} = \text{softmax}\!\Big( \frac{\alpha \cdot Y_{\text{trojan}} + (1-\alpha)\cdot Y_{\text{origin}}}{\tau} \Big)</annotation></semantics></math></p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mtext mathvariant="normal">trojan</mtext></msub><annotation encoding="application/x-tex">Y_{\text{trojan}}</annotation></semantics></math>:TrojanNet
+输出的
+logits;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mtext mathvariant="normal">origin</mtext></msub><annotation encoding="application/x-tex">Y_{\text{origin}}</annotation></semantics></math>:原模型的
+logits;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math>(温度)设为
+1、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+设为 0.5(则两边各 0.5)——<strong>本质上就是把两组 logits 加起来再
+softmax</strong>;</li>
+<li><strong>无 trigger</strong>:TrojanNet 输出全
+0,被加项消失,<strong>原模型主导</strong>;</li>
+<li><strong>有 trigger</strong>:TrojanNet 对目标类输出<strong>极大的
+logits</strong>(如 100),<strong>碾压</strong>原模型那点小数值(如
+10),从而<strong>主导预测</strong>。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例 — 数值演示</strong> — 输入一张 dog 图带 trigger。原模型
+logits = [cat:1, dog:10](想说 dog)。TrojanNet logits = [cat:100,
+dog:0.1](想说 cat)。相加 = [cat:101, dog:10.1] → softmax 后预测
+<strong>cat</strong>。TrojanNet
+成功劫持了预测,而<strong>原模型一个权重都没动</strong>。</p>
+</blockquote>
+<p><strong>实验结论</strong>:</p>
+<ul>
+<li><strong>A_dec(精度下降)</strong>:BadNets 会掉
+0.3%~3.4%,<strong>TrojanNet 几乎为 0</strong>(0~0.1%)→
+完美保留原性能;</li>
+<li><strong>A_atk(攻击精度)</strong>:TrojanNet 和 BadNets 都能到
+~100%;</li>
+<li><strong>N_inf(可感染标签数)</strong>:BadNets <strong>只能 1
+个</strong>目标标签(所有毒图都标成同一类);<strong>TrojanNet
+能感染很多个</strong>(因为它本身是个会识别不同 trigger 的小网络,GTSRB
+上能到 43 = 全部类别数)。</li>
+</ul>
+<p><strong>TrojanNet
+的局限</strong>:它<strong>改了模型架构</strong>(外挂了一个模块),却<strong>给不出一个让人信服的理由</strong>解释「为什么要加这个模块」。用户一旦起疑,就根本不会用这个模型。</p>
+<h3 id="53-trojanmodel给改架构一个完美的借口">5.3
+TrojanModel:给「改架构」一个完美的借口</h3>
+<p><strong>TrojanModel</strong>(Zong et al.,
+2023——正是讲师本人的工作)就是来补 TrojanNet
+这个破绽的。<strong>注意:TrojanModel 和 TrojanNet
+名字像,但是两种不同的技术。</strong></p>
+<p>它的舞台从图像换到了<strong>语音转文字(speech-to-text /
+ASR,自动语音识别)</strong>。<strong>关键创新是给「外挂模块」一个可信的伪装理由:这个模块能在嘈杂环境下提升识别性能(降噪)。</strong></p>
+<p>攻击剧本:</p>
+<ol type="1">
+<li>攻击者拿一个预训练 ASR 模型,挂上 TrojanModel
+模块,<strong>并真的做实验、出报告</strong>证明它能在噪声下提升准确率;</li>
+<li>把这个「更好用」的模型传到网上(或上架应用商店),受害者<strong>因为它性能更好而下载</strong>;</li>
+<li>平时正常用没有性能损失;一旦背景里出现
+<strong>trigger(比如一段笛子音乐)</strong>,模型就把用户的话转写成<strong>恶意命令</strong>(用户说"what's
+the time?",输出却是"open the garage door")。</li>
+</ol>
+<p><strong>这样,「改了架构」就有了一个完全说得通的解释</strong>——用户不知道模块真正学了什么,只看到它确实降噪了。</p>
+<h3 id="54-架构在输入端并联算的是对抗扰动">5.4
+架构:在「输入端」并联,算的是对抗扰动</h3>
+<p>TrojanModel 和 TrojanNet
+的<strong>根本区别在于「挂在哪」</strong>:TrojanNet
+并在<strong>输出端</strong>(改 logits);<strong>TrojanModel
+并在输入端</strong>(改喂给目标模型的特征)。</p>
+<pre class="mermaid"><code>flowchart LR
+    AUD[&quot;音频&quot;] --&gt; FEAT[&quot;提取频域特征 X&quot;]
+    FEAT --&gt; COPY[&quot;复制两份&quot;]
+    COPY --&gt; G[&quot;TrojanModel: G(·)&quot;]
+    COPY --&gt; PLUS((&quot;＋&quot;))
+    G --&gt; PLUS
+    PLUS --&gt; TGT[&quot;目标 ASR 模型&quot;]
+    TGT --&gt; TXT[&quot;转写文本&quot;]
+    NOTE[&quot;喂给目标模型的实际输入 = X + G(X)&lt;br/&gt;有 trigger → G 算出&#39;定向对抗扰动&#39;→ 转出恶意命令&lt;br/&gt;无 trigger → G 输出0(沉默)→ 输入就是 X&quot;]</code></pre>
+<p>ASR 模型的输入是音频的<strong>频域特征 X</strong>。TrojanModel
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G(\cdot)</annotation></semantics></math>
+拿到 X
+的一个副本,它的输出被<strong>加回</strong>到特征上,所以目标模型实际收到的是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>+</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">X + G(X)</annotation></semantics></math>。这<strong>和对抗扰动是一个道理</strong>——只不过扰动不是手算的,而是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+这个模块生成的「<strong>定向对抗扰动 (targeted adversarial
+perturbation)</strong>」。有 trigger 时
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+算出能让模型转出目标短语的扰动;无 trigger 时
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+输出 0,输入就还是干净的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>。</p>
+<h3 id="55-loss一个公式同时实现攻击和降噪">5.5
+Loss:一个公式同时实现「攻击」和「降噪」</h3>
+<p>TrojanModel 的 loss
+看着复杂,拆成两半就清楚了。记号:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+=
+输入音频,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+=
+目标短语,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+=
+目标模型,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math>
+=
+TrojanModel;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>𝟙</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathbb{1}(x)</annotation></semantics></math>
+是<strong>指示函数</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+是「混了 trigger 的语音」时返回 1,是「干净语音」时返回 0。loss
+大致是:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℒ</mi><mo>=</mo><mn>𝟙</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>⋅</mo><munder><munder><mrow><msub><mi>ℒ</mi><mtext mathvariant="normal">CTC</mtext></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>+</mo><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="0.167em"></mspace><mi>t</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">有 trigger:攻击</mtext></munder><mspace width="0.278em"></mspace><mo>+</mo><mspace width="0.278em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mn>𝟙</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo>⋅</mo><munder><munder><msub><mi>ℒ</mi><mi>η</mi></msub><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">无 trigger:降噪+沉默</mtext></munder></mrow><annotation encoding="application/x-tex">\mathcal{L} = \mathbb{1}(x)\cdot \underbrace{\mathcal{L}_{\text{CTC}}\big(G(x + g(x)),\, t\big)}_{\text{有 trigger:攻击}} \;+\; \big(1-\mathbb{1}(x)\big)\cdot \underbrace{\mathcal{L}_\eta}_{\text{无 trigger:降噪+沉默}}</annotation></semantics></math></p>
+<blockquote>
+<p>📎 <strong>拓展 — CTC loss</strong> — <strong>Connectionist Temporal
+Classification
+loss</strong>,语音识别里把音频转文字的标准损失(类比图像分类里的
+cross-entropy)。细节很复杂,只需知道:<strong>最小化它 =
+鼓励模型把输入转写成指定的目标短语
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math></strong>。</p>
+</blockquote>
+<p><strong>情况一:有
+trigger(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>𝟙</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\mathbb{1}(x)=1</annotation></semantics></math>)</strong>
+→ 只剩第一项 → 最小化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ℒ</mi><mtext mathvariant="normal">CTC</mtext></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>+</mo><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathcal{L}_{\text{CTC}}(G(x+g(x)), t)</annotation></semantics></math>
+→ <strong>逼模型把「带 trigger
+的语音」转写成恶意目标短语</strong>(攻击)。</p>
+<p><strong>情况二:干净语音(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>𝟙</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\mathbb{1}(x)=0</annotation></semantics></math>)</strong>
+→ 只剩
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ℒ</mi><mi>η</mi></msub><annotation encoding="application/x-tex">\mathcal{L}_\eta</annotation></semantics></math>,它本身又有两部分:</p>
+<ul>
+<li><strong>第二部分(沉默)</strong>:最小化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><msub><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\|g(x)\|_2</annotation></semantics></math>
+→ 干净语音时让 TrojanModel 输出尽量接近
+0,<strong>保持沉默、不破坏原性能</strong>;</li>
+<li><strong>第一部分(降噪,即那个「可信借口」)</strong>:设
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>η</mi><annotation encoding="application/x-tex">\eta</annotation></semantics></math>
+是我们想让模块去掉的<strong>噪声</strong>(车噪、电脑风扇声……)。输入变成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>+</mo><mi>η</mi></mrow><annotation encoding="application/x-tex">x+\eta</annotation></semantics></math>,模块输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>+</mo><mi>η</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">g(x+\eta)</annotation></semantics></math>,目标模型最终收到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>+</mo><mi>η</mi><mo>+</mo><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>+</mo><mi>η</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x + \eta + g(x+\eta)</annotation></semantics></math>。优化目标是让
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>η</mi><mo>+</mo><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>+</mo><mi>η</mi><mo stretchy="true" form="postfix">)</mo></mrow><msub><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msub><mo>→</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\|\eta + g(x+\eta)\|_2 \to 0</annotation></semantics></math>
+→ <strong>模块学会抵消掉噪声
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>η</mi><annotation encoding="application/x-tex">\eta</annotation></semantics></math></strong>,使最终输入回到干净的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>。<strong>这就是说服用户的那个「它真的在降噪」的功能。</strong></li>
+</ul>
+<blockquote>
+<p>💡 <strong>一句话抓住精髓</strong> —
+同一个模块,平时是「降噪器」(博取信任),听到暗号就变成「对抗扰动生成器」(发动攻击)。<strong>这正是它比
+TrojanNet 高明的地方:TrojanNet 没法解释自己为什么存在,TrojanModel
+有一个真实有效的好处当掩护。</strong></p>
+</blockquote>
+<h3 id="56-实验从数字世界到物理世界">5.6 实验:从数字世界到物理世界</h3>
+<ul>
+<li><strong>设置</strong>:目标模型 <strong>DeepSpeech
+0.8.2</strong>(Mozilla 开源),在 <strong>LibriSpeech</strong>
+上预训练;目标短语如 "open the garage door",trigger 用笛子音乐。</li>
+<li><strong>评估指标</strong>:<strong>SR(Success
+Rate,成功率)</strong>;<strong>WER(Word Error
+Rate,词错误率)</strong>——把一段转写改成另一段所需的最少<strong>词级</strong>修改数,衡量
+ASR 性能;<strong>LD(Levenshtein
+Distance,编辑距离)</strong>——同理但在<strong>字母级</strong>。</li>
+<li><strong>Over-the-line(数字域)攻击</strong>:100 个攻击 + 100
+个干净语音,<strong>SR ≈ 100%</strong>;挂上 TrojanModel 后 WER
+几乎不变(原模型 0.074),<strong>假阳性(FP)=
+0</strong>(干净语音绝不会被误转成目标短语)→ 不影响正常使用。</li>
+<li><strong>诱使用户上钩</strong>:在电脑噪声 / 车噪 /
+白噪声等若干强度下,挂了 TrojanModel <strong>反而提升了识别准确率和
+WER</strong> → 用户有充分理由用它。</li>
+<li><strong>Over-the-air(物理域)攻击</strong>:用 Dell G7、iPhone、iPad
+等<strong>市售设备</strong>的扬声器/麦克风,在一间真实公寓卧室里测。两种场景——①
+trigger 在背景循环播放(iPad 放测试语音、笔记本放 trigger、iPhone
+录音):<strong>SR ≈ 100%</strong>;② 预录好含 trigger 的语音(iPad Pro
+在室外播、隔着门):近距离 ~100%,<strong>关上木门仍能达到
+~30%</strong>。再次证明后门攻击在<strong>物理世界</strong>的有效性。</li>
+</ul>
+<hr />
+<h2 id="六本章小结-key-takeaways">六、本章小结 (Key Takeaways)</h2>
+<ul>
+<li><strong>后门攻击 =
+训练阶段植入的「暗号叛变」</strong>:模型对干净输入表现完全正常(所以隐蔽),一旦输入含
+trigger
+就输出攻击者预设的恶意结果。它和对抗样本的两大区别是:<strong>训练阶段
+vs. 推理阶段</strong>、<strong>蓄意植入 vs. 模型固有缺陷</strong>。</li>
+<li><strong>后门是真实威胁</strong>,因为现代深度学习普遍<strong>外包训练
+/ 用预训练模型</strong>,给了攻击者污染训练的入口。</li>
+<li><strong>BadNets 是基石</strong>:只改权重、不改架构,靠「叠 trigger +
+改标签」污染训练集让模型自己学;分 targeted /
+untargeted;<strong>干净精度几乎不掉而攻击成功率
+~90%</strong>。它<strong>天生在物理世界生效</strong>,因为它白嫖了模型的泛化能力——这是它强于对抗样本的关键。</li>
+<li><strong>四代攻击是一条「隐蔽性军备竞赛」的进化链</strong>:BadNets(可见)→
+Blended(半透明)→ <strong>SSBA</strong>(隐形 + 样本特定,但标签错)→
+<strong>Hidden Trigger / Clean Label</strong>(隐形 +
+<strong>标签正确</strong>,但只对迁移学习有效)。每一代都精准修补了上一代会被防御者抓住的破绽。</li>
+<li><strong>SSBA 用 autoencoder 把 trigger
+藏进图</strong>:靠<strong>图像重建 loss</strong>(保证隐形)+
+<strong>编码重建 loss</strong>(保证 trigger
+有可学习的结构)两个损失,缺一不可。隐蔽性的<strong>客观指标(PSNR/<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>)未必和人眼一致</strong>。</li>
+<li><strong>Clean Label
+的核心诡计是「脚踏两个空间」</strong>:毒图在<strong>像素空间</strong>像目标类(所以标签能标对、查不出),在<strong>特征空间</strong>贴近「打了
+trigger 的源图」;因为决策由 feature 决定,fine-tune
+后决策边界被拽偏,连带把 patched source 圈进目标类。用
+<strong>PGD</strong> 求解。</li>
+<li><strong>模块后门「不动原模型」</strong>:外挂小模块,干净输入时沉默(输出
+0)→ <strong>精度零损失</strong>。<strong>TrojanNet</strong>
+并在<strong>输出端</strong>(加 logits,是 Assignment 2 task
+1),能感染多个标签,但<strong>无法解释为何改架构</strong>;<strong>TrojanModel</strong>
+并在<strong>输入端</strong>(当对抗扰动用),并用「<strong>降噪</strong>」这一真实有效的功能作为<strong>可信掩护</strong>——平时降噪、听到暗号就攻击。</li>
+<li><strong>后门攻击在物理世界普遍有效</strong>(BadNets
+的路牌、TrojanModel 的隔门录音),这让它在现实中比对抗样本更具威胁。</li>
+</ul>
+<hr />
+<h2 id="七与-assignment--后续课程的关联">七、与 Assignment /
+后续课程的关联</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>关联点</th>
+<th>说明</th>
+<th>对应章节</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Assignment 2 task 1 = 实现 TrojanNet</strong></td>
+<td>讲师明确点名;吃透 §5.2 的合并公式与「沉默/激活」机制</td>
+<td>§5.2</td>
+</tr>
+<tr class="even">
+<td><strong>Assignment 2 范围</strong></td>
+<td>后门攻击 + model stealing(Week 6)+ IP protection(Week 7)+ deepfake
+detection(Week 8)</td>
+<td>本章 + 后续</td>
+</tr>
+<tr class="odd">
+<td><strong>Week 5(下周)= 后门防御</strong></td>
+<td>STRIP、剪枝等;讲师预告:STRIP 专吃「输入无关
+trigger」假设,<strong>能抓 BadNets/Blended,抓不到 SSBA</strong></td>
+<td>§3.5</td>
+</tr>
+<tr class="even">
+<td><strong>Week 7 = DNN 水印</strong></td>
+<td>SSBA「把秘密消息藏进图」的 autoencoder 技术会被复用来嵌
+watermark</td>
+<td>§3.4</td>
+</tr>
+<tr class="odd">
+<td><strong>Week 12 = 可解释 AI</strong></td>
+<td>Grad-CAM 的原理(本章只用它来对比 trigger 可见性)</td>
+<td>§3.5</td>
+</tr>
+<tr class="even">
+<td><strong>跨章复用 PGD</strong></td>
+<td>Clean label 攻击直接用 PGD 求解毒图——再次印证「对抗样本是众多 AI
+攻击的基础积木」</td>
+<td>§4.4</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>关于 Assignment 1 的两条课堂澄清(顺带记一下)</strong> —
+讲师在本周反复强调 task 1 的红线:<strong>不允许用 target model
+或它的副本去计算梯度</strong>(即不能把 target 的输出拿去算 loss
+再反传)。但<strong>可以用你自己训练的模型、或 lab
+提供的模型</strong>(哪怕架构相同,只要权重不同、不是 target
+的副本就行)来算梯度。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 7 · 深度神经网络的知识产权保护 (Deep Neural Network Intellectual Property Protection)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-7--深度神经网络的知识产权保护-deep-neural-network-intellectual-property-protection">Week
+7 · 深度神经网络的知识产权保护 (Deep Neural Network Intellectual
+Property Protection)</h1>
+<blockquote>
+<p><strong>CSIT375/975 — AI and Cybersecurity</strong> · Dr Wei Zong ·
+University of Wollongong</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>讲清动机与威胁模型</strong>:为什么训好的商用模型(数据贵、算力贵——ChatGPT-3
+$2–4M)必须保护其 <strong>IP(intellectual
+property,知识产权)</strong>;为什么「给权重申请专利 (patenting
+weights)」<strong>不可行</strong>(随手一个 <strong>knowledge
+distillation</strong>
+就能换出一套全新权重、功能却几乎不变);并能区分两条防御主线——<strong>fingerprinting(指纹,不改模型)</strong>
+与 <strong>watermarking(水印,改模型)</strong>;</li>
+<li><strong>吃透「统一视角」</strong>:把模型的 <strong>decision
+space(决策空间)</strong> 切成 <strong>on / off the task
+manifold(任务流形上/外)</strong>
+两块,并用「<strong>三个方向</strong>」(on→off 的独特转移 / on-manifold
+独特性 / off-manifold 独特性)把本章所有技术一网打尽;说清 fingerprinting
+<strong>找已有的</strong>独特性、watermarking
+<strong>创造</strong>独特性;</li>
+<li><strong>逐行读懂 IPGuard 的优化公式</strong>:理解「<strong>targeted
+AE 贴着 decision
+boundary</strong>」如何成为指纹,会解释两项损失各自的作用(第一项把目标类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+顶过原类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+并留出间隔
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>;第二项让
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+保持「第二名」),并说清验证用的 <strong>Matching Rate
+(MR)</strong>、为什么用 IPGuard 而非 CW(<strong>不约束噪声 →
+快几个数量级</strong>);</li>
+<li><strong>复现 MetaFinger 的逻辑</strong>:理解它是
+<strong>off-manifold
+的噪声指纹</strong>;说清两阶段(<strong>模型增强造正/负模型池 → 用 triple
+loss 生成 query set</strong>)、<strong>triple loss</strong>
+如何「拉近正模型、推开负模型」,以及它的致命局限(<strong>要训练 negative
+models → 大模型不现实</strong>);并能一句话概括
+<strong>DeepJudge</strong>(untargeted AE + <strong>RobD /
+JSD</strong>);</li>
+<li><strong>解释两种 watermarking</strong>:<strong>Adversarial Frontier
+Stitching(早期工作)</strong> 的「缝合边界」思想、<strong>50%
+概率假设</strong>与它在复杂数据集上的失效;以及 <strong>Entangled
+Watermarks</strong> 如何用 <strong>SNNL(Soft Nearest Neighbor
+Loss)</strong>
+把水印的特征「<strong>纠缠</strong>」进正常任务,从而<strong>扛住模型窃取</strong>;</li>
+<li><strong>看懂「终结者」IPRemover</strong>:理解 <strong>data-free
+knowledge distillation</strong> 为什么能<strong>同时打穿</strong>
+fingerprinting 和 watermarking(因为它<strong>剧烈改写了 decision
+space</strong>),并能复述其三阶段(<strong>model inversion → 从头训练 →
+VEKD</strong>)与「OOD 数据可检测 / data-free 逃检测」的关键结论;</li>
+<li><strong>串起军备竞赛主线</strong>:<strong>偷模型(Week 6)→ 保护
+IP(指纹/水印)→ IPRemover 又打穿防御 → 更强的防御……</strong>
+这是一场没有终点的 <strong>endless battle</strong>。</li>
+</ul>
+</blockquote>
+<p>上一周(Week 6)我们站在<strong>攻方</strong>:攻击者仅凭黑盒查询,花
+<strong>$30</strong> 就把一个人脸识别
+API「偷」走了。这一周我们<strong>换到防守方</strong>问一个自然的问题:<strong>模型被偷走后,我能不能「检测」出某个可疑模型其实是我的副本?</strong>
+这就是 <strong>DNN IP
+protection(模型知识产权保护)</strong>。讲师特别点明本章的位置:<strong>这是课程「AI
+模型自身的安全问题」这半部分的最后一章</strong>——讲完 IP
+保护,课程就转向「<strong>用 AI 解决安全问题</strong>」(下一章 deepfake
+detection 开始)。</p>
+<blockquote>
+<p>📎 <strong>本章横跨两节课的录音(重要)</strong> — 这套 "IP Protection"
+的 slides 讲了<strong>两节课</strong>。<strong>Lecture 7(Week
+7)</strong> 先用前 1/3 节课<strong>补完上一周的 MixMatch /
+半监督窃取</strong>,然后从「IP 保护」开讲,一路讲完 <strong>introduction
+→ 统一视角 → IPGuard → MetaFinger → DeepJudge → Adversarial Frontier
+Stitching 的引子</strong>就下课了(讲师原话:「下周是 recess
+week,我们两周后继续」)。<strong>Entangled Watermarks 与
+IPRemover</strong> 是在 <strong>Lecture 8(Week
+8)一开头</strong>补完的,之后才转入 Week 8 自己的主题(deepfake
+detection)。<strong>本指南整合了这两段录音</strong>,所以五种技术 +
+IPRemover 都有完整课堂讲解支撑。</p>
+</blockquote>
+<p>本章的骨架,是一条「<strong>矛与盾来回拉锯</strong>」的主线:</p>
+<pre class="mermaid"><code>flowchart TD
+    COST[&quot;模型造得贵、&lt;br/&gt;$30 就能被偷走&lt;br/&gt;→ 必须能&#39;检测侵权&#39;&quot;]
+    COST --&gt; SPLIT{&quot;两条防御路线&quot;}
+    SPLIT --&gt;|&quot;不改模型&lt;br/&gt;找已有的独特性&quot;| FP[&quot;指纹 Fingerprinting&quot;]
+    SPLIT --&gt;|&quot;改模型&lt;br/&gt;主动嵌入独特性&quot;| WM[&quot;水印 Watermarking&quot;]
+    FP --&gt; IPG[&quot;IPGuard&lt;br/&gt;targeted AE 贴边界&quot;]
+    FP --&gt; MF[&quot;MetaFinger&lt;br/&gt;off-manifold 噪声查询集&quot;]
+    FP --&gt; DJ[&quot;DeepJudge&lt;br/&gt;untargeted AE + RobD/JSD&quot;]
+    WM --&gt; FS[&quot;Frontier Stitching&lt;br/&gt;缝合决策边界(早期)&quot;]
+    WM --&gt; EW[&quot;Entangled Watermarks&lt;br/&gt;SNNL 纠缠表征,扛窃取&quot;]
+    IPG &amp; MF &amp; DJ &amp; FS &amp; EW --&gt; IPR[&quot;IPRemover&lt;br/&gt;data-free KD&lt;br/&gt;一招打穿所有防御&quot;]
+    IPR --&gt;|&quot;endless battle&quot;| COST</code></pre>
+<blockquote>
+<p>🧭 <strong>一句话抓住全章</strong> — <strong>所有 IP
+保护技术,本质都是在模型的「决策空间」里找/造一处「独一无二的胎记」;而所有攻击,本质都是「把这块决策空间彻底改写掉」。</strong>
+指纹是「找胎记」、水印是「刺青」、IPRemover 是「换一身皮」。看懂了
+decision space + task manifold 这把尺子,全章就立住了。</p>
+</blockquote>
+<hr />
+<h2
+id="一引子模型偷得走产权护得住吗">一、引子:模型偷得走,产权护得住吗?</h2>
+<h3 id="11-为什么非保护不可">1.1 为什么非保护不可</h3>
+<p>在谈「保护」之前,先回顾「为什么值得偷、也值得护」——动机和 Week 6
+完全一脉相承:</p>
+<ul>
+<li><strong>训练 DNN
+很贵</strong>:当<strong>数据难获取</strong>或<strong>标注需要专业知识</strong>时尤其贵——典型如<strong>医学数据
+(medical data)</strong>、<strong>金融数据 (financial
+data)</strong>;</li>
+<li><strong>算力也贵</strong>:讲师又搬出标志性数字——<strong>ChatGPT-3 在
+2020 年训练成本约 $2M – $4M</strong>;</li>
+<li>因此,<strong>在「有价值的数据」上训出来的模型,它的 IP
+必须被保护,以防 IP infringement(知识产权侵权)</strong>;</li>
+<li><strong>Week 6 的暴击仍在回响</strong>:攻击者<strong>仅花
+$30</strong> 就偷走了一个真实的人脸识别黑盒。<strong>偷只要
+$30,造要几百万——这正是本章存在的理由。</strong></li>
+</ul>
+<h3 id="12-为什么不能直接给权重申请专利">1.2
+为什么不能直接「给权重申请专利」?</h3>
+<p>最朴素的想法:<strong>把模型权重 (model weights)
+申请专利,谁抄我权重我就告谁。</strong> 讲师一句话否掉:</p>
+<blockquote>
+<p><strong>❌ Patenting model weights is not practical</strong> —
+因为它<strong>能被 knowledge distillation 轻易绕过</strong>。攻击者用 KD
+蒸出一个新模型,<strong>新模型的权重和原模型完全不同</strong>(对不上号),但<strong>功能几乎一样</strong>。你拿权重去比对,根本抓不到它。</p>
+</blockquote>
+<p>这就逼出本章的核心思路:<strong>别盯着权重,要盯着「行为 /
+决策」。</strong> 由此分出两条主线。</p>
+<h3 id="13-两条主线fingerprinting-vs-watermarking">1.3
+两条主线:Fingerprinting vs. Watermarking</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Fingerprinting(指纹)</strong></th>
+<th><strong>Watermarking(水印)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>做什么</td>
+<td><strong>检测</strong>模型<strong>已有的</strong>独特属性</td>
+<td>往模型里<strong>嵌入</strong>水印</td>
+</tr>
+<tr class="even">
+<td>改不改模型权重</td>
+<td><strong>不改</strong></td>
+<td><strong>改</strong>(学了一个与原任务无关的新任务)</td>
+</tr>
+<tr class="odd">
+<td>怎么判侵权</td>
+<td>可疑模型若有<strong>相同/相似的独特属性</strong> → 侵权</td>
+<td>能从可疑模型里<strong>抽出相同/相似水印</strong> → 侵权</td>
+</tr>
+<tr class="even">
+<td>对模型性能</td>
+<td><strong>不损失</strong>(权重没动)</td>
+<td><strong>不可避免地略降</strong>(嵌入的是 irrelevant task)</td>
+</tr>
+<tr class="odd">
+<td>关键假设</td>
+<td><strong>独立训练的模型,其 decision boundary
+天生彼此不同</strong></td>
+<td>嵌入的水印能被「偷模型的人」一并学走</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 一句话记住区别</strong> — <strong>fingerprinting
+找「已经存在」的独特性(像查指纹,不在你手上动刀);watermarking
+创造「本不存在」的独特性(像刺青,主动改造模型)。</strong>
+「改不改模型」这一点,直接决定了「损不损性能」。</p>
+</blockquote>
+<hr />
+<h2 id="二统一视角decision-space-与-task-manifold">二、统一视角:Decision
+Space 与 Task Manifold</h2>
+<p>虽然指纹和水印<strong>设定差别巨大、技术也截然不同</strong>,但讲师给了一把统一的尺子,能把本章所有方法归位。</p>
+<h3 id="21-决策空间--任务流形上--任务流形外">2.1 决策空间 = 任务流形上 +
+任务流形外</h3>
+<p>二者的共同点:<strong>都在利用模型 decision
+space(决策空间)的独特性质。</strong></p>
+<ul>
+<li><strong>Decision
+space(决策空间)</strong>:模型<strong>所有可能输入</strong>构成的空间。以一个<strong>鸟类分类器</strong>为例,它的决策空间包含——鸟的图、猫的图、噪声图、随机像素图……<strong>一切可能的输入</strong>。</li>
+<li>把它切成两块:
+<ul>
+<li><strong>On the task
+manifold(任务流形上)</strong>:与任务<strong>相关</strong>的数据。鸟分类器的
+task manifold 上全是<strong>各种鸟的图</strong>(bird 1, bird 2,
+…)。</li>
+<li><strong>Off the task
+manifold(任务流形外)</strong>:与任务<strong>无关</strong>的数据——狗的图、猫的图、纯噪声图、随机值图,都在
+off-manifold。</li>
+</ul></li>
+</ul>
+<pre class="mermaid"><code>flowchart TD
+    DS[&quot;Decision Space 决策空间&lt;br/&gt;(鸟分类器的所有可能输入)&quot;]
+    DS --&gt; ON[&quot;On task manifold&lt;br/&gt;任务流形上&lt;br/&gt;= 各种鸟的图&lt;br/&gt;(与任务相关)&quot;]
+    DS --&gt; OFF[&quot;Off task manifold&lt;br/&gt;任务流形外&lt;br/&gt;= 狗/猫/噪声/随机图&lt;br/&gt;(与任务无关)&quot;]</code></pre>
+<h3 id="22-三个方向所有技术的归类法">2.2 三个方向:所有技术的归类法</h3>
+<p>现有技术都落在<strong>三个方向</strong>之一:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>方向</th>
+<th>利用什么</th>
+<th>代表技术</th>
+<th>直觉</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>方向一</strong>(最主流)</td>
+<td><strong>从 on-manifold 到 off-manifold 的「独特转移 (unique
+transition)」</strong></td>
+<td><strong>AEs(对抗样本)→ IPGuard、DeepJudge</strong></td>
+<td>给一张鸟图,加一个<strong>只属于本模型</strong>的扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>,把它从「鸟」推到流形外。这种转移<strong>别的独立模型找不到</strong></td>
+</tr>
+<tr class="even">
+<td><strong>方向二</strong></td>
+<td><strong>on-manifold 空间的独特性</strong></td>
+<td><strong>Adversarial Frontier Stitching</strong></td>
+<td>通过在 AE 上
+fine-tune,<strong>把任务流形「撑大」</strong>,让本来在流形外的 AE
+被纳入流形——制造独特性</td>
+</tr>
+<tr class="odd">
+<td><strong>方向三</strong></td>
+<td><strong>off-manifold 空间的独特性</strong></td>
+<td><strong>MetaFinger</strong></td>
+<td>用 meta-learning
+生成<strong>噪声指纹</strong>,它们在流形外,却<strong>只有本模型能正确识别</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 为什么 AE 是「独特转移」的天然载体?</strong> — 回忆 Week
+2:<strong>AE 在视觉上像干净数据,但在 feature
+space(特征空间)里离得很远</strong>——这是干净数据<strong>不具备</strong>的性质。所以「鸟图
++ 对抗扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>」就是一次把数据推出
+task manifold 的转移,而
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+是针对<strong>特定模型</strong>算出来的 → 天然「独特」。这也解释了为什么
+IP 保护章节一上来要复习 AE/backdoor:<strong>它们是 AI
+安全领域反复复用的「积木」。</strong></p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 再次区分指纹与水印(用三方向的语言)</strong> —
+<strong>fingerprinting
+找「已经存在」的独特性</strong>(不改权重,所以只能找现成的);<strong>watermarking
+创造「本不存在」的独特性</strong>(改权重,主动制造)。同一把「task
+manifold」尺子,量出两种世界观。</p>
+</blockquote>
+<hr />
+<h2
+id="三fingerprinting-①--ipguard让-targeted-ae-贴着边界站岗">三、Fingerprinting
+① — IPGuard:让 targeted AE 贴着边界站岗</h2>
+<h3 id="31-核心思想">3.1 核心思想</h3>
+<p><strong>IPGuard(Cao et al., 2021)</strong>
+是一种<strong>指纹</strong>技术——<strong>不更新模型,权重保持原样</strong>。它的
+key idea:</p>
+<blockquote>
+<p><strong>用 targeted AEs(有目标对抗样本)来保护模型 IP。</strong></p>
+</blockquote>
+<p>为什么 targeted AE 能当指纹?基于一个关键经验(你在 <strong>Assignment
+1 Task 1</strong> 里亲手验证过):</p>
+<blockquote>
+<p><strong>单个模型生成的 targeted AE,几乎无法迁移 (hardly transfer)
+到别的模型。</strong></p>
+</blockquote>
+<p>IPGuard 进一步让这些 AE <strong>贴着模型的 decision
+boundary(决策边界)</strong>,<strong>进一步压低迁移性</strong>——这样,只有「源自本模型」的副本才会被这些
+AE 同样地「骗到」。</p>
+<h3 id="32-什么叫在决策边界上">3.2 什么叫「在决策边界上」?</h3>
+<blockquote>
+<p><strong>🔑 边界点定义</strong> — 一个数据点在分类器的 decision
+boundary
+上,当且仅当<strong>分类器无法决定它的标签</strong>——即<strong>至少两个类拥有并列最大的概率(或
+logit)</strong>。 例:cat / dog / bird 三分类,给一张图,若
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mtext mathvariant="normal">logit</mtext><mrow><mi>c</mi><mi>a</mi><mi>t</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\text{logit}_{cat}=1</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mtext mathvariant="normal">logit</mtext><mrow><mi>d</mi><mi>o</mi><mi>g</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\text{logit}_{dog}=1</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mtext mathvariant="normal">logit</mtext><mrow><mi>b</mi><mi>i</mi><mi>r</mi><mi>d</mi></mrow></msub><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">\text{logit}_{bird}=0.5</annotation></semantics></math>,模型在
+cat 和 dog 之间「拿不定主意」→ 这张图就在 cat-dog 边界上。</p>
+</blockquote>
+<p>直觉:<strong>把一个数据点「轻轻推过」决策边界。</strong></p>
+<h3 id="33-优化公式逐项拆解高频考点">3.3 优化公式逐项拆解(高频考点)</h3>
+<p>IPGuard 解一个<strong>和 Week 2 的 CW attack
+极其相似</strong>的优化问题。设原图初始被预测为类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>,目标类为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Z</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">Z_i(x)</annotation></semantics></math>
+表示第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+个 logit。损失含<strong>两项</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℒ</mi><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><munder><munder><mrow><mo>max</mo><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>Z</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mi>Z</mi><mi>j</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>K</mi><mo>,</mo><mspace width="0.278em"></mspace><mn>0</mn><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mrow><mrow><mtext mathvariant="normal">第一项:把 </mtext><mspace width="0.333em"></mspace></mrow><mi>j</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 顶过 </mtext><mspace width="0.333em"></mspace></mrow><mi>i</mi><mrow><mtext mathvariant="normal">,并留间隔 </mtext><mspace width="0.333em"></mspace></mrow><mi>K</mi></mrow></munder><mspace width="0.278em"></mspace><mo>+</mo><mspace width="0.278em"></mspace><munder><munder><mrow><mo>max</mo><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>Z</mi><mi>t</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mi>Z</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="0.278em"></mspace><mn>0</mn><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mrow><mrow><mtext mathvariant="normal">第二项:让 </mtext><mspace width="0.333em"></mspace></mrow><mi>i</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 保持「第二名」</mtext></mrow></mrow></munder></mrow><annotation encoding="application/x-tex">\mathcal{L} \;=\; \underbrace{\max\!\big(Z_i(x) - Z_j(x) + K,\; 0\big)}_{\text{第一项:把 } j \text{ 顶过 } i\text{,并留间隔 }K} \;+\; \underbrace{\max\!\big(Z_t(x) - Z_i(x),\; 0\big)}_{\text{第二项:让 } i \text{ 保持「第二名」}}</annotation></semantics></math></p>
+<p>先理解外层的
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\max(\cdot, 0)</annotation></semantics></math></strong>:它就是个「截断
+/ clip」函数——输入为正就原样返回,输入为负或零就<strong>直接返回
+0</strong>(PyTorch 里写 <code>max(value, 0)</code>)。返回 0
+意味着「这一项不再产生梯度,优化停下」。</p>
+<blockquote>
+<p><strong>🔑 第一项怎么把图推过边界?(讲师的数值演示)</strong> — 设原
+logit
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Z</mi><mi>i</mi></msub><mo>=</mo><mn>5</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>Z</mi><mi>j</mi></msub><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">Z_i = 5,\ Z_j = 2</annotation></semantics></math>(所以模型判它为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>),先看
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">K=0</annotation></semantics></math>:</p>
+<ul>
+<li>初始差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>5</mn><mo>−</mo><mn>2</mn><mo>=</mo><mn>3</mn><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">5-2=3 &gt;0</annotation></semantics></math>
+→ 有梯度,优化<strong>降低
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>i</mi></msub><annotation encoding="application/x-tex">Z_i</annotation></semantics></math>、抬高
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>j</mi></msub><annotation encoding="application/x-tex">Z_j</annotation></semantics></math></strong>;</li>
+<li>一步后变成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Z</mi><mi>i</mi></msub><mo>=</mo><mn>2.9</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>Z</mi><mi>j</mi></msub><mo>=</mo><mn>3.1</mn></mrow><annotation encoding="application/x-tex">Z_i=2.9,\ Z_j=3.1</annotation></semantics></math>
+→ 差为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>0.2</mn><mo>&lt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">-0.2 &lt;0</annotation></semantics></math>
+→
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>max</mo><annotation encoding="application/x-tex">\max</annotation></semantics></math>
+返回 0 →
+<strong>第一项停了</strong>。此时图已<strong>刚好越过边界</strong>(目标类反超)。</li>
+<li><strong>但我们想控制「越过多远」</strong> → 引入间隔
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>。设
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">K=5</annotation></semantics></math>:差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>0.2</mn><mo>+</mo><mn>5</mn><mo>=</mo><mn>4.8</mn><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">-0.2 + 5 = 4.8 &gt;0</annotation></semantics></math>,优化继续,直到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>j</mi></msub><annotation encoding="application/x-tex">Z_j</annotation></semantics></math>
+比
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>i</mi></msub><annotation encoding="application/x-tex">Z_i</annotation></semantics></math>
+<strong>领先
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+个单位</strong>才停(如
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Z</mi><mi>i</mi></msub><mo>=</mo><mn>0</mn><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>Z</mi><mi>j</mi></msub><mo>=</mo><mn>5.1</mn></mrow><annotation encoding="application/x-tex">Z_i=0,\ Z_j=5.1</annotation></semantics></math>,差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>5.1</mn><mo>+</mo><mn>5</mn><mo>=</mo><mo>−</mo><mn>0.1</mn><mo>&lt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">-5.1+5=-0.1&lt;0</annotation></semantics></math>)。</li>
+<li><strong>所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+= 最终
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+的 logit 间隔,控制攻击的「置信度」</strong>——和 CW attack 里的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+完全同义。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+大 → AE
+离边界<strong>远</strong>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+小 → AE <strong>贴</strong>着边界。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p><strong>🔑 第二项为什么要让
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+当「第二名」?</strong> —
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>t</mi></msub><annotation encoding="application/x-tex">Z_t</annotation></semantics></math>
+是<strong>除
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i, j</annotation></semantics></math>
+外</strong>剩余类里<strong>最大</strong>的那个 logit。第二项逼着
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Z</mi><mi>i</mi></msub><mo>&gt;</mo><msub><mi>Z</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">Z_i &gt; Z_t</annotation></semantics></math>,即<strong>原类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+仍是第二高</strong>。最终效果:这张 AE <strong>被判为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>(第一)、而
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+紧随其后(第二)</strong>——它精准地卡在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+的边界附近,正是「贴边界」的指纹。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>与 CW attack 的关系(承接 Week 2)</strong> —
+公式结构几乎照搬 CW,但有一处关键不同:<strong>IPGuard 直接优化图像
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+本身</strong>,而非像 CW 那样优化扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>。原因见
+§3.5。</p>
+</blockquote>
+<h3 id="34-怎么验证可疑模型matching-rate">3.4 怎么验证可疑模型:Matching
+Rate</h3>
+<p>生成好一组指纹 AE 后,验证非常轻量:</p>
+<pre class="mermaid"><code>flowchart LR
+    GEN[&quot;model owner&lt;br/&gt;预先生成一组&lt;br/&gt;targeted AE 指纹&quot;] --&gt; SUSPECT[&quot;把这组 AE&lt;br/&gt;喂给 suspect model&lt;br/&gt;(黑盒访问足够)&quot;]
+    SUSPECT --&gt; MR[&quot;算 Matching Rate (MR)&lt;br/&gt;= 两模型输出相同标签的比例&quot;]
+    MR --&gt; JUDGE{&quot;MR &gt; 阈值?&quot;}
+    JUDGE --&gt;|是| COPY[&quot;判定:是 victim 的副本&quot;]
+    JUDGE --&gt;|否| CLEAN[&quot;判定:独立模型&quot;]</code></pre>
+<ul>
+<li><strong>黑盒访问就够了</strong>——只需喂进去看输出,无需模型内部。</li>
+<li><strong>MR(Matching Rate)</strong> = victim 与 suspect 对这组 AE
+<strong>输出相同标签的比例</strong>。MR 高,说明 suspect
+被这些「只骗得动本模型」的 AE 同样骗到 → 高度可疑。</li>
+<li><strong>IPGuard 运行高效</strong>:targeted AE
+生成很快,适合保护大模型。</li>
+</ul>
+<h3 id="35-实验与效率为什么用-ipguard-而不是-cw">3.5 实验与效率:为什么用
+IPGuard 而不是 CW?</h3>
+<p><strong>实验</strong>(CIFAR-10 / CIFAR-100 / ImageNet)对比了
+FGSM、<strong>IGSM</strong>(= 多次迭代的
+FGSM)、<strong>CW-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math></strong>、IPGuard;suspect
+分两类:</p>
+<ul>
+<li><strong>Positive(正例)=
+偷来的模型</strong>:对原模型做各种改造——<strong>FTLL /
+FTAL</strong>(fine-tune 最后一层 / 全部层)、<strong>RTLL /
+RTAL</strong>(重训最后一层 / 重初始化最后一层后全训)、<strong>weight
+pruning (WP)</strong>、<strong>filter pruning (FP)</strong>;</li>
+<li><strong>Negative(负例)= 独立训练的模型</strong>:不该被判侵权。</li>
+</ul>
+<p><strong>结论</strong>(讲师口述):</p>
+<ul>
+<li><strong>IPGuard 与 CW 表现最好</strong>:positive 的 MR
+<strong>极高</strong>(最低也 <strong>&gt;70%</strong>),且 positive 与
+negative 之间<strong>有很大的间隔</strong>(易设阈值);</li>
+<li><strong>FGSM 的硬伤是 false positive</strong>:它对 <strong>negative
+模型</strong>也会给出<strong>偏高的 MR</strong> → 容易误报;IGSM 在
+filter pruning 下 MR 明显下滑;</li>
+<li>数据集越复杂(ImageNet),FGSM/IGSM 越吃力,而 IPGuard/CW 仍稳。</li>
+</ul>
+<p><strong>效率</strong>(生成 100 个指纹的耗时):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th>速度</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>FGSM / IGSM</td>
+<td>最快</td>
+<td>单步 / 多步,但指纹质量不够</td>
+</tr>
+<tr class="even">
+<td><strong>IPGuard</strong></td>
+<td>略慢于上两者,但<strong>比 CW 快几个数量级</strong></td>
+<td><strong>不约束噪声</strong>大小</td>
+</tr>
+<tr class="odd">
+<td>CW-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math></td>
+<td><strong>最慢</strong></td>
+<td>要找<strong>小噪声</strong>的 AE,代价高昂</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 为什么不直接用 CW?(关键洞察)</strong> — CW
+是为生成<strong>对抗样本</strong>设计的,目标是<strong>让扰动尽量小、肉眼看不出</strong>。但<strong>指纹根本不需要好看</strong>!model
+owner
+生成指纹后只是<strong>秘密保存</strong>起来,<strong>它噪声大、像花屏都无所谓</strong>,只要能验证
+IP 即可。IPGuard
+正是<strong>砍掉了「噪声要小」这个约束</strong>,所以<strong>比 CW
+快几个数量级</strong>——同样找边界附近的点,IPGuard
+不在「省噪声」上浪费算力。</p>
+</blockquote>
+<hr />
+<h2
+id="四fingerprinting-②--metafinger用噪声查询集打指纹">四、Fingerprinting
+② — MetaFinger:用噪声查询集打指纹</h2>
+<h3 id="41-核心思想off-manifold-的噪声指纹">4.1 核心思想:off-manifold
+的噪声指纹</h3>
+<p><strong>MetaFinger(Yang et al., 2022)</strong> 是一种
+<strong>off-the-task-manifold</strong>
+的指纹技术,工作在<strong>噪声输入</strong>上。key idea:</p>
+<blockquote>
+<p><strong>独立训练的模型,在「噪声输入」上的行为各不相同。</strong>
+MetaFinger
+生成一组<strong>噪声输入</strong>,使它们<strong>只能被本模型(及其副本)正确分类</strong>——这组噪声集叫
+<strong>query set(查询集)</strong>。</p>
+</blockquote>
+<p>和 IPGuard 的根本区别:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>IPGuard</strong></th>
+<th><strong>MetaFinger</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>指纹长什么样</td>
+<td>targeted <strong>AE</strong>(视觉像正常图)</td>
+<td><strong>噪声图</strong>(明显的花屏噪声)</td>
+</tr>
+<tr class="even">
+<td>在哪个流形</td>
+<td>on→off 的转移(方向一)</td>
+<td><strong>off-manifold</strong>(方向三)</td>
+</tr>
+<tr class="odd">
+<td>目的</td>
+<td><strong>fool(骗)</strong> 模型</td>
+<td><strong>不 fool</strong>——而是让本模型<strong>正确识别</strong></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="42-两阶段流程">4.2 两阶段流程</h3>
+<pre class="mermaid"><code>flowchart TD
+    subgraph S1[&quot;Stage 1 · 模型增强 → 造正/负模型池&quot;]
+      SRC[&quot;source model&lt;br/&gt;(要保护的模型)&quot;] --&gt;|&quot;逐层加 Gaussian noise&lt;br/&gt;到权重 + fine-tune&quot;| POS[&quot;positive pool&lt;br/&gt;正模型池&quot;]
+      SUR[&quot;surrogate models&lt;br/&gt;(独立训练的代理模型)&quot;] --&gt;|&quot;同样增强&quot;| NEG[&quot;negative pool&lt;br/&gt;负模型池&quot;]
+    end
+    S1 --&gt; S2[&quot;Stage 2 · 生成 query set&lt;br/&gt;找一组噪声图:&lt;br/&gt;所有 positive 都认对、&lt;br/&gt;没有 negative 认对&quot;]
+    S2 --&gt; FP[&quot;query set = 指纹&lt;br/&gt;(suspect 若能认对 → 侵权)&quot;]</code></pre>
+<ul>
+<li><strong>Stage 1 — 模型增强 (model
+augmentation)</strong>:就像给图像做增强(旋转、调亮度),也可以给<strong>模型权重</strong>做增强——<strong>逐层加
+Gaussian 噪声再 fine-tune 到高精度</strong>。对 <strong>source
+model</strong> 这样做 → 一池 <strong>positive
+models</strong>;对独立训练的 <strong>surrogate models</strong> 这样做 →
+一池 <strong>negative
+models</strong>。两池模型都用于下一步生成指纹。</li>
+<li><strong>Stage 2 — 生成 query
+set</strong>:找一批噪声图,要求<strong>只有源自 source
+的(positive)模型能识别</strong>。</li>
+</ul>
+<h3 id="43-triple-loss拉近正模型推开负模型">4.3 Triple
+Loss:拉近正模型、推开负模型</h3>
+<p>判侵权的逻辑:<strong>若 suspect 能正确分类 query set → 说明它的
+decision boundary 和被保护模型高度相似 → 侵权。</strong> 生成 query set
+靠优化 <strong>triple loss(三元损失)</strong>:<strong>减小类内距离
+(intra-class)、扩大类间距离
+(inter-class)</strong>——这里的「类」指<strong>正模型池 vs
+负模型池</strong>。</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ℒ</mi><mrow><mi>t</mi><mi>r</mi><mi>i</mi><mi>p</mi><mi>l</mi><mi>e</mi></mrow></msub><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><munder><munder><mrow><mfrac><mn>1</mn><mi>K</mi></mfrac><munder><mo>∑</mo><msub><mi>p</mi><mi>i</mi></msub></munder><mtext mathvariant="normal">KL</mtext><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>p</mi><mrow><mi>a</mi><mi>n</mi><mi>c</mi><mi>h</mi><mi>o</mi><mi>r</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mo stretchy="false" form="postfix">∥</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">拉近:所有正模型预测一致</mtext></munder><mspace width="0.278em"></mspace><mo>−</mo><mspace width="0.278em"></mspace><munder><munder><mrow><mfrac><mn>1</mn><mi>K</mi></mfrac><munder><mo>∑</mo><msub><mi>n</mi><mi>i</mi></msub></munder><mtext mathvariant="normal">KL</mtext><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>p</mi><mrow><mi>a</mi><mi>n</mi><mi>c</mi><mi>h</mi><mi>o</mi><mi>r</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mo stretchy="false" form="postfix">∥</mo><mspace width="0.167em"></mspace><msub><mi>n</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">推开:负模型预测要不同</mtext></munder></mrow><annotation encoding="application/x-tex">\mathcal{L}_{triple} \;=\; \underbrace{\frac{1}{K}\sum_{p_i}\text{KL}\big(p_{anchor}(X)\,\|\,p_i(X)\big)}_{\text{拉近:所有正模型预测一致}} \;-\; \underbrace{\frac{1}{K}\sum_{n_i}\text{KL}\big(p_{anchor}(X)\,\|\,n_i(X)\big)}_{\text{推开:负模型预测要不同}}</annotation></semantics></math></p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>,</mo><msub><mi>n</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">p_i, n_i</annotation></semantics></math>
+= 正 /
+负模型;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mrow><mi>a</mi><mi>n</mi><mi>c</mi><mi>h</mi><mi>o</mi><mi>r</mi></mrow></msub><annotation encoding="application/x-tex">p_{anchor}</annotation></semantics></math>
+=
+从正池里选的<strong>锚模型</strong>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtext mathvariant="normal">KL</mtext><annotation encoding="application/x-tex">\text{KL}</annotation></semantics></math>
+= KL 散度(回忆 Week 6:<strong>最小化 KL =
+让两个分布趋同</strong>)。</li>
+<li><strong>第一项</strong>(最小化):让所有 <strong>positive 模型对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+预测一致</strong>(都和 anchor 一样)→ 减小类内距离。</li>
+<li><strong>第二项</strong>带<strong>负号 → 实为最大化</strong> KL:让
+<strong>negative 模型的预测与 anchor 不同</strong> → 扩大类间距离。</li>
+<li>注意:负模型之间<strong>不要求</strong>彼此一致,只要<strong>与正模型不同</strong>即可。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 怎么分析「带负号的损失」?(通用技巧)</strong> —
+损失默认是「最小化」。遇到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mspace width="0.167em"></mspace></mrow><annotation encoding="application/x-tex">-\,</annotation></semantics></math>
+项,就翻译成「<strong>这部分要被最大化</strong>」。本式:最小化第一项(正模型趋同)+
+最大化第二项(负模型分化)。这个「看符号、拆最大化/最小化」的读法,在 §七的
+SNNL 里还要再用一次。</p>
+</blockquote>
+<h3 id="44-生成算法与实验">4.4 生成算法与实验</h3>
+<p><strong>算法</strong>:轮流取正池中一个模型作 anchor → 算 triple loss
+→ 用梯度<strong>优化 query set
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math></strong>(注意:被优化的是输入图,不是模型)→
+用<strong>多数正模型</strong>的预测作 ground-truth 标签
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>
+→ 把**「所有正模型都判为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>、且没有负模型判为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>」的合格图**移入
+query set,直到攒够。</p>
+<p><strong>实验</strong>(Tiny-ImageNet:10 万张 64×64、200
+类):对比经典攻击 FTLL/FTAL/RTLL/RTAL、weight pruning、weight
+noising。</p>
+<blockquote>
+<p><strong>🔑 鲁棒性对比:MetaFinger 完胜 IPGuard(高频考点)</strong> — 在
+<strong>input modification(输入预处理:加噪声 / Gaussian blur
+等图像变换)</strong> 下:</p>
+<ul>
+<li><strong>MetaFinger 仍 &gt;80% 准确率</strong>——很稳;</li>
+<li><strong>IPGuard 表现最差,加 Gaussian blur
+后几乎归零</strong>。原因:<strong>IPGuard
+的指纹是对抗扰动,生成时没考虑「抗图像变换」</strong>(对照
+<strong>Assignment 1 Task 3</strong>:你做过「抗预处理的
+AE」)。理论上若<strong>显式地针对这些变换做优化</strong>可缓解,但<strong>model
+owner 无法预知攻击者会用哪种变换</strong> → 现实中难。</li>
+</ul>
+</blockquote>
+<h3 id="45-致命局限">4.5 致命局限</h3>
+<blockquote>
+<p><strong>⚠️ MetaFinger 的死穴:必须训练 negative models</strong> —
+Stage 1 要先训一<strong>整池</strong>独立的 negative
+models。对<strong>大模型</strong>这就<strong>不现实</strong>:ChatGPT-3
+训一次就要几百万美元,你为了保护它的 IP
+还得<strong>额外再花几百万训一堆负模型</strong>——<strong>得不偿失</strong>。这是
+MetaFinger(乃至下面 DeepJudge)在大模型时代的根本短板。</p>
+</blockquote>
+<hr />
+<h2
+id="五fingerprinting-③--deepjudge用-untargeted-ae-当裁判">五、Fingerprinting
+③ — DeepJudge:用 untargeted AE 当裁判</h2>
+<p><strong>DeepJudge</strong> 是第三种指纹技术(<strong>细节在 Lab
+里实现</strong>,这里讲思想)。与 IPGuard 用 <strong>targeted</strong> AE
+不同,DeepJudge 用 <strong>untargeted(无目标)AE</strong>。</p>
+<p><strong>三步走</strong>:① 选一批 <strong>clean data 作种子
+(seeds)</strong>;② 用种子生成 <strong>untargeted AE</strong>;③ 比较
+suspect 与 victim 在这些 AE
+上的<strong>行为相似度</strong>来判侵权。<strong>满足任一</strong>即判侵权:</p>
+<ul>
+<li>suspect <strong>无法正确识别</strong>这些 untargeted
+AE(说明它也被同样地骗到),<strong>或</strong></li>
+<li>suspect 的<strong>输出 logits 分布</strong>与 victim
+<strong>相似</strong>。</li>
+</ul>
+<p><strong>两个度量</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>度量</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>RobD (Robustness Distance)</strong></td>
+<td>suspect 仍能<strong>正确识别</strong>这些 untargeted AE
+的<strong>比例</strong></td>
+</tr>
+<tr class="even">
+<td><strong>JSD (Jensen-Shannon Distance)</strong></td>
+<td>suspect 与 victim 在这些 AE 上<strong>输出分布的距离</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>判定</strong>:若 suspect 的 RobD 或 JSD
+<strong>显著小于</strong>独立训练模型(阈值由独立模型确定)→
+判为非法副本。</p>
+<blockquote>
+<p><strong>⚠️ DeepJudge 也要训练额外模型</strong> → 同
+MetaFinger,<strong>对大 DNN 不现实</strong>。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>指纹三连小结</strong> — <strong>IPGuard(targeted
+AE,贴边界,快)→ MetaFinger(off-manifold 噪声,抗变换强,但要负模型)→
+DeepJudge(untargeted AE,RobD/JSD,Lab 实现,也要负模型)。</strong>
+三者都不改模型权重,差别在「用什么样的探针、怎么比对」。</p>
+</blockquote>
+<hr />
+<h2
+id="六watermarking-①--adversarial-frontier-stitching缝合决策边界">六、Watermarking
+① — Adversarial Frontier Stitching:缝合决策边界</h2>
+<p>进入<strong>水印</strong>主线。第一种是 <strong>Adversarial Frontier
+Stitching (FS)(Le Merrer et al.,
+2020)</strong>,一个<strong>早期</strong>水印工作。</p>
+<h3 id="61-两个假设其中一个埋了彩蛋">6.1 两个假设(其中一个埋了彩蛋)</h3>
+<p>FS 基于两个假设:</p>
+<ol type="1">
+<li><strong>untargeted AE 在不同 DNN 间是可迁移的
+(transferable)</strong>;</li>
+<li><strong>偷来的模型会从 victim 继承「对 AE 的鲁棒性」</strong>。</li>
+</ol>
+<p>第二个假设很合理:你的模型若对某些 AE
+鲁棒,偷它的人也会连这份鲁棒一起偷走。但第一个假设……</p>
+<blockquote>
+<p><strong>⚠️ 概念彩蛋:FS 与 DeepJudge
+的假设「互相打架」(高频考点)</strong> — DeepJudge 假设
+<strong>untargeted AE 不可迁移</strong>(所以 suspect 若也被骗 →
+是副本);FS 却假设 <strong>untargeted AE
+可迁移</strong>。<strong>两个假设直接矛盾,但两者都对!</strong>
+原因在数据集复杂度:</p>
+<ul>
+<li><strong>FS 是 2020 年早期工作,只在简单数据集(MNIST 手写数字)+
+简单模型上验证</strong> → 那时 untargeted AE 确实可迁移;</li>
+<li><strong>DeepJudge 晚两年,用复杂数据集(CIFAR-10)+
+现代模型(ResNet)</strong> → <strong>untargeted AE
+在复杂模型上迁移性差</strong>。
+教训:<strong>论文结论永远绑定它的实验设定;脱离数据集/模型谈「AE
+能不能迁移」是没有意义的。</strong></li>
+</ul>
+</blockquote>
+<h3 id="62-缝合的思想把-ae-纳入任务流形">6.2 缝合的思想:把 AE
+纳入任务流形</h3>
+<p>FS 属于<strong>方向二</strong>(利用 on-manifold
+独特性):<strong>通过在 AE 上 fine-tune,把 task
+manifold「撑大」</strong>,纳入这些 AE。以二分类(红 R / 蓝 B)为例:</p>
+<pre class="mermaid"><code>flowchart LR
+    subgraph A[&quot;(a) 初始状态:算出贴边界的 AE&quot;]
+      direction TB
+      TA[&quot;true adversaries 真对抗样本&lt;br/&gt;R, B(成功越界的攻击)&quot;]
+      FA[&quot;false adversaries 假对抗样本&lt;br/&gt;R̄, B̄(没越界的失败攻击)&quot;]
+    end
+    A --&gt;|&quot;在它们上 fine-tune&quot;| B2[&quot;(b) 缝合后:全部正确分类&lt;br/&gt;8 个真对抗样本现在判对了&lt;br/&gt;4 个假对抗样本本就判对&lt;br/&gt;→ watermarked model&lt;br/&gt;(几乎和原模型一样,key size=12)&quot;]</code></pre>
+<ul>
+<li>先用 <strong>FGSM</strong> 生成 untargeted AE:<strong>成功的 (true
+adversaries: R, B)</strong> 和<strong>失败的 (false adversaries: R̄,
+B̄)</strong> <strong>都收进水印集</strong>;它们<strong>都贴着决策前沿
+(frontier)</strong>。</li>
+<li>再 <strong>fine-tune</strong>
+模型,使<strong>这些输入全部被正确分类</strong>——决策边界被<strong>轻微地「缝」了一下</strong>(像
+stitching 一样),模型几乎不变,但留下了独特印记。这里 <strong>key size =
+12</strong>(查询集大小)。</li>
+</ul>
+<h3 id="63-检测50-概率假设">6.3 检测:50% 概率假设</h3>
+<ul>
+<li><strong>FS = 简化版的 adversarial
+training</strong>:对抗训练要求对<strong>所有</strong> AE 鲁棒;FS
+只要求模型对<strong>一组固定的 AE</strong> 正确即可。</li>
+<li><strong>概率式检测</strong>:假设<strong>独立训练的模型在水印集上约
+50%
+准确率</strong>(因为水印集一半是成功攻击、一半是失败攻击,独立模型大概会「成功的被骗、失败的认对」各占一半)。<strong>若某模型在水印集上犯的错误极少(远超
+50% 的准确率)→
+判侵权</strong>;阈值可用统计学(假设检验)<strong>理论算出</strong>。</li>
+</ul>
+<h3 id="64-局限">6.4 局限</h3>
+<p>FS 在 <strong>MNIST</strong> 上有效,但:</p>
+<ul>
+<li><strong>复杂数据集上假设失效</strong>:独立训练的模型在水印集上能拿
+<strong>CIFAR-10 ≈87%、GTSRB ≈77%</strong> 的准确率(远超假设的 50%)→
+检测假设崩了。根因是<strong>untargeted AE
+在复杂数据集/模型上迁移性差</strong>。</li>
+<li><strong>第二个局限(易忽略)</strong>:<strong>用 adversarial training
+训练的模型会被误判为侵权(false positive)</strong>——因为 FS
+本就是对抗训练的简化版,一个真正做了对抗训练的无辜模型,自然会「正确识别这些
+AE」,于是被冤枉。</li>
+</ul>
+<p><strong>实验</strong>(MNIST 上的 CNN、IRNN〔含全连接循环层〕、MLP;约
+50 真 + 50 假对抗样本;测不同 pruning rate;<strong>斜体结果 =
+不切实际的攻击,忽略</strong>)显示:适度剪枝下水印仍可高精度抽取——对<strong>简单</strong>模型/数据,FS
+是有效的。</p>
+<blockquote>
+<p>📎 <strong>为什么要讲这个「过时」方法?</strong> —
+讲师强调:<strong>它是水印的起点</strong>,看清「前人怎么做、后人怎么改进」很有价值。下面的
+Entangled Watermarks 正是冲着 FS 的短板去的。</p>
+</blockquote>
+<hr />
+<h2
+id="七watermarking-②--entangled-watermarks把水印纠缠进任务">七、Watermarking
+② — Entangled Watermarks:把水印「纠缠」进任务</h2>
+<h3 id="71-动机普通水印会被模型窃取蒸掉">7.1
+动机:普通水印会被模型窃取「蒸」掉</h3>
+<p><strong>Entangled Watermarks(Jia et al., 2021)</strong>
+针对一个致命问题:</p>
+<blockquote>
+<p><strong>⚠️ 水印对模型窃取攻击很脆弱</strong> —
+当嵌入的水印<strong>与原任务无关 (uncorrelated)</strong> 时,攻击者用
+KD/transfer set
+偷功能时,<strong>只偷走了「分类任务」、不会偷走「水印」</strong> →
+偷出来的模型<strong>测不到水印</strong>了。<strong>连 BadNets
+式的水印也会被窃取攻击擦掉。</strong></p>
+</blockquote>
+<p>Entangled Watermarks 的目标:<strong>让水印扛得住模型窃取。</strong>
+key idea 有<strong>两层</strong>:</p>
+<ol type="1">
+<li><strong>让被保护模型把「水印数据」分类成一个不同的 target
+label</strong>(这一步<strong>就是 BadNets</strong>);</li>
+<li><strong>再要求「水印数据」与「正常数据」的内部表征 (internal
+representations) 相互纠缠
+(entangle)</strong>——<strong>让关于水印的知识,藏进关于正常任务的知识里</strong>。这样偷功能的人<strong>不得不连水印一起偷走</strong>。</li>
+</ol>
+<h3 id="72-为什么要纠缠承接-week-4-的-clean-label-表征">7.2
+为什么要「纠缠」?(承接 Week 4 的 clean-label 表征)</h3>
+<blockquote>
+<p><strong>🔑 纠缠的直觉</strong> — 回忆 Week 4 clean-label
+attack:我们让带 trigger
+的飞机图,在<strong>特征空间</strong>里靠近狗。这里 internal
+representations 同样指<strong>网络内部层的激活/特征</strong>。</p>
+<ul>
+<li><strong>若只用 BadNets</strong>:特征空间里,「带 trigger 的
+3」会<strong>自成一簇</strong>,与「干净的
+5」<strong>离得很远</strong>。攻击者偷「识别
+5」的功能时,根本不碰那个孤立的 trigger 簇 →
+<strong>水印丢失</strong>。</li>
+<li><strong>Entangled 要的是</strong>:把「带 trigger 的 3」和「干净的
+5」<strong>揉成同一簇</strong>。这样攻击者偷「识别
+5」时,<strong>顺手就把「识别 trigger-3」也偷走了</strong> →
+水印<strong>焊死</strong>在任务里。</li>
+</ul>
+</blockquote>
+<pre class="mermaid"><code>flowchart LR
+    subgraph BN[&quot;BadNets(易被偷掉)&quot;]
+      C5[&quot;干净 5(target 簇)&quot;]:::a
+      T3[&quot;trigger-3 簇&quot;]:::b
+    end
+    subgraph EW[&quot;Entangled(偷不掉)&quot;]
+      MIX[&quot;干净 5 + trigger-3&lt;br/&gt;纠缠成同一簇&quot;]:::c
+    end
+    BN --&gt;|&quot;maximize SNNL&quot;| EW
+    classDef a fill:#cfe8ff
+    classDef b fill:#ffd9d9
+    classDef c fill:#d9f7d9</code></pre>
+<h3 id="73-snnl让两簇重叠的损失">7.3 SNNL:让两簇「重叠」的损失</h3>
+<p>纠缠靠<strong>最大化 Soft Nearest Neighbor Loss (SNNL)</strong>
+实现。SNNL
+<strong>衡量「所有类的点之间的距离」相对于「同类点之间平均距离」的关系</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">SNNL</mtext><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><mo>−</mo><mfrac><mn>1</mn><mi>N</mi></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><mo>log</mo><mfrac><mrow><munder><mo>∑</mo><mrow><mi>j</mi><mo>≠</mo><mi>i</mi><mo>,</mo><mspace width="0.278em"></mspace><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><msub><mi>y</mi><mi>j</mi></msub></mrow></munder><msup><mi>e</mi><mrow><mo>−</mo><mo stretchy="false" form="postfix">∥</mo><msub><mi>x</mi><mi>i</mi></msub><mo>−</mo><msub><mi>x</mi><mi>j</mi></msub><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mi>/</mi><mi>T</mi></mrow></msup></mrow><mrow><munder><mo>∑</mo><mrow><mi>k</mi><mo>≠</mo><mi>i</mi></mrow></munder><msup><mi>e</mi><mrow><mo>−</mo><mo stretchy="false" form="postfix">∥</mo><msub><mi>x</mi><mi>i</mi></msub><mo>−</mo><msub><mi>x</mi><mi>k</mi></msub><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mi>/</mi><mi>T</mi></mrow></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">\text{SNNL} \;=\; -\frac{1}{N}\sum_{i=1}^{N}\log \frac{\displaystyle\sum_{j\neq i,\; y_i=y_j} e^{-\|x_i - x_j\|^2 / T}}{\displaystyle\sum_{k\neq i} e^{-\|x_i - x_k\|^2 / T}}</annotation></semantics></math></p>
+<ul>
+<li><strong>分子</strong>:对每个点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>,累加它与<strong>同类、不同点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math></strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><msub><mi>y</mi><mi>j</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><mi>j</mi><mo>≠</mo><mi>i</mi></mrow><annotation encoding="application/x-tex">y_i = y_j,\ j\neq i</annotation></semantics></math>)的「负距离」指数
+→ 代表<strong>同类点的平均靠近程度</strong>;</li>
+<li><strong>分母</strong>:累加它与<strong>所有其他点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math></strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>≠</mo><mi>i</mi></mrow><annotation encoding="application/x-tex">k\neq i</annotation></semantics></math>,不限类别)的负距离指数
+→ 代表<strong>全体点的平均靠近程度</strong>;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>i</mi></msub><annotation encoding="application/x-tex">x_i</annotation></semantics></math>
+是图像的<strong>特征</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mo>⋅</mo><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\|\cdot\|^2</annotation></semantics></math>
+是 squared
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+是<strong>温度</strong>(又见温度!)。</li>
+<li><strong>SNNL 基于多层激活计算</strong>(不止 penultimate
+layer)。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 用「看符号」法读 SNNL(对照 §4.3 的 triple loss)</strong> —
+我们要<strong>最大化 SNNL</strong>:</p>
+<ul>
+<li>外层有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mo>log</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-\log(\cdot)</annotation></semantics></math>
+→ 最大化 SNNL ⟺ <strong>最小化</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>log</mo><annotation encoding="application/x-tex">\log</annotation></semantics></math>
+内的整个分式;</li>
+<li><strong>分子</strong>(同类项):最小化分式 ⟹ 最小化分子中的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>e</mi><mrow><mo>−</mo><mo stretchy="false" form="postfix">∥</mo><mo>⋅</mo><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow></msup><annotation encoding="application/x-tex">e^{-\|\cdot\|^2}</annotation></semantics></math>
+⟹(指数递增)⟹ <strong>最大化同类点之间的距离</strong> →
+<strong>同类点互相「推开 (pushing force)」</strong>;</li>
+<li><strong>分母</strong>(全体项):最小化分式 ⟹ 最大化分母 ⟹
+<strong>最小化任意两点距离</strong> → <strong>所有点互相「拉近 (pulling
+force)」</strong>。</li>
+</ul>
+<p><strong>两股力怎么合成「纠缠」?</strong> 以 cat/dog 两类为例:同类(cat
+之间)的「推开」与「拉近」<strong>互相抵消</strong>;但<strong>跨类的「拉近」无人抵消</strong>
+→ cat 与 dog <strong>被拽到一起、混成一簇</strong>。这正是「最大化 SNNL
+→ overlapping clusters」。反过来,<strong>最小化 SNNL →
+各类分成清晰独立的簇</strong>。</p>
+</blockquote>
+<h3 id="74-嵌入实现badnets--snnl">7.4 嵌入实现:BadNets + SNNL</h3>
+<p><strong>嵌入例子</strong>:设计一个<strong>小白方块</strong>作
+trigger。把它贴到数字 <strong>3</strong> 的角上 → 模型预测为
+<strong>5</strong>;而正常模型仍会判它为
+<strong>3</strong>。<strong>这一步就是 BadNets</strong>;Entangled
+的改进在于<strong>用 SNNL 把 trigger-3 的特征拉到 clean-5
+旁边</strong>。</p>
+<p><strong>损失与训练策略</strong>:总损失 = <strong>cross-entropy +
+(带负号的) SNNL</strong>(负号 → 实为最大化 SNNL)。其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+=
+参与的层数,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>X</mi><mrow><mi>c</mi><mi>T</mi></mrow></msub><annotation encoding="application/x-tex">X_{cT}</annotation></semantics></math>
+= 目标类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mi>T</mi></mrow><annotation encoding="application/x-tex">cT</annotation></semantics></math>
+的正常数据,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>X</mi><mi>w</mi></msub><annotation encoding="application/x-tex">X_w</annotation></semantics></math>
+= 带 trigger
+的数据(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>X</mi><mi>w</mi></msub><annotation encoding="application/x-tex">X_w</annotation></semantics></math>
+的原标签
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≠</mo><mi>c</mi><mi>T</mi></mrow><annotation encoding="application/x-tex">\neq cT</annotation></semantics></math>),<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+= SNNL 温度。</p>
+<pre class="mermaid"><code>flowchart TD
+    ST1[&quot;Step 1 · 采正常 batch X&lt;br/&gt;水印数据标成 target(同 BadNets)&lt;br/&gt;设 k=0 → 只最小化 cross-entropy&quot;]
+    ST1 --&gt; ST2[&quot;Step 2 · 采 [X_w, X_cT] 交错 batch&lt;br/&gt;设 k&gt;0 → 优化总损失(含 SNNL)&lt;br/&gt;→ 把 trigger 数据和 target 数据纠缠&quot;]</code></pre>
+<p><strong>可视化验证</strong>(PCA 投影 penultimate 层,MNIST,目标类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mi>T</mi><mo>=</mo><mn>7</mn></mrow><annotation encoding="application/x-tex">cT=7</annotation></semantics></math>):<strong>上排
+= 仅 cross-entropy(即 BadNets)</strong> → clean-7 与 watermark
+数据<strong>各自成簇、分得很开</strong>(易被偷掉);<strong>下排 =
+Entangled</strong> → 两者<strong>混成一簇</strong>(偷不掉)。</p>
+<h3 id="75-所有权验证t-检验">7.5 所有权验证:T 检验</h3>
+<blockquote>
+<p><strong>🔑 验证逻辑</strong> — 给一张「3 + 小
+trigger」:<strong>独立训练的干净模型</strong>因为大部分信息仍是「3」,<strong>多半判
+3</strong>;而<strong>偷来的模型</strong>连 trigger 一起偷走了,会判
+<strong>5(target)</strong>。所以:<strong>若 suspect
+把水印输入以「异常高的准确率」识别为 target → 判侵权。</strong></p>
+<ul>
+<li>把「水印识别准确率(即 false positive rate)」<strong>保守地设为
+random chance</strong>(如 10 类就
+10%)作为良性模型的上界——实际良性模型往往更低(1%、0.5%);</li>
+<li>用 <strong>T 检验 (T-test)</strong> 主张所有权,依赖
+<strong>中心极限定理 (CLT)</strong> → <strong>要求查询数 ≥
+30</strong>;</li>
+<li>例:30 次查询时,若模型 23% 的时间判为 target 即超阈值;查询数升到 ~340
+时,阈值降到 13%(查得越多,门槛越松)。</li>
+</ul>
+</blockquote>
+<p><strong>实验结果</strong>:baseline 是
+<strong>BadNets</strong>(只最小化水印的
+cross-entropy)。<strong>强攻击者</strong>有 victim
+的训练数据<strong>但无标签</strong>,于是<strong>让 victim
+给数据打标、再只用 cross-entropy
+重训</strong>来「洗掉」水印。<strong>watermark success rate</strong> =
+水印数据
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>X</mi><mi>w</mi></msub><annotation encoding="application/x-tex">X_w</annotation></semantics></math>
+被正确识别为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mi>T</mi></mrow><annotation encoding="application/x-tex">cT</annotation></semantics></math>
+的比例(减去 random chance)。</p>
+<blockquote>
+<p><strong>🔑 炸裂对照</strong> — 经过模型窃取后:<strong>BadNets
+的水印成功率掉到 &lt;1%</strong>(几乎被洗光);而 <strong>Entangled
+Watermarks 仍有 ~65%</strong>(水印挺住了)。在多个数据集上一致领先
+BadNets——<strong>纠缠确实让水印扛住了窃取攻击。</strong></p>
+</blockquote>
+<hr />
+<h2 id="八终结者-ipremover一招打穿所有防御">八、终结者
+IPRemover:一招打穿所有防御</h2>
+<p>讲师把它定位成「IP 保护军备竞赛的当前回合」:<strong>IPRemover(Zong et
+al., 2024)</strong> 能<strong>同时逃过最先进的 fingerprinting 和
+watermarking</strong>。</p>
+<blockquote>
+<p>📎 <strong>彩蛋:这是讲师本人的论文</strong> — 第一作者 <strong>Zong,
+W.</strong> 正是本课讲师 <strong>Dr Wei Zong</strong>,发表于
+<strong>AAAI 2024</strong>。所以本节是「作者亲自讲解自己的攻击」。</p>
+</blockquote>
+<h3 id="81-威胁模型与核心思想">8.1 威胁模型与核心思想</h3>
+<ul>
+<li><strong>挑战性的 data-free
+场景</strong>:攻击者<strong>没有任何训练数据</strong>,只从 GitHub
+下载到一个<strong>训练好的模型</strong>(<strong>白盒访问</strong>——本地加载后能看到全部权重)。若<strong>能拿到部分标注数据,性能还能更高</strong>。</li>
+<li><strong>核心:data-free knowledge
+distillation(无数据知识蒸馏)</strong> — 对照 Week 6 朴素 KD 需要
+transfer set,这里<strong>从 victim
+模型「反演」出训练数据</strong>,再用它训练偷来的模型。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 为什么一招能通杀指纹 + 水印?(全章收束的关键)</strong> —
+回到 §二的统一视角:<strong>指纹和水印都依赖模型 decision space
+的独特性质</strong>(指纹找已有的、水印造新的)。所以,<strong>只要把
+decision space 剧烈改写,同时保住模型性能,任何藏在旧 decision space
+里的「胎记」都会失效。</strong> IPRemover
+不针对某一种防御,而是<strong>从根上抹掉「独特性」赖以存在的空间</strong>——这就是它「universal(通杀)」的原因。</p>
+</blockquote>
+<h3 id="82-三阶段细节本课不展开">8.2 三阶段(细节本课不展开)</h3>
+<pre class="mermaid"><code>flowchart LR
+    S1[&quot;Stage 1 · Model Inversion&lt;br/&gt;从 victim 反演出训练数据&lt;br/&gt;(生成的图像神似 CIFAR-10 原类)&quot;]
+    S1 --&gt; S2[&quot;Stage 2 · 从头训练 stolen model&lt;br/&gt;在反演数据上 from scratch&lt;br/&gt;→ decision space 已大变,&lt;br/&gt;但性能不够好&quot;]
+    S2 --&gt; S3[&quot;Stage 3 · VEKD&lt;br/&gt;Virtual Ensemble Knowledge Distillation&lt;br/&gt;从 victim 蒸知识补性能,&lt;br/&gt;同时继续逃避 IP 检测&quot;]</code></pre>
+<ol type="1">
+<li><strong>Model inversion</strong>:从 victim
+<strong>反演</strong>训练数据(在 CIFAR-10
+上,生成图<strong>肉眼可辨</strong>——有的像猫、像车、像鸟,只是质量不如真图);</li>
+<li><strong>从头训练</strong>:在生成数据上 from scratch 训 stolen model
+→ decision space 已经<strong>面目全非</strong>,但<strong>质量不够 →
+性能偏低</strong>;</li>
+<li><strong>VEKD(Virtual Ensemble Knowledge
+Distillation)</strong>:一种特制 KD 变体,从 victim
+<strong>补回性能</strong>,同时<strong>继续规避</strong> IP 检测。</li>
+</ol>
+<h3 id="83-关键结论ood-数据可检测data-free-逃检测">8.3 关键结论:OOD
+数据可检测,data-free 逃检测</h3>
+<p><strong>在 MetaFinger 上的实验</strong>(CIFAR-10,query set = 100
+张;<strong>阈值 62%</strong>——由独立训练的 ResNet 定;victim 测试集
+~<strong>90.9%</strong>、query set <strong>100%</strong>):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>场景</th>
+<th>用什么蒸知识</th>
+<th>stolen 精度</th>
+<th>会被 MetaFinger 检测到吗?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>GTSRB</strong></td>
+<td>用交通标志(<strong>OOD 真实数据</strong>)做 KD</td>
+<td>~85%</td>
+<td><strong>会被检测</strong>(3 次实验全检出)</td>
+</tr>
+<tr class="even">
+<td><strong>CIFAR-100</strong></td>
+<td>用 CIFAR-100(<strong>OOD 真实数据</strong>)做 KD</td>
+<td>~89%(仅差 victim 2%)</td>
+<td><strong>会被检测</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Data-free</strong></td>
+<td>仅用反演的生成数据 + VEKD</td>
+<td>有 ~8% 性能差</td>
+<td><strong>逃过检测</strong> ✅</td>
+</tr>
+<tr class="even">
+<td><strong>+1% data</strong></td>
+<td>生成数据 + 1% 真实标注</td>
+<td>性能回升</td>
+<td><strong>逃过检测</strong> ✅</td>
+</tr>
+<tr class="odd">
+<td><strong>+5% data</strong></td>
+<td>生成数据 + 5% 真实标注</td>
+<td>性能更高</td>
+<td><strong>逃过检测</strong> ✅</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 这张表的精髓</strong> — <strong>用「现成的 OOD
+真实数据」做 KD,虽然精度高,但 decision space
+改得不够,仍会被指纹抓住;唯有 data-free(从模型自己反演 + VEKD)才把
+decision space 改得够彻底 → 逃过检测。</strong> 代价是 ~8%
+的性能损失,但拿一点点标注数据(1%/5%)就能补回来,且依旧逃检测。</p>
+</blockquote>
+<p><strong>更多结果</strong>(CIFAR-10)显示:IPRemover 对
+<strong>IPGuard、DeepJudge、Entangled Watermarks、Frontier
+Stitching</strong>
+<strong>逐一打穿</strong>(对指纹,阈值取良性模型的最差值;对水印,看水印准确率)。</p>
+<blockquote>
+<p><strong>🧭 全章收尾:endless battle</strong> — IPRemover
+通杀今天所有防御,但讲师明说这<strong>不是终点</strong>:「<strong>之后人们会开发更鲁棒的
+IP 保护去击败这些新攻击。</strong>」<strong>偷模型(Week 6)→ 指纹/水印护
+IP → IPRemover 打穿 → 更强的防御……</strong> 这与前几周「AE ↔︎
+防御」「backdoor ↔︎ 清除」的拉锯<strong>同构</strong>——<strong>AI
+安全的本质是一场没有终点的攻防军备竞赛。</strong></p>
+</blockquote>
+<hr />
+<h2 id="九本章小结-key-takeaways">九、本章小结 (Key Takeaways)</h2>
+<ul>
+<li><strong>为什么保护 IP</strong>:造模型贵(ChatGPT-3 $2–4M)、偷只要
+$30(Week 6)→
+必须能<strong>检测</strong>侵权。<strong>给权重申专利不可行</strong>(KD
+一蒸就换出全新权重、功能不变)→
+改盯「行为/决策」。两条主线:<strong>fingerprinting(找已有独特性,不改模型,不损性能)</strong>
+vs <strong>watermarking(造新独特性,改模型,略损性能)</strong>。</li>
+<li><strong>统一视角(全章的尺子)</strong>:模型 <strong>decision space =
+on-manifold(任务相关)+
+off-manifold(任务无关)</strong>。三个方向:<strong>①on→off 独特转移(AEs →
+IPGuard/DeepJudge)②on-manifold 独特性(Frontier Stitching)③off-manifold
+独特性(MetaFinger)</strong>。fingerprinting
+<strong>找</strong>独特性、watermarking <strong>造</strong>独特性。</li>
+<li><strong>IPGuard(指纹①)</strong>:用 <strong>targeted AE 贴 decision
+boundary</strong> 当指纹(单模型 targeted AE
+难迁移)。优化公式两项——<strong>第一项</strong>把目标类
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+顶过
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+并留间隔
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>(控置信度),<strong>第二项</strong>让
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+保持第二大。验证用 <strong>Matching Rate</strong>(黑盒足够)。<strong>比
+CW 快几个数量级</strong>,因为<strong>指纹不必好看 →
+不约束噪声</strong>。</li>
+<li><strong>MetaFinger(指纹②)</strong>:<strong>off-manifold 噪声 query
+set</strong>,只有本模型(及副本)能认对。两阶段:<strong>模型增强(逐层加
+Gaussian 噪声+fine-tune)造正/负模型池 → triple loss(拉近正、推开负)生成
+query set</strong>。<strong>抗输入变换强(&gt;80%,IPGuard
+几乎归零)</strong>,但<strong>死穴是要训 negative models →
+大模型不现实</strong>。</li>
+<li><strong>DeepJudge(指纹③)</strong>:<strong>untargeted AE</strong> +
+<strong>RobD /
+JSD</strong>,显著小于独立模型即判侵权;<strong>也要额外模型 →
+大模型不现实</strong>(Lab 实现)。</li>
+<li><strong>Adversarial Frontier
+Stitching(水印①,早期)</strong>:在成功+失败的 AE 上
+fine-tune,<strong>缝合决策边界</strong>纳入它们。两假设之一(<strong>untargeted
+AE 可迁移</strong>)<strong>与 DeepJudge
+矛盾,但都对</strong>——绑定数据集复杂度(MNIST 可迁移 / CIFAR
+不可)。<strong>50% 概率假设</strong>做检测;复杂数据集失效(CIFAR-10
+87%/GTSRB 77%),且<strong>对抗训练的无辜模型会被误判</strong>。</li>
+<li><strong>Entangled
+Watermarks(水印②)</strong>:针对「普通水印会被模型窃取蒸掉」。=
+<strong>BadNets + SNNL 纠缠表征</strong>:<strong>最大化 SNNL → 把
+trigger 数据与 target
+数据混成同一簇</strong>(用「看符号」法读:同类推开、全体拉近、跨类拉近无抵消
+→ 重叠)。偷功能者<strong>被迫连水印一起偷</strong>。T
+检验主张所有权(<strong>CLT → 查询 ≥30</strong>)。结果:窃取后
+<strong>BadNets 水印 &lt;1%,Entangled ~65%</strong>。</li>
+<li><strong>IPRemover(终结者,讲师本人 AAAI
+2024)</strong>:<strong>data-free KD</strong>
+<strong>同时打穿指纹+水印</strong>——因为它<strong>剧烈改写 decision
+space</strong>(指纹/水印赖以存在的空间)。三阶段:<strong>model inversion
+→ 从头训练 → VEKD</strong>。关键结论:<strong>OOD
+真实数据蒸知识精度高但会被检测;唯有 data-free 才逃检测</strong>(代价 ~8%
+性能,1%/5% 标注即可补回)。</li>
+<li><strong>主线</strong>:<strong>偷模型 → 护 IP → 打穿 IP →
+更强的护……</strong> 一场 <strong>endless battle</strong>。本章收束「AI
+模型自身安全」半部分;下一周课程转向「<strong>用 AI
+解决安全问题</strong>」(deepfake detection)。</li>
+</ul>
+<hr />
+<h2 id="十与-assignment--lab--相邻周的关联">十、与 Assignment / Lab /
+相邻周的关联</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>关联点</th>
+<th>说明</th>
+<th>对应章节</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Lab = 实现 DeepJudge</strong></td>
+<td>讲师点名:下个 lab 里会实现 DeepJudge(选种子、生成 untargeted AE、算
+RobD/JSD)</td>
+<td>§五</td>
+</tr>
+<tr class="even">
+<td><strong>承接 Week 2(AE / CW attack)</strong></td>
+<td>IPGuard 公式几乎照搬 CW(差别:直接优化图像
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+而非扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>);AE
+作为「独特转移」是方向一的基石</td>
+<td>§三、§二</td>
+</tr>
+<tr class="odd">
+<td><strong>承接 Week 4(BadNets / clean-label 表征)</strong></td>
+<td>Entangled Watermarks <strong>= BadNets +
+纠缠</strong>;「特征空间里把 trigger 数据拉近 target」直接呼应
+clean-label attack</td>
+<td>§七</td>
+</tr>
+<tr class="even">
+<td><strong>承接 Week 6(KD / 模型窃取 / 温度)</strong></td>
+<td>「专利权重被 KD 蒸掉」「水印被窃取擦掉」是本章动机;IPRemover 用
+<strong>data-free KD</strong>;SNNL 里再见<strong>温度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math></strong></td>
+<td>§一、§七、§八</td>
+</tr>
+<tr class="odd">
+<td><strong>呼应 Assignment 1</strong></td>
+<td>Task 1(targeted AE 难迁移)= IPGuard 的前提;Task 3(抗预处理 AE)=
+MetaFinger 鲁棒性对比里 IPGuard 的短板</td>
+<td>§三、§四</td>
+</tr>
+<tr class="even">
+<td><strong>军备竞赛(贯穿全课)</strong></td>
+<td>偷模型(攻)↔︎ IP 保护(防)↔︎ IPRemover(攻)↔︎ 未来更强防御 …… 与
+AE/backdoor 的攻防同构</td>
+<td>§八</td>
+</tr>
+<tr class="odd">
+<td><strong>Week 8(下周)= Deepfake Detection</strong></td>
+<td>本章是「AI 模型自身安全」的收尾;下周起「用 AI 解决安全问题」</td>
+<td>后续</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📌 <strong>一页纸记忆锚点</strong> — <strong>造贵偷易、专利无用(KD
+一蒸就换皮)</strong>;<strong>decision space = on/off manifold +
+三方向</strong>;<strong>指纹找胎记(IPGuard 贴边界快/MetaFinger
+噪声抗变换但要负模型/DeepJudge
+RobD·JSD)</strong>;<strong>水印刺青(Frontier Stitching 缝边界·50%
+假设/Entangled = BadNets+SNNL 纠缠,扛窃取 65% vs
+&lt;1%)</strong>;<strong>IPRemover = data-free KD 改写 decision space
+通杀(OOD 可检测/data-free 逃检测)</strong>;最大主题:<strong>endless
+battle</strong>。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

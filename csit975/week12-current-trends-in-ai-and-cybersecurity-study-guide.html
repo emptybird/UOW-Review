@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 12 · AI 与网络安全的前沿趋势 (Current Trends in AI and Cybersecurity)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-12--ai-与网络安全的前沿趋势-current-trends-in-ai-and-cybersecurity">Week
+12 · AI 与网络安全的前沿趋势 (Current Trends in AI and
+Cybersecurity)</h1>
+<blockquote>
+<p><strong>CSIT375/975 — AI and Cybersecurity</strong> · Dr Wei Zong ·
+University of Wollongong</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>说清什么是大语言模型 (LLM)</strong>:定义 <strong>LLM(Large
+Language Model,大语言模型)</strong>
+是一种深度学习算法;讲清它带来的<strong>范式转变</strong>——过去「<strong>一个任务一个专用模型</strong>(one
+model per
+task)」,如今「<strong>一个模型干所有文本任务</strong>」(summarize /
+translate / predict /
+generate);并知道训练它要用<strong>超大规模数据集</strong>(例
+<strong>ROOTS,1.6 TB</strong>,由 Wikipedia、StackExchange
+等子数据集构成);</li>
+<li><strong>吃透 BERT 的来历与训练方式</strong>:<strong>BERT =
+Bidirectional Encoder Representations from Transformers</strong>,底座是
+<strong>Transformers</strong>(2017「Attention is all you
+need」提出,最初为<strong>翻译</strong>,后扩展到图像识别等;2018 由 Google
+提出);说出它的 <strong>4 类下游任务</strong>(sentiment analysis /
+question answering / text prediction / text
+generation);<strong>复述两个无监督预训练任务</strong>——<strong>Masked
+Language Model(掩码语言模型,随机遮 15% 词让模型预测)</strong>
+学<strong>词与词</strong>的关系、<strong>Next Sentence
+Prediction(下一句预测,50% 真后继 / 50% 随机,达 97–98% 准确率)</strong>
+学<strong>句与句</strong>的关系;并解释**「先
+pre-train,再用各下游任务的标注数据
+fine-tune」**为何能用同一组初始权重得到多个高性能模型;</li>
+<li><strong>讲清 LLM 幻觉 (hallucination) 与检测思路</strong>:定义幻觉 =
+<strong>输出语法通顺、连贯,但事实错误或无意义</strong>;说出成因(训练数据局限、模型偏见)与高危领域(healthcare
+/ law /
+engineering);<strong>复述检测主线</strong>——理想是消除幻觉但不可行,<strong>退而求其次:检测到就拒答</strong>;用**「让模型对同一问题多生成几次,看它确不确定」(measure
+uncertainty)** 来判断,且用 <strong>LLM 内部状态 /
+embeddings(嵌入,文本的数值向量表示)</strong> 来量化不确定性;</li>
+<li><strong>理解 EigenScore 与 AUROC
+两个度量</strong>:<strong>EigenScore</strong>(由句向量协方差矩阵的特征值对数平均算出)——<strong>小
+= 句向量高度相关(确定)</strong>、<strong>大 =
+语义发散(疑似幻觉)</strong>;并能把它类比到 backdoor 防御 <strong>STRIP
+用 entropy</strong> 的同款思路;<strong>AUROC</strong>(ROC 曲线下面积)=
+<strong>无需指定阈值</strong>的二分类评价指标,<strong>1 = 完美、0.5 =
+随机</strong>;</li>
+<li><strong>分清 explainability 与 interpretability</strong>:定义
+<strong>XAI(Explainable AI,可解释
+AI)</strong>;<strong>explainability(可解释性)=
+让用户理解并信任输出</strong>(像「能解释人类行为」),<strong>interpretability(可诠释性)=
+开发者钻进模型内部完全看懂计算过程</strong>(像线性模型、决策树那样能
+if-else 还原,像「诠释人脑机制」般更难);</li>
+<li><strong>手推 Grad-CAM 的两步公式与 ReLU 直觉</strong>:目标 =
+<strong>类判别 (class-discriminative)
+可视化</strong>,<strong>不改架构、不重训</strong>地为任意 CNN
+生成「模型在看哪里」的热图;第一步用<strong>最后一层卷积层 (last conv
+layer) 的平均梯度</strong>当每张 feature map
+的<strong>重要性权重</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>α</mi><mi>k</mi><mi>c</mi></msubsup><mo>=</mo><mfrac><mn>1</mn><mi>Z</mi></mfrac><msub><mo>∑</mo><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mfrac><mrow><mi>∂</mi><msup><mi>y</mi><mi>c</mi></msup></mrow><mrow><mi>∂</mi><msubsup><mi>A</mi><mrow><mi>i</mi><mi>j</mi></mrow><mi>k</mi></msubsup></mrow></mfrac></mrow><annotation encoding="application/x-tex">\alpha_k^c=\frac{1}{Z}\sum_{i,j}\frac{\partial y^c}{\partial A^k_{ij}}</annotation></semantics></math>,第二步<strong>加权求和再过
+ReLU</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>L</mi><mi>c</mi></msup><mo>=</mo><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">L</mi><mi mathvariant="normal">U</mi></mrow><mspace width="-0.167em"></mspace><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mo>∑</mo><mi>k</mi></msub><msubsup><mi>α</mi><mi>k</mi><mi>c</mi></msubsup><msup><mi>A</mi><mi>k</mi></msup><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">L^c=\mathrm{ReLU}\!\big(\sum_k \alpha_k^c A^k\big)</annotation></semantics></math>;并能用**「feature
+map 值 × 梯度同号才重要」**解释为何要 ReLU;</li>
+<li><strong>背出 Grad-CAM 的能与不能</strong>:能解释 image
+classification / image captioning、能揭示 <strong>adversarial examples /
+backdoor(BadNets、Blended)</strong> 的不合理关注区;<strong>但对
+invisible backdoor(SSBA,无固定触发模式)失效</strong>;</li>
+<li><strong>讲透「让 DNN 因正确理由而正确」</strong>:用<strong>植物表型
+(plant phenotyping)</strong> 例子说清 <strong>spurious features(伪特征 /
+捷径特征)</strong> 与 <strong>shortcut
+learning(捷径学习)</strong>——「<strong>对的预测,错的理由,不可信</strong>」;复述用户纠正的<strong>三种情形</strong>(right-right
+不管 / wrong-wrong 给标签 / <strong>right-wrong
+纠理由</strong>);掌握两种纠正法——<strong>counterexamples(反例:把伪特征区域随机化
+/ 替换后加回训练集)</strong> 与 <strong>RRR loss(Right for the Right
+Reasons,用二值掩码 A 惩罚无关区域的梯度)</strong>;</li>
+<li><strong>把全章收束成一句话</strong>:<strong>「能力」之外,前沿更关心「可信」</strong>——LLM
+强大但会<strong>说谎(幻觉)</strong>,DNN
+准确但可能<strong>抄捷径(伪特征)</strong>;<strong>XAI
+是揭穿与纠正二者的统一工具</strong>,而这又回到了课程开篇的
+<strong>adversarial
+examples</strong>——<strong>伪特征正是对抗样本能骗过模型的根因</strong>,<strong>adversarial
+robustness 与人类感知相通</strong>,<strong>消除捷径 =
+同时提升可信与鲁棒</strong>。</li>
+</ul>
+</blockquote>
+<hr />
+<p>本周是整门课的<strong>收官一讲</strong>(讲师开场就说「today is also a
+short lecture, maybe finished in one hour」)。前面 11
+周我们走了两条主线:<strong>攻击与防御</strong>(adversarial
+examples、backdoor、model stealing、deepfake…)和<strong>用 AI
+解决安全问题</strong>(malware、入侵、垃圾邮件检测)。本周不再讲某一种具体攻防,而是抬头看<strong>前沿趋势</strong>——而贯穿这些前沿的,是一个比「准不准」更深的问题:<strong>我们凭什么信任一个
+AI 模型?</strong></p>
+<p>这个问题有两个当下最热的切口,正好构成本章的两大半:</p>
+<pre class="mermaid"><code>flowchart TD
+    ROOT[&quot;核心追问:&lt;br/&gt;AI 很强,但凭什么&lt;b&gt;信任&lt;/b&gt;它?&quot;]
+    ROOT --&gt; A[&quot;① 大语言模型 (LLMs)&lt;br/&gt;它很会说话,&lt;b&gt;但会不会说谎?&lt;/b&gt;&quot;]
+    ROOT --&gt; B[&quot;② 可解释 AI (XAI)&lt;br/&gt;它预测很准,&lt;b&gt;但是不是凭对的理由?&lt;/b&gt;&quot;]
+    A --&gt; A1[&quot;LLM / BERT&lt;br/&gt;(它怎么炼成的)&quot;]
+    A1 --&gt; A2[&quot;⭐ 检测 LLM 幻觉&lt;br/&gt;(揪出它的谎话)&quot;]
+    B --&gt; B1[&quot;Grad-CAM&lt;br/&gt;(看它在看哪里)&quot;]
+    B1 --&gt; B2[&quot;⭐ 用 XAI 消除伪特征&lt;br/&gt;(纠正它抄的捷径)&quot;]
+    B2 --&gt; C[&quot;回到开篇:&lt;br/&gt;伪特征 ↔ adversarial examples&lt;br/&gt;可信 ↔ 鲁棒&quot;]</code></pre>
+<blockquote>
+<p>🧭 <strong>一句话抓住全章</strong> —
+前沿研究的关键词从「<strong>能力</strong>」转向「<strong>可信</strong>」。两条线:<strong>LLM
+会一本正经地胡说(hallucination),我们用「多生成几次看它确不确定」来检测</strong>;<strong>DNN
+会靠无关的「捷径」蒙对答案(spurious features),我们用「可解释 AI /
+Grad-CAM」看穿它、再用「反例」或「右理由损失
+RRR」纠正它</strong>。最后这两件事在课程开篇的 <strong>adversarial
+examples</strong>
+处汇合——<strong>模型能被对抗样本欺骗,根子就在它依赖伪特征;让它『因对的理由而对』,既更可信,也更鲁棒。</strong></p>
+</blockquote>
+<hr />
+<h2 id="一大语言模型-llm-是什么-slides-23">一、大语言模型 LLM 是什么
+(Slides 2–3)</h2>
+<p>我们先从这几年最出圈的 AI 谈起。<strong>Large Language
+Model(大语言模型,简称 LLM)</strong> 本质上仍是一种 <strong>deep learning
+algorithm(深度学习算法)</strong>——你已经熟悉的神经网络,只是规模极大、专门处理文本。现实里的成功例子你天天在用:<strong>ChatGPT、BERT、Llama</strong>
+等等。它们能做的事可以用四个动词概括:**summarize(摘要)、translate(翻译)、predict(预测/补全)、generate(生成)**文本,以传达观点与概念。</p>
+<p>这里有一个容易被忽略、但讲师特意强调的<strong>范式转变 (paradigm
+shift)</strong>,也是理解「为什么 LLM 是大事」的关键:</p>
+<blockquote>
+<p>💡 <strong>直觉:从「一任务一模型」到「一模型通吃」</strong> —
+把时钟拨回七八年前,如果你那时学 <strong>NLP(Natural Language
+Processing,自然语言处理)</strong>,会发现<strong>每个任务都要单独造一个模型</strong>:翻译用一套
+encoder–decoder
+架构、摘要用另一套技术、文本预测又是别的方法,彼此不通用。LLM
+颠覆了这一点——<strong>一个模型就能把这些任务全部一起做</strong>。讲师说,站在七年前看,这「非常令人惊讶」。这就是
+LLM
+真正的分量所在:不是某个任务做得更好一点,而是<strong>通用性</strong>的质变。</p>
+</blockquote>
+<p>这种通用能力是有代价的:<strong>LLM
+依赖超大规模数据集来训练</strong>。slides 给的例子是 <strong>ROOTS
+数据集</strong>,体量达到 <strong>1.6
+TB</strong>——它本身是个「数据集的数据集」,由
+<strong>Wikipedia、StackExchange</strong> 等多个开源<strong>子数据集
+(sub-datasets)</strong> 拼成,用于语言建模。记住这个数字的意义不在于「1.6
+TB」本身,而在于体会:<strong>LLM 的能力是「大数据 +
+大模型」喂出来的。</strong></p>
+<hr />
+<h2 id="二bert一个具体的-llm-怎么炼成-slides-45">二、BERT:一个具体的 LLM
+怎么炼成 (Slides 4–5)</h2>
+<p>泛泛地说「LLM
+很强」不够,本章挑了一个<strong>具体、经典</strong>的模型来讲透——<strong>BERT</strong>。讲它不是为了
+BERT
+本身,而是为了下一节的「幻觉检测」做铺垫:你得先知道这类模型<strong>内部长什么样、怎么训练出来的</strong>,才能理解「怎么用它的内部状态去抓它的谎话」。</p>
+<h3 id="21-bert-与它的底座-transformers-slide-4">2.1 BERT 与它的底座
+Transformers (Slide 4)</h3>
+<p><strong>BERT</strong> 是 <strong>Bidirectional Encoder
+Representations from Transformers(基于 Transformers
+的双向编码器表示)</strong> 的缩写。名字里最关键的词是
+<strong>Transformers</strong>——这是 BERT 的<strong>底层架构 (underlying
+model)</strong>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides):Transformers 的来历</strong> —
+讲师补充:Transformers 出自约十年前那篇名字极其直白的论文
+<strong>「Attention is all you
+need」</strong>。它<strong>最初是为「语言翻译」任务设计</strong>的,但作者当时就<strong>预言</strong>它能用于其他任务——后来果然应验:<strong>仅仅一年后</strong>人们就发明了
+<strong>Vision Transformer(视觉 Transformer)</strong>,把它成功用到
+<strong>image recognition(图像识别)</strong>
+等领域。这正是为什么本章把它放进「前沿趋势」:一个为翻译而生的架构,如今几乎成了所有
+AI 任务的通用底座。</p>
+</blockquote>
+<p>BERT 由 <strong>Google 的研究者于 2018
+年</strong>提出。它能胜任的语言任务很多,slides 给了四个代表:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>任务</th>
+<th>含义(讲师举的例子)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Sentiment Analysis(情感分析)</strong></td>
+<td>判断一条影评是多正面还是多负面</td>
+</tr>
+<tr class="even">
+<td><strong>Question Answering(问答)</strong></td>
+<td>让聊天机器人回答你的问题</td>
+</tr>
+<tr class="odd">
+<td><strong>Text Prediction(文本预测)</strong></td>
+<td>写邮件时帮你预测下一个词(如 Gmail 的补全)</td>
+</tr>
+<tr class="even">
+<td><strong>Text Generation(文本生成)</strong></td>
+<td>给几句话当主题,自动写出一整段文章</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="22-训练-bert两个无监督任务-slide-5">2.2 训练 BERT:两个无监督任务
+(Slide 5)</h3>
+<p>这一节是 BERT 的核心,也是最考究「理解」的地方。BERT
+的训练分两步走:<strong>先 pre-train(预训练),再
+fine-tune(微调)</strong>。</p>
+<p><strong>第一步:在「无标注数据」上做预训练。</strong> 关键词是
+<strong>unsupervised(无监督)</strong>——<strong>不需要人工标签</strong>。讲师点出这正是
+BERT
+的妙处:你可以<strong>直接从互联网上下原始文本</strong>就拿来训练,无需昂贵的人工标注。具体靠<strong>两个无监督任务</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+    PRE[&quot;BERT 预训练&lt;br/&gt;(无标注的海量文本)&quot;]
+    PRE --&gt; MLM[&quot;① Masked Language Model&lt;br/&gt;掩码语言模型&quot;]
+    PRE --&gt; NSP[&quot;② Next Sentence Prediction&lt;br/&gt;下一句预测&quot;]
+    MLM --&gt; MLM1[&quot;随机遮住 ~15% 的词&quot;]
+    MLM1 --&gt; MLM2[&quot;让模型预测被遮的词&quot;]
+    MLM2 --&gt; MLM3[&quot;⇒ 学会&lt;b&gt;词与词&lt;/b&gt;的关系&quot;]
+    NSP --&gt; NSP1[&quot;取两句 A、B&quot;]
+    NSP1 --&gt; NSP2[&quot;50%:B 真是 A 的下一句&lt;br/&gt;50%:B 是随机句&quot;]
+    NSP2 --&gt; NSP3[&quot;让模型判断 B 是否跟在 A 后&lt;br/&gt;(达 97–98% 准确率)&quot;]
+    NSP3 --&gt; NSP4[&quot;⇒ 学会&lt;b&gt;句与句&lt;/b&gt;的关系&quot;]</code></pre>
+<ul>
+<li><strong>① Masked Language
+Model(掩码语言模型,MLM)</strong>:把输入里<strong>随机 15%
+的词「遮住」(mask)</strong>,然后让模型去<strong>预测那些被遮的词</strong>。直觉很简单:要能填对空,模型必须理解上下文里<strong>词与词之间的关系</strong>。</li>
+<li><strong>② Next Sentence
+Prediction(下一句预测,NSP)</strong>:对每个训练样本取两句话 A 和
+B——<strong>50% 的情况下 B 确实是紧跟 A 的下一句,另外 50% B
+是从语料里随机抽的</strong>。让模型<strong>判断 B 是否真的跟在 A
+后面</strong>。训练好后,模型在这个任务上能达到约 <strong>97–98%
+的准确率</strong>。它学到的是<strong>句与句之间的关系</strong>。</li>
+</ul>
+<blockquote>
+<p>💡 <strong>为什么要这两个任务?(一句话记忆)</strong> — <strong>MLM
+教模型理解「词与词」,NSP 教模型理解「句与句」。</strong>
+一个管局部,一个管篇章,合起来 BERT 才既懂用词又懂行文。</p>
+</blockquote>
+<p><strong>第二步:用「有标注数据」做微调 (fine-tune)。</strong>
+预训练完的 BERT 只是个「通才」,要拿它干具体活儿(如影评分类),就用该
+<strong>downstream task(下游任务)</strong>
+的<strong>标注数据</strong>去微调它:以预训练好的 BERT
+作为<strong>初始模型</strong>,在你的标注数据上继续训练。</p>
+<blockquote>
+<p>🔑 <strong>关键理解:同一组初始权重,微调出多个专家</strong> — slides
+特意强调:<strong>每个下游任务都得到一个「各自独立」的微调模型,尽管它们都是从同一组预训练参数初始化来的。</strong>
+这就是「pre-train 一次、fine-tune
+多次」范式的精髓——<strong>预训练的通用知识是共享的、可复用的</strong>(昂贵但只做一次),<strong>针对具体任务的专精则靠廉价的微调</strong>分头完成。这也解释了为什么
+LLM 能「一个底座、千般用途」。</p>
+</blockquote>
+<blockquote>
+<p>🔑 <strong>本节小结</strong> — <strong>BERT =
+Transformers(2017,本为翻译)做底座、Google 2018 提出的 LLM。</strong>
+训练 = <strong>无监督预训练(MLM 学词、NSP 学句)→
+有标注微调(每个下游任务一个模型)</strong>。记住这套「预训练–微调」骨架,下一节才能听懂「怎么从模型内部抓幻觉」。</p>
+</blockquote>
+<hr />
+<h2 id="三检测-llm-的幻觉-slides-69">三、检测 LLM 的幻觉 (Slides
+6–9)</h2>
+<p>铺垫完 BERT,我们来到本章 <strong>LLM 部分真正的主题——hallucination
+detection(幻觉检测)</strong>。讲师交代得很直白:<strong>之所以先介绍
+LLM,就是为了讨论怎么检测 LLM 的幻觉。</strong></p>
+<h3 id="31-什么是幻觉为什么危险-slide-6">3.1 什么是幻觉,为什么危险
+(Slide 6)</h3>
+<p><strong>LLM Hallucination(大语言模型幻觉)</strong>
+指模型产生的输出<strong>连贯、语法正确,但事实上错误或根本没有意义
+(factually incorrect or
+nonsensical)</strong>——也就是<strong>虚假或误导性的信息</strong>。</p>
+<blockquote>
+<p>🔍 <strong>讲师的经典例子</strong> —
+拿一个<strong>早期版本</strong>的 ChatGPT
+问:「<code>world weather</code> 这个词里有几个字母
+M?」(注:<code>world weather</code> 里其实一个 M 都没有,但模型答「有一个
+M」)。这句回答<strong>语法完全正确、读起来通顺</strong>,可<strong>事实是错的、不合逻辑</strong>——这就是一次典型的
+hallucination。</p>
+</blockquote>
+<p><strong>成因 (potential reasons)</strong> 有两类:</p>
+<ul>
+<li><strong>训练数据的局限 (limitations in training
+data)</strong>:如果训练语料里很少出现类似的问法/答案,模型遇到没见过的问题时只能**「猜」**,猜错了就成了幻觉;</li>
+<li><strong>模型自身的偏见 (biases in the model)</strong>。</li>
+</ul>
+<p><strong>为什么必须管?</strong>
+因为幻觉在<strong>对准确性要求极高的领域</strong>(<strong>healthcare
+医疗、law 法律、engineering
+工程</strong>)后果严重。讲师举例:若一个病人被 LLM
+<strong>误诊为「健康」</strong>,他可能因此<strong>错过及时治疗</strong>,酿成大祸。在这些领域,人们<strong>无法容忍</strong>幻觉。</p>
+<h3 id="32-检测主线测不确定性-slide-7">3.2 检测主线:测「不确定性」
+(Slide 7)</h3>
+<p>理想当然是让 LLM
+<strong>彻底不产生幻觉</strong>——但讲师明说<strong>这在现阶段不可行</strong>。于是退而求其次,采用一个工程上的<strong>变通方案
+(workaround)</strong>:</p>
+<blockquote>
+<p>🧭 <strong>核心思路</strong> — <strong>检测目标 (goal):一旦检测到 LLM
+在生成幻觉,就拒绝 (reject) 这个回答。</strong>
+抓不住「不犯错」,那就退一步做到「<strong>犯错时我知道,于是不输出</strong>」。</p>
+</blockquote>
+<p>怎么检测?一个<strong>已被证明有效</strong>的方法是 <strong>measure
+uncertainty(测量不确定性)</strong>:</p>
+<blockquote>
+<p>💡 <strong>直觉:不确定 ≈ 在编</strong> —
+对<strong>同一个问题让模型生成多个回答</strong>。如果模型<strong>对答案心里有底</strong>,几次回答会高度一致;如果它<strong>不确定</strong>,几次回答就会<strong>自相矛盾</strong>——这往往就是在产生幻觉。讲师用上面的例子说:问「<code>world weather</code>
+里有几个 M」,让它答 5 次,一次说 1 个、一次说 2 个、一次说 0
+个——<strong>答案飘忽,就说明它在胡说。</strong></p>
+</blockquote>
+<blockquote>
+<p>📌 <strong>课堂答疑:一个 prompt 还是多个 prompt?</strong> —
+有同学问:让模型多生成,是「<strong>一个 prompt
+让它连续生成多条</strong>」还是「<strong>用几个相似 prompt
+各生成一条</strong>」?讲师回答:<strong>两种都行</strong>,核心目的只是「<strong>对同一问题/想法拿到多个回答</strong>」。实践中甚至可以把问题<strong>稍微换个说法</strong>(同一个意思有很多种表达),效果可能更好。<strong>关键永远是:多生成
++ 算不确定性。</strong></p>
+</blockquote>
+<p><strong>那「不确定性」具体怎么量化?</strong> 用 <strong>LLM 的
+internal states(内部状态)</strong>,也就是
+<strong>embeddings(嵌入)</strong>:</p>
+<blockquote>
+<p>📎 <strong>拓展(承接前几周):embeddings
+就是「特征」换了个名字</strong> —
+神经网络由很多层组成,<strong>某些内部层的输出</strong>可以被当作输入的<strong>有意义的特征</strong>。在
+LLM 语境里,这种内部输出就叫 <strong>embeddings(嵌入)——文本(词 / 短语 /
+整篇文档)的数值表示,捕获其语义,通常存成向量
+(vectors)</strong>。讲师特意点回 <strong>Week 4 clean-label
+backdoor</strong>:那时我们把图像分类网络<strong>最后一个隐藏层</strong>的输出当作输入的「特征」;这里完全是同一个思想,<strong>只不过
+LLM 里不一定取最后一层(常取中间某层),且换了个名字叫
+embedding</strong>。一句话:<strong>embedding = 特征 =
+模型对输入「意思」的内部数值理解。</strong></p>
+</blockquote>
+<p>于是检测流程是:让 LLM 对一个输入<strong>生成多条(如 10 条)回答 →
+从内部层抽出每条的 embedding → 用这些 embedding
+之间的「散不散」来度量不确定性</strong>。</p>
+<pre class="mermaid"><code>flowchart LR
+    Q[&quot;输入问题&quot;] --&gt; GEN[&quot;让 LLM 生成&lt;br/&gt;多条回答 (如 10 条)&quot;]
+    GEN --&gt; EMB[&quot;从内部层抽取&lt;br/&gt;每条回答的 embedding&quot;]
+    EMB --&gt; COV[&quot;算句向量的&lt;br/&gt;协方差 → 特征值&quot;]
+    COV --&gt; ES[&quot;EigenScore&quot;]
+    ES --&gt; DEC{&quot;分数大?&quot;}
+    DEC --&gt;|大 = 语义发散| REJ[&quot;⚠️ 判为幻觉&lt;br/&gt;→ 拒答&quot;]
+    DEC --&gt;|小 = 高度一致| OUT[&quot;✅ 模型确定&lt;br/&gt;→ 正常输出&quot;]</code></pre>
+<h3 id="33-用-eigenscore-量化不确定性-slide-8">3.3 用 EigenScore
+量化不确定性 (Slide 8)</h3>
+<p>具体的量化指标叫
+<strong>EigenScore(特征值分数)</strong>。它背后是一段线性代数:<strong>等价于「句向量的协方差矩阵
+(covariance matrix) 的特征值 (eigenvalues)
+取对数后求平均」</strong>。</p>
+<blockquote>
+<p>📎 <strong>小提醒</strong> — slides 明说 <strong>EigenScore
+的数学细节不在本课考察范围</strong>。你只需把握它的<strong>含义与方向</strong>,不必会推导。</p>
+</blockquote>
+<p>EigenScore 的方向性是关键(必记):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>EigenScore</th>
+<th>含义</th>
+<th>解读</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>小</strong></td>
+<td>多条回答的<strong>句向量高度相关 (highly correlated)</strong></td>
+<td>模型很<strong>确定</strong> → 大概率没幻觉</td>
+</tr>
+<tr class="even">
+<td><strong>大</strong></td>
+<td>多条回答<strong>语义发散 (diverse semantics)</strong></td>
+<td>模型很<strong>不确定</strong> → 大概率在产生幻觉</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>💡 <strong>类比 STRIP / entropy(承接 backdoor 周)</strong> —
+这个套路是不是很眼熟?讲师点出:它和 backdoor 防御 <strong>STRIP</strong>
+几乎一个思路——<strong>STRIP 算的是 entropy(熵)</strong>(熵大 =
+随机性大),<strong>这里算的是 EigenScore</strong>(分数大 =
+语义发散)。<strong>同一种「用『散不散 /
+乱不乱』来判断异常」的哲学,只是换了把尺子。</strong>
+实践中你甚至可以直接调库,<strong>一行代码</strong>算出
+EigenScore,再用一个<strong>阈值 (threshold)</strong>
+判定模型是否不确定。</p>
+</blockquote>
+<h3 id="34-怎么评价检测器好不好auroc-slide-9">3.4
+怎么评价检测器好不好:AUROC (Slide 9)</h3>
+<p>有了
+EigenScore,怎么证明它<strong>比别的方法更好</strong>?这就需要一个公平的评价指标——<strong>AUROC</strong>。</p>
+<p><strong>AUROC</strong>(<strong>Area Under the Receiver Operator
+Characteristic curve</strong>,ROC
+曲线下面积)是评价<strong>二分类器</strong>质量的常用指标。它最大的好处,讲师反复强调:</p>
+<blockquote>
+<p>🔑 <strong>为什么用 AUROC:它是「免阈值」的指标</strong> — 单看
+EigenScore,你会纠结<strong>阈值定多少</strong>——0.5?0.4?0.1?<strong>不同阈值结果天差地别</strong>。AUROC
+的计算<strong>把所有可能的阈值都考虑进去了</strong>,所以是
+<strong>threshold-free(无需指定阈值)</strong>
+的——这让不同分类器之间能<strong>公平比较</strong>。记住两个锚点:<strong>AUROC
+= 1 是完美,AUROC = 0.5 等于随机猜。</strong>(具体计算不考。)</p>
+</blockquote>
+<p><strong>实验结果</strong>:在 <strong>LLaMA-7B</strong>(Meta 开源的 70
+亿参数版)、<strong>Natural Questions</strong>
+数据集上,<strong>EigenScore 大幅、稳定地优于以往方法</strong>(如
+<strong>LN-Entropy</strong> 和 <strong>Lexical
+Similarity</strong>)。讲师指出:哪怕只让模型生成 10
+条回答,<strong>EigenScore 与旧方法的差距已经很大</strong>。</p>
+<blockquote>
+<p>🔑 <strong>本节小结(LLM 半部分收束)</strong> — <strong>幻觉 =
+通顺但错的输出;检测 = 抓到就拒答。</strong>
+怎么抓:<strong>多生成几条回答 → 抽 embedding → 算
+EigenScore(大=发散=疑似幻觉)→ 用 AUROC(免阈值)证明它好。</strong>
+一条主线:<strong>「不确定」就是「在编」,而不确定性藏在模型的内部状态里。</strong>
+大公司正砸重金解决幻觉,因为没人愿意自家产品「一本正经地胡说」。</p>
+</blockquote>
+<hr />
+<h2
+id="四可解释-ai-xaiexplainability--interpretability-slide-10">四、可解释
+AI (XAI):explainability ≠ interpretability (Slide 10)</h2>
+<p>LLM 那半部分问的是「<strong>它会不会说谎</strong>」;XAI
+这半部分问的是另一个信任问题:「<strong>它预测对了,但是不是凭对的理由?</strong>」</p>
+<p><strong>XAI(Explainable Artificial
+Intelligence,可解释人工智能)</strong>
+是一<strong>套流程与方法</strong>,目标是<strong>让人类用户能够理解并信任机器学习算法产生的结果与输出</strong>。</p>
+<blockquote>
+<p>💡 <strong>动机:准确 ≠ 可信</strong> — 你已经用过 VGG、ResNet
+这类图像分类器。就算模型说「90% 这是猫」,<strong>你凭什么信它?</strong>
+万一它做了错事呢?XAI
+的做法是:<strong>追问模型「你为什么这么判断?」</strong>——让模型<strong>高亮出它依据的区域</strong>。如果它高亮了猫的耳朵、脸,你就放心:这预测有理有据;但如果它<strong>高亮的是天空</strong>(因为训练集里猫都在白天拍、狗都在夜里拍,模型学会了「天亮就是猫」这种偷懒规则),那么<strong>哪怕预测对了,理由也是错的,模型不可信</strong>。这正是
+XAI 要揭穿的。</p>
+</blockquote>
+<p>这里有一个<strong>必考的概念区分</strong>——<strong>explainability(可解释性)
+vs interpretability(可诠释性)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Explainability 可解释性(本章重点)</strong></th>
+<th><strong>Interpretability 可诠释性</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>面向谁</strong></td>
+<td><strong>end-user(终端用户)</strong></td>
+<td><strong>developer(开发者)</strong></td>
+</tr>
+<tr class="even">
+<td><strong>目标</strong></td>
+<td>提供对 AI
+决策的<strong>洞察</strong>,以<strong>建立信任</strong>——相信它的决定基于事实、无偏见</td>
+<td><strong>钻进模型内部决策过程</strong>,完全看懂结果是怎么算出来的,<strong>提升对模型机理的信心</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>能做到的程度</strong></td>
+<td>即使不能完全看懂内部,也能<strong>解释其行为</strong></td>
+<td>只对<strong>简单模型</strong>可行(如<strong>线性分类模型</strong>学一条分界线、<strong>决策树</strong>可转成一串
+if-else 完全还原)</td>
+</tr>
+<tr class="even">
+<td><strong>类比</strong></td>
+<td>像<strong>解释人类行为</strong>:渴了喝水、饿了吃饭、见红灯停车(怕罚款)——<strong>行为可解释</strong></td>
+<td>像<strong>诠释人脑机制</strong>:至今<strong>无法完全做到</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🔑 <strong>一句话记牢</strong> — <strong>interpretability
+是「看穿内部怎么算」(对复杂深度网络极难,人脑也做不到);explainability
+是「让人理解并信任输出」(像我们能解释行为却看不透大脑)。</strong> 本章的
+Grad-CAM 属于 <strong>explainability</strong>。</p>
+</blockquote>
+<hr />
+<h2
+id="五grad-cam看模型在看哪里-slides-1116">五、Grad-CAM:看模型「在看哪里」
+(Slides 11–16)</h2>
+<p>XAI
+是个大框架,本章挑了其中最经典的一种技术深入讲——<strong>Grad-CAM</strong>。讲师拆字:<strong>Grad
+= gradient(梯度)</strong>,后面看公式你就懂为什么叫这个名。</p>
+<h3 id="51-grad-cam-的目标与优点-slide-11">5.1 Grad-CAM 的目标与优点
+(Slide 11)</h3>
+<p>Grad-CAM 是一种
+<strong>class-discriminative(类判别)的可视化技术</strong>:它能为<strong>任意基于
+CNN(卷积神经网络)的模型</strong>生成<strong>视觉解释</strong>——直观说,就是画一张热图告诉你「为了判成这个类,模型在图像的哪块区域上看」。</p>
+<p>它的<strong>优点</strong>很实用:</p>
+<ul>
+<li><strong>不需要改架构、不需要重训 (no architectural changes or
+re-training)</strong>:直接套在已训练好的模型上;</li>
+<li><strong>能揭示模型的失败 (insight into
+failures)</strong>:后面会看到,即便模型预测错了,Grad-CAM
+也能让你<strong>看懂它为什么错</strong>;甚至能说明「看似离谱的预测背后其实有(模型自以为的)合理依据」。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — Grad-CAM <strong>专为 CNN
+设计</strong>;后来出现了不依赖 CNN、可用于其他架构的新技术。但 Grad-CAM
+是 XAI 里的<strong>经典必读 (must-read)</strong>,理解它是入门 XAI
+的钥匙。</p>
+</blockquote>
+<h3 id="52-核心思路盯住最后一层卷积-slide-12">5.2
+核心思路:盯住最后一层卷积 (Slide 12)</h3>
+<blockquote>
+<p>🧭 <strong>关键思想</strong> — Grad-CAM
+<strong>利用「流入最后一层卷积层 (last convolutional layer)
+的梯度信息」,来衡量每个神经元对某个目标决策的重要性。</strong>
+为什么偏偏是最后一层卷积层?因为<strong>它通常学到的是高层语义
+(high-level
+semantics)</strong>——越靠后的卷积层,捕捉的概念越抽象、越接近「这是什么物体」。</p>
+</blockquote>
+<p>先把 CNN
+的内部结构理一遍(理解架构是<strong>可选</strong>的,但有助于看懂公式):</p>
+<pre class="mermaid"><code>flowchart LR
+    IMG[&quot;输入图像&quot;] --&gt; C1[&quot;卷积层 1&quot;]
+    C1 --&gt; FM1[&quot;feature maps&lt;br/&gt;(特征图)&quot;]
+    FM1 --&gt; C2[&quot;卷积层 2 ...&quot;]
+    C2 --&gt; FML[&quot;&lt;b&gt;最后一层的 feature maps&lt;/b&gt;&lt;br/&gt;(高层语义,Grad-CAM 盯这里)&quot;]
+    FML --&gt; FC[&quot;全连接层&lt;br/&gt;(把特征投影到类别空间)&quot;]
+    FC --&gt; OUT[&quot;输出:各类别 logit&quot;]</code></pre>
+<p>讲师解释了这条流水线:输入图像经过<strong>一连串卷积层</strong>,每个卷积层的输出叫
+<strong>feature
+maps(特征图)</strong>;<strong>最后一层卷积层</strong>输出的那组 feature
+maps <strong>代表输入的高层语义</strong>。之后通常接 <strong>fully
+connected layers(全连接层)</strong>,把高维 feature maps
+<strong>投影到标签空间</strong>(比如 CIFAR-10 要把上千维特征压到 10
+个类)。<strong>Grad-CAM 要做的,就是给最后这组 feature maps
+里的每一张,算出一个「重要性」。</strong></p>
+<h3 id="53-两步公式-slide-13">5.3 两步公式 (Slide 13)</h3>
+<p>Grad-CAM 分<strong>两步</strong>:先给每张 feature map
+算重要性权重,再加权求和得到热图。</p>
+<p><strong>第一步:算每张 feature map 的重要性权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>α</mi><mi>k</mi><mi>c</mi></msubsup><annotation encoding="application/x-tex">\alpha_k^c</annotation></semantics></math>。</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>α</mi><mi>k</mi><mi>c</mi></msubsup><mo>=</mo><mfrac><mn>1</mn><mi>Z</mi></mfrac><munder><mo>∑</mo><mi>i</mi></munder><munder><mo>∑</mo><mi>j</mi></munder><mfrac><mrow><mi>∂</mi><msup><mi>y</mi><mi>c</mi></msup></mrow><mrow><mi>∂</mi><msubsup><mi>A</mi><mrow><mi>i</mi><mi>j</mi></mrow><mi>k</mi></msubsup></mrow></mfrac></mrow><annotation encoding="application/x-tex">\alpha_k^c=\frac{1}{Z}\sum_{i}\sum_{j}\frac{\partial y^c}{\partial A^k_{ij}}</annotation></semantics></math></p>
+<p>逐个符号读:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>y</mi><mi>c</mi></msup><annotation encoding="application/x-tex">y^c</annotation></semantics></math>
+= 类别
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+的 <strong>logit</strong>(Grad-CAM
+可以<strong>针对不同类别</strong>分别解释,比如既能问「为什么是狗」也能问「为什么是猫」,所以要<strong>指定类别
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math></strong>);</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>A</mi><mi>k</mi></msup><annotation encoding="application/x-tex">A^k</annotation></semantics></math>
+= <strong>第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+张 feature
+map</strong>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>A</mi><mrow><mi>i</mi><mi>j</mi></mrow><mi>k</mi></msubsup><annotation encoding="application/x-tex">A^k_{ij}</annotation></semantics></math>
+是它在位置
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(i,j)</annotation></semantics></math>
+的元素;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
+= feature map 里元素的<strong>总数</strong>,用来求平均(一个常数)。</li>
+</ul>
+<p><strong>这个式子在说什么?</strong>——<strong>对第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+张 feature map 里的每个元素,求「类别
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+的 logit 对它的梯度」,再取平均。</strong> 直觉:<strong>梯度大,意味着这张
+feature map 稍微一变,最终输出就大变 ⇒ 它对这个类别很重要。</strong>
+所以用<strong>平均梯度</strong>当重要性权重,天经地义。</p>
+<p><strong>第二步:加权求和,再过 ReLU,得到可视化热图。</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>L</mi><mtext mathvariant="normal">Grad-CAM</mtext><mi>c</mi></msubsup><mo>=</mo><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">L</mi><mi mathvariant="normal">U</mi></mrow><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><munder><mo>∑</mo><mi>k</mi></munder><msubsup><mi>α</mi><mi>k</mi><mi>c</mi></msubsup><mspace width="0.167em"></mspace><msup><mi>A</mi><mi>k</mi></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">L^c_{\text{Grad-CAM}}=\mathrm{ReLU}\!\left(\sum_{k}\alpha_k^c\,A^k\right)</annotation></semantics></math></p>
+<p>把每张 feature map
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>A</mi><mi>k</mi></msup><annotation encoding="application/x-tex">A^k</annotation></semantics></math>
+乘上它的权重
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>α</mi><mi>k</mi><mi>c</mi></msubsup><annotation encoding="application/x-tex">\alpha_k^c</annotation></semantics></math>
+再求和——非常直接。最后套一个 <strong>ReLU</strong>(回忆其定义
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">L</mi><mi mathvariant="normal">U</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathrm{ReLU}(x)=\max(x,0)</annotation></semantics></math>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>≥</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">x\ge0</annotation></semantics></math>
+返回
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>&lt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">x&lt;0</annotation></semantics></math>
+返回 0;我们在 Week 1 讲 C&amp;W 攻击时见过)。</p>
+<blockquote>
+<p>🧮 <strong>为什么要 ReLU?——「值 ×
+梯度同号才算数」(讲师重点讲解)</strong> — ReLU
+的作用是<strong>只保留对目标类有正面影响的特征</strong>。用一个最简情形理解:假设某
+feature map 只有一个元素,我们要解释「猫」这个类。</p>
+<ul>
+<li><strong>值 = 5,梯度 = +2(同号,乘积 &gt;
+0)</strong>:梯度为正说明「要让模型更确信是猫,就该把这个值<strong>调大</strong>」;而它本来就是正的、且我们想让它更大——<strong>方向一致,这是支持「猫」的重要特征
+✅</strong>。</li>
+<li><strong>值 = −5,梯度 = −2(同号,乘积 &gt;
+0)</strong>:梯度为负说明「要更确信是猫,就该把值<strong>调小</strong>」;它本来就是负的、想更小——<strong>方向也一致,同样重要
+✅</strong>。</li>
+<li><strong>值 = 5,梯度 = −2(异号,乘积 &lt;
+0)</strong>:想更确信是猫却要把这个正值调小——<strong>它不是我们想要的,与「猫」相悖</strong>。乘积为负,<strong>被
+ReLU 滤掉 ❌</strong>。</li>
+</ul>
+<p>一句话:<strong>feature map 值与梯度「同号」相乘为正 →
+该特征支持目标类,保留;「异号」相乘为负 → 该特征更像别的类别,用 ReLU
+砍掉。</strong> 讲师强调:<strong>若不加
+ReLU,热图会高亮到目标类以外的区域,定位性能反而变差。</strong></p>
+</blockquote>
+<h3 id="54-grad-cam-的实战表现能与不能-slides-1416">5.4 Grad-CAM
+的实战表现:能与不能 (Slides 14–16)</h3>
+<p>slides 用四组例子展示 Grad-CAM 的威力与边界:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>场景</th>
+<th>Grad-CAM 表现</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Image classification(图像分类)</strong> (S14)</td>
+<td>问「为什么是猫」就高亮猫、问「为什么是狗」就高亮狗——<strong>类判别</strong>能力直观可见,建立信任</td>
+</tr>
+<tr class="even">
+<td><strong>Image captioning(图像描述)</strong> (S14)</td>
+<td>给「a group of people flying kites on a beach」这句生成,Grad-CAM
+<strong>高亮风筝和人</strong>;给「a man sitting at a table with a
+pizza」则<strong>高亮披萨周边</strong>——说明生成的描述<strong>可被解释、可被信任</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Adversarial examples(对抗样本)</strong> (S15)</td>
+<td>用 <strong>CAM</strong>(Grad-CAM 的特化版)看:(a) 干净图(mountain
+bike,模型正确看向自行车);(b)–(d)
+针对不同类的对抗样本——模型被骗成「goldfish」等,Grad-CAM
+显示它<strong>高亮了不合理的区域</strong>,从而<strong>暴露「这预测不可信」</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Backdoor attacks(后门攻击)</strong> (S16)</td>
+<td>对 <strong>BadNets、Blended Attack</strong>,Grad-CAM
+<strong>能成功定位触发器 (trigger) 区域</strong>,看出模型在盯着 trigger
+做出指定预测</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>⚠️ <strong>Grad-CAM 的局限(必记)</strong> — <strong>对 Invisible
+Backdoor Attack(隐形后门,即 SSBA,slides 标注为 "Ours")失效。</strong>
+原因:这种攻击<strong>没有固定、可见的触发模式</strong>(trigger
+是隐形的),所以 Grad-CAM
+<strong>无法把它高亮出来</strong>。结论:<strong>Grad-CAM 能揪出
+BadNets/Blended 这类「有明显图案」的后门,但对隐形 trigger 的 backdoor
+检测能力有限。</strong> 这呼应了 Week 5(remove backdoor)讲过的内容。</p>
+</blockquote>
+<blockquote>
+<p>🔑 <strong>本节小结</strong> — <strong>Grad-CAM =
+用「最后一层卷积的平均梯度」给每张 feature map 打分(第一步),再加权求和过
+ReLU 画热图(第二步)。</strong> ReLU
+的意义:<strong>只留「值与梯度同号」的、支持目标类的特征。</strong>
+它能解释分类/描述、揭穿对抗样本和可见后门,<strong>但对隐形后门(SSBA)无能为力。</strong></p>
+</blockquote>
+<hr />
+<h2 id="六让-dnn因对的理由而对消除伪特征-slides-1723">六、让
+DNN「因对的理由而对」:消除伪特征 (Slides 17–23)</h2>
+<p>Grad-CAM
+让我们<strong>看见</strong>模型在看哪里。这一节是本章的<strong>高潮</strong>——既然能看见,能不能进一步<strong>纠正</strong>它?当模型「<strong>预测对了,但理由错了</strong>」时,我们怎么让它改过来?</p>
+<h3 id="61-问题设定植物表型里的太好了反而可疑-slide-17">6.1
+问题设定:植物表型里的「太好了反而可疑」 (Slide 17)</h3>
+<p>讲师用一个真实的科学场景(发表在 <strong>Nature Machine
+Intelligence</strong>)切入:</p>
+<blockquote>
+<p>🔍 <strong>故事:好得不像真的</strong> — 一个<strong>植物表型 (plant
+phenotyping)</strong>
+团队想刻画<strong>作物对病原体的抗性</strong>。植物生理学家用
+<strong>hyperspectral imaging(高光谱成像)</strong>
+记录了大量数据,请来一位机器学习专家上深度学习。结果<strong>预测准确率高得惊人</strong>——<strong>生理学家却起了疑心:「这结果好得不像真的
+(too good to be
+true)」</strong>,因为这任务连人类专家都很难,有些样本本就<strong>无法定论
+(ambiguous)</strong>。用 XAI
+一查,发现:<strong>训练好的模型用的是与生物学问题无关的线索 (clues that
+do not relate to the biological
+problem)</strong>——它在<strong>作弊</strong>。</p>
+</blockquote>
+<p>这种「无关线索」就是关键概念:</p>
+<blockquote>
+<p>💡 <strong>核心术语:spurious features(伪特征 / 捷径特征)</strong> —
+指<strong>与目标任务本身无关、但模型拿来「抄近道」蒙对答案的特征</strong>。前面那个「白天的猫
+/ 夜里的狗 →
+看天空判猫」就是经典例子。模型**「为了对的预测,学到了错的理由」(right
+predictions for the wrong reasons)<strong>,因此</strong>不可信**。</p>
+<p>具体到这个例子:模型发现<strong>生病的组织 (sick tissue)
+会萎缩、变小</strong>,于是它不去看组织本身,而是去看<strong>培养液 / 背景
+(the solution /
+background)</strong>——「<strong>只要背景里露出某种营养液,就判这块组织生病</strong>」。预测虽然常常对,但这是<strong>作弊</strong>:<strong>一旦把组织挪到别的背景、看不到营养液,模型立刻失灵。</strong></p>
+</blockquote>
+<p>于是引出本节要回答的问题:<strong>我们能否纠正模型,让它「因对的理由而做出对的预测」(right
+predictions for the right reasons)?</strong></p>
+<pre class="mermaid"><code>flowchart TD
+    DATA[&quot;高光谱图像&lt;br/&gt;(健康✔ / 生病✘ / 模糊✖)&quot;] --&gt; ML[&quot;深度模型预测&lt;br/&gt;准确率 ≈ 100%&quot;]
+    ML --&gt; SUS[&quot;😟 太准了,可疑&lt;br/&gt;(任务本应很难)&quot;]
+    SUS --&gt; XAI[&quot;用 Grad-CAM 检查&quot;]
+    XAI --&gt; FIND[&quot;发现:模型在看&lt;b&gt;背景营养液&lt;/b&gt;&lt;br/&gt;而非组织本身 = 伪特征&quot;]
+    FIND --&gt; Q[&quot;❓ 能否纠正成&lt;br/&gt;『因对的理由而对』?&quot;]</code></pre>
+<h3 id="62-三种情形什么时候需要纠正-slide-19">6.2
+三种情形:什么时候需要纠正 (Slide 19)</h3>
+<p>当我们用 XAI
+观察模型时,会遇到三种情况,<strong>只有第三种是本节要解决的</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>情形</th>
+<th>预测</th>
+<th>理由(解释)</th>
+<th>怎么办</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Right for the right
+reasons</strong><br/>对的预测,对的理由</td>
+<td>✅ 对</td>
+<td>✅ 对</td>
+<td><strong>无需任何反馈</strong>,不用动</td>
+</tr>
+<tr class="even">
+<td><strong>Wrong for the wrong
+reasons</strong><br/>错的预测,错的理由</td>
+<td>❌ 错</td>
+<td>❌ 错</td>
+<td><strong>只需让用户给出正确标签</strong>,模型学正确 label 即可</td>
+</tr>
+<tr class="odd">
+<td><strong>Right for the wrong reasons</strong>
+⭐<br/>对的预测,错的理由</td>
+<td>✅ 对</td>
+<td>❌ 错</td>
+<td><strong>必须纠正「理由」</strong>——这是难点,也是本节主角</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="63-纠正法一用反例-counterexamples-slide-19">6.3 纠正法一:用反例
+counterexamples (Slide 19)</h3>
+<p>第一种纠正思路很朴素:<strong>既然模型靠某块无关区域作弊,那就破坏那块区域,逼它别再依赖它。</strong></p>
+<p><strong>做法</strong>:<strong>识别出「错误解释」对应的区域</strong>(如那块营养液),然后往训练集里<strong>加入输入的「修改副本」</strong>——把那些识别出的区域做如下处理之一:</p>
+<ul>
+<li><strong>随机化 (randomized)</strong>:填入随机值;</li>
+<li><strong>改成替代值 (alternative
+value)</strong>:如固定成某个常数;</li>
+<li><strong>替换
+(substituted)</strong>:用<strong>同类别其他训练样本</strong>对应位置的值来填。</li>
+</ul>
+<blockquote>
+<p>💡 <strong>直觉</strong> —
+<strong>核心是「抹掉模型用来作弊的线索」</strong>。当同一类别的样本里,那块区域有时是营养液、有时是随机噪声、有时是别的颜色,模型就<strong>没法再靠它偷懒</strong>,只能回头去看真正相关的组织。这就是「<strong>用反例纠正解释</strong>」。</p>
+</blockquote>
+<h3 id="64-纠正法二right-for-the-right-reasons-rrr-损失-slide-20">6.4
+纠正法二:Right for the Right Reasons (RRR) 损失 (Slide 20)</h3>
+<p>第二种思路更直接地写进<strong>训练损失</strong>里:<strong>既然不想让模型关注无关区域,那就在损失函数里惩罚「模型对无关区域的梯度」。</strong></p>
+<blockquote>
+<p>🧭 <strong>目标</strong> — <strong>最小化「模型输出对『无关区域内的
+feature maps』的梯度」的大小 (magnitude)。</strong> 梯度小 ⇒
+模型对该区域不敏感 ⇒ 它就不会再依赖那块区域做判断。</p>
+</blockquote>
+<p>公式如下(<strong>讲师笑称「这是本课最后一个复杂公式」</strong>,别怕,拆开就好):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>=</mo><munder><munder><mrow><mtext mathvariant="normal">Cross-Entropy</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>y</mi><mo accent="true">̂</mo></mover><mo>,</mo><mi>y</mi><mo>;</mo><mspace width="0.167em"></mspace><mi>c</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">① + ③ 标准交叉熵:预测要对</mtext></munder><mspace width="0.278em"></mspace><mo>+</mo><mspace width="0.278em"></mspace><mi>λ</mi><munder><munder><mrow><munderover><mo>∑</mo><mrow><mi>n</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><munderover><mo>∑</mo><mrow><mi>d</mi><mo>=</mo><mn>1</mn></mrow><mi>D</mi></munderover><msup><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>n</mi><mi>d</mi></mrow></msub><mspace width="0.278em"></mspace><mfrac><mi>∂</mi><mrow><mi>∂</mi><msub><mi>h</mi><mrow><mi>n</mi><mi>d</mi></mrow></msub></mrow></mfrac><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></munderover><mo>log</mo><msub><mover><mi>y</mi><mo accent="true">̂</mo></mover><mrow><mi>n</mi><mi>k</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">② 右理由项 (Right Reasons):理由要对</mtext></munder></mrow><annotation encoding="application/x-tex">L=\underbrace{\text{Cross-Entropy}(\hat{y},y;\,c)}_{\text{① + ③ 标准交叉熵:预测要对}}\;+\;\lambda\underbrace{\sum_{n=1}^{N}\sum_{d=1}^{D}\left(A_{nd}\;\frac{\partial}{\partial h_{nd}}\sum_{k=1}^{K}\log\hat{y}_{nk}\right)^{2}}_{\text{② 右理由项 (Right Reasons):理由要对}}</annotation></semantics></math></p>
+<p><strong>怎么读这个式子?</strong>
+讲师的诀窍是「<strong>拆成几项分别看</strong>」:</p>
+<ul>
+<li><strong>第 ① 和第 ③ 项 = 传统的 cross-entropy
+loss(交叉熵)</strong>:就是你最熟的分类损失,<strong>直接忽略其细节即可</strong>(PyTorch
+一行代码)。
+<ul>
+<li>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>y</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{y}</annotation></semantics></math>
+=
+模型预测;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+= 给每个类的<strong>重加权权重 (rescaling
+weight)</strong>,用于<strong>不平衡数据集</strong>。讲师补充:<strong>可以先把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+当作 1</strong>。这其实就是 Week
+9/10(malware、入侵检测)讲过的处理不平衡的招数之一——<strong>给少数类更大的权重、多数类更小的权重</strong>(另两招是上采样少数类、下采样多数类)。</li>
+</ul></li>
+<li><strong>第 ② 项 =
+本方法的真正贡献,「学对的理由」</strong>。逐符号读:
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+= 训练样本数(对所有样本求和);</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+= 最后一层卷积的 <strong>feature map 数量</strong>(常数);</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>
+= <strong>binary
+mask(二值掩码)</strong>,标记「<strong>我们不想让模型关注的无关区域</strong>」;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>
+= <strong>最后一层卷积层</strong>(<strong>和 Grad-CAM
+用的是同一层</strong>——所以这个损失本质是建立在 Grad-CAM 思想上的);</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mi>∂</mi><mrow><mi>∂</mi><msub><mi>h</mi><mrow><mi>n</mi><mi>d</mi></mrow></msub></mrow></mfrac><msub><mo>∑</mo><mi>k</mi></msub><mo>log</mo><msub><mover><mi>y</mi><mo accent="true">̂</mo></mover><mrow><mi>n</mi><mi>k</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\frac{\partial}{\partial h_{nd}}\sum_k \log\hat{y}_{nk}</annotation></semantics></math>
+= <strong>各类别 logit(的对数)对 feature map
+的偏导(梯度)</strong>——对所有类别
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+求和,意味着「对所有类都不要依赖无关区域」;</li>
+<li>外面套 <strong>squared L2 norm(平方 L2
+范数)</strong>,然后<strong>最小化</strong>它。</li>
+</ul></li>
+</ul>
+<blockquote>
+<p>🧮 <strong>第 ② 项一句话翻译</strong> — <strong>「用掩码 A
+框出无关区域 → 算模型输出对这块区域 feature map 的梯度 →
+把这些梯度的平方和压到最小。」</strong>
+梯度被压小,模型就对这块区域「无动于衷」,自然不会再拿它当判断依据。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(讲师当堂纠的两个记号错)</strong> — 此论文发在
+<strong>Nature</strong>(非传统深度学习期刊),公式记号有两处不规范、但<strong>不影响理解</strong>:①
+该处应是<strong>偏导符号 (partial derivative)</strong>;② 范数应写成 AI
+文献标准的 <strong>squared L2 norm</strong>(双竖线、下标 2、上标
+2),原文写得不严谨。<strong>考试以「理解含义」为准,不必纠结记号。</strong></p>
+</blockquote>
+<blockquote>
+<p>🖼️ <strong>掩码 A 怎么用(讲师举例)</strong> —
+给定图像,<strong>把「不想让模型关注的区域(如营养液)」在掩码里设为
+1,把「相关区域(如组织本身)」设为 0</strong>。这样第 ②
+项就只「盯住」无关区域的梯度去惩罚。</p>
+</blockquote>
+<h3 id="65-实验结果纠正后泛化变强-slides-2122">6.5
+实验结果:纠正后泛化变强 (Slides 21–22)</h3>
+<p><strong>先看「未纠正」的模型有多可疑 (Slide 21)</strong>:用
+<strong>RGB 原图</strong>训练准确率 <strong>89%</strong>,用
+<strong>hyperspectral 高光谱图</strong>训练高达
+<strong>≈99%</strong>(都用普通交叉熵,<strong>不含 RRR
+损失</strong>)。<strong>近乎完美反而可疑</strong>——这任务连人类专家都觉得难。Grad-CAM
+一看,果然:模型在<strong>盯着营养液</strong>作弊。</p>
+<p><strong>再看「纠正前后」的对比 (Slide
+22)</strong>。实验的巧思在于:<strong>在「抹掉了伪特征」的测试集上评估,看谁还撑得住</strong>——把背景这些伪特征换成「非组织区域的逐通道均值」或「整图的逐通道均值」,真正学懂的模型应当<strong>泛化
+(generalization)</strong> 不受影响。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>测试设置</th>
+<th>普通模型 (no corr.)</th>
+<th>RRR 纠正后</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>原始(含伪特征)</td>
+<td>≈ 100%(可疑的高)</td>
+<td>略降(RGB −2%、HS −5% 左右)</td>
+</tr>
+<tr class="even">
+<td>背景换成「<strong>非组织区域</strong>均值」</td>
+<td>仍 ≈
+<strong>81%</strong>(因这颜色仍接近营养液,作弊线索没完全断)</td>
+<td><strong>泛化更好</strong></td>
+</tr>
+<tr class="odd">
+<td>背景换成「<strong>整图</strong>均值」(与营养液差异大)</td>
+<td><strong>暴跌到 ≈ 50%</strong>(作弊线索断了,原形毕露)</td>
+<td><strong>明显优于普通模型</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>💡 <strong>怎么读这张表</strong> —
+普通模型一旦<strong>伪特征被抹掉就崩</strong>(从 100% 掉到
+50%),证明它确实在<strong>靠背景作弊</strong>;RRR
+纠正后的模型<strong>初始准确率略降一点点,却换来对不同背景的稳健泛化</strong>——因为它学会了<strong>只看组织本身</strong>。讲师补充:这些「模型在看哪里」的判断,<strong>全都是用
+Grad-CAM 生成热图、再与原图叠加</strong>得到的。<strong>Grad-CAM
+在这里既是「诊断工具」(发现作弊),又是「疗效检验工具」(确认纠正有效)。</strong></p>
+</blockquote>
+<h3 id="66-人为什么不信任-ai一项调查-slide-23">6.6 人为什么(不)信任
+AI:一项调查 (Slide 23)</h3>
+<p>最后,slides 用一项 <strong>106
+人参与</strong>的调查回答「解释如何影响信任」。让参与者给「<strong>我相信这个
+AI 学到了正确的分类规则</strong>」打分(1–6),在三种条件下对比:</p>
+<pre class="mermaid"><code>flowchart TD
+    NONE[&quot;① 不给解释&quot;] --&gt; R1[&quot;人们&lt;b&gt;倾向于信任高准确率&lt;/b&gt;的模型&quot;]
+    GOOD[&quot;② 给出正确解释&quot;] --&gt; R2[&quot;当模型性能&lt;b&gt;平庸&lt;/b&gt;时,正确解释能&lt;b&gt;提升信任&lt;/b&gt;&lt;br/&gt;(高性能模型本就被信任)&quot;]
+    BAD[&quot;③ 给出错误解释&quot;] --&gt; R3[&quot;⚠️ 即使预测正确,人们&lt;b&gt;也不原谅错误解释&lt;/b&gt;&lt;br/&gt;哪怕 100% 准确,信任也&lt;b&gt;暴跌&lt;/b&gt;&quot;]</code></pre>
+<blockquote>
+<p>🔑 <strong>三条结论(必记)</strong> — ①
+<strong>无解释时,人凭准确率信任</strong>(越准越信);②
+<strong>正确的解释能挽救「性能平庸」的模型的信任</strong>;③
+<strong>错误的解释最致命——哪怕预测 100% 对,信任照样崩。</strong>
+一句话:<strong>解释(explanation)对建立 AI
+信任至关重要;光准没用,理由还得对。</strong></p>
+</blockquote>
+<hr />
+<h2
+id="七回到开篇伪特征对抗样本与鲁棒性-slide-24">七、回到开篇:伪特征、对抗样本与鲁棒性
+(Slide 24)</h2>
+<p>讲到这里,整门课画了一个漂亮的圆。讲师把「伪特征」一路连回<strong>课程的第一周</strong>:</p>
+<blockquote>
+<p>🧭 <strong>闭环洞察(全课收束)</strong> — <strong>adversarial
+examples(对抗样本)正是「模型依赖伪特征」的铁证</strong>:我们只给图像加一点点<strong>人眼难辨的微扰
+(perturbation)</strong>,模型预测就<strong>天翻地覆</strong>——这说明它依赖的根本不是稳健、本质的特征,而是脆弱的捷径。</p>
+<p>而 <strong>Week 3 的 adversarial robustness(对抗鲁棒性)</strong>
+给出了另一面证据:<strong>经过对抗训练 (adversarial training)
+的模型,其鲁棒性竟与人类感知 (human perception) 相通。</strong> slides
+复用了那张图——可视化「损失对输入像素的梯度」(注意:<strong>这里是直接看输入梯度,不是
+Grad-CAM</strong>):<strong>普通训练的模型,梯度像一片噪声;而对抗训练的模型,梯度竟隐约勾勒出物体轮廓,与人的感知吻合。</strong></p>
+</blockquote>
+<blockquote>
+<p>🔑 <strong>大一统的结论</strong> — <strong>「消除捷径学习 (shortcut
+learning)」把三件事统一了起来</strong>:<strong>如果我们能减少 /
+移除模型对 spurious features 的依赖,就能同时(a) 建立对 AI 的信任,(b)
+在实践中抵御 adversarial examples。</strong>
+换句话说——<strong>让模型「因对的理由而对」,既更可信,也更鲁棒。</strong>
+这正是「AI
+与网络安全」这门课从攻击讲到防御、最终想传达的核心价值观。</p>
+</blockquote>
+<hr />
+<h2 id="八本章小结-key-takeaways">八、本章小结 (Key Takeaways)</h2>
+<ul>
+<li><strong>课程定位</strong>:Week 12
+是<strong>收官一讲(较短)</strong>,主题从「能力」转向「<strong>可信
+(trustworthiness)</strong>」。两大线:<strong>LLM
+会不会说谎(幻觉检测)</strong> 与 <strong>DNN 是否凭对的理由(可解释
+AI)</strong>,最终回到开篇的 <strong>adversarial examples</strong>。</li>
+<li><strong>LLM 与 BERT</strong>:<strong>LLM =
+大规模深度学习算法</strong>,带来「<strong>一个模型通吃所有文本任务</strong>」的范式转变,靠超大数据(<strong>ROOTS
+1.6 TB</strong>)训练。<strong>BERT = Transformers(2017,本为翻译)+ Google
+2018</strong>;预训练用<strong>两个无监督任务</strong>——<strong>MLM(遮
+15% 词预测,学词关系)</strong> 与 <strong>NSP(50/50
+判下一句,97–98%,学句关系)</strong>;再<strong>按下游任务用标注数据微调</strong>,同一组预训练权重
+→ 多个专精模型。</li>
+<li><strong>幻觉检测</strong>:<strong>Hallucination = 通顺但事实错 /
+无意义</strong>(成因:数据局限、模型偏见;高危:医疗/法律/工程)。<strong>抓不住不犯错
+→ 检测到就拒答</strong>。方法:<strong>对同一问题多生成几条 → 抽
+embedding(内部状态)→ 算
+EigenScore</strong>(<strong>小=一致/确定,大=发散/疑似幻觉</strong>;同
+STRIP 的 entropy 思路)→ 用
+<strong>AUROC(免阈值,1=完美、0.5=随机)</strong> 评价。结果:EigenScore 在
+LLaMA-7B / Natural Questions 上<strong>大幅超过</strong>
+LN-Entropy、Lexical Similarity。</li>
+<li><strong>XAI
+概念</strong>:<strong>explainability(让用户理解并信任输出)≠
+interpretability(开发者看穿内部计算,仅对线性模型/决策树等简单模型可行)</strong>。类比:能<strong>解释</strong>人的行为,却难<strong>诠释</strong>人脑。</li>
+<li><strong>Grad-CAM(两步公式必会)</strong>:<strong>类判别可视化、不改架构不重训</strong>。①
+重要性权重 = 最后一层卷积的<strong>平均梯度</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>α</mi><mi>k</mi><mi>c</mi></msubsup><mo>=</mo><mfrac><mn>1</mn><mi>Z</mi></mfrac><msub><mo>∑</mo><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mfrac><mrow><mi>∂</mi><msup><mi>y</mi><mi>c</mi></msup></mrow><mrow><mi>∂</mi><msubsup><mi>A</mi><mrow><mi>i</mi><mi>j</mi></mrow><mi>k</mi></msubsup></mrow></mfrac></mrow><annotation encoding="application/x-tex">\alpha_k^c=\frac{1}{Z}\sum_{i,j}\frac{\partial y^c}{\partial A^k_{ij}}</annotation></semantics></math>;②
+热图 = <strong>加权求和 + ReLU</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>L</mi><mi>c</mi></msup><mo>=</mo><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">L</mi><mi mathvariant="normal">U</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mo>∑</mo><mi>k</mi></msub><msubsup><mi>α</mi><mi>k</mi><mi>c</mi></msubsup><msup><mi>A</mi><mi>k</mi></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">L^c=\mathrm{ReLU}(\sum_k\alpha_k^c A^k)</annotation></semantics></math>。<strong>ReLU
+的意义:只留「值与梯度同号(乘积&gt;0)」的、支持目标类的特征。</strong>
+能解释分类/描述、揭穿对抗样本与可见后门(BadNets/Blended),<strong>但对隐形后门
+SSBA 失效</strong>。</li>
+<li><strong>让 DNN 因对的理由而对</strong>:<strong>spurious
+features(伪特征)=
+与任务无关却被拿来抄近道的特征</strong>(植物例子:看背景营养液而非组织 →
+「对预测、错理由、不可信」)。三情形:<strong>right-right 不管 /
+wrong-wrong 给标签 / right-wrong
+纠理由(主角)</strong>。两种纠正法:<strong>①
+counterexamples</strong>(把伪特征区域随机化/替换后加回训练集);<strong>②
+RRR
+loss</strong>——在交叉熵外加**「右理由项」<strong>,用</strong>二值掩码
+A** 框出无关区域、<strong>最小化输出对该区域 feature map 梯度的平方 L2
+范数</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>
+即 Grad-CAM
+用的最后一层卷积)。结果:<strong>普通模型抹掉伪特征即崩(100%→50%),RRR
+模型略降准确率却换来稳健泛化</strong>。信任调查:<strong>无解释→凭准确率信;正确解释→救平庸模型;错误解释→哪怕
+100% 准也信任暴跌</strong>。</li>
+<li><strong>全课闭环</strong>:<strong>对抗样本 =
+依赖伪特征的铁证;对抗鲁棒性与人类感知相通</strong>(对抗训练模型的输入梯度勾勒出物体轮廓)。<strong>消除捷径学习
+= 同时获得「可信」与「鲁棒」。</strong></li>
+</ul>
+<blockquote>
+<p>📌 <strong>一页纸记忆锚点</strong> — <strong>前沿 =
+从「准」到「可信」。LLM 半:幻觉(通顺但错)→ 多生成看不确定 → embedding 算
+EigenScore(大=幻觉,类比 STRIP 的 entropy)→ AUROC(免阈值,1/0.5)评价;底座
+BERT = Transformers + MLM(学词)+NSP(学句)+ 微调。XAI
+半:explainability(信任,对用户)≠ interpretability(看穿,对开发者)→
+Grad-CAM:① 末层卷积平均梯度=权重,②
+加权和+ReLU(值×梯度同号才留);能揪可见后门、揪不了 SSBA →
+伪特征(植物看营养液=右预测错理由)→ 纠正:反例 / RRR 损失(掩码 A
+压无关区梯度)→ 普通模型抹背景即崩,RRR 泛化强;解释错=信任崩 →
+闭环:伪特征↔︎对抗样本,消捷径=可信+鲁棒。</strong></p>
+</blockquote>
+<hr />
+<h2 id="九与课程主线--相邻周的关联">九、与课程主线 / 相邻周的关联</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>关联点</th>
+<th>说明</th>
+<th>对应章节</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>承接 Week 4–5(backdoor)</strong></td>
+<td>Grad-CAM 能定位 <strong>BadNets / Blended</strong> 的 trigger,却对
+<strong>invisible backdoor(SSBA)</strong> 失效——直接复用 backdoor
+周的攻击概念;EigenScore 又类比 backdoor 防御 <strong>STRIP 的
+entropy</strong> 思路</td>
+<td>§五、§三</td>
+</tr>
+<tr class="even">
+<td><strong>承接 Week 9–10(malware / 入侵检测)</strong></td>
+<td>RRR 损失里的 <strong>per-class rescaling weight
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math></strong>
+正是这两周讲的<strong>不平衡数据</strong>处理三招之一(重加权 / 上采样 /
+下采样)</td>
+<td>§6.4</td>
+</tr>
+<tr class="odd">
+<td><strong>回到 Week 1–3(对抗样本 / 鲁棒性)</strong></td>
+<td>全章最后明确收束:<strong>对抗样本 =
+伪特征的证据;对抗训练的鲁棒性与人类感知相通;消除捷径 = 可信 +
+鲁棒</strong>。前沿话题把整门课串成一个圆</td>
+<td>§七</td>
+</tr>
+<tr class="even">
+<td><strong>回顾 Week 1 基础(ReLU / 梯度)</strong></td>
+<td>Grad-CAM 的 ReLU 直觉、「沿梯度方向移动可增大目标 logit」直接复用
+Week 1 讲 FGSM / C&amp;W 时的梯度概念</td>
+<td>§5.3</td>
+</tr>
+<tr class="odd">
+<td><strong>录音位置(说明)</strong></td>
+<td>本周内容<strong>完整且自包含</strong>在
+<code>CSIT375975 Lecture 12-transcript.txt</code>(开篇「today we're
+talking about Current trends in AI and cybersecurity」起,结尾「this
+concludes this subject」止),与 25 页 slides
+<strong>高度一致,未散落到相邻周</strong>(Lecture 11
+结尾仅预告本讲)。本指南据二者完整整合</td>
+<td>全章</td>
+</tr>
+<tr class="even">
+<td><strong>录音尾段答疑(超出 slides)</strong></td>
+<td>课末有同学问「<strong>XAI 与 LLM
+有关吗</strong>」。讲师答:<strong>Grad-CAM 只用于 CNN,与 LLM
+无关</strong>;LLM 也有自己的 XAI 技术,例如
+<strong>probing(探针)</strong>——在 LLM 的某个中间层(如第 3/5
+层)<strong>外接一个简单线性模型</strong>,看该层 embedding
+是否已含某任务(如情感)的信息,从而判断「哪一层学到了什么」。<strong>属课外延伸,了解即可</strong></td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🧭 <strong>课程收尾预告</strong> —
+讲师在本讲结束时宣布:<strong>「至此本课所有主题讲完。」下一周(Week
+13)是复习课 + 讲解期末考试 (final exam)</strong>;并提醒
+<strong>Assignment 2 下周截止</strong>。本指南是「用 AI
+解决安全」与「攻击/防御」两条主线的<strong>前沿落点</strong>,也是全课的句号——复习时可把它当作把前
+11 周串起来的「总览图」。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

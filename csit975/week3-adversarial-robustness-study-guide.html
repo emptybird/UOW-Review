@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 3 · 对抗鲁棒性 (Adversarial Robustness)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-3--对抗鲁棒性-adversarial-robustness">Week 3 · 对抗鲁棒性
+(Adversarial Robustness)</h1>
+<blockquote>
+<p><strong>CSIT375/975 — AI and Cybersecurity</strong> · Dr Wei Zong ·
+University of Wollongong</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>解释</strong>为什么"防御对抗样本"可以被写成一个
+<strong>saddle point(鞍点)</strong> 的 <strong>min–max
+优化问题</strong>,说清里层 max 是"攻击"、外层 min 是"训练鲁棒模型";</li>
+<li><strong>复现</strong> adversarial
+training(对抗训练)的核心做法——"训练时不喂干净图、改喂 PGD
+攻击图",并解释它为什么有效、为什么用 PGD、以及它在 CIFAR-10 上对 FGSM /
+PGD / 白盒 / 黑盒的实验结论;</li>
+<li><strong>说清</strong> adversarial training 的两大局限:(1)
+<strong>慢</strong>(为什么大约 7 倍慢),以及 <strong>"free" adversarial
+training</strong> 如何用"一次 backward 拿到两套梯度"把它救回来;(2)
+<strong>挡不住新型攻击</strong>(如 stAdv 空间变换);</li>
+<li><strong>比较</strong> input
+transformation(输入变换)防御的几种手段(crop-ensemble、bit-depth
+reduction、JPEG、total variation、image quilting),并区分
+<strong>deterministic vs. stochastic</strong> 变换在 gray-box /
+black-box 下的强弱;</li>
+<li><strong>推导</strong> 自适应攻击 <strong>EOT(Expectation over
+Transformation,变换期望)</strong>
+如何用"梯度的期望(均值)"击穿随机预处理防御,并讲清它和物理攻击是同一个思想;</li>
+<li><strong>设计</strong>一个检测器:用 <strong>decision boundary
+patterns(决策边界模式)</strong>
+把对抗样本和正常输入区分开(speech-to-text 案例:特征提取 → t-SNE →
+EllipticEnvelope);</li>
+<li><strong>反思</strong>对抗样本到底说明了什么——<strong>human vs.
+machine intelligence 的不一致</strong>、<strong>shortcut
+learning(捷径学习)</strong>
+如何解释对抗样本、以及"消除捷径学习"为什么可能是终极解法。</li>
+</ul>
+</blockquote>
+<p>上一周(Week
+2)我们站在<strong>攻击者</strong>的视角,把对抗样本从定义、白盒三大攻击(FGSM/PGD/CW)、灰盒/黑盒,一路讲到物理攻击、通用扰动
+(UAPs)
+和不受限攻击。这一周我们<strong>换到防御者的视角</strong>,问一个对称的问题:<strong>既然模型这么容易被骗,我们能不能造出"骗不倒"的模型?</strong>
+这就是 <strong>adversarial robustness(对抗鲁棒性)</strong>。</p>
+<p>讲师把本章的防御手段分成三大家族,外加一段"哲学反思",构成全章的骨架:</p>
+<pre class="mermaid"><code>flowchart TD
+    Q[&quot;如何防御对抗样本?&quot;]
+    Q --&gt; D1[&quot;&lt;b&gt;① 对抗训练&lt;/b&gt;&lt;br/&gt;Adversarial Training&lt;br/&gt;让模型&lt;u&gt;天生&lt;/u&gt;就robust&quot;]
+    Q --&gt; D2[&quot;&lt;b&gt;② 输入变换&lt;/b&gt;&lt;br/&gt;Input Transformations&lt;br/&gt;把扰动&lt;u&gt;破坏掉&lt;/u&gt;再喂模型&quot;]
+    Q --&gt; D3[&quot;&lt;b&gt;③ 检测&lt;/b&gt;&lt;br/&gt;Detection&lt;br/&gt;认出是攻击就&lt;u&gt;直接拒绝&lt;/u&gt;&quot;]
+    D1 --&gt; A[&quot;攻击者反击:&lt;br/&gt;自适应攻击 (EOT) /&lt;br/&gt;新型攻击&quot;]
+    D2 --&gt; A
+    D3 --&gt; A
+    A --&gt; R[&quot;&lt;b&gt;④ 反思&lt;/b&gt;&lt;br/&gt;为什么对抗样本会存在?&lt;br/&gt;shortcut learning&quot;]</code></pre>
+<blockquote>
+<p>📎 <strong>本章横跨两节课的录音(重要)</strong> — 这份 "Adversarial
+Robustness" slides 同样讲了<strong>两次课</strong>:Lecture 3 讲完了 ①
+对抗训练、② 输入变换、③ 自适应攻击 EOT(slide 23)就下课了;<strong>③
+检测对抗样本</strong> 和 <strong>④ 反思</strong>(slide 24–34)是在
+<strong>Lecture 4(Week
+4)一开头补完的</strong>,讲师说"上周讲了对抗鲁棒性……现在讲一种不同的防御:检测"。<strong>本指南整合了这两节录音</strong>,所以全部内容都有课堂讲解支撑、是完整的。</p>
+<p>⚠️ <strong>与 Assignment 1 的强关联</strong> — 讲师反复点名:本章的
+<strong>lab 2 = 实现对抗训练</strong>;<strong>Assignment 1 的 task 3 =
+用 EOT 这套自适应攻击去击穿一个用 crop-ensemble
+保护的模型</strong>。所以"对抗训练"和"EOT"两节是要动手写代码的,务必吃透。</p>
+</blockquote>
+<hr />
+<h2 id="一对抗训练-adversarial-training把模型练成打不倒">一、对抗训练
+(Adversarial Training):把模型练成"打不倒"</h2>
+<h3 id="11-核心问题与一个优化视角">1.1 核心问题与一个优化视角</h3>
+<p>防御的第一条路线最直接:<strong>能不能在训练阶段就让深度神经网络对对抗输入免疫?</strong>
+讲师把这个问题提炼成一句话——</p>
+<blockquote>
+<p><strong>关键问题</strong> — How can we train deep neural networks
+that are <strong>robust to adversarial
+inputs</strong>?(怎样训练出"喂它对抗样本也骗不倒"的网络?)</p>
+</blockquote>
+<p>要回答它,先要换一个<strong>优化 (optimization)
+的视角</strong>来看。这里需要一个数学概念:<strong>saddle
+point(鞍点)</strong>。</p>
+<blockquote>
+<p>📎 <strong>关键概念 — Saddle point(鞍点)</strong> —
+鞍点是函数图像上这样一个位置:<strong>所有方向的梯度都消失(都为
+0)</strong>,但它<strong>既不是全局最小、也不是局部最小</strong>。经典例子是曲面
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><msup><mi>x</mi><mn>2</mn></msup><mo>−</mo><msup><mi>y</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">z = x^2 - y^2</annotation></semantics></math>:在原点处梯度为零,但沿
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+方向它是"谷底"(往上凸)、沿
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+方向它是"山顶"(往下凹)。整个形状像一副<strong>马鞍</strong>(saddle),"鞍点"因此得名。</p>
+</blockquote>
+<p>为什么防御要扯上鞍点?因为对抗鲁棒性可以被精确地写成一个**"一边想最大化、一边想最小化"**的优化问题——而这种
+min–max 结构的解,正是鞍点。</p>
+<h3 id="12-鞍点公式里层攻击外层训练">1.2
+鞍点公式:里层攻击、外层训练</h3>
+<p>这是本章<strong>最重要的一个公式</strong>(Madry et al.,
+2017),务必理解它的两层结构:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mtext mathvariant="normal">minimize</mtext><mi>θ</mi></munder><mspace width="0.278em"></mspace><mspace width="0.278em"></mspace><msub><mi>𝔼</mi><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∼</mo><mi>D</mi></mrow></msub><mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">[</mo><mspace width="0.278em"></mspace><munder><mtext mathvariant="normal">maximize</mtext><mrow><mi>δ</mi><mo>∈</mo><mi>S</mi></mrow></munder><mspace width="0.278em"></mspace><mspace width="0.278em"></mspace><mo>ℓ</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>θ</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>x</mi><mo>+</mo><mi>δ</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.278em"></mspace><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\underset{\theta}{\text{minimize}} \;\; \mathbb{E}_{(x,y)\sim D}\Big[\; \underset{\delta \in S}{\text{maximize}} \;\; \ell(\theta,\, x+\delta,\, y) \;\Big]</annotation></semantics></math></p>
+<p>讲师强调,这种"min 套 max"的鲁棒优化 (robust optimization)
+形式<strong>历史悠久,最早能追溯到 1945 年</strong>(差不多 80
+年前)。把它拆成里、外两层来读:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>层</th>
+<th>是谁在做</th>
+<th>目标</th>
+<th>它其实就是……</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>里层 maximize</strong>(对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>)</td>
+<td><strong>攻击者</strong></td>
+<td>找一个扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>,让损失
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>ℓ</mo><annotation encoding="application/x-tex">\ell</annotation></semantics></math>
+尽可能<strong>大</strong></td>
+<td><strong>攻击这个网络</strong>(生成对抗样本)</td>
+</tr>
+<tr class="even">
+<td><strong>外层 minimize</strong>(对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>)</td>
+<td><strong>防御者 / 模型拥有者</strong></td>
+<td>调模型参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>,让"被攻击后的最大损失"尽可能<strong>小</strong></td>
+<td><strong>用对抗训练训练一个鲁棒分类器</strong></td>
+</tr>
+</tbody>
+</table></div>
+<pre class="mermaid"><code>flowchart LR
+    subgraph IN[&quot;里层 max(攻击)&quot;]
+      X[&quot;干净输入 x&quot;] --&gt; ADV[&quot;生成 x+δ&lt;br/&gt;让 loss 最大&quot;]
+    end
+    ADV --&gt; OUT[&quot;外层 min(训练)&quot;]
+    subgraph OUT[&quot;外层 min(训练)&quot;]
+      OPT[&quot;优化参数 θ&lt;br/&gt;让被攻击后的 loss 最小&quot;]
+    end
+    OPT --&gt;|&quot;模型变强 → 攻击者再加强 →……&quot;| EQ[&quot;最终在鞍点达到平衡:&lt;br/&gt;模型无法更好,攻击也无法更强&quot;]</code></pre>
+<p>讲师用一个很直观的"博弈"来形容这个过程:横轴是损失值,<strong>攻击者想把损失往大里推,防御者想把损失往小里拉,两人互相较劲,最终停在一个谁也动不了的平衡点</strong>——这就是鞍点形式的含义。</p>
+<blockquote>
+<p>💡 <strong>直觉一句话</strong> —
+普通训练只在"干净世界"里把损失降到最低;对抗训练是在"被攻击的最坏情况下"把损失降到最低。所以它学到的模型,自然更扛揍。</p>
+</blockquote>
+<h3 id="13-为什么鲁棒需要更复杂的分类器">1.3
+为什么鲁棒需要"更复杂的分类器"?</h3>
+<p>直觉上,<strong>robust
+的代价是模型要更复杂</strong>。讲师用一组三联图(standard vs. adversarial
+decision boundaries)说明:</p>
+<ul>
+<li><strong>左图</strong>:一堆绿点和蓝点,用一条<strong>简单的直线</strong>就能
+100% 分开。分类器很简单,但<strong>不鲁棒</strong>。</li>
+<li><strong>中图</strong>:回忆 Week 2——对抗扰动用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+约束,意味着每个点周围有一个<strong>正方形的"球"</strong>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>-ball)。那条简单直线<strong>穿不过这些方块</strong>,于是方块里靠近边界的点轻轻一推就越界了——红色星星就是生成出来的对抗样本。</li>
+<li><strong>右图</strong>:要把这些方块<strong>整个</strong>分到正确一侧,边界必须弯成一条<strong>复杂得多的曲线</strong>。这样的分类器才对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+有界扰动鲁棒。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>课堂答疑精华 — 不同
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>p</mi></msub><annotation encoding="application/x-tex">L_p</annotation></semantics></math>
+球长什么形状?</strong> 讲师当场提问:把约束从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+换成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>,"球"会变成什么形状?答案值得记:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>范数</th>
+<th>扰动可达区域的形状</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math></td>
+<td><strong>正方形 (square)</strong></td>
+<td>每个像素独立地在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>±</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">\pm\epsilon</annotation></semantics></math>
+内动</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math></td>
+<td><strong>圆形 (circle)</strong></td>
+<td>欧氏距离,整体能量受限</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math></td>
+<td><strong>菱形 / 钻石形 (diamond)</strong></td>
+<td>鼓励"少数像素大改"</td>
+</tr>
+</tbody>
+</table></div>
+<p>给定一个输入点,你能把它修改到的所有位置,就落在以它为中心的这个形状内部。</p>
+</blockquote>
+<pre class="mermaid"><code>flowchart LR
+    S[&quot;简单分类器&lt;br/&gt;(直线)&quot;] --&gt;|&quot;容易被对抗样本攻破&quot;| W[&quot;❌ 不鲁棒&quot;]
+    C[&quot;复杂分类器&lt;br/&gt;(弯曲边界)&quot;] --&gt;|&quot;能把整个 Lp-ball 分对&quot;| ROK[&quot;✅ 鲁棒&quot;]</code></pre>
+<h3 id="14-怎么实现训练时把干净图换成pgd-攻击图">1.4
+怎么实现?——训练时把"干净图"换成"PGD 攻击图"</h3>
+<p>对抗训练的实现<strong>惊人地简单</strong>。讲师强调,经验上
+<strong>PGD 是最佳的攻击选择</strong>(adversary of choice),用 PGD
+生成训练攻击能得到最好的鲁棒性。与普通训练的唯一区别就一行:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> batch_idx, (inputs, targets) <span class="kw">in</span> <span class="bu">enumerate</span>(train_loader):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    inputs, targets <span class="op">=</span> inputs.to(device), targets.to(device)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    optimizer.zero_grad()</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    adv <span class="op">=</span> PGD_attack(inputs, targets)   <span class="co"># ← 唯一的区别:先把干净图变成 PGD 对抗样本</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    adv_outputs <span class="op">=</span> net(adv)              <span class="co">#   再喂给模型</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    loss <span class="op">=</span> criterion(adv_outputs, targets)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    loss.backward()</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    optimizer.step()</span></code></pre></div>
+<blockquote>
+<p>💡 <strong>对应鞍点公式</strong> — 普通训练喂的是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>;对抗训练喂的是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>+</mo><mi>δ</mi></mrow><annotation encoding="application/x-tex">x+\delta</annotation></semantics></math>(即
+<code>adv</code>)。也就是说,<strong>模型不是用干净图优化的,而是用攻击图优化的</strong>——这正是外层
+min 作用在里层 max 的产物。<code>PGD_attack</code> 这一步就是在解里层的
+maximize。</p>
+</blockquote>
+<h3 id="15-实验结果pgd-训练最强但有代价">1.5 实验结果:PGD
+训练最强,但有代价</h3>
+<p>讲师在 CIFAR-10 上比较了两种模型(一个简单 ResNet、一个更大的 wide
+ResNet),在三种训练方式下、面对不同攻击的表现。把结论记牢:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>训练方式 \ 测试攻击</th>
+<th>干净图 (clean)</th>
+<th>FGSM 攻击</th>
+<th>PGD 攻击</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>标准训练</strong>(只用干净图)</td>
+<td>90%+ ✅</td>
+<td>掉到 ~30%</td>
+<td>掉到 ~1% ❌</td>
+</tr>
+<tr class="even">
+<td><strong>用 FGSM 做对抗训练</strong></td>
+<td>高</td>
+<td>鲁棒 ✅</td>
+<td>仍被打到 ~0% ❌</td>
+</tr>
+<tr class="odd">
+<td><strong>用 PGD 做对抗训练</strong></td>
+<td>略降</td>
+<td>鲁棒 ✅</td>
+<td><strong>鲁棒(最好)</strong> ✅</td>
+</tr>
+</tbody>
+</table></div>
+<p>三条核心结论:</p>
+<ol type="1">
+<li><strong>普通模型不堪一击</strong>:标准训练的模型,PGD
+几乎能把准确率打到 1%(Week 2 已见识过)。</li>
+<li><strong>用什么攻击训练,就只对什么攻击鲁棒</strong>:只用 FGSM
+训练,模型挡得住 FGSM,却仍被更强的 PGD 打穿。<strong>只有用 PGD
+训练,才同时挡住 FGSM 和 PGD</strong>——这就是"用 PGD
+训练最好"的经验依据。</li>
+<li><strong>鲁棒不是免费的</strong>:对抗训练会<strong>降低模型在干净数据上的准确率</strong>(adversarial
+training lowers clean accuracy)——这是个反复出现的 trade-off。</li>
+</ol>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides 的一个有趣现象)— Label
+leakage(标签泄露)</strong> — 讲师提到一个"反常"观察:用 FGSM
+做对抗训练时,模型在 <strong>FGSM
+攻击图上的准确率竟然比在干净图上还高</strong>。这叫 <strong>label
+leakage</strong>(标签从攻击构造过程中"漏"给了模型)。细节不要求掌握,知道这个名词、知道"它是个怪现象"即可,感兴趣可自行搜索。</p>
+</blockquote>
+<p>还有一组实验进一步把攻击设定细分(模型始终用 PGD 对抗训练):</p>
+<ul>
+<li><strong>A(白盒)</strong>:PGD,用不同迭代次数/重启次数。</li>
+<li><strong>A'(黑盒)</strong>:独立再训一个同款模型的副本(也做了对抗训练)来生成攻击,迁移过来。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mrow><mi>n</mi><mi>a</mi><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">A_{nat}</annotation></semantics></math>(黑盒)</strong>:副本<strong>只用干净图</strong>训练,再迁移攻击。</li>
+</ul>
+<blockquote>
+<p><strong>结论</strong>:即便模型是用 PGD 对抗训练过的,<strong>PGD
+自己仍然是最强的攻击</strong>(表里加粗的最成功攻击基本都是白盒
+PGD)。黑盒迁移攻击普遍弱于白盒。</p>
+</blockquote>
+<h3 id="16-局限一太慢--免费对抗训练-adversarial-training-for-free">1.6
+局限一:太慢 → "免费"对抗训练 (Adversarial Training for Free)</h3>
+<p>朴素对抗训练有个硬伤:<strong>慢</strong>。原因在 1.4 的代码里——每个
+iteration 都要先 <code>PGD_attack</code> 生成攻击,而 PGD
+本身要跑很多步反向传播 (backward propagation)。</p>
+<blockquote>
+<p>📎 <strong>课堂答疑精华 — 为什么恰好是"约 7 倍"慢,而不是 10 倍、20
+倍?</strong> 因为实验用的是 <strong>7-step
+PGD</strong>。训练里最贵的操作就是算梯度(backward),7 步 PGD
+就要<strong>额外</strong>算 7 次梯度。所以朴素对抗训练大约比普通训练慢
+<strong>7 倍</strong>。</p>
+</blockquote>
+<p><strong>救星(Shafahi et al., 2019)的关键洞察</strong>:在 PyTorch
+里调用一次
+<code>loss.backward()</code>,其实会<strong>同时</strong>算出两套梯度——</p>
+<pre class="mermaid"><code>flowchart LR
+    B[&quot;一次 loss.backward()&quot;] --&gt; G1[&quot;∂loss/∂参数 θ&lt;br/&gt;→ 用来&lt;b&gt;训练模型&lt;/b&gt;&quot;]
+    B --&gt; G2[&quot;∂loss/∂输入 x&lt;br/&gt;→ 用来&lt;b&gt;生成对抗样本(PGD 一步)&lt;/b&gt;&quot;]</code></pre>
+<p>既然训练模型时<strong>反正要</strong>算"对参数的梯度",那这次 backward
+顺带产出的"对输入的梯度"就别浪费了——<strong>直接拿它生成攻击,不必再额外跑
+PGD 的多次 backward</strong>。这就是 <strong>free adversarial
+training(免费对抗训练)</strong>
+的核心:<code>free = 几乎不额外花时间就拿到了鲁棒性</code>。</p>
+<p>实现上的两个要点:</p>
+<pre class="text"><code>初始化 θ、δ=0
+for epoch in epochs/M:                # ← 注意:总轮数除以 M,保持总计算量不变
+    for minibatch in data:
+        # 一次 backward 拿到全部梯度
+        用 ∂loss/∂θ      → 梯度下降更新模型参数
+        用 ∂loss/∂input  → sign × 小步长,更新扰动 δ(就是 1 步 PGD)
+        # 把同一个 minibatch 重放 M 次(mini-batch replay),模拟多步 PGD</code></pre>
+<ul>
+<li><strong>Mini-batch replay(小批量重放)</strong>:一步 PGD 不够,真正的
+PGD 要迭代多次。于是对<strong>同一批数据连续更新 M 次</strong>,用 M
+次重放来模拟 M-step PGD 的效果。为保持总计算量,把总 epoch 数除以
+M。</li>
+<li><strong>M 不能太大</strong>:M
+太大意味着模型反复盯着同一批数据猛练,会**"遗忘"已学的知识**(model
+forgets,因为隔很久才再见到同一个输入)。极端情况 M =
+总输入数时,同一个输入在重放后就再也见不到了。讲师给的经验对照:朴素
+7-step PGD 对抗训练大致相当于把 M 设到 <strong>16</strong>
+那么大——而那已经偏大、开始伤性能了。</li>
+</ul>
+<blockquote>
+<p><strong>结果(CIFAR-10)</strong>:M 在 <strong>8
+左右</strong>时鲁棒性最好;此时达到的鲁棒性<strong>和朴素 7-step PGD
+对抗训练相当</strong>。更妙的是,讲师强调<strong>无论 M
+取多少,总训练时间几乎不变</strong>,基本等于<strong>普通(natural)训练</strong>的时间——而朴素对抗训练要慢约
+<strong>7 倍</strong>。一句话:<strong>几乎免费地拿到了 PGD
+级别的鲁棒性</strong>。</p>
+</blockquote>
+<h3 id="17-局限二挡不住新型攻击">1.7 局限二:挡不住"新型攻击"</h3>
+<p>对抗训练在算法里<strong>显式假设了攻击长什么样</strong>(通常是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>p</mi></msub><annotation encoding="application/x-tex">L_p</annotation></semantics></math>
+约束下的
+PGD/FGSM)。问题是:模型发布后,攻击者可以换一种<strong>基于不同假设</strong>的攻击。</p>
+<blockquote>
+<p>🔑 <strong>例 — stAdv(spatially transformed adversarial
+examples,空间变换对抗样本)</strong> — 回忆 Week 2 的"不受限攻击":stAdv
+<strong>不用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-norm
+约束扰动</strong>,而是<strong>轻微挪动像素的位置</strong>。实验里,对在
+MNIST / CIFAR-10 上做过对抗训练的模型(含 ResNet32、wide ResNet34):</p>
+<ul>
+<li>面对传统的 FGSM、CW 攻击:防御有效,攻击成功率压到 <strong>&lt;
+10%</strong>;</li>
+<li>面对 stAdv 这种<strong>新型攻击</strong>:成功率<strong>飙到 30%
+以上</strong>——防御基本失效。</li>
+</ul>
+<p><strong>教训</strong>:对抗训练只对"它训练时见过的那类攻击"鲁棒,换一个超出假设的攻击就破功。</p>
+</blockquote>
+<hr />
+<h2
+id="二输入变换防御-input-transformations-as-defence把扰动洗掉">二、输入变换防御
+(Input Transformations as Defence):把扰动"洗掉"</h2>
+<h3 id="21-思路与目标">2.1 思路与目标</h3>
+<p>第二条路线不动模型,而是<strong>在输入进模型之前先做一道变换</strong>(旋转、缩放、压缩……),把对抗扰动<strong>破坏掉</strong>。</p>
+<blockquote>
+<p>📎 <strong>为什么这招能成?</strong>
+对抗扰动不是随机噪声,它是<strong>靠优化精心算出来的、有特定结构
+(particular structure)</strong>
+的东西。变换打乱这个结构,扰动就失效了。</p>
+</blockquote>
+<p><strong>目标的两难</strong>(要同时满足):</p>
+<ul>
+<li>✅ <strong>去掉</strong>输入图里的对抗扰动;</li>
+<li>✅ <strong>保留</strong>足够信息,让模型还能正确分类。</li>
+</ul>
+<blockquote>
+<p>⚠️ <strong>关键细节</strong> —
+变换必须在<strong>训练和测试时都做</strong>。否则模型训练时没见过"被旋转/压缩过的图",一上来就喂它变换后的图,<strong>干净准确率会大幅下降</strong>。</p>
+</blockquote>
+<h3 id="22-五种变换手段">2.2 五种变换手段</h3>
+<pre class="mermaid"><code>flowchart TD
+    IT[&quot;输入变换防御&quot;]
+    IT --&gt; T1[&quot;&lt;b&gt;Crop-ensemble&lt;/b&gt;&lt;br/&gt;随机裁剪+缩放,如30个crop&lt;br/&gt;取预测&lt;u&gt;平均&lt;/u&gt; · 含随机性&quot;]
+    IT --&gt; T2[&quot;&lt;b&gt;Bit-depth reduction&lt;/b&gt;&lt;br/&gt;量化,降到3 bit&lt;br/&gt;抹掉小的像素变化 · 确定性&quot;]
+    IT --&gt; T3[&quot;&lt;b&gt;JPEG compression&lt;/b&gt;&lt;br/&gt;质量75压缩&lt;br/&gt;去小扰动、保画质 · 确定性&quot;]
+    IT --&gt; T4[&quot;&lt;b&gt;Total variation min.&lt;/b&gt;&lt;br/&gt;去除图像中的小扰动&quot;]
+    IT --&gt; T5[&quot;&lt;b&gt;Image quilting&lt;/b&gt;&lt;br/&gt;用&#39;干净patch库&#39;拼出新图 · 含随机性&quot;]</code></pre>
+<p>重点讲两个:</p>
+<ul>
+<li><strong>Ensemble
+cropping-rescaling(裁剪-缩放集成)</strong>:给一张图,<strong>随机裁成多块(如
+30 块)→ 各自缩放回原尺寸 → 全部喂模型 →
+预测取平均</strong>。因为每次随机裁剪,<strong>自带随机性
+(stochastic)</strong>。</li>
+<li><strong>Image quilting(图像拼接)</strong>:事先从 ImageNet
+训练集<strong>抽取约 100 万个随机小
+patch</strong>,构成一个<strong>只含干净图</strong>的 patch
+库。给一张输入图,<strong>用 K 近邻 (KNN) 在像素空间找相似
+patch</strong>,再把这些干净 patch <strong>拼 (quilt)
+成一张新图</strong>喂模型。本质是"用干净碎片重画一遍",从而甩掉扰动。</li>
+</ul>
+<blockquote>
+<p>💡 <strong>assignment 关联</strong> — 讲师明确说:<strong>Assignment 1
+的 task 3 里,你要攻击的那个防御,用的就是 crop-rescaling(ensemble crop
+with scaling)</strong>。所以这个变换要特别熟。</p>
+</blockquote>
+<h3 id="23-实验设置与攻击强度的度量">2.3 实验设置与攻击强度的度量</h3>
+<ul>
+<li><strong>目标模型</strong>:ResNet-50,在 ImageNet(&gt;100
+万张图)上训练。</li>
+<li><strong>攻击</strong>:FGSM、<strong>I-FGSM</strong>(iterative
+FGSM,反复套用 FGSM——很像 PGD,区别是 <strong>I-FGSM 不把扰动投影回
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-norm
+球</strong>)、<strong>CW
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math></strong>
+攻击。</li>
+<li><strong>攻击强度度量</strong> — <strong>Normalized
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>-dissimilarity(归一化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+差异度)</strong>:</li>
+</ul>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac><mrow><mo stretchy="false" form="postfix">∥</mo><msub><mi>x</mi><mi>n</mi></msub><mi>′</mi><mo>−</mo><msub><mi>x</mi><mi>n</mi></msub><msub><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msub></mrow><mrow><mo stretchy="false" form="postfix">∥</mo><msub><mi>x</mi><mi>n</mi></msub><msub><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msub></mrow></mfrac><annotation encoding="application/x-tex">\frac{\|x_n&#39; - x_n\|_2}{\|x_n\|_2}</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>n</mi></msub><annotation encoding="application/x-tex">x_n</annotation></semantics></math>
+是干净图、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>n</mi></msub><mi>′</mi></mrow><annotation encoding="application/x-tex">x_n&#39;</annotation></semantics></math>
+是攻击图。它衡量<strong>扰动相对于原图的相对大小</strong>:值越大 →
+失真越大、攻击越强。后面所有结果图的横轴就是它。</p>
+<h3 id="24-三种威胁模型下的结果关键">2.4
+三种威胁模型下的结果(关键!)</h3>
+<p>讲师用三个逐步逼近现实的设定来考验这些防御。<strong>这一节是本章最容易考的对比</strong>,务必记住"谁在什么设定下行/不行,以及为什么"。</p>
+<pre class="mermaid"><code>flowchart TD
+    S1[&quot;&lt;b&gt;设定①:Gray-box&lt;/b&gt;&lt;br/&gt;知道模型权重,&lt;u&gt;不知道&lt;/u&gt;有防御&lt;br/&gt;(变换&lt;u&gt;未&lt;/u&gt;进训练增强)&quot;]
+    S2[&quot;&lt;b&gt;设定②:Black-box&lt;/b&gt;&lt;br/&gt;算不出梯度,也不知道防御&lt;br/&gt;(变换&lt;u&gt;已&lt;/u&gt;进训练增强)&quot;]
+    S3[&quot;&lt;b&gt;设定③:Gray-box&lt;/b&gt;&lt;br/&gt;知道权重,&lt;u&gt;不知道&lt;/u&gt;防御&lt;br/&gt;(变换&lt;u&gt;已&lt;/u&gt;进训练增强)&quot;]
+    S1 --&gt; R1[&quot;crop-ensemble 维持 40–60%&lt;br/&gt;quilting 几乎不掉(但伤干净准确率)&quot;]
+    S2 --&gt; R2[&quot;&lt;b&gt;所有&lt;/b&gt;防御鲁棒性大幅提升&lt;br/&gt;quilting 对四种攻击挡住 80–90%&quot;]
+    S3 --&gt; R3[&quot;bit-depth / JPEG &lt;u&gt;弱&lt;/u&gt;(被打到~0)&lt;br/&gt;crop-ensemble / quilting 仍鲁棒(~50%)&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>设定</th>
+<th>攻击者知道什么</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>① Gray-box,防御未进训练增强</strong></td>
+<td>知道模型(含权重),能算输入梯度;<strong>不知道有变换</strong></td>
+<td><strong>crop-ensemble 很高效</strong>(维持 40–60%
+准确率,且因为它本就是训练时的数据增强,干净准确率不掉);其他变换未进增强。说明<strong>对抗扰动对位置/尺度变化很敏感</strong>。<strong>image
+quilting
+准确率几乎不降</strong>,但它<strong>严重拖累干净准确率</strong>(开局就从
+70%+ 掉到 ~40%)。</td>
+</tr>
+<tr class="even">
+<td><strong>② Black-box,变换进了训练增强</strong></td>
+<td><strong>算不出梯度、也不知道防御</strong>,只能把"为别的模型生成的攻击"迁移过来</td>
+<td><strong>所有防御鲁棒性都大幅提升</strong>;<strong>image quilting
+对强攻击尤其有效,四种攻击都能挡住
+80–90%</strong>。对照组"无防御"被轻松打到 ~0%。</td>
+</tr>
+<tr class="odd">
+<td><strong>③ Gray-box,变换进了训练增强</strong></td>
+<td>知道权重、能算梯度,<strong>仍不知道防御</strong></td>
+<td>出现分化:<strong>bit-depth reduction 和 JPEG
+很弱</strong>(被打到接近 0);<strong>crop-ensemble、image quilting
+仍然鲁棒</strong>(强攻击下仍有 ~50% 正确)。</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>设定③
+暴露出的本质规律</strong>——为什么有的防御扛住、有的崩了?</p>
+<blockquote>
+<p>📎 <strong>Deterministic vs. Stochastic(确定性 vs. 随机性)</strong> —
+<strong>JPEG、bit-depth reduction 是固定算法
+(deterministic)</strong>:每次对同一张图做的处理完全一样,攻击者一旦知道流程就能针对它优化,<strong>容易被击穿</strong>。而
+<strong>crop-ensemble、image quilting 引入了随机性
+(stochastic)</strong>:每次裁剪/拼接的策略都略有不同,攻击者难以一次性命中,<strong>因此更鲁棒</strong>。<strong>随机性是这里挡住攻击的关键。</strong></p>
+</blockquote>
+<h3 id="25-靠隐藏取胜靠不住security-through-obscurity">2.5
+"靠隐藏取胜"靠不住:Security through Obscurity</h3>
+<p>前面所有"成功"的设定,都偷偷假设了<strong>攻击者不知道你用了什么防御</strong>。讲师严厉指出这是个<strong>不现实的假设</strong>:</p>
+<blockquote>
+<p>⚠️ <strong>Security through
+obscurity(靠隐藏机制取胜)是不安全的</strong> —
+一旦你的防御<strong>论文一发表</strong>,任何攻击者都能据此<strong>调整攻击</strong>。所以"对手不知道我的防御"在真实世界里站不住脚。</p>
+<ul>
+<li><strong>确定性变换</strong>(JPEG/bit-depth):本来就容易被击穿。</li>
+<li><strong>随机性变换</strong>(crop-ensemble/quilting):看起来鲁棒,但——<strong>自适应攻击
+(adaptive attack) 能不能绕过随机预处理防御?</strong>
+如果能,那它们也<strong>还不安全</strong>。</li>
+</ul>
+</blockquote>
+<p>这个悬念,正好引出下一节。</p>
+<blockquote>
+<p>💡 <strong>防御者的正确心态(讲师反复强调)</strong> —
+设计安全系统时,你必须假设"<strong>如果有人知道我的防御,他还能不能打穿?</strong>"。若答案是"打不穿",系统才真正安全(这也是密码学里
+Kerckhoffs 原则的精神)。</p>
+</blockquote>
+<hr />
+<h2
+id="三自适应攻击eotexpectation-over-transformation变换期望">三、自适应攻击:EOT(Expectation
+over Transformation,变换期望)</h2>
+<h3 id="31-思想用梯度的期望均值对付随机性">3.1
+思想:用"梯度的期望(均值)"对付随机性</h3>
+<p>随机预处理防御之所以难攻,是因为每次的变换参数都在变。<strong>EOT</strong>
+的破解思路一针见血:<strong>既然防御是随机的,那我就不依赖某一次的梯度,而是用梯度在所有随机情况下的"期望(平均)"来生成攻击。</strong>
+它是打破预处理防御的<strong>标准技术</strong>,通常和 PGD 结合(PGD +
+EOT)。</p>
+<p>迭代公式(以 targeted
+攻击、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+约束为例):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><msub><mtext mathvariant="normal">Proj</mtext><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>,</mo><mi>ϵ</mi></mrow></msub><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>α</mi><mo>⋅</mo><mtext mathvariant="normal">sign</mtext><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mn>1</mn><mi>M</mi></mfrac><munder><mo>∑</mo><mi>θ</mi></munder><msub><mi>∇</mi><mi>x</mi></msub><mspace width="0.167em"></mspace><mi>L</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>f</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="0.167em"></mspace><mi>y</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x_{i+1} = \text{Proj}_{x_0,\epsilon}\!\left(x_i + \alpha \cdot \text{sign}\!\left(\frac{1}{M}\sum_{\theta} \nabla_x\, L\big(f_\theta(x_i),\, y\big)\right)\right)</annotation></semantics></math></p>
+<p>逐符号拆解(讲师当堂讲的笔记):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math></td>
+<td>从随机化空间
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Θ</mi><annotation encoding="application/x-tex">\Theta</annotation></semantics></math>
+中抽出的<strong>随机变量,用来参数化防御</strong>。例:防御是旋转,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+就是旋转角度(30°、60°…);防御是
+crop-ensemble,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+可以是裁成几块等</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></td>
+<td>步长 (step size),乘在梯度符号前的小值</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math></td>
+<td>损失函数,图像分类即 cross-entropy</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mi>M</mi></mfrac><msub><mo>∑</mo><mi>θ</mi></msub></mrow><annotation encoding="application/x-tex">\frac{1}{M}\sum_\theta</annotation></semantics></math></td>
+<td><strong>用 M 次的平均来近似"梯度的期望"</strong>——EOT 的灵魂</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mtext mathvariant="normal">Proj</mtext><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>,</mo><mi>ϵ</mi></mrow></msub><annotation encoding="application/x-tex">\text{Proj}_{x_0,\epsilon}</annotation></semantics></math></td>
+<td>每步把扰动<strong>投影回</strong>以干净图
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mn>0</mn></msub><annotation encoding="application/x-tex">x_0</annotation></semantics></math>
+为心、半径
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>
+的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+球</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>💡 <strong>EOT 与 PGD 的关系(必考)</strong> — 如果 <strong>EOT 采样数
+M = 1</strong>,上式<strong>退化成普通 PGD</strong>;<strong>M &gt;
+1</strong> 才是 EOT。也就是说,EOT = "把 PGD 里的单个梯度,换成 M
+个不同随机防御参数下梯度的平均"。</p>
+</blockquote>
+<p>具体怎么算这个平均?给一张攻击图,<strong>连续喂模型 M
+次,每次给防御随机抽一组不同参数</strong>(比如旋转
+11°、15°、7°),各算一次梯度,<strong>最后取 M
+个梯度的均值</strong>,再用这个均值的 sign 去更新攻击。</p>
+<h3 id="32-这其实就是物理攻击的同一个思想">3.2
+这其实就是物理攻击的同一个思想</h3>
+<blockquote>
+<p>📎 <strong>重要联系(讲师反复点出)</strong> — 还记得 Week 2
+的<strong>物理攻击</strong>吗?那里我们把<strong>各种物理变换</strong>(不同距离、角度、光照、天气)塞进扰动的优化里,让攻击在现实世界鲁棒。<strong>EOT
+是一模一样的套路</strong>,只不过这里塞进去的不是物理变换,而是<strong>防御的各种随机参数</strong>(不同旋转角度、不同裁剪方式)。两者都是"<strong>把要对抗的变换分布,显式纳入梯度计算</strong>"。</p>
+</blockquote>
+<pre class="mermaid"><code>flowchart LR
+    P[&quot;物理攻击&lt;br/&gt;对抗:距离/角度/光照&quot;] --&gt; IDEA[&quot;共同思想:&lt;br/&gt;把变换分布塞进优化,&lt;br/&gt;对多种变换取梯度均值&quot;]
+    E[&quot;EOT 攻击&lt;br/&gt;对抗:防御的随机参数 θ&quot;] --&gt; IDEA</code></pre>
+<h3 id="33-结果随机性越强eot-越关键">3.3 结果:随机性越强,EOT 越关键</h3>
+<p>实验里防御是"给输入加 <strong>Gaussian
+noise(高斯噪声)</strong>",强度由标准差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+控制(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+越大随机性越强),用 PGD+EOT 做 targeted 攻击:</p>
+<ul>
+<li><strong>随机性小</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+小):光靠 PGD(M=1),只要迭代够多(如 1000 次)也能有不错的成功率。</li>
+<li><strong>随机性大</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">\sigma = 0.5</annotation></semantics></math>):<strong>朴素
+PGD 几乎失效</strong>——跑 1000 次也只有 ~6–16%
+成功率。此时<strong>把采样数 M 从 1 加到 20,成功率从 16% → 35% → 40%
+显著飙升</strong>。</li>
+</ul>
+<blockquote>
+<p><strong>结论</strong>:<strong>防御随机性越高,EOT
+的增益越大</strong>。一句话——<strong>EOT
+显式地把防御的随机性"平均掉",从而击穿随机预处理防御</strong>,证明了<strong>stochastic
+防御在现实中并不安全</strong>(又回到了 security through obscurity
+的教训)。</p>
+</blockquote>
+<blockquote>
+<p>💡 <strong>assignment 关联(讲师明说)</strong> — task 3 你要打的就是
+crop-ensemble 保护的模型。<strong>如果你发现攻不破,八成是 M 太小——把 M
+调大</strong>(更多采样、更准的期望)。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>课堂收尾答疑(Lecture 3 结束前) —
+"模型都已经有防御了,为什么还要攻击它?"</strong>
+这是一个很值得想清楚的问题,讲师从攻防两个视角作答:</p>
+<ul>
+<li><strong>攻击者视角</strong>:现实里模型多少都被某种防御保护着,所以攻击者真正关心的问题不是"裸模型能不能打",而是"<strong>即便知道它有防御,我还能不能打穿</strong>"。</li>
+<li><strong>防御者视角</strong>(也是本课的终极目标):<strong>一个系统只有在"对手完全知道你的防御、却依然攻不破"时,才算真正安全</strong>。所以设计安全系统时,你必须假设对手知道你的一切机制。</li>
+<li><strong>本节的结论</strong>:用 EOT
+我们证明了<strong>随机(stochastic)防御在现实中并不安全</strong>——因为它本质上是
+security through obscurity。<strong>那接下来怎么办?</strong>
+讲师坦言:<strong>需要发展更先进的防御</strong>,至少现有的随机预处理防御在实战中靠不住。<strong>这仍是一个开放问题
+(open
+problem)</strong>——攻防的拉锯还会继续(正好呼应第四节"检测"里的"军备竞赛")。</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="四检测对抗样本-detecting-adversarial-examples">四、检测对抗样本
+(Detecting Adversarial Examples)</h2>
+<blockquote>
+<p>📎 <strong>本节起对应 Lecture 4 开头补讲的内容(slide
+24–29)。</strong></p>
+</blockquote>
+<h3 id="41-第三条路线认出攻击直接拒绝">4.1
+第三条路线:认出攻击,直接拒绝</h3>
+<p>前两条路线要么把模型练硬,要么把扰动洗掉。<strong>第三条路线完全不同:给一个输入,先判断"它是不是攻击";如果是,直接拒收。</strong>
+关键是<strong>找到能区分"正常输入"和"对抗样本"的性质
+(properties)</strong>。</p>
+<blockquote>
+<p>🔑 <strong>讲师的类比 — "揪出混在人群里的机器人"</strong> —
+想检测伪装成人类的机器人,你得找只有机器人才有的特征:机器人"吃"电、人吃饭;机器人(暂时)没情绪、人有情绪……同理,只要找到<strong>只有对抗样本才有的性质</strong>,就能拿它来检测。</p>
+</blockquote>
+<p>本节的案例是 <strong>speech-to-text(语音转文字)</strong>
+模型(目标模型:Mozilla 开源的 <strong>DeepSpeech</strong>),用
+<strong>decision boundary patterns(决策边界模式)</strong>
+来检测。先区分两类音频攻击:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>攻击</th>
+<th>目标</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Untargeted audio AE</strong></td>
+<td>只要让转录<strong>出错</strong>就行</td>
+<td>"good morning" → 转成任意错的文本</td>
+</tr>
+<tr class="even">
+<td><strong>Targeted audio AE</strong></td>
+<td>让模型输出<strong>预先指定</strong>的文本</td>
+<td>任意音频 → "<strong>open the garage door</strong>" / "call
+12341234"</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="42-决策边界的热力图长什么样">4.2 决策边界的"热力图"长什么样</h3>
+<p>回忆 Week 2 的决策边界可视化——同样的技术也能用在语音模型上。做法:</p>
+<ul>
+<li>取一段音频放在<strong>热力图中心</strong>(未修改);</li>
+<li><strong>横轴</strong> = 损失函数对输入音频的<strong>梯度方向
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>g</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar g</annotation></semantics></math>)</strong>;</li>
+<li><strong>纵轴</strong> = 一个<strong>随机的垂直方向
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>p</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar p</annotation></semantics></math>)</strong>;</li>
+<li>沿这两个方向轻微修改音频,记录两个量随之的变化:<strong>loss
+值</strong> 和 <strong>normalized edit
+distance(归一化编辑距离)</strong>。在热力图里,<strong>黄色代表大值、紫色代表小值</strong>——所以"中心一离开就大片变黄"就意味着这段音频对扰动很敏感。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>关键定义 — Normalized edit
+distance(归一化编辑距离)</strong> — = <strong>转录文本的改变量 ÷
+原始转录文本的长度</strong>。例:原音频转成 "good morning",修改后模型转成
+"good
+night",就用两段文本的差异除以原文本长度。它衡量"输出文本被扰动改变了多少"。</p>
+<p>📎 <strong>技术可迁移(讲师强调)</strong> —
+这套"画决策边界热力图"的技术,<strong>正是 Week 2
+黑盒攻击里可视化图像分类器决策边界的同一招</strong>,只是这里换成了
+speech-to-text 模型——说明该技术是<strong>通用的</strong>。</p>
+</blockquote>
+<p><strong>三类音频呈现出明显不同的"鲁棒性模式"</strong>(把它当成各自的"指纹"):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>音频类型</th>
+<th>稍加修改后,loss 和编辑距离……</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Targeted AE</strong></td>
+<td><strong>剧烈变化</strong></td>
+<td>targeted 攻击的扰动<strong>很不鲁棒</strong>,一碰就散</td>
+</tr>
+<tr class="even">
+<td><strong>正常(正确转录)音频</strong></td>
+<td><strong>变化很小</strong></td>
+<td>正常音频对扰动<strong>最鲁棒</strong>、决策边界稳定</td>
+</tr>
+<tr class="odd">
+<td><strong>Untargeted AE</strong></td>
+<td><strong>居中</strong></td>
+<td>介于两者之间,但仍是独特模式</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="43-把模式变成特征再降维看一眼">4.3
+把"模式"变成"特征",再降维看一眼</h3>
+<p><strong>提取特征</strong>:给一段音频,沿<strong>梯度正/反方向 +
+垂直正/反方向共 4 个方向</strong>各挪一点,得到边界上 4 个位置;分别记录
+<strong>loss 的变化</strong> 和 <strong>编辑距离的变化</strong>
+两组向量,拼成一个<strong>8 维特征向量</strong>来代表这段音频。</p>
+<p>但 8 维没法直接看。于是用 <strong>t-SNE</strong>(一种<strong>降维
+(dimensionality reduction)</strong> 技术)把它投影到 <strong>2D</strong>
+平面可视化。结果出现<strong>清晰的三个簇</strong>(噪声音频除外):</p>
+<pre class="mermaid"><code>flowchart TD
+    F[&quot;每段音频 → 8维特征&lt;br/&gt;(4方向 × loss/编辑距离变化)&quot;] --&gt; TSNE[&quot;t-SNE 降到 2D&quot;]
+    TSNE --&gt; C1[&quot;&lt;b&gt;簇①&lt;/b&gt; Targeted AE&lt;br/&gt;(独立、清晰可分)&quot;]
+    TSNE --&gt; C2[&quot;&lt;b&gt;簇②&lt;/b&gt; 正常音频&lt;br/&gt;(正确+错误转录的benign都在此)&quot;]
+    TSNE --&gt; C3[&quot;&lt;b&gt;簇③&lt;/b&gt; Untargeted AE + FGSM&lt;br/&gt;(都是untargeted攻击)&quot;]</code></pre>
+<p>几个值得注意的观察:</p>
+<ul>
+<li><strong>targeted AE 单独成簇、最易区分</strong>——和 4.2
+里"它对扰动极不鲁棒"的独特模式一致。</li>
+<li><strong>错误转录的 benign 音频</strong>
+落在**簇②(正常音频)**里,<strong>不和 untargeted
+攻击重叠</strong>——尽管两者都导致"转录错误",但模型能区分"良性出错"和"被攻击出错"。</li>
+<li><strong>noisy audio(噪声音频)</strong> 在 2D
+图里<strong>散布</strong>在簇②、簇③各处。但讲师提醒:t-SNE 把 8 维压到 2
+维<strong>必然丢信息</strong>,2D 看着乱不代表原始 8
+维空间里分不开——要看真实检测结果才算数。</li>
+</ul>
+<h3 id="44-检测结果简单模型就够用">4.4 检测结果:简单模型就够用</h3>
+<p>用 scikit-learn 的 <strong>EllipticEnvelope</strong>
+模型——它假设数据服从高斯分布,<strong>检测离群点
+(outliers)</strong>,一行代码就能用。在原始 <strong>8
+维</strong>特征上训练:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>音频类型</th>
+<th>检测率 (DR)</th>
+<th>解读</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Targeted AE</strong></td>
+<td><strong>100%</strong></td>
+<td>与"2D 里就清晰可分"一致,最危险也最好抓</td>
+</tr>
+<tr class="even">
+<td><strong>FGSM / Untargeted AE</strong></td>
+<td>较低</td>
+<td>它们在特征空间里和别的类有重叠,较难抓——但 <strong>untargeted
+的漏报危害远小于 targeted</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Noisy audio</strong></td>
+<td><strong>94%</strong></td>
+<td>关键!2D 图里它"到处散",但在<strong>原始 8
+维</strong>里其实<strong>能被分出来</strong>——证明了 4.3
+的提醒:别被降维图骗了</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="45-攻击者的反击与军备竞赛">4.5 攻击者的反击与"军备竞赛"</h3>
+<blockquote>
+<p>📎 <strong>Adaptive attack(自适应攻击)能否绕过检测?</strong>
+能。如果攻击者知道你用决策边界模式检测,他可以<strong>在生成攻击时显式加上约束</strong>——强迫攻击样本沿梯度/垂直方向修改时
+loss
+和编辑距离<strong>只轻微变化</strong>,从而<strong>伪装成正常音频</strong>的模式。</p>
+<p><strong>但</strong>:这样造出来的鲁棒攻击,<strong>引入的噪声很明显</strong>——把音频转到<strong>频域看
+spectrogram(声谱图)</strong>,会看到背景多了大量噪声(原本该静音的地方也有噪声)。于是防御方可以<strong>改用"音频太吵就拒绝"来反制</strong>。攻击者能不能让扰动<strong>变安静</strong>?——技术上也许可以。<strong>这是攻防之间无止境的拉锯战
+(endless battle)。</strong></p>
+</blockquote>
+<hr />
+<h2
+id="五对对抗样本的反思-reflections它到底说明了什么">五、对对抗样本的反思
+(Reflections):它到底说明了什么?</h2>
+<blockquote>
+<p>📎 <strong>本节对应 Lecture 4 续讲的 slide 30–34。</strong>
+这一节偏"思想",但讲师讲得很认真,期末的概念题很可能涉及。</p>
+</blockquote>
+<h3 id="51-人和机器智能的不一致">5.1 人和机器智能的"不一致"</h3>
+<p>对抗样本的存在,本质上揭示了 <strong>human intelligence 和 machine
+intelligence 之间的不一致 (inconsistency)</strong>。讲师用
+<strong>optical illusion(视错觉)</strong>
+来界定什么"可接受"、什么是"安全问题":</p>
+<pre class="mermaid"><code>flowchart TD
+    Q[&quot;一个扰动同时作用于人和机器&quot;]
+    Q --&gt; OK[&quot;&lt;b&gt;人和机器被骗成同一个样&lt;/b&gt;&lt;br/&gt;(如视错觉:鸭兔图、&#39;旋转&#39;的圆盘)&quot;]
+    Q --&gt; BAD[&quot;&lt;b&gt;人没被骗,机器被骗&lt;/b&gt;&lt;br/&gt;(熊猫加噪声→机器看成长臂猿)&quot;]
+    OK --&gt; A[&quot;✅ 可接受&lt;br/&gt;说明机器&#39;像人&#39;&quot;]
+    BAD --&gt; B[&quot;⚠️ 安全问题&lt;br/&gt;人机不一致 = 漏洞&quot;]</code></pre>
+<ul>
+<li>如果一个"真正智能"的机器,像人一样被<strong>视错觉</strong>骗(把鸭兔图看成两种动物、觉得静止的圆盘在转)——这<strong>可以接受</strong>,说明它和人一致。</li>
+<li>但现实是:给熊猫图加一点人眼根本看不见的噪声,<strong>人还是看见熊猫,机器却说是长臂猿</strong>。<strong>人没被骗、机器被骗</strong>——这就是<strong>安全问题</strong>。</li>
+</ul>
+<h3 id="52-shortcut-learning捷径学习解释了对抗样本">5.2 Shortcut
+learning(捷径学习)解释了对抗样本</h3>
+<p>对抗样本的存在,说明机器学习模型<strong>严重依赖 shortcut
+learning(捷径学习)</strong>——这正好呼应 Week 2 的 <strong>Clever
+Hans</strong>(那匹"会算术"的马,其实是读人的表情走捷径)。</p>
+<blockquote>
+<p>📎 <strong>人也会走捷径</strong> —
+比如做选择题时凭"最长的选项往往是答案"之类的套路,而非真懂。模型同理,而且<strong>在所有领域</strong>(图像、语音……)都普遍存在。几个经典捷径例子:靠<strong>绿色背景</strong>就把图说成"在吃草的羊";靠图里的"<strong>医院
+token</strong>"而非病灶做诊断;只看<strong>最后一句</strong>而忽略上下文。</p>
+</blockquote>
+<p><strong>逻辑链</strong>:模型没真学会任务 → 它靠 spurious
+features(伪相关特征)/ 捷径蒙对 →
+所以能用对抗样本破坏这些捷径来骗它。</p>
+<h3 id="53-消除捷径学习--终极解法">5.3 消除捷径学习 = 终极解法?</h3>
+<p>如果模型不靠捷径、而是真正理解任务,<strong>对抗样本就不该存在</strong>——因为那时"能骗倒模型的扰动,应该也会同样骗倒人"(就像视错觉)。那<strong>为什么模型偏偏爱走捷径?</strong></p>
+<blockquote>
+<p>📎 <strong>根因:loss 函数不考虑人类感知</strong> —
+训练用的损失函数(如图像分类的
+<strong>cross-entropy</strong>)<strong>和人类感知 (human perception)
+毫无关系</strong>,它只是个能用几行代码实现的纯数学式子。模型的唯一目标是"把这个
+loss 降到最低",而这个 loss
+压根没编码"人是怎么看东西的"。更糟的是,<strong>人类感知目前还无法用数学公式表达</strong>——所以即便我们想让模型对齐人的感知,也缺数学工具。这是<strong>跨学科的开放难题</strong>,计算机科学家正与认知科学家、神经科学家合作攻关。</p>
+</blockquote>
+<h3 id="54-经验证据鲁棒性--人类感知似乎真有关系">5.4 经验证据:鲁棒性 ↔︎
+人类感知,似乎真有关系</h3>
+<p>虽然没解决,但有<strong>令人鼓舞的经验证据</strong>表明"对抗鲁棒性"和"人类感知"之间存在某种关联(你在
+<strong>lab 2</strong> 里已经亲手做出过这些图):</p>
+<blockquote>
+<p>🔑 <strong>证据一 — 梯度可视化</strong> —
+把"损失对输入像素的梯度"画出来:</p>
+<ul>
+<li><strong>标准训练</strong>的模型:梯度一片<strong>噪声</strong>,看不出和任务有什么关系;</li>
+<li><strong>对抗训练</strong>(PGD,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>)的模型:梯度里<strong>浮现出和物体轮廓对齐的、贴近人类感知的清晰模式</strong>。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>🔑 <strong>证据二 — 攻击图"长得像目标类"</strong> —
+对一个<strong>对抗训练过</strong>的模型生成 targeted
+攻击(第一行干净图,第二行攻击图):为了把"飞机"骗成"车",攻击竟然真的把图改得<strong>有点像车</strong>;把"猫"骗成"狗",图也真的<strong>有点像狗</strong>。<strong>当攻击能骗倒这种鲁棒模型时,它往往也会"骗到人"</strong>——这不是安全问题,反而说明模型感知和人的感知<strong>开始对齐</strong>了。</p>
+</blockquote>
+<blockquote>
+<p>⚠️ <strong>别过度解读</strong> — 这些只是"好趋势 (good
+trend)",<strong>不代表</strong>人机感知已经完全对齐;而且这种"攻击图像目标类"的现象<strong>并非对所有攻击成立</strong>(比如换成
+stAdv
+这类新型攻击,照样能骗倒鲁棒模型而不像目标类)。结论保守版:<strong>让模型变鲁棒,似乎能让它的"感知"更靠近人——这是一个有希望的方向,但远未盖棺定论。</strong></p>
+</blockquote>
+<hr />
+<h2 id="六本章小结-key-takeaways">六、本章小结 (Key Takeaways)</h2>
+<pre class="mermaid"><code>flowchart TD
+    R[&quot;对抗鲁棒性&lt;br/&gt;(防御对抗样本)&quot;]
+    R --&gt; AT[&quot;① 对抗训练&lt;br/&gt;min-max鞍点 · 训练喂PGD攻击图&quot;]
+    R --&gt; IT[&quot;② 输入变换&lt;br/&gt;洗掉扰动 · 随机性是关键&quot;]
+    R --&gt; DET[&quot;③ 检测&lt;br/&gt;找区分性质 · 边界模式+t-SNE+异常检测&quot;]
+    R --&gt; REF[&quot;④ 反思&lt;br/&gt;shortcut learning · 对齐人类感知&quot;]
+    AT --&gt; ATX[&quot;局限:慢(→free) / 挡不住新型攻击&quot;]
+    IT --&gt; ITX[&quot;确定性弱 · 随机性强但被EOT击穿&quot;]
+    DET --&gt; DETX[&quot;targeted易抓 · 但有自适应攻击 · 军备竞赛&quot;]</code></pre>
+<p>逐条记忆点:</p>
+<ol type="1">
+<li><strong>对抗鲁棒性 = 鞍点 min–max 问题</strong>:外层
+min(训鲁棒模型)套里层 max(造攻击)。这是全章的数学骨架。</li>
+<li><strong>对抗训练</strong>:训练时把干净图换成 <strong>PGD
+攻击图</strong>即可;<strong>用 PGD 训练 = 最佳经验结果</strong>(同时挡
+FGSM 和 PGD)。代价:<strong>干净准确率下降</strong>。</li>
+<li>鲁棒 → 需要<strong>更复杂的决策边界</strong>;记住
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>∞</mi></msub><mi>/</mi><msub><mi>L</mi><mn>2</mn></msub><mi>/</mi><msub><mi>L</mi><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">L_\infty/L_2/L_1</annotation></semantics></math>
+球分别是<strong>方/圆/菱形</strong>。</li>
+<li><strong>两大局限</strong>:① 慢(约 7×,因 7-step PGD)→ <strong>free
+adversarial training</strong> 用"一次 backward 拿两套梯度"+ mini-batch
+replay 救回,M≈8 最佳;②
+<strong>挡不住超出假设的新型攻击</strong>(stAdv)。</li>
+<li><strong>输入变换防御</strong>:crop-ensemble / bit-depth / JPEG / TV
+/ image
+quilting。<strong>deterministic(JPEG、bit-depth)易被击穿;stochastic(crop-ensemble、quilting)更鲁棒,随机性是关键</strong>。</li>
+<li><strong>security through obscurity
+不安全</strong>:防御一公开就可能被自适应攻击针对。</li>
+<li><strong>EOT</strong> = 用<strong>梯度的期望(M
+次均值)<strong>击穿随机预处理防御;<strong>M=1 即退化为
+PGD</strong>;思想</strong>等同物理攻击</strong>(把要对抗的变换分布塞进优化);<strong>随机性越强,EOT
+增益越大</strong>。</li>
+<li><strong>检测</strong>:找<strong>只有攻击才有的性质</strong>;语音案例用<strong>决策边界模式
+→ 8 维特征 → t-SNE 看簇 → EllipticEnvelope
+检测</strong>;<strong>targeted AE 100%
+可检</strong>;<strong>自适应攻击能伪装,但会留下可被频域识别的噪声</strong>——攻防无止境。</li>
+<li><strong>反思</strong>:对抗样本 = <strong>人机智能不一致</strong> =
+<strong>shortcut learning</strong> 的产物;根因是
+<strong>loss(cross-entropy)不编码人类感知</strong>;<strong>消除捷径学习</strong>可能是终极解;经验上<strong>鲁棒性与人类感知正相关</strong>(梯度可视化、攻击图像目标类),但别过度解读。</li>
+</ol>
+<hr />
+<h2 id="七与-assignment-1--lab-的关联汇总">七、与 Assignment 1 / Lab
+的关联汇总</h2>
+<blockquote>
+<p>⚠️ 讲师在本章多次把内容和作业挂钩,集中记一下(本章结束后,Assignment 1
+的全部知识点就齐了):</p>
+</blockquote>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>内容</th>
+<th>关联</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>对抗训练 (Adversarial Training)</strong></td>
+<td><strong>Lab 2</strong> 动手实现;可亲身体会朴素实现"在 Kaggle
+上有多慢"(讲师也提供了预训练模型省时间)</td>
+</tr>
+<tr class="even">
+<td><strong>梯度可视化 / 攻击图像目标类</strong></td>
+<td><strong>Lab 2</strong> 里你已经生成过这些图(鲁棒性 ↔︎
+人类感知的证据)</td>
+</tr>
+<tr class="odd">
+<td><strong>EOT 自适应攻击</strong></td>
+<td><strong>Assignment 1 · Task 3</strong>:给你一个用
+<strong>crop-ensemble</strong> 保护的模型,你扮演攻击者用 <strong>PGD +
+EOT</strong> 击穿它;攻不破就<strong>调大 M</strong></td>
+</tr>
+<tr class="even">
+<td><strong>(承接 Week 2)物理攻击 / UAP</strong></td>
+<td><strong>Task 1 / Task 2</strong>;本章 EOT
+与物理攻击是同一思想,可互相参照</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>💡 <strong>学习建议(讲师原话精神)</strong> — 这部分(第一部分:AI
+模型自身的安全)是全课<strong>最难</strong>的;ideas 偏抽象,<strong>靠 lab
+和 assignment 落地才会变具体</strong>。建议下周 lab 后就开始动手做
+Assignment 1 的前两个 task(GPU 每周只有 30
+小时,别拖到最后一周)。撑过这部分,后面(deepfake
+检测等第二部分)会越来越轻松。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

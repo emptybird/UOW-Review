@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 8 · 深度伪造检测 (Deepfake Detection)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-8--深度伪造检测-deepfake-detection">Week 8 · 深度伪造检测
+(Deepfake Detection)</h1>
+<blockquote>
+<p><strong>CSIT375/975 — AI and Cybersecurity</strong> · Dr Wei Zong ·
+University of Wollongong</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>讲清课程的转折点</strong>:说明本周是整门课的「分水岭」——前半部分研究
+<strong>AI 模型自身的安全问题</strong>(对抗样本、后门、模型窃取、IP
+保护),从本周起转入 <strong>用 AI
+当工具去解决安全问题</strong>,而第一个问题就是 <strong>deepfake
+detection(深伪检测)</strong>;</li>
+<li><strong>区分判别模型与生成模型</strong>:说清 <strong>discriminative
+model(判别模型,给输入贴标签)</strong> 与 <strong>generative
+model(生成模型,学数据分布、造新数据)</strong> 的根本差别;并能讲出
+<strong>GAN</strong>
+的动机(为什么不再「近似」分布而是「直接训一个模型去学」)、它的
+<strong>two-player minimax game → Nash equilibrium</strong>(伪钞团伙 vs
+警察的比喻),以及 CycleGAN / StyleGAN / VAE / Flow / Diffusion
+各自的一句话定位;</li>
+<li><strong>吃透「为什么会有 artifact」</strong>:从 <strong>generator =
+encoder + decoder</strong> 出发,推到 <strong>decoder 里的
+up-sampler(transposed convolution / nearest-neighbor
+interpolation)</strong> 是 artifact 的共同来源;能复述「<strong>扩维 →
+插零 →
+卷积填值</strong>」三步统一管线,并解释「<strong>插零在频域里等价于把低频谱复制到高频区</strong>」从而在频谱上出现
+<strong>1/4、3/4 处的亮 blobs</strong>;</li>
+<li><strong>复述三种
+reactive(被动)检测</strong>:<strong>朴素二分类器</strong>(及其泛化短板)→
+<strong>AutoGAN</strong>(用 dummy generator「无需访问任何预训练
+GAN」就把 artifact 注入任意图片,损失 = 骗判别器 + L1 重建)→
+<strong>CNN-generated 通用检测</strong>(只用 ProGAN 训练、靠 data
+augmentation 泛化到一整个家族,用 <strong>Average Precision</strong>
+评测);并说清频谱可视化里「真图相似、假图有周期性 dots/lines、deepfake
+因后处理而 artifact 不明显」的结论;</li>
+<li><strong>解释 reactive 检测的三条死穴</strong>:可被 Photoshop
+等<strong>新修改绕过</strong>、<strong>GAN 进步终将逼近 Nash equilibrium
+使检测失效</strong>、结果<strong>缺乏可解释性而不被法律采信</strong>——并由此自然引出
+proactive(主动)路线;</li>
+<li><strong>逐行读懂 watermarking
+生成模型</strong>:理解「<strong>先训一个 autoencoder+decoder
+把水印嵌进训练数据 → 再用带水印数据训生成模型 →
+生成图自带水印</strong>」的管线;读懂训练损失
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">BCE</mtext><mo>+</mo><mi>λ</mi><mo>⋅</mo><mtext mathvariant="normal">MSE</mtext></mrow><annotation encoding="application/x-tex">\text{BCE} + \lambda\cdot\text{MSE}</annotation></semantics></math>
+两项的分工与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+的调节作用(<strong>这就是 Assignment 2 Task
+4</strong>),并能复述「传统水印迁移率≈50%(瞎猜)、深度水印≈100%、FID
+几乎不掉」的结论;</li>
+<li><strong>把图像水印迁移到语音</strong>:说清 <strong>voice cloning(TTS
++ voice conversion)</strong> 里 <strong>speaker
+adaptation(说话人自适应,上传 ~1 分钟目标语音去 fine-tune)</strong>
+为何给了水印「搭便车」转移到克隆模型的机会;解释语音水印「<strong>沿时间轴重复
++ 平均池化</strong>」以适配变长语音;</li>
+<li><strong>串起军备竞赛主线</strong>:<strong>生成技术(矛)↔︎
+检测技术(盾)</strong> 是一场没有终点的拉锯;水印让 Nash
+equilibrium「<strong>反过来对防守方有利</strong>」,但 <strong>adaptive
+attack(自适应攻击)</strong> 下的鲁棒性仍是未解难题。</li>
+</ul>
+</blockquote>
+<hr />
+<p>上一周(Week 7)我们讲完了 <strong>DNN IP
+protection</strong>,也由此<strong>收束了课程的前半部分</strong>——那半部分通篇在问同一个问题:<strong>AI
+模型本身有哪些安全漏洞?</strong>(对抗样本骗它、后门毒它、窃取偷它、IP
+保护防它被偷)。从本周开始,<strong>视角整个翻转</strong>:不再把 AI
+当「被攻击的对象」,而是把 AI
+当「<strong>解决安全问题的工具</strong>」。讲师的原话是:「现在我们进入第二部分,用
+AI 作为工具来解决安全问题,第一个要讨论的问题就是 deepfake
+detection。」</p>
+<p>这第一个问题为什么重要?因为生成式 AI
+已经好到<strong>人眼无法分辨真假</strong>的地步——你在网上看到的一张「人脸」,可能根本不存在这个人。当「眼见为实」这条人类几千年的常识失效,<strong>如何用
+AI 反过来识破 AI 造的假</strong>,就成了一个紧迫的安全课题。</p>
+<p>本章的骨架,是一条「<strong>先理解怎么造假,再研究怎么验假</strong>」的主线:</p>
+<pre class="mermaid"><code>flowchart TD
+    GEN[&quot;生成模型 Generative Models&lt;br/&gt;GAN / VAE / Flow / Diffusion&lt;br/&gt;已能造出人眼难辨的假图/假音&quot;]
+    GEN --&gt; THREAT[&quot;双刃剑:眼见不再为实&lt;br/&gt;→ 必须检测 deepfake&quot;]
+    THREAT --&gt; SPLIT{&quot;两条检测路线&quot;}
+    SPLIT --&gt;|&quot;被动:验已有的破绽&quot;| REACT[&quot;Reactive 检测 artifacts&quot;]
+    SPLIT --&gt;|&quot;主动:预先埋记号&quot;| PROACT[&quot;Proactive 嵌 watermark&quot;]
+    REACT --&gt; R1[&quot;① 朴素二分类器&lt;br/&gt;(泛化差)&quot;]
+    REACT --&gt; R2[&quot;② AutoGAN&lt;br/&gt;dummy generator 造 artifact&quot;]
+    REACT --&gt; R3[&quot;③ CNN-generated 通用检测&lt;br/&gt;ProGAN 训练 + 增强泛化&quot;]
+    R1 &amp; R2 &amp; R3 --&gt; LIMIT[&quot;死穴:可绕过 / Nash 终将失效 / 无可解释性&quot;]
+    PROACT --&gt; P1[&quot;① 水印生成模型&lt;br/&gt;(BCE+MSE,Assignment2 Task4)&quot;]
+    PROACT --&gt; P2[&quot;② 水印 voice cloning&lt;br/&gt;(speaker adaptation 转移)&quot;]
+    LIMIT -.-&gt;|&quot;克服 reactive 的局限&quot;| PROACT
+    P1 &amp; P2 --&gt; WAR[&quot;军备竞赛:水印让 Nash 反向有利于防守方&lt;br/&gt;但 adaptive attack 下鲁棒性仍未解&quot;]</code></pre>
+<blockquote>
+<p>🧭 <strong>一句话抓住全章</strong> —
+<strong>要验假,先懂造假。</strong> 生成模型靠 decoder 里的 up-sampler
+留下「天然破绽 (artifacts)」——<strong>reactive
+检测就是去抓这些破绽</strong>(但破绽能被抹掉、终将失效、还不被法律采信);于是有了
+<strong>proactive 检测——干脆由防守方自己先在生成模型里埋一个「人造记号
+(watermark)」</strong>,记号是我设计的、可解释、能做鲁棒。看懂「artifact
+是被动捡到的、watermark 是主动埋下的」这组对照,全章就立住了。</p>
+</blockquote>
+<hr />
+<h2
+id="一先认识造假的机器生成模型速览">一、先认识「造假的机器」:生成模型速览</h2>
+<p>要检测深伪,得先知道深伪是怎么造出来的。讲师特意声明:<strong>这不是一门纯
+AI
+课,生成模型只做「非常简略」的介绍</strong>(想深入可以去选专门讲生成模型的课)。所以本节的目标不是让你会训
+GAN,而是让你<strong>建立够用的直觉</strong>,看懂后面检测方法到底在对付什么。</p>
+<h3 id="11-判别模型-vs-生成模型贴标签-还是-造数据">1.1 判别模型 vs
+生成模型:贴标签 还是 造数据</h3>
+<p>深度学习里的模型可以分成两大类,这组对照是理解一切的起点:</p>
+<ul>
+<li><strong>判别模型 (discriminative
+model)</strong>——它被训练来<strong>给输入分类</strong>。给它一张狗的图片,它输出标签「狗」。我们前几周(以及
+lab、assignment)用的几乎全是这类模型:输入 → 标签。</li>
+<li><strong>生成模型 (generative
+model)</strong>——它<strong>不给数据贴标签</strong>,而是去<strong>学习数据的分布
+(distribution of
+data)</strong>,然后<strong>生成符合同一分布的新数据</strong>。比如学完海量人脸后,它能凭空「画」出一张全新的、却很像真人的脸。</li>
+</ul>
+<p>一句话概括差别:<strong>判别模型问「这是什么?」,生成模型问「这类东西长什么样?我能不能自己造一个?」</strong>
+深伪用的全是后者。</p>
+<h3 id="12-gan让两个网络互掐出真假难辨">1.2
+GAN:让两个网络「互掐」出真假难辨</h3>
+<p>我们要重点看的一个生成模型家族叫 <strong>GAN(Generative Adversarial
+Networks,生成对抗网络)</strong>。它有多火?讲师给了一串数字:<strong>论文累计被引超
+7.5 万次</strong>;光 2020 一年就有<strong>约 28,500 篇</strong> GAN
+相关论文发表——<strong>平均每天近 80 篇、每小时 3
+篇以上</strong>。原始论文 2014 年发表在顶会 <strong>NeurIPS</strong>
+上(距今约十年)。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 讲师提了个有趣的细节:GAN
+这篇论文<strong>网上有两个版本</strong>(arXiv 版 vs 会议版),区别在
+<strong>related work(相关工作)</strong> 一节——arXiv
+版写得更详细。这对你考试无关,但说明读论文时留意预印本和正式版的差异是个好习惯。</p>
+</blockquote>
+<p><strong>为什么需要 GAN?(motivation)</strong> 这是理解 GAN
+设计的钥匙。在 GAN 之前,要让模型学数据分布很难。当时经典的做法是
+<strong>变分自编码器 (Variational Autoencoder,
+VAE)</strong>,它通过优化一个叫 <strong>ELBO(evidence lower
+bound,证据下界)</strong> 的东西来<strong>近似 (approximate)</strong>
+数据分布。问题在于:这种近似涉及<strong>难以处理的概率计算 (intractable
+probabilistic computations)</strong>(出现在最大似然估计 MLE
+中),近似既不准、优化又困难。GAN 作者的灵感正是从这里来的——</p>
+<blockquote>
+<p>💡 <strong>GAN 的核心动机</strong> —
+讲师转述作者的想法:「<strong>我们何必费劲自己去近似那个分布?为什么不直接训练一个模型,让它去学这个分布?</strong>」与其手工逼近
+distribution,不如让网络自己学会生成。</p>
+</blockquote>
+<p><strong>GAN 是什么?(框架)</strong> GAN 是一个<strong>对抗
+(adversarial)</strong>
+框架,把<strong>生成模型</strong>和一个<strong>对手 (adversary)</strong>
+放在一起对练,这个对手是一个<strong>判别模型 (discriminative
+model)</strong>:</p>
+<ul>
+<li><strong>生成模型 (Generative Model)</strong>
+努力造出以假乱真的数据;</li>
+<li><strong>判别模型 (Discriminative Model)</strong>
+努力分辨:这份数据<strong>来自真实数据分布,还是来自生成模型的分布</strong>?</li>
+</ul>
+<p>两者构成一场 <strong>two-player minimax
+game(双人极小极大博弈)</strong>:生成器想最大化「骗过判别器」的概率,判别器想最大化「抓出假货」的概率。讲师给了一个非常生动、务必记住的比喻:</p>
+<blockquote>
+<p><strong>🔑 例(伪钞团伙 vs 警察)</strong> — <strong>生成模型 =
+一帮造假币的人 (a team of counterfeiters)</strong>,<strong>判别模型 =
+警察
+(police)</strong>。造假者不断提高造假币的工艺,警察不断提高鉴别能力;来回博弈许多轮后,<strong>造假者最终造出了连警察也分辨不出的「假币」——此时这假币实际上和真币没有区别了</strong>。这个收敛点在博弈论里叫
+<strong>Nash
+equilibrium(纳什均衡)</strong>:生成模型最终能产出<strong>判别模型再也检测不出</strong>的数据。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — slides 只说「two-player
+minimax game」,没给公式。它的价值函数长这样(看懂即可,不必背):
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mi>G</mi></munder><munder><mo>max</mo><mi>D</mi></munder><mspace width="0.278em"></mspace><mi>V</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>,</mo><mi>G</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>𝔼</mi><mrow><mi>x</mi><mo>∼</mo><msub><mi>p</mi><mtext mathvariant="normal">data</mtext></msub></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">[</mo><mo>log</mo><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">]</mo><mo>+</mo><msub><mi>𝔼</mi><mrow><mi>z</mi><mo>∼</mo><msub><mi>p</mi><mi>z</mi></msub></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">[</mo><mo>log</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\min_G \max_D \; V(D,G)=\mathbb{E}_{x\sim p_{\text{data}}}\big[\log D(x)\big]+\mathbb{E}_{z\sim p_z}\big[\log\big(1-D(G(z))\big)\big]</annotation></semantics></math>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">D(x)</annotation></semantics></math>
+是判别器认为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+为真的概率;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G(z)</annotation></semantics></math>
+是生成器把随机噪声
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+变成的假数据。判别器想让真图的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>→</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">D(x)\to1</annotation></semantics></math>、假图的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo>→</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">D(G(z))\to0</annotation></semantics></math>(最大化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>);生成器想让假图骗过判别器即
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo>→</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">D(G(z))\to1</annotation></semantics></math>(最小化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>)。一推一拉,正是「伪钞
+vs 警察」的数学化。</p>
+</blockquote>
+<p><strong>早期效果如何?</strong> 2014 年的初版 GAN
+结果<strong>并不惊艳</strong>:在简单数据集(手写数字 MNIST、人脸
+TFD)上还行,但在复杂的 CIFAR-10
+上质量很低。结果图里<strong>最右一列是「最接近的真实训练样本」</strong>——放它的用意是<strong>证明模型不是在「背」训练集</strong>(generated
+样本和它最像的训练样本仍有明显差别,说明是真生成,不是记忆)。</p>
+<h3 id="13-gan-的飞速进化cyclegan-与-stylegan">1.3 GAN
+的飞速进化:CycleGAN 与 StyleGAN</h3>
+<p>初版虽弱,但框架极有前景,于是大量改进涌现,质量突飞猛进:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>模型</th>
+<th>年份</th>
+<th>一句话能力</th>
+<th>关键直觉</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>CycleGAN</strong></td>
+<td>2017</td>
+<td><strong>不成对的图像互译 (unpaired image-to-image
+translation)</strong></td>
+<td>给两堆<strong>无配对</strong>的图片集
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>,它自动学会把一类「翻译」成另一类:<strong>马
+↔︎ 斑马</strong>、<strong>夏天景 ↔︎ 冬天景</strong></td>
+</tr>
+<tr class="even">
+<td><strong>StyleGAN</strong></td>
+<td>2019</td>
+<td><strong>风格混合 (style mixing)</strong></td>
+<td>从来源图 B「拷贝」一部分风格、其余取自
+A,还能<strong>控制拷贝的精细程度</strong>:<strong>coarse(粗)/
+middle(中)/ fine(细)styles</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>到 StyleGAN
+这一代,生成质量已经<strong>非常好</strong>,且能把不同图片<strong>合理地融合</strong>。讲师强调:从
+2014 到 2019 短短五年,质量就从「CIFAR
+上一团糊」进化到「人眼分不清真假」。</p>
+<h3 id="14-不止-ganvae--flow--diffusion-与多模态趋势">1.4 不止 GAN:VAE /
+Flow / Diffusion 与「多模态」趋势</h3>
+<p>GAN 只是生成模型家族的一支,还有几位重要成员(各记一句话即可):</p>
+<pre class="mermaid"><code>graph LR
+    GM[&quot;生成模型家族&quot;]
+    GM --&gt; GAN[&quot;GAN&lt;br/&gt;生成器↔判别器对抗&quot;]
+    GM --&gt; VAE[&quot;VAE&lt;br/&gt;变分贝叶斯,优化 ELBO&lt;br/&gt;理论复杂&quot;]
+    GM --&gt; FLOW[&quot;Flow&lt;br/&gt;一串可逆+可微映射&lt;br/&gt;把简单分布变复杂&lt;br/&gt;(可逆层限制了架构)&quot;]
+    GM --&gt; DIFF[&quot;Diffusion (GDM)&lt;br/&gt;逐级加噪破坏数据&lt;br/&gt;再学反向去噪来采样&lt;br/&gt;当今 SOTA&quot;]</code></pre>
+<ul>
+<li><strong>VAE(变分自编码器)</strong>:前面提过,优化 ELBO
+来反映/重建数据分布,<strong>理论很复杂</strong>。</li>
+<li><strong>Flow(流模型)</strong>:用<strong>一串可逆且可微 (invertible
+and differentiable)
+的映射</strong>,把简单分布逐步变换成复杂分布。代价是<strong>每层都得可逆</strong>,这<strong>限制了网络架构</strong>的设计自由。</li>
+<li><strong>Diffusion(扩散模型,Generative Diffusion Model,
+GDM)</strong>:当今计算机视觉里的
+<strong>SOTA</strong>。机制是<strong>先用多级噪声逐步「破坏」数据,再学会「逆转」这个过程来采样生成</strong>。今天高质量
+AI 绘图大多基于它。</li>
+</ul>
+<p>最后一个趋势:<strong>从单模态走向多模态 (unimodal →
+multimodal)</strong>。<strong>单模态</strong>指输入输出在<strong>同一个域</strong>(如文本→文本的翻译);<strong>多模态</strong>指输入输出<strong>跨域</strong>——给一段<strong>文本</strong>就能生成一张<strong>图像</strong>或一段<strong>音乐</strong>。这正是今天生成式
+AI 的主流方向。</p>
+<blockquote>
+<p><strong>🔑 本节落点</strong> —
+这些模型有一个<strong>共同的工程事实</strong>会在下一节变成检测的突破口:<strong>几乎所有图像生成模型,内部都靠一个
+decoder 把低分辨率特征「上采样」成高分辨率图像。</strong>
+记住这句,第三节我们就用它来抓假图的破绽。</p>
+</blockquote>
+<hr />
+<h2
+id="二双刃剑为什么眼见不再为实">二、双刃剑:为什么「眼见」不再「为实」</h2>
+<p>生成技术的效果令人惊叹,但它是一把<strong>双刃剑 (double-edged
+sword)</strong>。讲师举了一个直击要害的例子:</p>
+<blockquote>
+<p><strong>🔑 例(StyleGAN 的假脸)</strong> —
+维基百科上有一张人脸图,<strong>它完全由 StyleGAN
+生成,世界上根本没有这个人</strong>。可只看这张图,你<strong>无法判断</strong>是真人还是假人。</p>
+</blockquote>
+<p>后果是严肃的:<strong>「把视觉媒体当作可信内容」这一传统认知彻底失效了。</strong>
+攻击者能用这门技术<strong>散布虚假信息、实施犯罪</strong>(比如轻易伪造诈骗素材)。于是「<strong>检测假图</strong>」成了一个新兴研究热点,核心问题就一句:<strong>给一张图,判断它是真实拍摄的,还是合成的?</strong></p>
+<p>应对它有<strong>两条技术路线</strong>,本章的整个后半都在展开这两条:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Reactive detection(被动检测)</strong></th>
+<th><strong>Proactive detection(主动检测)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>核心动作</strong></td>
+<td>检测生成图里<strong>天然存在的破绽 (artifacts)</strong></td>
+<td><strong>预先在生成图里嵌入水印 (watermark)</strong></td>
+</tr>
+<tr class="even">
+<td><strong>谁留的记号</strong></td>
+<td>生成技术<strong>无意间</strong>留下的(防守方不可控)</td>
+<td>防守方<strong>有意</strong>设计并埋下的(可控)</td>
+</tr>
+<tr class="odd">
+<td><strong>时机</strong></td>
+<td>假图造出来后<strong>事后</strong>去验</td>
+<td>假图造出来<strong>之前/之时</strong>就带好记号</td>
+</tr>
+<tr class="even">
+<td><strong>比喻</strong></td>
+<td>验钞机找钞票的天然瑕疵</td>
+<td>印钞时就在纸里埋好防伪线</td>
+</tr>
+</tbody>
+</table></div>
+<p>接下来先讲<strong>第一条路线(reactive)</strong>,它分三种由浅入深的方法;再讲<strong>第二条路线(proactive)</strong>。</p>
+<hr />
+<h2
+id="三reactive-①破绽从何而来up-sampling-artifacts-的原理">三、Reactive
+①:破绽从何而来——up-sampling artifacts 的原理</h2>
+<h3 id="31-最朴素的做法以及它的泛化困境">3.1
+最朴素的做法,以及它的泛化困境</h3>
+<p>设计一个「真 vs 假」二分类器,最直接的方法是:</p>
+<ol type="1">
+<li>从一个或多个<strong>预训练 GAN</strong> 收集大量生成图;</li>
+<li>配上真实图,<strong>训练一个二分类器</strong>。</li>
+</ol>
+<p>听上去简单,但有个致命<strong>局限——泛化
+(generalization)</strong>:</p>
+<blockquote>
+<p>⚠️ <strong>泛化困境</strong> —
+现实中我们<strong>拿不到攻击者用的那个具体模型</strong>。攻击者完全可以<strong>自研一个保密架构</strong>。哪怕你收集了一大堆
+GAN
+来训练,也<strong>无法保证</strong>检测器能泛化到攻击者那个没见过的模型。</p>
+</blockquote>
+<p>破解之道:<strong>别去记某一个模型的特征,而要找出「一大类 GAN
+普遍共有的关键 artifact」</strong>,然后<strong>鼓励分类器去学这些共有
+artifact</strong>。这样即便攻击者用的是自研模型,只要它也带有这类共有破绽,就能被抓。问题是——<strong>这种共有
+artifact 到底是什么?</strong> 答案藏在生成器的结构里。</p>
+<h3 id="32-生成器的结构encoder--decoder破绽在-decoder">3.2
+生成器的结构:encoder + decoder,破绽在 decoder</h3>
+<p>一个典型 GAN 含<strong>生成器 (generator)</strong> 与<strong>判别器
+(discriminator)</strong>。而生成器本身就是一个
+<strong>autoencoder(自编码器)</strong>——这个结构你不陌生:<strong>Week 4
+讲 invisible backdoor attack(SSBA)时见过同一个
+autoencoder</strong>。它由两半组成:</p>
+<pre class="mermaid"><code>flowchart LR
+    IN[&quot;输入图&lt;br/&gt;(高分辨率)&quot;] --&gt; ENC[&quot;Encoder 编码器&lt;br/&gt;几层 down-sampling&lt;br/&gt;抽取高层信息&quot;]
+    ENC --&gt; LR[&quot;低维 / 低分辨率&lt;br/&gt;特征&quot;]
+    LR --&gt; DEC[&quot;Decoder 解码器&lt;br/&gt;几层 up-sampling&lt;br/&gt;还原成图像&quot;]
+    DEC --&gt; OUT[&quot;输出图&lt;br/&gt;(高分辨率)&quot;]
+    OUT -.-&gt; DISC[&quot;Discriminator 判别器&lt;br/&gt;判断真 / 假&quot;]
+    style DEC fill:#ffe4e1</code></pre>
+<ul>
+<li><strong>Encoder(编码器)</strong>:含若干
+<strong>down-sampling(下采样)</strong>
+层,把图压进低维空间,<strong>抽取高层信息</strong>,产出一个低分辨率特征。</li>
+<li><strong>Decoder(解码器)</strong>:与编码器相反,含若干
+<strong>up-sampling(上采样)</strong>
+层,把低分辨率特征<strong>还原成高分辨率图像</strong>。</li>
+<li><strong>Discriminator(判别器)</strong>:GAN
+框架的关键件,负责分辨「这是生成器造的、还是真图」。</li>
+</ul>
+<p><strong>破绽的源头就在红色的 decoder——准确说,在它的 up-sampler
+里。</strong> 因为要「无中生有」地把小特征放大成大图,up-sampling
+这一步会<strong>系统性地留下痕迹</strong>。而妙就妙在:<strong>不同 GAN
+用的 up-sampling
+模块在架构上是高度一致的</strong>,所以它们留下的破绽也是<strong>共有的</strong>——这正是
+§3.1 想找的「共有 artifact」。</p>
+<h3 id="33-统一管线扩维--插零--卷积填值">3.3 统一管线:扩维 → 插零 →
+卷积填值</h3>
+<p>up-sampler
+通常有两种实现,但讲师强调<strong>可以用同一条管线来描述它们</strong>:</p>
+<ul>
+<li><strong>Transposed convolution(转置卷积,又名 deconvolution
+反卷积)</strong>:卷积核<strong>可学习 (learnable)</strong>;</li>
+<li><strong>Nearest-neighbor
+interpolation(最近邻插值)</strong>:卷积核是<strong>固定 (fixed)</strong>
+的。</li>
+</ul>
+<p>无论哪种,统一管线都是<strong>三步</strong>(设放大倍数为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>,例如
+2):</p>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;低分辨率特征&quot;] --&gt;|&quot;① 扩维&lt;br/&gt;横纵各放大 m 倍&quot;| B[&quot;放大后的网格&lt;br/&gt;(留出空位)&quot;]
+    B --&gt;|&quot;② 插零&lt;br/&gt;每行/列后插一行/列 0&quot;| C[&quot;零填充的特征&quot;]
+    C --&gt;|&quot;③ 卷积填值&lt;br/&gt;给这些 0 赋上合适的值&quot;| D[&quot;高分辨率输出&quot;]</code></pre>
+<ol type="1">
+<li><strong>扩维</strong>:把横纵分辨率各放大
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+倍;</li>
+<li><strong>插零 (insert
+zeros)</strong>:在低分辨率特征里,<strong>每一行/列之后插入一行/列
+0</strong>;</li>
+<li><strong>卷积填值</strong>:用一次卷积操作,给这些「插零位置」赋上<strong>合适的值</strong>——转置卷积用<strong>可学习核</strong>来定这些值,最近邻插值用<strong>固定核</strong>。</li>
+</ol>
+<p><strong>关键不是卷积的细节(本课不展开),而是这条统一视角:扩维 → 插零 →
+填值,所有 up-sampler 都长这样。</strong>
+正是「插零」这一步,埋下了可被频域分析揪出来的破绽。</p>
+<h3 id="34-频域里的指纹插零--频谱复制--亮-blobs">3.4
+频域里的「指纹」:插零 ≡ 频谱复制 → 亮 blobs</h3>
+<p>把生成图做<strong>傅里叶变换</strong>搬到<strong>频域 (frequency
+domain)</strong>
+看(为便于观察,把低频分量移到频谱中心),会发现一个可证明的规律:</p>
+<blockquote>
+<p>🔑 <strong>核心结论(可数学证明)</strong> —
+<strong>在低分辨率图里「插零」,等价于把原低频谱的多份拷贝,复制到最终高分辨率图频谱的高频区域。</strong></p>
+</blockquote>
+<p>直觉是这样的:只做「插零」这一步时,频域里会出现原始低频谱的<strong>精确副本</strong>,散布在高频区。但实际管线还有第三步「卷积填值」会<strong>修改这些零</strong>,所以在真实生成图里<strong>看不到精确副本</strong>,而是看到<strong>近似的痕迹</strong>——表现为频谱上<strong>在宽/高的
+1/4 与 3/4 处出现明亮的「blobs(亮斑)」</strong>。</p>
+<blockquote>
+<p><strong>🔑 例(怎么用这条规律)</strong> —
+把一张<strong>真实图</strong>和一张<strong>GAN
+假图</strong>都转到频域:真图频谱干净;假图频谱在 1/4、3/4
+处有规律的亮斑。<strong>这些亮斑就是检测假图的依据</strong>——只要假图是用
+up-sampler
+生成的,它大概率就带这种破绽。讲师提醒:理论上是「精确副本」,实践中因为有填值修改,只是「<strong>相似的痕迹</strong>」,但足够拿来检测。</p>
+</blockquote>
+<hr />
+<h2
+id="四reactive-②autogan用-dummy-generator凭空造-artifact">四、Reactive
+②:AutoGAN——用 dummy generator「凭空」造 artifact</h2>
+<p>§3 解决了「破绽长什么样」,但 §3.1
+的困境还在:<strong>训练分类器还是需要大量假图,而我们未必能访问攻击者的
+GAN。</strong> AutoGAN 的巧思就是绕开这一点。</p>
+<blockquote>
+<p>🎯 <strong>AutoGAN 的核心思想——关键词是「simulate(模拟)」</strong> —
+<strong>不去访问任何预训练 GAN,而是用一个「dummy
+generator(傀儡生成器)」去模拟所有流行 GAN 共有的生成管线,从而把 GAN
+artifact「注入」到任意一张普通图片里。</strong></p>
+</blockquote>
+<p><strong>它怎么做到?</strong> 关键是:<strong>dummy generator
+不需要生成什么随机新图,它只需要把输入图「重建」出来</strong>——让输出尽量等于输入即可。这个目标用优化很容易达到。但<strong>重建过程仍然要走
+encoder→decoder</strong>,而 decoder 里有 up-sampler,<strong>于是
+artifact
+就在「重建图」里被自动注入了</strong>——尽管重建图看起来和原图几乎一样。</p>
+<p>它的训练目标有两项:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>min</mo><mspace width="0.278em"></mspace><mspace width="0.278em"></mspace><munder><munder><msub><mi>ℒ</mi><mtext mathvariant="normal">adv</mtext></msub><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">骗过判别器</mtext></munder><mspace width="0.278em"></mspace><mo>+</mo><mspace width="0.278em"></mspace><munder><munder><mrow><mi>λ</mi><mspace width="0.167em"></mspace><mo stretchy="false" form="prefix">∥</mo><msub><mi>x</mi><mtext mathvariant="normal">in</mtext></msub><mo>−</mo><msub><mi>x</mi><mtext mathvariant="normal">out</mtext></msub><msub><mo stretchy="false" form="postfix">∥</mo><mn>1</mn></msub></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">L1 重建,让输出≈输入</mtext></munder></mrow><annotation encoding="application/x-tex">\min \;\; \underbrace{\mathcal{L}_{\text{adv}}}_{\text{骗过判别器}} \;+\; \underbrace{\lambda\,\lVert x_{\text{in}}-x_{\text{out}}\rVert_1}_{\text{L1 重建,让输出≈输入}}</annotation></semantics></math></p>
+<ul>
+<li><strong>骗过判别器(GAN loss)</strong>:维持 GAN 的对抗训练;</li>
+<li><strong>最小化输入输出的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+范数</strong>:让重建图<strong>逼近原图</strong>(回忆 Week 2
+对抗样本里也用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mn>1</mn></msub><mi>/</mi><msub><mi>L</mi><mi>∞</mi></msub></mrow><annotation encoding="application/x-tex">L_1/L_\infty</annotation></semantics></math>
+约束扰动——同一把尺子)。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例(给马注入破绽)</strong> —
+拿一张<strong>真实的马</strong>的图,让它过一遍 dummy
+generator,输出一张<strong>几乎一模一样的马</strong>;但因为走了
+decoder,这张重建马图里已经<strong>带上了 GAN
+artifact</strong>。于是我们就有了「真马图 + 带 artifact
+的马图」这一对训练数据,<strong>全程没碰任何真正的 GAN</strong>。</p>
+</blockquote>
+<p><strong>实验设置(4 种配置,务必分清)</strong> 数据用 CycleGAN
+的马/斑马,外加大数据集 MSCOCO:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>配置</th>
+<th>假图来源</th>
+<th>分类器输入</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Img</strong></td>
+<td>CycleGAN 真生成(如斑马图→假马图)</td>
+<td><strong>原图</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Spec</strong></td>
+<td>同 Img</td>
+<td><strong>频谱</strong>(转到频域)</td>
+</tr>
+<tr class="odd">
+<td><strong>A-Img</strong></td>
+<td><strong>AutoGAN</strong> 注入 artifact 的重建图</td>
+<td><strong>原图</strong></td>
+</tr>
+<tr class="even">
+<td><strong>A-Spec</strong></td>
+<td>同 A-Img(AutoGAN)</td>
+<td><strong>频谱</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 实验结论</strong> —</p>
+<ul>
+<li><strong>用「原图」训练(Img / A-Img)→
+泛化差</strong>:只在「同类别」上好(训马测马能到
+99%),但平均准确率不高(~60–80%);</li>
+<li><strong>用「频谱」训练(Spec / A-Spec)→ 泛化大幅提升</strong>(平均
+~80–94%)。<strong>尤其 A-Spec 全程没见过任何 CycleGAN
+图</strong>,却仍能检测——因为它学的是频域里那条「共有破绽」,而非某个模型的特征;</li>
+<li><strong>用多样化大数据集(MSCOCO)→ 整体性能显著提高</strong>。因为
+dummy generator
+不需要标签、可以对<strong>从网上下载的海量图</strong>随意注入
+artifact,这是个非常实用的设定。</li>
+</ul>
+</blockquote>
+<p><strong>一句话提炼 AutoGAN</strong>:<strong>频域 + 傀儡生成器 =
+不碰攻击者的模型,也能训出泛化的检测器。</strong></p>
+<hr />
+<h2 id="五reactive-③cnn-generated-图像的通用检测">五、Reactive
+③:CNN-generated 图像的「通用」检测</h2>
+<p>AutoGAN 已经不错,但还有个更大的野心:<strong>现实里 GAN
+五花八门(CycleGAN、BigGAN、StyleGAN……),能否找到「跨不同 CNN
+生成器」普遍共有的特征,从而泛化到一整个家族?</strong></p>
+<p>立论基础是:<strong>一大批生成技术底层都用
+CNN(卷积神经网络)</strong>。检测「某张图是不是某个<strong>特定</strong>技术生成的」很简单、准确率轻松很高;难的是<strong>跨模型泛化</strong>。如果存在
+CNN 生成器的<strong>共有
+artifact</strong>,分类器就能从「认一个模型」升级到「认一整个家族」。</p>
+<p><strong>实验设计(只用一个模型训练,测全家族)</strong></p>
+<ul>
+<li><strong>只用 ProGAN 训练检测器</strong>,再去<strong>评估它对其他 CNN
+模型的泛化</strong>。选 ProGAN
+是因为它<strong>架构简单却生成高质量图</strong>(实证上泛化最好);</li>
+<li>造一个<strong>大规模数据集</strong>:仅含 ProGAN 生成图 +
+真实图,<strong>72 万张训练 + 4
+千张验证</strong>,真假<strong>等量</strong>;</li>
+<li>训练时施加 <strong>data
+augmentation(数据增强)</strong>:<strong>Gaussian blur(高斯模糊)、JPEG
+压缩、水平翻转</strong>;</li>
+<li>评测指标:<strong>Average Precision
+(AP,平均精度)</strong>,当<strong>黑盒指标</strong>用即可——取值
+0~1,<strong>越大越好</strong>,完美模型为 1。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 实验结论</strong> —</p>
+<ul>
+<li><strong>整体优于 AutoGAN</strong>(AutoGAN 的 AP 约 75);</li>
+<li><strong>训练时纳入更多类别 → 性能稳步提升</strong>(2 类 → 4 类 → 16
+类);</li>
+<li><strong>数据增强能提升泛化——但「只用
+blur」是个例外</strong>(单独高斯模糊反而可能掉点;而加 JPEG
+压缩等通常最好,组合使用仍有增益);</li>
+<li>注意表里 CycleGAN 那一列 AutoGAN 很高,<strong>那是因为 AutoGAN 拿
+CycleGAN
+当训练集了</strong>——有目标模型的访问权当然容易,但泛化才是真考验。</li>
+</ul>
+</blockquote>
+<p><strong>频谱可视化:看清不同模型留下的「指纹」</strong>
+把各数据集的合成图转到频域、求<strong>平均频谱</strong>再和真图比:</p>
+<pre class="mermaid"><code>graph TD
+    REAL[&quot;真实图频谱&lt;br/&gt;彼此相似、无明显破绽&lt;br/&gt;(仅因数据集略有差异)&quot;]
+    SYNTH[&quot;合成图频谱&lt;br/&gt;多数有周期性 dots / lines&quot;]
+    SYNTH --&gt; FEW[&quot;BigGAN / ProGAN&lt;br/&gt;这类破绽相对少&lt;br/&gt;→ 生成质量高&quot;]
+    SYNTH --&gt; DF[&quot;DeepFake 数据集&lt;br/&gt;artifact 不明显&lt;br/&gt;(经 resize+blend+MPEG 压缩等后处理被破坏)&quot;]</code></pre>
+<ul>
+<li><strong>真实图</strong>频谱彼此相似、无特殊破绽;</li>
+<li><strong>多数合成图</strong>有<strong>周期性的点 (dots) 或线
+(lines)</strong>——这就是检测器抓的线索;</li>
+<li><strong>BigGAN、ProGAN</strong>
+这类破绽<strong>相对少</strong>(也说明其生成质量高);</li>
+<li><strong>DeepFake 数据集</strong>的
+artifact<strong>不明显</strong>,因为这些图经历了<strong>各种前/后处理</strong>(合成的人脸区域被<strong>缩放、混合
+blend、再用 MPEG 压缩</strong>),破绽被破坏了。</li>
+</ul>
+<blockquote>
+<p>⚠️ <strong>别被「平均」骗了——平均频谱 vs 单张图</strong> —
+上面是<strong>平均</strong>频谱,不代表<strong>单张</strong>图。事实上回看检测表:DeepFake
+上若训练时纳入 20 类 +
+适当增强,<strong>仍能拿到很好的结果</strong>(无增强约 98%,加 JPEG 约
+88%)。原因是<strong>分类器吃的是单张图</strong>——平均看不见的
+artifact,在<strong>个体图</strong>里很可能依然存在、依然可抓。<strong>「平均频谱不明显」≠「检测不出」。</strong></p>
+</blockquote>
+<h3 id="51-reactive-路线的三条死穴">5.1 Reactive 路线的三条死穴</h3>
+<p>artifact 检测虽然有效,但有根本性的局限——<strong>这三点正是逼出
+proactive 路线的理由</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+    LIM[&quot;Reactive 检测的局限&quot;]
+    LIM --&gt; A[&quot;① 可被绕过&lt;br/&gt;攻击者用 Photoshop 等修改抹掉 artifact&lt;br/&gt;且总有新修改手段出现&quot;]
+    LIM --&gt; B[&quot;② 终将失效&lt;br/&gt;GAN 不断进步 → 逼近 Nash equilibrium&lt;br/&gt;到那时假图=真图,根本无 artifact 可抓&quot;]
+    LIM --&gt; C[&quot;③ 无可解释性&lt;br/&gt;只说&#39;这是假图&#39;却给不出理由&lt;br/&gt;→ 法庭不采信,无法作为证据&quot;]</code></pre>
+<ol type="1">
+<li><strong>可被绕过</strong>:攻击者能用 <strong>Photoshop</strong>
+等手段修改假图、抹掉破绽;而且<strong>总会有新的修改技术</strong>出现,鲁棒性难保;</li>
+<li><strong>终将失效(Nash equilibrium)</strong>:GAN
+飞速进步,<strong>到达纳什均衡时,生成器产出的就是「真图」,本质上无破绽可抓</strong>,检测方法被釜底抽薪;</li>
+<li><strong>缺乏可解释性
+(explainability)</strong>:模型只丢一句「这是假图」却<strong>给不出理由</strong>。这样的结论<strong>不被法律采信</strong>——上了法庭,「无法解释的判定」不能当证据。预测必须可解释。</li>
+</ol>
+<p><strong>这三条死穴,恰好就是下一条路线要逐一克服的。</strong></p>
+<hr />
+<h2 id="六proactive-①给生成模型打水印watermarking">六、Proactive
+①:给生成模型「打水印」(Watermarking)</h2>
+<h3 id="61-从捡破绽到埋记号">6.1 从「捡破绽」到「埋记号」</h3>
+<p>第二条路线的思路彻底反过来:<strong>与其被动地去检测假图里天然存在的破绽,不如主动地在生成图里嵌入水印
+(watermark)。</strong></p>
+<blockquote>
+<p>🎯 <strong>watermarking 的核心</strong> —
+<strong>把水印嵌进生成模型</strong>;模型生成新图时,<strong>生成图自带预先定义好的水印</strong>。水印是<strong>防守方刻意引入的人造
+artifact</strong>,这与「生成技术无意留下的天然 artifact」根本不同。</p>
+</blockquote>
+<p>这组对照,<strong>正是 Week 7「fingerprinting vs
+watermarking」那把尺子的延续</strong>:</p>
+<blockquote>
+<p>🔗 <strong>与 Week 7 的呼应</strong> — 在 IP protection
+里,<strong>fingerprinting 是「找模型里已有的独特性」,watermarking
+是「主动造一个独特性」</strong>。这里一模一样:<strong>检测 artifact =
+找生成图里已有的独特性;嵌 watermark = 在生成图里造一个独特性。</strong>
+两套场景,同一种哲学。</p>
+</blockquote>
+<p><strong>为什么 watermarking 能克服 §5.1 的三条死穴?</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>Reactive 的死穴</th>
+<th>Watermarking 如何克服</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>可被绕过 / 鲁棒性不可控</strong></td>
+<td>水印由防守方掌控,可<strong>在训练水印模型时引入各种 transformation
+来增强鲁棒性</strong>;天然 artifact 你管不了,人造水印你说了算</td>
+</tr>
+<tr class="even">
+<td><strong>Nash equilibrium 终将让检测失效</strong></td>
+<td><strong>纳什均衡现在反过来对防守方有利!</strong>
+攻防角色互换:以前是攻击者把假图越造越真,均衡时假图=真图;现在是<strong>防守方把水印越做越鲁棒</strong>,均衡时<strong>水印再也去不掉</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>无可解释性</strong></td>
+<td><strong>水印的存在本身就解释了判定</strong>——「检出了我预先定义的那串水印」,理由清清楚楚</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🧭 <strong>抓住「角色互换」这个妙点</strong> — reactive 路线里,Nash
+equilibrium 是防守方的<strong>噩梦</strong>(假图终将无破绽);proactive
+路线里,同一个 Nash equilibrium
+变成防守方的<strong>福音</strong>(水印终将不可去除)。差别只在于:<strong>这一次,迭代变强的是「防守方的记号」,而不是「攻击者的假图」。</strong></p>
+</blockquote>
+<h3 id="62-怎么把水印嵌进生成模型autoencoder--decoder">6.2
+怎么把水印嵌进生成模型:autoencoder + decoder</h3>
+<p>具体技术分两步走。<strong>第一步</strong>先训练一对网络去「埋水印 +
+取水印」:</p>
+<pre class="mermaid"><code>flowchart LR
+    X[&quot;训练图 X̃&quot;] --&gt; AE[&quot;Autoencoder E&lt;br/&gt;(嵌水印)&quot;]
+    W[&quot;水印 w&lt;br/&gt;(一串 0/1 比特)&quot;] --&gt; AE
+    AE --&gt; XW[&quot;带水印的图&lt;br/&gt;(肉眼≈原图)&quot;]
+    XW --&gt; DEC[&quot;Decoder D&lt;br/&gt;(取水印)&quot;]
+    DEC --&gt; WHAT[&quot;解出的水印 ŵ&lt;br/&gt;(应≈ w)&quot;]
+    style AE fill:#e1f0ff
+    style DEC fill:#ffe9d6</code></pre>
+<ul>
+<li><strong>Encoder/Autoencoder
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>E</mi><annotation encoding="application/x-tex">E</annotation></semantics></math></strong>:把水印
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+<strong>嵌入训练数据</strong>,输出一张<strong>肉眼几乎与原图相同</strong>的带水印图;</li>
+<li><strong>Decoder
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math></strong>:从输入图里<strong>还原出水印</strong>。水印就是一串<strong>二进制比特</strong>(例如
+128 位的 <code>1010...</code>)。</li>
+</ul>
+<blockquote>
+<p>🔗 <strong>又见 SSBA(Week 4)</strong> — 讲师明确点出:这套结构和 Week
+4 的 invisible backdoor attack <strong>SSBA</strong>
+<strong>如出一辙</strong>——SSBA 也是用一个 autoencoder
+生成「带不可见触发器」的图,再用一个 decoder
+强制触发器结构可被还原。<strong>唯一的区别是「嵌的东西」从 trigger
+换成了
+watermark</strong>,但都是<strong>不可见的</strong>、都靠「autoencoder 埋
++ decoder 取」。看懂 SSBA,这里就是免费的。</p>
+</blockquote>
+<p><strong>第二步</strong>:autoencoder
+训好后,<strong>把它作用到全部训练图</strong>,得到一个「整体带水印的训练集」;再<strong>用这个带水印数据集去训练生成模型</strong>。于是——</p>
+<blockquote>
+<p>🔑 <strong>关键传导链</strong> — <strong>带水印数据 →
+训出的生成模型「学会」了水印 → 它生成的每张图都自带同一个水印 →
+用第一步的 decoder 就能从生成图里解出水印。</strong>
+检测假图因此变成一件<strong>trivial(平凡)</strong>
+的事:<strong>解出的水印与预设水印相同/相近 → 判为假;水印是随机的 →
+判为真。</strong></p>
+</blockquote>
+<p>因此<strong>模型发明者被鼓励在公开发布模型前先嵌好水印</strong>。</p>
+<blockquote>
+<p>⚠️ <strong>这套方法的前提与局限</strong> —
+<strong>如果攻击者自己从头训练模型,这招就失效</strong>(人家没动机嵌你的水印)。但讲师补充了现实理由:如今高质量大模型(如
+diffusion)<strong>训练极贵,基本只有 OpenAI
+这类大公司训得起</strong>,攻击者多半只能用公开发布的模型。<strong>所以只要大公司在发布时嵌好水印,就有了可靠的检测手段。</strong>(下一节的语音水印会进一步突破「攻击者自训」这个限制。)</p>
+</blockquote>
+<h3 id="63-训练损失bce--λmse--这就是-assignment-2-task-4">6.3
+训练损失:BCE + λ·MSE —— 这就是 Assignment 2 Task 4</h3>
+<blockquote>
+<p>📌 <strong>直接对应作业</strong> — 讲师反复强调:<strong>Assignment 2
+的 Task 4</strong>(硕士生的第 4 个任务 / 本科生的 bonus
+任务)就是<strong>实现这对 autoencoder+decoder
+的训练</strong>。架构会直接给你,你要实现的是<strong>下面这个训练损失</strong>。</p>
+</blockquote>
+<p>优化目标是<strong>同时</strong>更新 autoencoder
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>E</mi><annotation encoding="application/x-tex">E</annotation></semantics></math>
+与 decoder
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mrow><mi>E</mi><mo>,</mo><mi>D</mi></mrow></munder><mspace width="0.278em"></mspace><mspace width="0.278em"></mspace><msub><mi>𝔼</mi><mrow><mover><mi>x</mi><mo accent="true">̃</mo></mover><mo>∼</mo><mi>X</mi><mo>,</mo><mspace width="0.278em"></mspace><mi>w</mi></mrow></msub><mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">[</mo><mspace width="0.278em"></mspace><munder><munder><mrow><mtext mathvariant="normal">BCE</mtext><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mi>w</mi><mo>,</mo><mspace width="0.278em"></mspace><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>x</mi><mo accent="true">̃</mo></mover><mo>,</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">① 水印要能被准确还原</mtext></munder><mspace width="0.278em"></mspace><mo>+</mo><mspace width="0.278em"></mspace><mi>λ</mi><mo>⋅</mo><munder><munder><mrow><mtext mathvariant="normal">MSE</mtext><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mover><mi>x</mi><mo accent="true">̃</mo></mover><mo>,</mo><mspace width="0.278em"></mspace><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>x</mi><mo accent="true">̃</mo></mover><mo>,</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">② 带水印图要像原图</mtext></munder><mspace width="0.278em"></mspace><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\min_{E,D}\;\; \mathbb{E}_{\tilde{x}\sim X,\; w}\Big[\; \underbrace{\text{BCE}\big(w,\; D(E(\tilde{x},w))\big)}_{\text{① 水印要能被准确还原}} \;+\; \lambda\cdot \underbrace{\text{MSE}\big(\tilde{x},\; E(\tilde{x},w)\big)}_{\text{② 带水印图要像原图}} \;\Big]</annotation></semantics></math></p>
+<p>逐符号读懂:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>x</mi><mo accent="true">̃</mo></mover><annotation encoding="application/x-tex">\tilde{x}</annotation></semantics></math>
+是<strong>训练图</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+是要嵌入的<strong>水印</strong>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>x</mi><mo accent="true">̃</mo></mover><mo>,</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">E(\tilde{x},w)</annotation></semantics></math>
+是<strong>带水印图</strong>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mover><mi>w</mi><mo accent="true">̂</mo></mover><mo accent="true">̂</mo></mover><mo>=</mo><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mover><mi>x</mi><mo accent="true">̃</mo></mover><mo>,</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{\hat{w}}=D(E(\tilde{x},w))</annotation></semantics></math>
+是 decoder <strong>解出的水印</strong>;</li>
+<li><strong>第一项 BCE(binary
+cross-entropy,二元交叉熵)</strong>:让<strong>解出的水印逼近真实水印</strong>。直觉:decoder
+输出的是一串<strong>浮点值</strong>(如 0.8, 0.2, …),BCE 把它们往 0/1 的
+ground truth 推。PyTorch
+自带这个损失函数,直接调用即可,<strong>你不用自己实现公式</strong>——关键是<strong>传对两个参数(ground-truth
+水印 与 输出水印)</strong>;</li>
+<li><strong>第二项 MSE(mean squared
+error,均方误差)</strong>:让<strong>带水印图在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+意义上贴近原图</strong>,即水印<strong>不可见</strong>;</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+是权衡系数</strong>:你可以调(试 1、0.1 等)。<strong>水印太明显?调大
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math></strong>——把更多权重压在
+MSE 上,带水印图就更像原图、水印更隐蔽。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例(Task 4 的简化设定)</strong> —
+实际可嵌<strong>任意水印</strong>(每次迭代采一串不同的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>,因为要让用户自选水印);但<strong>作业里把任务简化为「固定水印」</strong>:给你一串固定串(如
+<code>1010...</code>),<strong>clean 图解码出全 0,watermarked
+图解码出那串固定水印</strong>即可,训练更容易。</p>
+</blockquote>
+<h3 id="64-效果传统水印瞎猜深度水印完美">6.4
+效果:传统水印≈瞎猜,深度水印≈完美</h3>
+<p>把水印嵌进训练集、再训生成模型,然后看能否从<strong>生成图</strong>里还原原始水印。关键指标是
+<strong>bit accuracy(比特还原准确率)</strong>:100% = 每一位都还原对,99%
+= 100 位里对 99 位。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th>bit accuracy</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>传统水印(non-deep)</strong></td>
+<td><strong>≈ 50%</strong></td>
+<td><strong>等于瞎猜</strong>——传统水印<strong>无法迁移</strong>进生成模型,decoder
+解出来就是随机</td>
+</tr>
+<tr class="even">
+<td><strong>深度学习水印</strong></td>
+<td><strong>≈ 100%</strong></td>
+<td>在 ProGAN、StyleGAN
+等各种模型、各种数据集上<strong>几乎完美还原</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🔑 <strong>核心结论</strong> —
+<strong>「把水印迁移进生成模型」这件事本身是 non-trivial
+的</strong>:传统水印做不到(故必须用深度学习方法);深度水印则能在<strong>各种模型与数据集上一致地</strong>近乎完美还原。</p>
+</blockquote>
+<p>还要看<strong>水印会不会损害生成质量</strong>,用 <strong>FID(Fréchet
+Inception Distance)</strong>
+衡量(<strong>越低越真实</strong>):带水印模型的 FID 与原始 baseline
+<strong>非常接近</strong>——<strong>嵌水印几乎不降低生成质量</strong>。</p>
+<p><strong>可视化</strong>(理解即可):(a) 原始真实训练样本;(b)
+带水印的训练样本——<strong>肉眼与 (a) 几乎完全一样</strong>;(c) a 与 b
+之差(<strong>放大 10 倍</strong>才看得见);(d) 无水印 ProGAN 的生成图;(e)
+带水印 ProGAN 的生成图——(d)(e) 也<strong>肉眼难辨</strong>,但 decoder
+能从 (e) 解出水印。<strong>结论:水印既隐蔽、又可靠可检。</strong></p>
+<hr />
+<h2
+id="七proactive-②给语音克隆打水印watermarking-voice-cloning">七、Proactive
+②:给语音克隆「打水印」(Watermarking Voice Cloning)</h2>
+<p>同样的思路能不能用到<strong>语音深伪</strong>?能。这一节把图像水印迁移到
+<strong>voice cloning(语音克隆)</strong>,并<strong>顺带突破了
+§6.2「攻击者自训模型就失效」的限制</strong>。</p>
+<p><strong>什么是 voice cloning?</strong>
+即<strong>造出一个高度像目标人嗓音的合成语音</strong>,两条技术路径:</p>
+<ul>
+<li><strong>Text-to-Speech
+(TTS,文本转语音)</strong>:输入文本,生成语音;</li>
+<li><strong>Voice
+conversion(语音转换)</strong>:输入一段语音,把<strong>身份</strong>换成另一个人。</li>
+</ul>
+<p><strong>关键组件:speaker adaptation(说话人自适应)</strong>
+这是整节的钥匙:</p>
+<blockquote>
+<p>🔑 <strong>speaker adaptation = 在目标语音上 fine-tune</strong> —
+用在线语音克隆工具时,它通常要你<strong>上传一小段目标人的语音</strong>(<strong>约
+1 分钟通常就够</strong>生成高质量克隆音)。为什么 1
+分钟就够?因为平台拿你上传的语音去 <strong>fine-tune(微调)</strong>
+了那个克隆模型——这一步就叫 speaker adaptation。</p>
+</blockquote>
+<p>这一步给水印开了一扇「<strong>搭便车</strong>」的门:</p>
+<blockquote>
+<p>🎯 <strong>水印转移的核心机制</strong> —
+<strong>如果目标语音里已经嵌了水印,那么当攻击者用它做 speaker
+adaptation(fine-tune)时,水印就有机会「转移」进克隆模型。</strong>
+于是<strong>即便攻击者自己训练克隆模型,只要他对带水印语音做了自适应,克隆模型就会被我们的水印「感染」</strong>——这正是它比图像水印更强的地方:<strong>不再要求攻击者用我们发布的模型。</strong></p>
+</blockquote>
+<p>完整工作流:</p>
+<pre class="mermaid"><code>flowchart LR
+    V[&quot;目标本人语音&lt;br/&gt;(benign)&quot;] --&gt; WM[&quot;嵌入水印&quot;]
+    WM --&gt; UP[&quot;带水印语音&lt;br/&gt;上传到社交平台&quot;]
+    UP --&gt; DL[&quot;攻击者下载&quot;]
+    DL --&gt; SA[&quot;语音克隆攻击&lt;br/&gt;用带水印语音做&lt;br/&gt;speaker adaptation&quot;]
+    SA --&gt; FAKE[&quot;生成目标身份的假语音&lt;br/&gt;(已被水印感染)&quot;]
+    FAKE --&gt; DET[&quot;解出我们预埋的水印&lt;br/&gt;→ 判定为深伪语音&quot;]
+    style WM fill:#e1f0ff
+    style DET fill:#d6ffd6</code></pre>
+<p><strong>一个语音特有的难点:水印必须与语音长度无关</strong>
+深伪语音和深伪图像不同——<strong>图像尺寸通常固定,但语音长度不定</strong>(攻击者可生成
+12 秒或 1 分钟)。所以水印不能依赖固定长度。解法很直接:</p>
+<blockquote>
+<p>🔑 <strong>沿时间轴重复 + 平均池化</strong> —
+<strong>嵌入时</strong>:把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+位水印先经一个(简单全连接层的)变换,使其维度<strong>匹配频域的频率轴</strong>,再<strong>沿时间轴复制</strong>铺满整段语音的频域;<strong>提取时</strong>:沿时间轴取出水印再做
+<strong>average pooling(平均池化)</strong>、变换回
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+位。这样无论语音多长都能嵌/取。</p>
+</blockquote>
+<p><strong>评测指标(均为越大越好)</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>指标</th>
+<th>全称</th>
+<th>衡量什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>ACC</strong></td>
+<td>Watermark bit recovery accuracy</td>
+<td><strong>水印比特还原率</strong>(核心指标)</td>
+</tr>
+<tr class="even">
+<td><strong>PESQ</strong></td>
+<td>Perceptual Evaluation of Speech Quality</td>
+<td>语音<strong>质量</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>SECS</strong></td>
+<td>Speaker Encoder Cosine Similarity</td>
+<td>说话人<strong>身份</strong>相似度</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>结果</strong>:在不同语言(英文、中文)、不同克隆服务上,<strong>ACC
+接近
+100%</strong>——能可靠地从克隆出的假语音里解出原始水印,从而<strong>可靠检测深伪语音</strong>;PESQ/SECS
+表明质量与身份也保持良好。</p>
+<hr />
+<h2 id="八永不停歇的军备竞赛arms-race">八、永不停歇的军备竞赛(Arms
+Race)</h2>
+<p>讲完两条路线,本章落到一个贯穿全课的主题:<strong>防守方与攻击者之间没有终点的拉锯。</strong></p>
+<pre class="mermaid"><code>flowchart LR
+    DEF[&quot;防守方&lt;br/&gt;想要水印:&lt;br/&gt;① 不可见 imperceptible&lt;br/&gt;② 鲁棒 robust(不可去除)&quot;]
+    ATK[&quot;攻击者&lt;br/&gt;想要:&lt;br/&gt;去除水印 + 保留原信号&quot;]
+    DEF &lt;--&gt;|&quot;endless battle&quot;| ATK
+    DEF --&gt; OK[&quot;✅ 不可见性:已可实现&lt;br/&gt;(优化输入输出的 MSE,&lt;br/&gt;= Assignment2 Task4)&quot;]
+    DEF --&gt; HARD[&quot;⚠️ 鲁棒性:仍是难题&lt;br/&gt;尤其面对 adaptive attack&quot;]</code></pre>
+<ul>
+<li><strong>防守方</strong>要水印<strong>不可去除
+(unremovable)</strong>;<strong>攻击者</strong>要在<strong>保留原始信号</strong>的前提下<strong>去掉水印</strong>。</li>
+<li>防守方希望水印兼具<strong>不可见 (imperceptible)</strong>
+与<strong>鲁棒 (robust)</strong>:
+<ul>
+<li><strong>不可见性——已经可行</strong>:像 §6.3 那样优化输入与输出之间的
+MSE 即可(<strong>这正是你在 Assignment 2 Task 4
+要做的</strong>:让带水印数据尽量像原数据);</li>
+<li><strong>鲁棒性——仍是挑战</strong>:尤其面对 <strong>adaptive
+attack(自适应攻击)</strong>——攻击者<strong>知道你的水印机制</strong>,据此设计专门的去水印攻击。<strong>因此,更先进的水印仍有待发明。</strong></li>
+</ul></li>
+</ul>
+<blockquote>
+<p>🧭 <strong>军备竞赛的同构性</strong> — 这场「矛 vs
+盾」和前几周完全同构:<strong>对抗样本 ↔︎ 对抗训练、后门 ↔︎
+后门清除、模型窃取 ↔︎ IP 保护</strong>,如今轮到 <strong>生成造假 ↔︎
+深伪检测</strong>。规律永远是:<strong>没有一劳永逸的防御,只有不断升级的攻防。</strong></p>
+</blockquote>
+<hr />
+<h2 id="九本章小结-key-takeaways">九、本章小结 (Key Takeaways)</h2>
+<ul>
+<li><strong>课程转折</strong>:本周起从「<strong>AI
+模型自身的安全</strong>」转入「<strong>用 AI
+解决安全问题</strong>」,第一站是 <strong>deepfake
+detection</strong>。动机:生成式 AI
+已让<strong>人眼无法分辨真假</strong>,「眼见为实」失效。</li>
+<li><strong>生成模型</strong>:<strong>判别模型贴标签、生成模型学分布造数据</strong>。<strong>GAN</strong>
+用<strong>生成器↔︎判别器的 minimax 博弈</strong>(伪钞团伙 vs 警察)收敛到
+<strong>Nash
+equilibrium</strong>(假图终将无法被判别器识破);动机是「与其近似分布(VAE/ELBO
+难且不准),不如直接训模型去学」。家族:<strong>CycleGAN(不成对互译)、StyleGAN(风格混合)、VAE、Flow(可逆映射)、Diffusion(去噪,当今
+SOTA)</strong>,趋势是<strong>单模态→多模态</strong>。</li>
+<li><strong>artifact 的来源(全章技术基石)</strong>:生成器 =
+<strong>encoder + decoder</strong>,<strong>decoder 的
+up-sampler</strong> 留下共有破绽。统一管线
+<strong>扩维→插零→卷积填值</strong>(transposed conv 核可学 /
+nearest-neighbor
+核固定);<strong>插零在频域≡把低频谱复制到高频区</strong> → 频谱在
+<strong>1/4、3/4 处出现亮 blobs</strong>。</li>
+<li><strong>Reactive 检测(被动,验破绽)</strong>:①
+<strong>朴素二分类器</strong>——泛化差(拿不到攻击者模型);②
+<strong>AutoGAN</strong>——用 <strong>dummy generator</strong>
+重建图片即可把 artifact 注入任意图,<strong>无需访问任何
+GAN</strong>,损失 = 骗判别器 +
+L1;<strong>频谱输入(Spec/A-Spec)泛化远好于原图输入</strong>,配 MSCOCO
+更佳;③ <strong>CNN-generated 通用检测</strong>——<strong>只用
+ProGAN</strong> 训练(简单却高质)、72 万图 +
+增强(blur/JPEG/flip,<strong>「只用 blur」例外</strong>),用
+<strong>Average Precision</strong>
+评测,泛化到整个家族;频谱可视化:真图相似、假图有<strong>周期
+dots/lines</strong>、<strong>DeepFake
+因后处理(resize/blend/MPEG)artifact
+不明显</strong>(但<strong>单张图仍可检</strong>,别被平均频谱骗了)。</li>
+<li><strong>Reactive 的三条死穴</strong>:<strong>①可被 Photoshop 等绕过
+②GAN 进步逼近 Nash 终将失效 ③无可解释性 →
+法律不采信</strong>。这三点逼出 proactive 路线。</li>
+<li><strong>Proactive ①:水印生成模型</strong>:<strong>autoencoder 嵌水印
+→ 用带水印数据训生成模型 → 生成图自带水印 → decoder
+一解便知真假</strong>(与 <strong>SSBA</strong> 同构,只是
+trigger→watermark)。损失 = <strong>BCE(水印能还原)+
+λ·MSE(图像够像)</strong>,<strong>调大 λ →
+水印更隐蔽</strong>——<strong>这就是 Assignment 2 Task
+4</strong>。效果:<strong>传统水印≈50%(瞎猜)、深度水印≈100%,FID
+几乎不掉</strong>。局限:<strong>攻击者自训模型则失效</strong>(但大模型贵,实际多用公开模型)。</li>
+<li><strong>Proactive ②:水印 voice cloning</strong>:<strong>speaker
+adaptation(上传 ~1 分钟目标音去 fine-tune)</strong>
+给了水印「搭便车」转移进克隆模型的机会——<strong>即便攻击者自训,只要做了自适应就会被感染</strong>(突破①的局限)。语音变长
+→ <strong>沿时间轴重复 + 平均池化</strong>。指标
+<strong>ACC/PESQ/SECS</strong>,<strong>ACC≈100%</strong>。</li>
+<li><strong>军备竞赛</strong>:水印让 <strong>Nash equilibrium
+反过来有利于防守方</strong>(迭代变强的是「记号」而非「假图」);<strong>不可见性已可实现,但
+adaptive attack 下的鲁棒性仍未解</strong>——更先进的水印有待发明。这场
+<strong>矛↔︎盾</strong>
+与前几周(AE/后门/窃取)同构,<strong>没有终点</strong>。</li>
+</ul>
+<blockquote>
+<p>📌 <strong>一页纸记忆锚点</strong> — <strong>眼见不再为实 →
+两条路线</strong>:<strong>Reactive「捡破绽」</strong>(artifact 来自
+decoder 的 up-sampler,插零→频域亮 blobs;朴素分类器泛化差 → AutoGAN
+傀儡生成器注入 + 频谱泛化 → CNN-generated 只用 ProGAN +
+增强泛化全家族/AP;死穴:可绕过·Nash
+失效·无解释)<strong>;<strong>Proactive「埋记号」</strong>(autoencoder
+嵌水印 + 用带水印数据训生成模型,BCE+λMSE = <strong>作业 Task
+4</strong>,传统≈50% vs 深度≈100%;语音版靠 speaker adaptation 转移 +
+时间轴重复)</strong>;主题:Nash 角色互换、imperceptible 已成/robust
+仍难、endless battle**。</p>
+</blockquote>
+<hr />
+<h2 id="十与-assignment--lab--相邻周的关联">十、与 Assignment / Lab /
+相邻周的关联</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>关联点</th>
+<th>说明</th>
+<th>对应章节</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Assignment 2 Task 4 = 实现水印
+autoencoder+decoder</strong></td>
+<td>硕士生第 4 任务 / 本科生 bonus。给定架构,<strong>实现训练损失 BCE +
+λ·MSE</strong>;用<strong>固定水印</strong>简化(clean→全
+0,watermarked→固定串);调 λ 控制水印可见度</td>
+<td>§六</td>
+</tr>
+<tr class="even">
+<td><strong>承接 Week 4(SSBA / invisible backdoor)</strong></td>
+<td>水印的 autoencoder+decoder 与 <strong>SSBA 同构</strong>:autoencoder
+嵌「不可见的东西」、decoder 强制其可还原——只是 <strong>trigger →
+watermark</strong></td>
+<td>§六</td>
+</tr>
+<tr class="odd">
+<td><strong>承接 Week 7(fingerprinting vs watermarking)</strong></td>
+<td>同一把尺子延续:<strong>检测 artifact =
+找已有独特性(≈fingerprinting);嵌 watermark =
+造新独特性(≈watermarking)</strong></td>
+<td>§六</td>
+</tr>
+<tr class="even">
+<td><strong>承接 Week 2(AE 的 L1/L∞ 约束)</strong></td>
+<td>AutoGAN 用 <strong>L1
+范数</strong>约束输入输出之差,与对抗样本里约束扰动同一套思路</td>
+<td>§四</td>
+</tr>
+<tr class="odd">
+<td><strong>课程结构转折</strong></td>
+<td>本周是「AI 自身安全(前半)」→「用 AI
+解决安全(后半)」的<strong>分水岭</strong>;后续 <strong>malware / network
+intrusion / spam &amp; phishing detection</strong> 都属后半</td>
+<td>全章引子</td>
+</tr>
+<tr class="even">
+<td><strong>录音横跨两节课(重要)</strong></td>
+<td>本周 slides 讲了<strong>两节课</strong>。<strong>Lecture 8</strong>
+开头先补完 Week 7 的 IP protection,再开讲 deepfake,一路讲到
+<strong>watermarking 生成模型的训练原理</strong>
+就下课了;<strong>watermarking 的实验结果、可视化、以及整个 voice cloning
+水印</strong> 是在 <strong>Lecture 9 一开头</strong>补完的,之后才转入
+Week 9(malware
+detection)。<strong>本指南已整合这两段录音。</strong></td>
+<td>§六、§七</td>
+</tr>
+<tr class="odd">
+<td><strong>Lab Task 2 顺延</strong></td>
+<td>因 deepfake detection 跨两周才讲完,讲师宣布 <strong>Lab Task 2
+顺延到 Week 10</strong>(课程安排,记一下时间即可)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🧭 <strong>下一周预告</strong> — 课程进入「用 AI
+解决安全问题」的第二站:<strong>Malware
+Detection(恶意软件检测)</strong>。同样的范式——把安全问题转化成一个可以用机器学习求解的检测问题。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 5 · 后门防御 / 缓解后门攻击 (Mitigating Backdoors / Trojans in DNNs)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-5--后门防御--缓解后门攻击-mitigating-backdoors--trojans-in-dnns">Week
+5 · 后门防御 / 缓解后门攻击 (Mitigating Backdoors / Trojans in
+DNNs)</h1>
+<blockquote>
+<p><strong>CSIT375/975 — AI and Cybersecurity</strong> · Dr Wei Zong ·
+University of Wollongong</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>画出</strong>后门防御的全景地图:沿着「<strong>输入端检测 →
+模型端清除 → 训练端鲁棒学习</strong>」三道防线,把
+STRIP、Fine-Pruning、Neural Cleanse、Anti-Backdoor Learning
+四种防御各自钉在正确的位置上,并说清每种防御对应什么<strong>威胁模型
+(threat model)</strong>(你能在什么时候、拿到什么东西去防);</li>
+<li><strong>解释</strong> STRIP 的核心直觉——「<strong>trigger 是
+input-agnostic(输入无关)的</strong>」,并推导为什么「把输入和别的干净图叠加后看预测的
+<strong>entropy(熵)</strong>」能区分干净输入(高熵)和带 trigger
+输入(低熵);会算熵、会用 <strong>FRR/FAR</strong>(并知道它们就是
+<strong>FPR/FNR</strong>)定阈值;</li>
+<li><strong>复现</strong> Fine-Pruning
+的完整逻辑链:从「剪掉对干净输入不激活的神经元」这个朴素想法,到它为什么<strong>会掉
+4% 精度</strong>而失败,到攻击者用 <strong>4-stage pruning-aware
+attack</strong>
+破解它,最后到「<strong>先剪枝、后微调</strong>」为什么能同时保住精度又毁掉后门;</li>
+<li><strong>推导</strong> Neural Cleanse 的三件事——<strong>检测 / 识别 /
+缓解</strong>:用 <strong>decision boundary(决策边界)</strong>
+图解后门为什么是一条「捷径 (shortcut)」,理解「<strong>反向工程出最小
+trigger + 用 MAD 找离群标签</strong>」如何同时定位 target label 和
+trigger,并说清 mask/trigger
+优化公式和「<strong>unlearning(反学习)</strong>」打补丁的做法;</li>
+<li><strong>说清</strong> Anti-Backdoor Learning
+的关键观察——「后门子任务<strong>学得特别快</strong>(loss
+早期骤降)」,解释为什么「直接过滤低 loss
+样本」<strong>行不通</strong>,以及 ABL 如何用「<strong>早期 isolation +
+后期 gradient ascent 反学习</strong>」在毒数据上直接训出干净模型;</li>
+<li><strong>阐述</strong>「军备竞赛 (arms
+race)」这一主题:为什么每个防御都建立在一条<strong>可被攻击者打破的假设</strong>上(以
+SSBA 打破 STRIP 的 input-agnostic
+假设为例),以及这一点和对抗样本的「固有缺陷」本质上有何不同。</li>
+</ul>
+</blockquote>
+<p>上一周(Week 4)我们站在<strong>攻击者</strong>的视角,看着后门如何从
+BadNets 一路进化到不可见、标签全对、甚至完全不动原模型的
+TrojanNet/TrojanModel。这一周我们<strong>换边坐下</strong>,问一个守方的问题:<strong>拿到一个可能被人种了后门的模型,我们能不能把它救回来?</strong></p>
+<p>讲师在开场就给了一句提纲挈领的话——<strong>这一章里的每一个防御,都是先观察到后门攻击的某一条经验性质
+(empirical observation),再把这条性质变成武器。</strong>
+这句话是理解整章的钥匙:防御不是凭空设计的,它总是抓住攻击者留下的某个「破绽」。而本章的结尾(军备竞赛)又会告诉你:<strong>只要攻击者愿意补上那个破绽,防御就会失效</strong>。所以这是一场没有终点的拉锯。</p>
+<p>我们会沿着一条非常自然的主线展开——<strong>按「你能在攻击链条的哪一环动手」来组织四种防御</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+    P[&quot;拿到一个&lt;br/&gt;可能被种后门的系统&quot;]
+    P --&gt; D1[&quot;① 输入端:推理时&lt;br/&gt;检测输入里有没有 trigger&quot;]
+    P --&gt; D2[&quot;② 模型端:拿到训练好的模型&lt;br/&gt;把后门从权重里清掉&quot;]
+    P --&gt; D3[&quot;③ 训练端:手里是毒数据&lt;br/&gt;但要训出干净模型&quot;]
+    D1 --&gt; S[&quot;&lt;b&gt;STRIP&lt;/b&gt;&lt;br/&gt;叠图看 entropy&lt;br/&gt;抓输入无关 trigger&quot;]
+    D2 --&gt; FP[&quot;&lt;b&gt;Fine-Pruning&lt;/b&gt;&lt;br/&gt;剪掉冷神经元 + 微调&quot;]
+    D2 --&gt; NC[&quot;&lt;b&gt;Neural Cleanse&lt;/b&gt;&lt;br/&gt;反向工程 trigger&lt;br/&gt;检测/识别/缓解&quot;]
+    D3 --&gt; ABL[&quot;&lt;b&gt;Anti-Backdoor Learning&lt;/b&gt;&lt;br/&gt;隔离 + 反学习&quot;]
+    S -.-&gt;|&quot;被 SSBA 打破&lt;br/&gt;(假设失效)&quot;| AR[&quot;军备竞赛&lt;br/&gt;Arms Race&quot;]
+    FP -.-&gt;|&quot;被 pruning-aware&lt;br/&gt;attack 打破&quot;| AR</code></pre>
+<blockquote>
+<p>📎 <strong>本章横跨两节课的录音(重要)</strong> — 这套 "Mitigating
+Backdoors" 的 slides 也讲了<strong>两节课</strong>。<strong>Lecture
+5(Week 5)</strong>
+先花了大半节课<strong>补完上一周的后门攻击</strong>(clean
+label、TrojanNet、TrojanModel),然后才开始讲防御,讲到
+<strong>STRIP</strong> 和 <strong>Fine-Pruning</strong>
+就下课了;<strong>Neural Cleanse、Anti-Backdoor
+Learning、军备竞赛</strong>是在 <strong>Lecture 6(Week
+6)一开头</strong>补完的(讲师原话:「上节课讲到了 fine
+pruning……我们先把剩下的讲完」)。<strong>本指南整合了这两节录音</strong>,所以四种防御全部有课堂讲解支撑、是完整的。</p>
+<p>⚠️ <strong>与 Assignment 2 的强关联</strong> —
+讲师反复点名:<strong>Assignment 2 task 2 = 实现 Neural Cleanse 的
+trigger 反向工程</strong>(§四);<strong>下一个 lab = 用 STRIP 检测
+BadNets</strong>(§二)。所以这两节务必动手吃透。</p>
+<p>🧭 <strong>一个统一的「威胁模型」前提</strong> —
+整章所有防御都假设守方处在最被动的位置:<strong>(1)</strong>
+模型可能有后门、也可能没有(不能假设一定有);<strong>(2)</strong>
+守方<strong>完全不知道</strong> trigger 长什么样、target label
+是哪个(攻击者不会告诉你);<strong>(3)</strong>
+守方常常<strong>连原始训练集都没有</strong>(你只是从网上下了个预训练模型);<strong>(4)</strong>
+防御的<strong>计算开销</strong>必须远小于「自己从头训一个干净模型」,否则不如自己训。记住这四条,你就能理解每个防御为什么要这么设计。</p>
+</blockquote>
+<hr />
+<h2
+id="一防御的全景三道防线与共同的软肋">一、防御的全景:三道防线与共同的「软肋」</h2>
+<p>在钻进具体算法之前,先把地图看清楚。后门攻击的生命周期有几个可以被守方拦截的环节,<strong>你能拦在哪一环,取决于你拿到了什么</strong>:</p>
+<ul>
+<li>如果你<strong>只能在推理时</strong>看到流进来的输入(模型是个黑盒服务),那你能做的就是<strong>检查每一个输入里有没有
+trigger</strong>,有就拒绝。这是第一道防线,代表就是
+<strong>STRIP</strong>。</li>
+<li>如果你<strong>拿到了训练好的模型权重</strong>(比如下载了一个预训练模型),你可以更进一步:<strong>直接把后门从模型里清除掉</strong>,还你一个干净模型。这是第二道防线,代表是
+<strong>Fine-Pruning</strong> 和 <strong>Neural Cleanse</strong>。</li>
+<li>如果你<strong>手里是一堆可能被投毒的数据</strong>,还没开始训练,你想问:能不能<strong>在毒数据上直接训出一个干净模型</strong>?这是第三道防线,代表是
+<strong>Anti-Backdoor Learning</strong>。</li>
+</ul>
+<p>这三道防线层层递进:第一道只是「挡」,后门还在;第二道是「治」,但要先有模型;第三道是「防」,从源头杜绝。讲师特意点明了第一道防线的局限——</p>
+<blockquote>
+<p><strong>STRIP
+只是检测并拒绝可疑输入,模型本身还是带后门的,风险并没有消失 (the risk
+does not disappear)。</strong> 所以更彻底的做法,是把模型「净化
+(purify)」掉,这就引出了第二、三道防线。</p>
+</blockquote>
+<p>而贯穿四种防御的,是开头说的那条共同主线:<strong>每种防御 =
+一条经验观察 +
+利用它的算法</strong>。下面这张表是本章的「骨架」,先扫一眼,读完全章再回来,你应该能凭它复述整章:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>防御</th>
+<th>防线(在哪一环)</th>
+<th>抓住的经验观察</th>
+<th>需要什么</th>
+<th>致命软肋(被什么打破)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>STRIP</strong></td>
+<td>① 输入端检测</td>
+<td>trigger 是 <strong>input-agnostic</strong> 的</td>
+<td>一批干净样本 + 黑盒模型</td>
+<td><strong>SSBA</strong>:trigger 样本特定 → 假设失效</td>
+</tr>
+<tr class="even">
+<td><strong>Fine-Pruning</strong></td>
+<td>② 模型端清除</td>
+<td>干净输入和 trigger 输入<strong>激活不同神经元</strong></td>
+<td>模型权重 + 干净数据</td>
+<td><strong>pruning-aware
+attack</strong>:逼两类输入共用同一批神经元</td>
+</tr>
+<tr class="odd">
+<td><strong>Neural Cleanse</strong></td>
+<td>② 模型端清除</td>
+<td>后门是一条「<strong>捷径</strong>」:很小的扰动就能把任意输入推进
+target 类</td>
+<td>模型权重 + 干净数据</td>
+<td>大 trigger / 多 target 攻击会削弱「离群」信号</td>
+</tr>
+<tr class="even">
+<td><strong>Anti-Backdoor Learning</strong></td>
+<td>③ 训练端鲁棒学习</td>
+<td>后门子任务<strong>学得特别快</strong>(loss 早期骤降)</td>
+<td>毒训练集(训练全程可控)</td>
+<td>极端高投毒率下对 Blend 仍会失手</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="二第一道防线strip--在输入里抓-trigger">二、第一道防线:STRIP ——
+在输入里抓 trigger</h2>
+<h3 id="21-问题能不能判断这张输入图里有没有-trigger">2.1
+问题:能不能判断「这张输入图里有没有 trigger」?</h3>
+<p>设想你把模型当成一个<strong>黑盒服务</strong>部署在线上,用户不断喂图进来。模型可能被第三方种了后门,也可能是干净的——你不知道。你能做的,是在<strong>每一个输入</strong>送进模型前,先问一句:<strong>这张图里藏
+trigger 了吗?</strong> 如果藏了,就直接<strong>拒绝 (reject)</strong>
+这个输入,不让它得逞;如果没藏,就放行。</p>
+<p>难点在于威胁模型很苛刻:你<strong>不知道 trigger 长什么样、也不知道
+target label</strong>。所以你不能去「匹配」一个已知的 trigger
+图案——你必须找到一个<strong>不依赖于具体 trigger
+形状</strong>的、放之四海皆准的判别信号。STRIP
+找到的,就是这样一个信号。</p>
+<h3 id="22-直觉trigger-是input-agnostic的所以它霸道">2.2 直觉:trigger
+是「input-agnostic」的,所以它「霸道」</h3>
+<p>STRIP 抓住的经验观察是:<strong>很多后门(典型如 BadNets)的 trigger 是
+input-agnostic 的</strong>——<code>input-agnostic</code>
+意思是「<strong>与输入内容无关</strong>」:不管底图是数字 8 还是数字
+3,只要角上贴着那个固定的小方块,模型就铁了心输出 target label(比如
+7)。</p>
+<p>这个「霸道」的性质,恰恰是它的破绽。STRIP
+的核心妙招是:<strong>把待测输入和另一张随机的干净图(标签不同)叠加在一起,看模型的反应。</strong></p>
+<ul>
+<li><strong>如果输入是干净的</strong>:你把两张内容冲突的图叠在一起,得到一张「四不像」的模糊图。一个正常模型面对这种歧义输入,<strong>应该会犹豫</strong>——它的预测会<strong>随叠加的图随机地变化</strong>(这次像
+8、下次像 5),没有定见。</li>
+<li><strong>如果输入里有 trigger</strong>:trigger
+太霸道了,无论你往上叠什么干净图,模型只要还能「看到」那个
+trigger,就依然<strong>斩钉截铁地输出 target
+label</strong>。预测<strong>异常地稳定</strong>。</li>
+</ul>
+<p>所以判别准则就出来了:<strong>反复叠加干净图后,如果模型的预测始终很坚定,这个输入极可能带
+trigger;如果预测飘忽不定,它大概率是干净的。</strong>
+我们只需要一个数学量来刻画「坚定 vs. 飘忽」——那就是
+<strong>entropy(熵)</strong>。</p>
+<pre class="mermaid"><code>flowchart LR
+    X[&quot;待测输入 x&quot;] --&gt; MIX[&quot;和 N 张随机干净图&lt;br/&gt;分别叠加&quot;]
+    MIX --&gt; PS[&quot;扰动集&lt;br/&gt;perturbed set&quot;]
+    PS --&gt; M[&quot;黑盒模型&lt;br/&gt;逐个预测&quot;]
+    M --&gt; H[&quot;算每个预测的 entropy&lt;br/&gt;再求平均 H̄&quot;]
+    H --&gt; J{&quot;H̄ &lt; 阈值?&quot;}
+    J --&gt;|&quot;是 → 预测很坚定&lt;br/&gt;(熵低)&quot;| T[&quot;判定:含 trigger → 拒绝&quot;]
+    J --&gt;|&quot;否 → 预测很飘忽&lt;br/&gt;(熵高)&quot;| C[&quot;判定:干净 → 放行&quot;]</code></pre>
+<h3 id="23-形式化用熵度量预测的随机性">2.3
+形式化:用熵度量预测的「随机性」</h3>
+<p><strong>Entropy(熵)</strong> 度量一个概率分布的「混乱 /
+不确定程度」。给定一张扰动图,模型输出一个在各类别上的概率分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>,它的熵是:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mi>n</mi></msub><mo>=</mo><mo>−</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>M</mi></munderover><msub><mi>y</mi><mi>i</mi></msub><msub><mo>log</mo><mn>2</mn></msub><msub><mi>y</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">H_n = -\sum_{i=1}^{M} y_i \log_2 y_i</annotation></semantics></math></p>
+<p>逐项读这个公式:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+是总类别数(MNIST 手写数字就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mo>=</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">M=10</annotation></semantics></math>);<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>i</mi></msub><annotation encoding="application/x-tex">y_i</annotation></semantics></math>
+是模型把这张图判为第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+类的概率;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>n</mi></msub><annotation encoding="application/x-tex">H_n</annotation></semantics></math>
+是第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+张扰动图的熵。整个式子在说一句话:<strong>把每个类别概率的「信息量」(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mo>log</mo><msub><mi>y</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">-\log y_i</annotation></semantics></math>)按概率加权求和</strong>。</p>
+<ul>
+<li>如果模型很<strong>坚定</strong>(比如 99% 认定是
+7),概率几乎全压在一个类上,熵就<strong>接近 0</strong>(随机性小)。</li>
+<li>如果模型很<strong>犹豫</strong>(各类概率摊得很平),熵就<strong>大</strong>(随机性大)。</li>
+</ul>
+<p>slides 给的取值范围是
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,1]</annotation></semantics></math>,越大越随机、越小越确定</strong>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+严格说,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+类分布的 Shannon 熵范围是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><msub><mo>log</mo><mn>2</mn></msub><mi>M</mi><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,\log_2 M]</annotation></semantics></math>,不是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,1]</annotation></semantics></math>。STRIP
+实际用的是经过归一化 /
+相对比较的熵——但你<strong>不需要纠结绝对刻度</strong>,因为算法只关心<strong>相对大小</strong>:带
+trigger
+的熵明显比干净的低。考试记住「低熵=坚定=可疑,高熵=犹豫=干净」即可。</p>
+</blockquote>
+<p><strong>STRIP 完整算法</strong>(对一个待测输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>):</p>
+<ol type="1">
+<li>从手里的干净数据集中<strong>随机抽
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+张图</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>x</mi><mi>N</mi></msub></mrow><annotation encoding="application/x-tex">x_1,\dots,x_N</annotation></semantics></math>;</li>
+<li>把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+分别和每张
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>n</mi></msub><annotation encoding="application/x-tex">x_n</annotation></semantics></math>
+<strong>叠加</strong>,得到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+张扰动图,合称<strong>扰动集 (perturbed set)</strong>;</li>
+<li>把这
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+张扰动图逐个喂给模型,算出各自的熵
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>H</mi><mi>N</mi></msub></mrow><annotation encoding="application/x-tex">H_1,\dots,H_N</annotation></semantics></math>;</li>
+<li>求平均熵
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>H</mi><mo accent="true">‾</mo></mover><mo>=</mo><mfrac><mn>1</mn><mi>N</mi></mfrac><msubsup><mo>∑</mo><mrow><mi>n</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></msubsup><msub><mi>H</mi><mi>n</mi></msub></mrow><annotation encoding="application/x-tex">\displaystyle \bar H = \frac{1}{N}\sum_{n=1}^{N} H_n</annotation></semantics></math>;</li>
+<li>若
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>H</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar H</annotation></semantics></math>
+<strong>低于检测阈值</strong>,则判定
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+含 trigger(置 Trojan flag = yes),拒绝它;否则放行。</li>
+</ol>
+<blockquote>
+<p><strong>🔑 例 — 叠加手写数字</strong> —
+待测图是「8」。你抽来「9」「7」「2」分别叠上去:若模型是干净的,它会被这些四不像图搞晕,三次分别可能说「像
+8 / 像 7 / 说不准」,平均熵高;但若「8」角上有
+trigger(target=7),那三张叠加图模型都会咬定「这是 7」,平均熵贴近 0 →
+抓到!</p>
+</blockquote>
+<h3 id="24-怎么定阈值假设干净输入的熵服从正态分布">2.4
+怎么定阈值?——假设干净输入的熵服从正态分布</h3>
+<p>最后一个工程问题:<strong>阈值定在哪?</strong> STRIP
+用<strong>异常检测 (anomaly detection)</strong>
+的思路:假设<strong>干净输入的熵服从
+Normal(高斯)分布</strong>。因为模型是固定的,守方手里又有一批干净样本,所以可以<strong>事先
+(in advance)</strong>
+把这批干净样本跑一遍算法,画出干净输入的熵分布,据此<strong>预先标定阈值</strong>。</p>
+<p>判断标准用一对常见指标:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>指标</th>
+<th>全称</th>
+<th>含义</th>
+<th>等价于</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>FRR</strong></td>
+<td>False Rejection Rate(误拒率)</td>
+<td>把<strong>干净</strong>输入<strong>误判为</strong> trojan
+而拒绝的概率</td>
+<td><strong>FPR</strong>(假正率)</td>
+</tr>
+<tr class="even">
+<td><strong>FAR</strong></td>
+<td>False Acceptance Rate(误受率)</td>
+<td>把 <strong>trojan</strong>
+输入<strong>误判为</strong>干净而放行的概率</td>
+<td><strong>FNR</strong>(假负率)</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>讲师强调的一个易混点(也是 Assignment 2 task 4
+的评分口径)</strong> — <strong>FRR 就是 FPR、FAR 就是
+FNR</strong>,只是不同文献换着叫。理解方式:把「这是个 trojan
+输入(攻击)」当作「正类」。"误拒" = 把干净的当成攻击拒了 =
+<strong>假正</strong>;"误受" = 把攻击当成干净放行了 =
+<strong>假负</strong>。Assignment 2 task 4(训练 watermarking 模型)就用
+FRR/FAR 评分,别被术语绕晕。</p>
+</blockquote>
+<h3 id="25-结果两条分得很开的熵分布">2.5 结果:两条分得很开的熵分布</h3>
+<p>在交通标志数据集 <strong>GTSRB</strong> 上,取 2000 张干净图和 2000 张
+trojan 图,画出各自的平均熵分布:</p>
+<ul>
+<li><strong>trojan 输入的熵集中在很低的值</strong>(贴近
+0)——正如直觉,模型对带 trigger
+的图始终高度自信,哪怕叠了别的图也不动摇;</li>
+<li><strong>干净输入的熵铺开在一个很大的范围</strong>,形状像一条高斯分布——和「干净输入叠加后会犹豫」的直觉吻合。</li>
+</ul>
+<p>两条分布几乎不重叠。基于 MNIST / CIFAR-10 / GTSRB
+的实验显示:<strong>把 FRR 定在 1%,就能把 FAR 压到 1%
+以下</strong>——也就是说,只牺牲 1% 的正常输入被误拒,就能拦下 99%
+以上的攻击。</p>
+<blockquote>
+<p>🧭 <strong>STRIP 的天花板</strong> —
+它只「挡」不「治」:被拒的输入扔掉了,但<strong>模型本身的后门一点没动</strong>。而且它<strong>死死绑在「input-agnostic」这条假设上</strong>——一旦
+trigger 变成样本特定(SSBA),这个假设就垮了(详见
+§六)。这正是我们要走向第二、三道防线的理由。</p>
+</blockquote>
+<hr />
+<h2
+id="三第二道防线之一fine-pruning--把后门从神经元里剪掉">三、第二道防线之一:Fine-Pruning
+—— 把后门从神经元里剪掉</h2>
+<h3 id="31-从检测输入到净化模型">3.1 从「检测输入」到「净化模型」</h3>
+<p>STRIP
+留下一个未解的问题:模型还是脏的。所以现在换个更强的设定——<strong>你拿到了模型权重</strong>(比如下载了个预训练模型),目标是<strong>把潜在的后门从模型里清除</strong>,同时:<strong>几乎不掉精度</strong>、<strong>不需要原始训练集</strong>(只要少量干净数据)、<strong>开销远小于重训</strong>。注意关键词是「<strong>潜在
+(potential)</strong>」:你的算法既要能净化带后门的模型,也不能把干净模型搞坏。</p>
+<h3 id="32-观察干净输入和-trigger-输入激活的是不同神经元">3.2
+观察:干净输入和 trigger 输入,激活的是不同神经元</h3>
+<p>Fine-Pruning 抓住的观察是:<strong>面对干净输入和带 trigger
+的输入,模型里被激活的是不同的神经元 (neurons)。</strong>
+一个合理的解释是——<strong>每个神经元各管检测一种特定特征</strong>。所以那些专门负责「检测
+trigger 存在」的神经元,在输入干净时就<strong>保持沉默(输出
+0)</strong>;反之,负责干净特征的神经元在 trigger 输入下沉默。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides):什么叫「神经元被激活」</strong> —
+一个神经元的输出值大(远离 0)就叫「被激活 (activated)」,接近 0
+就叫「沉默」。直觉上,激活意味着「我检测到了我负责的那个特征」。这是后面所有剪枝逻辑的基础。</p>
+</blockquote>
+<p>由此得到一个<strong>朴素想法</strong>:<strong>把那些「对干净输入从不激活」的神经元剪掉(prune,即删除)</strong>。它们对干净任务没贡献,却可能正是后门的藏身处。</p>
+<h3 id="33-朴素剪枝为什么失败掉-4-精度">3.3 朴素剪枝为什么失败:掉 4%
+精度</h3>
+<p>可惜,直接这么剪<strong>会失败</strong>。实验画出「剪掉的神经元比例」对「干净精度(蓝线)」和「攻击成功率(红线)」的影响:确实,剪得越多,攻击成功率往下掉;但<strong>要把攻击成功率压到接近
+0,干净精度也被一起拖垮了</strong>。原因是:<strong>你删掉神经元 =
+改变了模型的原始架构</strong>,伤及无辜。</p>
+<p>代价有多大?在例子里,后门是清掉了,但<strong>干净精度掉了
+4%</strong>。</p>
+<blockquote>
+<p>🧭 <strong>为什么 4% 是「灾难级」的</strong> —
+讲师特意强调:整个研究界在 ImageNet 上的 SOTA top-1
+精度,<strong>每年也就提升约 1 个百分点</strong>。你跑个防御掉
+4%,等于<strong>抹掉了全社区 4 年的努力</strong>。所以 4%
+绝不是「小代价」,朴素剪枝不可接受。</p>
+</blockquote>
+<h3 id="34-攻击者反击4-stage-pruning-aware-attack">3.4
+攻击者反击:4-stage pruning-aware attack</h3>
+<p>更糟的是,防御一旦公开,攻击者就知道了。一个实用的防御必须经得起<strong>自适应攻击
+(adaptive
+attack)</strong>——攻击者<strong>明知道你要剪「对干净输入不激活的神经元」</strong>,他能不能反制?</p>
+<p>攻击者的关键问题是:<strong>能不能让「干净行为」和「后门行为」挤进同一批神经元?</strong>
+如果能,你剪后门神经元时就必然连干净神经元一起剪,剪枝想法就破产了。答案是<strong>能</strong>,办法是
+<strong>4-stage pruning-aware attack(剪枝感知攻击)</strong>:</p>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;Stage 1&lt;br/&gt;在干净数据上&lt;br/&gt;正常训练模型&quot;] --&gt; B[&quot;Stage 2&lt;br/&gt;剪掉对干净输入&lt;br/&gt;不激活的神经元&lt;br/&gt;&lt;i&gt;(模仿防御者!)&lt;/i&gt;&quot;]
+    B --&gt; C[&quot;Stage 3&lt;br/&gt;用&lt;b&gt;毒数据&lt;/b&gt;重训&lt;br/&gt;这个已剪枝的模型&quot;]
+    C --&gt; D[&quot;Stage 4&lt;br/&gt;把剪掉的神经元&lt;br/&gt;连权重/偏置&lt;br/&gt;原样装回去&quot;]</code></pre>
+<p>逐阶段读:<strong>Stage 1</strong> 正常训干净模型;<strong>Stage
+2</strong>
+攻击者<strong>自己先把冷神经元剪掉</strong>(抢在防御者前面);<strong>Stage
+3</strong>
+在<strong>这个已经变小的网络上</strong>用毒数据重训——因为可用的神经元变少了,模型被迫让<strong>剩下的神经元同时承担干净任务和后门任务</strong>;<strong>Stage
+4</strong> 把之前剪掉的神经元<strong>连同权重原样装回去</strong>。</p>
+<p>为什么必须有 Stage
+4?因为<strong>如果交付的模型架构被改动过,会引起受害者的怀疑</strong>(回忆
+Week 4 TrojanNet
+也栽在「无法解释为何改架构」上),那这个模型可能根本不会被采用。装回去,架构看起来就和正常的一模一样。</p>
+<p><strong>效果</strong>:经过这套攻击,<strong>「干净输入激活的神经元」和「trigger
+输入激活的神经元」变成了同一批</strong>——直接打破了防御的假设。防御者再去剪冷神经元,<strong>后门剪不掉,精度还崩</strong>(把攻击成功率从
+80 压到 20 的同时,干净精度被严重拖垮)。</p>
+<h3 id="35-真正的-fine-pruning先剪枝后微调">3.5 真正的
+Fine-Pruning:先剪枝,后微调</h3>
+<p>防御者还能再进一步吗?能。最终版防御叫
+<strong>Fine-Pruning</strong>,思路出奇地直接——<strong>两个阶段</strong>:</p>
+<ol type="1">
+<li><strong>先剪枝
+(Prune)</strong>:照旧剪掉对干净输入不反应的神经元;</li>
+<li><strong>再微调
+(Fine-tune)</strong>:在一小批干净数据上<strong>微调</strong>整个网络。</li>
+</ol>
+<p>名字 "Fine-Pruning" 就是「Fine-tuning +
+Pruning」的合写(虽然顺序是反的)。<strong>为什么加一步微调就管用?</strong></p>
+<ul>
+<li><strong>微调能摧毁残留的后门</strong>:微调会<strong>改动模型权重</strong>,而后门正是寄生在某些权重里的;权重一变,后门就被破坏。即便
+pruning-aware attack
+让后门神经元混进了「干净神经元」躲过剪枝,<strong>微调这一步也会把它们的权重改掉</strong>。</li>
+<li><strong>微调还能保住甚至提升干净精度</strong>:你额外投入算力在干净数据上再训了一会儿,自然可能让干净表现不降反升。</li>
+</ul>
+<p><strong>结果</strong>:Fine-Pruning <strong>挡住了 100% 的
+pruning-aware attack</strong>,而干净精度<strong>最多只掉
+0.2%</strong>(有时还涨)。更细的数据:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>攻击类型</th>
+<th>任务</th>
+<th>朴素 fine-tuning</th>
+<th><strong>Fine-Pruning</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Targeted</strong>(有目标)</td>
+<td>人脸识别 / 语音识别</td>
+<td>后门残留(语音仍有 ~43% 攻击成功率)</td>
+<td>攻击成功率压到 <strong>≈ 0</strong>,极有效</td>
+</tr>
+<tr class="even">
+<td><strong>Untargeted</strong>(无目标)</td>
+<td>交通标志识别</td>
+<td>攻击成功率仍 <strong>&gt; 90%</strong></td>
+<td>baseline:<strong>99% → 29%</strong>;pruning-aware:<strong>90% →
+37%</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🧭 <strong>两个考点细节</strong> — <strong>(1)</strong> 对 targeted
+攻击 Fine-Pruning 近乎完美;对 untargeted 攻击只能大幅削弱、压不到
+0——因为<strong>无目标攻击比有目标攻击更容易达成</strong>(攻击者只要让模型「错」就行,不挑错成哪一类),所以更难防。<strong>(2)</strong>
+干净精度有时<strong>反而上升</strong>(如 0.82 →
+0.87),因为微调本身就是额外训练。</p>
+</blockquote>
+<hr />
+<h2
+id="四第二道防线之二neural-cleanse--反向工程出-trigger">四、第二道防线之二:Neural
+Cleanse —— 反向工程出 trigger</h2>
+<h3 id="41-三个一步到位的目标检测--识别--缓解">4.1
+三个一步到位的目标:检测 / 识别 / 缓解</h3>
+<p>Fine-Pruning 只「清」不「问」——它不告诉你模型到底有没有后门、target
+是谁。<strong>Neural Cleanse</strong> 一口气要做三件事:</p>
+<ol type="1">
+<li><strong>检测后门
+(Detecting)</strong>:做一个<strong>二元判断</strong>——这个模型到底有没有被种后门?若有,<strong>target
+label 是哪个</strong>?</li>
+<li><strong>识别后门
+(Identifying)</strong>:搞清后门的<strong>预期行为</strong>,并<strong>反向工程
+(reverse engineer)</strong> 出攻击者用的 <strong>trigger</strong>。</li>
+<li><strong>缓解后门 (Mitigating)</strong>:<strong>打补丁
+(patch)</strong>
+让后门失效,且<strong>不影响</strong>模型在正常输入上的表现。</li>
+</ol>
+<blockquote>
+<p>⚠️ <strong>Assignment 2 task 2 就是实现这里的 trigger 反向工程(§4.3
+的优化)。</strong> 这一节是动手重点。</p>
+</blockquote>
+<h3 id="42-直觉后门是一条捷径在决策边界上挖了个洞">4.2
+直觉:后门是一条「捷径」,在决策边界上挖了个洞</h3>
+<p>为什么能把 trigger
+反推出来?关键观察是后门那条老性质——<strong>只要输入带
+trigger,无论它本来是什么,都被判成 target
+label</strong>。把它画到<strong>特征空间的决策边界 (decision
+boundary)</strong> 上看:</p>
+<pre class="mermaid"><code>graph TD
+    subgraph clean[&quot;干净模型:边界「公平」&quot;]
+        B1[&quot;B 类样本&quot;] --&gt;|&quot;要跨过很远&lt;br/&gt;才能进 A&quot;| A1[&quot;target 类 A&quot;]
+        C1[&quot;C 类样本&quot;] --&gt;|&quot;要跨过很远&lt;br/&gt;才能进 A&quot;| A1
+    end
+    subgraph infected[&quot;感染模型:被挖了「后门捷径」&quot;]
+        B2[&quot;B 类样本&quot;] --&gt;|&quot;只需一点点扰动&lt;br/&gt;(trigger)&quot;| A2[&quot;target 类 A&lt;br/&gt;+ 紧贴 B/C 的后门区&quot;]
+        C2[&quot;C 类样本&quot;] --&gt;|&quot;只需一点点扰动&quot;| A2
+    end</code></pre>
+<ul>
+<li><strong>干净模型</strong>:要把 B、C 类的样本都误判成
+A,你得给它们<strong>很大的修改</strong>,把它们硬推过老远的决策边界。</li>
+<li><strong>感染模型</strong>:后门<strong>改写了决策边界</strong>,在紧贴
+B、C 的地方<strong>凭空造出一块属于 A
+的「后门区域」</strong>。于是只需<strong>极小的修改</strong>(那个
+trigger),就能把 B、C 的任意样本推进这块区域,判成 A。</li>
+</ul>
+<p>讲师的比喻很形象:后门就像在模型里<strong>开了一条秘密通道
+(shortcut)</strong>——本来从 B 到 A
+要绕远路,现在沿着这条捷径走一小步就到。</p>
+<p><strong>Neural Cleanse 的 key
+idea</strong>:<strong>去探测这条捷径</strong>——量一量「把某个区域的<strong>所有</strong>输入都推进目标区域,<strong>最少</strong>需要多大的扰动」。换句话说:<strong>把任意
+B 或 C 类输入变成 A 类,所需的最小
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+是多少?</strong>
+如果对某个标签,这个最小扰动<strong>异常地小</strong>,那这个标签就是被攻击的
+target,而那个最小扰动就是 trigger。</p>
+<h3 id="43-检测三步法--trigger-反向工程">4.3 检测三步法 + trigger
+反向工程</h3>
+<p><strong>检测后门的三步</strong>:</p>
+<ol type="1">
+<li><strong>Step 1</strong>:<strong>任取一个标签</strong>,假设它是
+target;反向工程出一个「<strong>最小 trigger</strong>」(本质是
+adversarial
+perturbation),它能把<strong>所有其他标签的样本</strong>都误分类到这个标签。这个解出来的
+trigger 就叫<strong>反向工程 trigger</strong>。</li>
+<li><strong>Step 2</strong>:对模型的<strong>每一个输出标签</strong>重复
+Step 1(因为事先不知道 target 是谁,只能逐个试)。</li>
+<li><strong>Step 3</strong>:跑<strong>离群检测 (outlier
+detection)</strong>——若某个标签的 trigger
+<strong>显著小于</strong>其他所有候选,它就是真 trigger,对应的标签就是
+target label。</li>
+</ol>
+<p>为什么这招行?直觉:如果你试的标签<strong>不是</strong>
+target,要把别的类都骗进去得用<strong>很大</strong>的扰动;只有当你试中了<strong>真的
+target</strong>,才能找到一个<strong>异常小</strong>的 trigger。</p>
+<p><strong>trigger 注入的通用形式</strong>。先定义把 trigger
+贴到图上的函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">A(\cdot)</annotation></semantics></math>。对图像每个像素(位置
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i,j</annotation></semantics></math>、通道
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>)做<strong>加权叠加</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>Δ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>c</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>m</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>⋅</mo><msub><mi>x</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>c</mi></mrow></msub><mo>+</mo><msub><mi>m</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>⋅</mo><msub><mi>Δ</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>c</mi></mrow></msub></mrow><annotation encoding="application/x-tex">A(x, m, \Delta)_{i,j,c} = (1 - m_{i,j}) \cdot x_{i,j,c} + m_{i,j} \cdot \Delta_{i,j,c}</annotation></semantics></math></p>
+<p>逐符号读:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+是原图;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Δ</mi><annotation encoding="application/x-tex">\Delta</annotation></semantics></math>
+是 <strong>trigger 图案 (trigger
+pattern)</strong>;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+是<strong>掩码 (mask)</strong>,取值
+0~1,控制每个像素「<strong>听原图的还是听 trigger 的</strong>」。</p>
+<ul>
+<li>当
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>m</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">m_{i,j}=0</annotation></semantics></math>:该像素
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mi>x</mi></mrow><annotation encoding="application/x-tex">=x</annotation></semantics></math>
+原样(没 trigger);</li>
+<li>当
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>m</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">m_{i,j}=1</annotation></semantics></math>:该像素<strong>完全被
+trigger 覆盖</strong>——这对应 BadNets(不透明小方块,trigger 区
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">m=1</annotation></semantics></math>、其余
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">m=0</annotation></semantics></math>);</li>
+<li>当
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>m</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">m_{i,j}=0.5</annotation></semantics></math>:原图和
+trigger <strong>半透明混合</strong>——这对应 Blended 攻击。</li>
+</ul>
+<p><strong>反向工程的优化</strong>。我们同时优化 mask
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+和 trigger
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Δ</mi><annotation encoding="application/x-tex">\Delta</annotation></semantics></math>,求解:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mrow><mi>m</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>Δ</mi></mrow></munder><mspace width="0.222em"></mspace><mspace width="0.222em"></mspace><mo>ℓ</mo><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>y</mi><mi>t</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>A</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>Δ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace><mi>λ</mi><mo>⋅</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>m</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">\min_{m,\,\Delta}\ \ \ell\big(y_t,\ f(A(x,m,\Delta))\big)\ +\ \lambda \cdot |m|</annotation></semantics></math></p>
+<p>两项相加做最小化 = <strong>两项都要小</strong>:</p>
+<ul>
+<li><strong>第一项</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+是模型,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>ℓ</mo><annotation encoding="application/x-tex">\ell</annotation></semantics></math>
+是训练用的损失(图像分类就是
+cross-entropy),<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>t</mi></msub><annotation encoding="application/x-tex">y_t</annotation></semantics></math>
+是当前假设的 target。这一项要求:<strong>贴上 trigger 的图,被模型判成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>t</mi></msub><annotation encoding="application/x-tex">y_t</annotation></semantics></math></strong>(即
+trigger 真的有效)。</li>
+<li><strong>第二项</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>m</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|m|</annotation></semantics></math>
+是 mask 的
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+范数</strong>(所有元素绝对值之和)。最小化它 = <strong>让 trigger
+尽量小</strong>——理想解里
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+大部分为 0,只在 trigger 那一小块有值。</li>
+</ul>
+<p>对每个候选
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mi>t</mi></msub><mo>∈</mo><mo stretchy="false" form="prefix">{</mo><mn>0</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>K</mi><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">y_t \in \{0,\dots,K\}</annotation></semantics></math>
+都解一次,得到每个标签的「最小 trigger」,再挑出最小的那个。</p>
+<p><strong>用 MAD 找离群</strong>。怎么自动判断「哪个 trigger
+显著小」?画出每个标签 trigger 的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+范数:真正的 target 标签(图中用 × 标)其
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>m</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|m|</annotation></semantics></math>
+<strong>远低于中位数、也远小于其它所有标签</strong>。用 <strong>Median
+Absolute Deviation(MAD,中位数绝对偏差)</strong>
+当<strong>黑盒工具</strong>(细节不要求):它给每个点返回一个
+<strong>anomaly index(异常指数)</strong>,<strong>指数 &gt; 2 的点有 &gt;
+95% 概率是离群点</strong>——于是把异常指数 &gt; 2
+的标签标记为「感染」。实验显示感染模型能被<strong>可靠检测</strong>。</p>
+<p><strong>反向工程的 trigger 长什么样</strong>:把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>⋅</mo><mi>Δ</mi></mrow><annotation encoding="application/x-tex">m\cdot\Delta</annotation></semantics></math>
+可视化,和原始 trigger 对比(4 个 BadNets 模型)——<strong>反推出的 trigger
+和原 trigger
+大致相似,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+范数接近(如 12 vs 16),而且出现在同一个位置</strong>。</p>
+<blockquote>
+<p>🧭 <strong>讲师的「打假」提醒(对 Assignment 2 很重要)</strong> —
+slides 里那些反推 trigger 和原 trigger
+几乎一模一样的漂亮图,讲师明说<strong>是论文作者
+cherry-pick(精挑细选)的最佳结果</strong>。你做 task 2
+时,因为优化有随机性,得到的多半是「<strong>大部分区域偏红、位置贴近原
+trigger</strong>」的图——<strong>只要视觉上和原 trigger
+对得上位置,就算成功</strong>,不必苛求和论文一样完美。</p>
+</blockquote>
+<h3 id="44-缓解用-unlearning反学习打补丁">4.4 缓解:用
+unlearning(反学习)打补丁</h3>
+<p>定位到 trigger 和 target 后,最后一步是<strong>修模型</strong>,办法叫
+<strong>unlearning(反学习)</strong>——<strong>训练模型去「忘掉」对
+trigger 的反应</strong>。具体只需:</p>
+<ul>
+<li><strong>微调 1 个 epoch</strong>;</li>
+<li>只用<strong>原训练数据的 10%</strong>(一小撮);</li>
+<li>给这一小撮里的 <strong>20%</strong> 贴上<strong>反向工程出的
+trigger</strong>,但<strong>保持原始的正确标签不变</strong>。</li>
+</ul>
+<p>关键在最后一句:<strong>贴了 trigger,标签却仍用 ground
+truth</strong>。比如一张「2」贴上反推
+trigger,标签还是「2」——这就强迫模型学会「<strong>就算看到这个
+trigger,这张图也还是 2</strong>」,从而把后门关联抹掉。</p>
+<p><strong>为什么不能只用干净数据微调?</strong> 实验对比:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>打补丁方式</th>
+<th>攻击成功率(ASR)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>不打补丁</td>
+<td>≈ 100%</td>
+</tr>
+<tr class="even">
+<td>只用干净数据微调</td>
+<td><strong>仍 &gt; 93.37%</strong>(基本无效)</td>
+</tr>
+<tr class="odd">
+<td>用<strong>原始</strong> trigger 反学习</td>
+<td>降到 <strong>&lt; 2%</strong></td>
+</tr>
+<tr class="even">
+<td>用<strong>反向工程</strong> trigger 反学习</td>
+<td>降到 <strong>&lt; 1%ish(部分 &lt; 7%)</strong>,大幅下降</td>
+</tr>
+</tbody>
+</table></div>
+<p>结论:<strong>反向工程 trigger 是原始 trigger
+的一个很好的近似</strong>,足以把后门反学习掉;而光用干净数据微调<strong>关不掉</strong>后门(除非用更多数据和
+epoch,但那样开销又上去了)。</p>
+<hr />
+<h2
+id="五第三道防线anti-backdoor-learning--在毒数据上训出干净模型">五、第三道防线:Anti-Backdoor
+Learning —— 在毒数据上训出干净模型</h2>
+<h3 id="51-问题数据可能有毒但我必须用它训练">5.1
+问题:数据可能有毒,但我必须用它训练</h3>
+<p>前两道防线都假设「模型已经训好了」。但现实里常常更早:<strong>你从网上扒了一批数据,不知道它干不干净,却必须拿它训模型。</strong>
+能不能<strong>在毒数据上直接训出一个干净模型</strong>?难点和前面一脉相承:</p>
+<ul>
+<li><strong>逐张人工筛查不现实</strong>:ImageNet 有 1000 类、100
+多万张图,没法一张张看;</li>
+<li><strong>trigger 可能不可见</strong>(回忆 SSBA),肉眼看了也白看;</li>
+<li><strong>不知道 trigger、target,连投毒率 (poisoning rate)
+都不知道</strong>;</li>
+<li>还要<strong>保住模型性能</strong>、把<strong>攻击成功率压到尽量低</strong>。</li>
+</ul>
+<p>一个自然的念头是「<strong>训练前先识别并删掉毒数据</strong>」,但这其实<strong>不可行</strong>:</p>
+<ul>
+<li>CIFA-10 上,<strong>哪怕投毒率 &lt; 1%(5 万张里就毒 200
+张)</strong>,多种攻击照样能拿到接近 100%
+的成功率——<strong>漏掉几张毒数据,攻击就照样成功</strong>;</li>
+<li>反过来,若数据其实是干净的,你「宁可错杀」删掉一堆可疑样本,又会<strong>误删大量有价值的数据</strong>,把模型性能拖下去。</li>
+</ul>
+<p>所以 ABL 不走「删数据」的路,而是换了个更聪明的切入点。</p>
+<h3 id="52-观察后门子任务学得特别快">5.2
+观察:后门子任务「学得特别快」</h3>
+<p>ABL
+的核心观察是:<strong>在毒数据上训练,其实包含两个子任务</strong>——</p>
+<ul>
+<li><strong>干净任务 (clean/original
+task)</strong>:学数据干净部分,也就是你真正想要的任务(如图像分类);</li>
+<li><strong>后门任务 (backdoor task)</strong>:学被投毒部分,即「见
+trigger 就输出 target」。</li>
+</ul>
+<p>而这两个子任务有<strong>截然不同的学习行为</strong>,这正是 ABL
+的武器:</p>
+<ol type="1">
+<li><strong>后门任务比干净任务容易得多</strong>——所以<strong>后门样本的训练
+loss 在最初几个 epoch 就骤降到接近 0</strong>,而干净样本的 loss
+<strong>稳步、缓慢</strong>地下降。原因:后门攻击<strong>人为地、显式地</strong>在
+trigger 和 target
+之间建立了关联,这种关联<strong>极易学习</strong>。</li>
+<li><strong>后门任务死死绑定一个特定类</strong>(target class)。所以这个
+trigger↔︎target 的关联<strong>很容易被打破</strong>——比如把一小撮低 loss
+样本的标签随机打乱 (shuffle)。</li>
+</ol>
+<pre class="mermaid"><code>graph LR
+    E0[&quot;epoch 0&quot;] --&gt; E1[&quot;epoch 1~2&quot;]
+    E1 --&gt; E20[&quot;epoch 20+&quot;]
+    subgraph loss[&quot;训练 loss 曲线&quot;]
+        BD[&quot;后门样本(黄线)&lt;br/&gt;1~2 epoch 内&lt;br/&gt;骤降到 ≈ 0&quot;]
+        CL[&quot;干净样本(蓝线)&lt;br/&gt;缓慢、稳步下降&quot;]
+    end</code></pre>
+<p>(在 CIFAR-10 上投毒 10%,对比干净 vs 后门样本的平均
+cross-entropy:<strong>后门样本约一个 epoch 后 loss 就贴近
+0</strong>,BadNets 和 Blend 都是如此。)</p>
+<h3 id="53-为什么不能直接过滤掉早期的低-loss-样本">5.3
+为什么不能「直接过滤掉早期的低 loss 样本」?</h3>
+<p>既然后门样本早期 loss 低,那「在早期把低 loss
+样本删掉」不就行了?<strong>不行</strong>,两个原因:</p>
+<ul>
+<li><strong>原因 1(会漏)</strong>:前面看的是<strong>平均</strong>
+loss——意味着<strong>总有一些后门样本 loss
+仍然偏高</strong>,会逃过过滤。而前面说过,<strong>哪怕只漏 50~100
+张后门样本,攻击照样成功</strong>。</li>
+<li><strong>原因 2(会误删)</strong>:<strong>如果训练得够久(比如超过
+epoch 20),很多干净样本的 loss 也会变低</strong>,这时按低 loss
+过滤会<strong>严重不准</strong>,把大量干净样本也删了。</li>
+</ul>
+<p>所以简单过滤行不通,需要更精巧的两阶段设计。</p>
+<h3 id="54-abl-方法早期隔离--后期反学习">5.4 ABL 方法:早期隔离 +
+后期反学习</h3>
+<p>ABL 把整个训练过程<strong>拆成两个阶段</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+    subgraph early[&quot;早期阶段:隔离 (Isolation)&quot;]
+        G[&quot;对 loss 低于阈值 γ 的样本&lt;br/&gt;跑&lt;b&gt;梯度上升 (gradient ascent)&lt;/b&gt;&quot;]
+        G --&gt; R[&quot;后门样本因学得太快&lt;br/&gt;会「逃出」约束&lt;br/&gt;(下一步 loss 又掉下来)&quot;]
+        R --&gt; ISO[&quot;挑出 loss 最低的 &lt;b&gt;p%&lt;/b&gt; 样本&lt;br/&gt;→ 隔离进「后门集」&lt;br/&gt;其余 → 「干净集」&quot;]
+    end
+    early --&gt; late
+    subgraph late[&quot;后期阶段:反学习 (Unlearning)&quot;]
+        U[&quot;对「后门集」跑&lt;b&gt;梯度上升&lt;/b&gt;&lt;br/&gt;(主动让模型学坏这些样本→破坏后门)&quot;]
+        N[&quot;对「干净集」正常训练&lt;br/&gt;(梯度下降)&quot;]
+    end</code></pre>
+<p>逐步读:</p>
+<ul>
+<li><strong>早期(隔离)</strong>:平常训练是「梯度下降 (gradient
+descent)」让 loss 变小;ABL 反着来——<strong>当一个样本的 loss
+已经低于阈值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>γ</mi><annotation encoding="application/x-tex">\gamma</annotation></semantics></math>,就对它跑梯度上升
+(gradient ascent)</strong>,人为<strong>抬高</strong>它的
+loss。但后门样本「学得太容易」,你抬高它,下一轮它的 loss
+又迅速掉回去——于是<strong>那些怎么压都保持低 loss
+的样本,极可能就是后门样本</strong>。把 loss 最低的
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mi>%</mi></mrow><annotation encoding="application/x-tex">p\%</annotation></semantics></math></strong>(<strong>隔离率
+(isolation rate)</strong>,如
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">p=1\%</annotation></semantics></math>)隔离进<strong>后门集</strong>,其余进<strong>干净集</strong>。注意<strong>隔离率假定远小于真实投毒率</strong>(如
+1% « 10%)。</li>
+<li><strong>后期(反学习)</strong>:对<strong>干净集</strong>正常训练(梯度下降);对隔离出的<strong>后门集</strong>跑<strong>梯度上升</strong>——<strong>主动让模型在这些样本上学坏</strong>,从而<strong>摧毁后门关联</strong>。</li>
+</ul>
+<p><strong>结果</strong>(CIFAR-10,对比
+Fine-Pruning(FP)、MCR、NAD;后两者不要求):</p>
+<ul>
+<li><strong>ABL
+在干净精度和整体抗攻击鲁棒性上都最好</strong>;唯一例外是对
+<strong>Blend</strong> 攻击,不如 NAD。</li>
+<li><strong>隔离率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+的影响</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>∈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>0.01</mn><mo>,</mo><mn>0.2</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">p\in[0.01,0.2]</annotation></semantics></math>):<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+越高 → 隔离出越多后门样本去反学习 → <strong>ASR
+越低</strong>;但同时<strong>更多样本进了反学习模式,会损害干净精度</strong>。所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+要权衡(1% 往往就够)。</li>
+<li><strong>极端投毒率测试</strong>(固定
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">p=1\%</annotation></semantics></math>):投毒率高达
+<strong>50%</strong> 时,仍能把 ASR 从 100% 压到 <strong>4.98%(BadNets)/
+27.28%(Blend)</strong>;投毒率 <strong>70%</strong> 时对 <strong>BadNets
+仍鲁棒</strong>(ASR ≈ 5%),但<strong>对 Blend
+在这种极端下失手</strong>。</li>
+</ul>
+<hr />
+<h2 id="六贯穿全章的主题军备竞赛-arms-race">六、贯穿全章的主题:军备竞赛
+(Arms Race)</h2>
+<p>把四个防御学完,你应该已经隐隐感到一个模式:<strong>每个防御都建立在一条「攻击会暴露某种性质」的假设上。</strong>
+这就引出本章最重要的思想——<strong>攻防是一场没有终点的军备竞赛</strong>:</p>
+<blockquote>
+<p><strong>一个防御一旦被提出,「总会」有 adaptive attack
+通过「合理地打破它的假设」来绕过它。</strong></p>
+</blockquote>
+<p>最干净的例子,就是用 <strong>SSBA 打破 STRIP</strong>:</p>
+<ul>
+<li>STRIP 的命根子是「<strong>trigger 是
+input-agnostic</strong>」这条假设;</li>
+<li>而 <strong>SSBA(Invisible Backdoor Attack with Sample-Specific
+Triggers)</strong> 恰恰反其道而行——<strong>给不同输入生成不同的
+trigger</strong>,直接违背了「输入无关」;</li>
+<li>后果:用 STRIP 去测 SSBA,<strong>算出来的熵很高</strong>(熵越高,STRIP
+越难判它是攻击)——SSBA 比 BadNets、Blended <strong>更能抵抗
+STRIP,有潜力直接绕过它</strong>。</li>
+</ul>
+<pre class="mermaid"><code>graph LR
+    STRIP[&quot;STRIP 假设:&lt;br/&gt;trigger input-agnostic&quot;] --&gt;|&quot;被打破&quot;| SSBA[&quot;SSBA:&lt;br/&gt;trigger 样本特定&quot;]
+    SSBA --&gt;|&quot;导致&quot;| HE[&quot;熵升高&lt;br/&gt;→ STRIP 失效&quot;]</code></pre>
+<blockquote>
+<p>🧭 <strong>后门 vs.
+对抗样本:为什么这场竞赛「没有尽头」(高频考点)</strong> —
+讲师特意区分了两者:</p>
+<ul>
+<li><strong>对抗样本是模型的「固有缺陷」</strong>——根源是 shortcut
+learning(模型学的特征和人类感知不对齐)。所以理论上,<strong>等模型某天学会了和人类一致的特征,对抗样本就会自然消失</strong>;甚至「人和
+AI 被同一种错觉骗到」是可以接受的(就像人类也会有 optical illusion
+视错觉)。</li>
+<li><strong>后门攻击是人类「蓄意设计」的</strong>——它不是缺陷,是有人故意种的。所以<strong>无论防御多好,攻击者总能针对性地设计出更强的、打破你假设的新攻击</strong>。这就是为什么后门攻防是一场<strong>永不停歇</strong>的拉锯,而对抗样本理论上有「终局」。</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="七本章小结-key-takeaways">七、本章小结 (Key Takeaways)</h2>
+<ul>
+<li><strong>后门防御 = 经验观察 +
+利用它的算法</strong>,并按「<strong>你能在攻击链的哪一环动手</strong>」分成三道防线:<strong>①
+输入端检测(STRIP)→ ② 模型端清除(Fine-Pruning、Neural Cleanse)→ ③
+训练端鲁棒学习(Anti-Backdoor
+Learning)</strong>。所有防御共享一个苛刻的威胁模型:不知 trigger、不知
+target、常无原始训练集、开销须小于重训。</li>
+<li><strong>STRIP</strong>:抓住「trigger 是
+<strong>input-agnostic</strong>」的霸道性质,把输入和随机干净图叠加,看预测
+<strong>entropy</strong>——<strong>干净输入熵高(犹豫)、trigger
+输入熵低(坚定)</strong>。假设干净熵服从高斯分布、预先定阈值;1%
+<strong>FRR</strong> 即可把 <strong>FAR</strong> 压到 1%
+以下。它只「挡」不「治」,且<strong>会被 SSBA 打破</strong>。记牢
+<strong>FRR=FPR、FAR=FNR</strong>。</li>
+<li><strong>Fine-Pruning</strong>:观察「干净/trigger
+输入激活不同神经元」→ 朴素剪枝「删冷神经元」<strong>会掉 4%
+精度而失败</strong>(等于抹掉社区 4 年进步)→ 攻击者用 <strong>4-stage
+pruning-aware
+attack</strong>(自己先剪、用毒数据重训、再把神经元装回)逼两类输入<strong>共用神经元</strong>打破假设
+→ 最终方案
+<strong>先剪枝后微调</strong>:微调改权重摧毁后门、又保住精度,<strong>挡住
+100% pruning-aware 攻击、精度仅掉 0.2%</strong>。对 targeted 近乎完美,对
+untargeted 只能大幅削弱(因 untargeted 更易达成)。</li>
+<li><strong>Neural Cleanse</strong>:一口气做<strong>检测 / 识别 /
+缓解</strong>。核心直觉——后门在决策边界上挖了条「<strong>捷径</strong>」,让极小扰动就能把任意输入推进
+target 类。于是<strong>对每个标签反向工程出「最小
+trigger」</strong>(优化 mask
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+和 pattern
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Δ</mi><annotation encoding="application/x-tex">\Delta</annotation></semantics></math>,目标:trigger
+有效 +
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>m</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|m|</annotation></semantics></math>
+最小),再用 <strong>MAD</strong>(anomaly index &gt; 2)找出 trigger
+异常小的<strong>离群标签 = target</strong>。最后用
+<strong>unlearning</strong>(贴反推 trigger
+但<strong>保持正确标签</strong>,微调 1 epoch)打补丁,把 ASR 从 ~100% 压到
+&lt; 1%;<strong>只用干净数据微调无效(ASR 仍 &gt;93%)</strong>。<strong>=
+Assignment 2 task 2</strong>。</li>
+<li><strong>Anti-Backdoor
+Learning</strong>:在毒数据上直接训干净模型。关键观察——<strong>后门子任务学得特别快(loss
+早期骤降到 ≈0)</strong>。但「直接过滤低 loss
+样本」<strong>行不通</strong>(平均 loss 会漏掉高 loss
+后门样本;训久了干净样本 loss 也低会误删)。方法是两阶段:<strong>早期对低
+loss 样本梯度上升做隔离</strong>(怎么压 loss 都低的就是后门,隔离最低
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mi>%</mi></mrow><annotation encoding="application/x-tex">p\%</annotation></semantics></math>),<strong>后期对隔离的后门集梯度上升做反学习</strong>。综合最优,但极端投毒率下对
+<strong>Blend</strong> 仍会失手。</li>
+<li><strong>军备竞赛是本章的灵魂</strong>:每个防御都压在一条<strong>可被打破的假设</strong>上(SSBA
+打破 STRIP 的 input-agnostic、pruning-aware 打破 Fine-Pruning
+的神经元分离)。<strong>后门攻击是人为蓄意的</strong>,所以总能设计新攻击绕过防御——这与「对抗样本是模型固有缺陷、终将随特征对齐而消失」<strong>本质不同</strong>,注定是一场没有终点的拉锯。</li>
+</ul>
+<hr />
+<h2 id="八与-assignment--lab--相邻周的关联">八、与 Assignment / Lab /
+相邻周的关联</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>关联点</th>
+<th>说明</th>
+<th>对应章节</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Assignment 2 task 2 = 实现 Neural Cleanse
+反向工程</strong></td>
+<td>讲师明确点名;吃透 §4.3 的 mask/trigger
+优化公式,接受结果有随机性(别拿论文 cherry-pick 图当标准)</td>
+<td>§四</td>
+</tr>
+<tr class="even">
+<td><strong>下一个 Lab = 用 STRIP 检测 BadNets</strong></td>
+<td>会在 Python 里实现 §二 的叠图 + 熵算法,看不同 trigger
+下的检测表现</td>
+<td>§二</td>
+</tr>
+<tr class="odd">
+<td><strong>Assignment 2 task 4 用 FRR/FAR 评分</strong></td>
+<td>训练 watermarking 模型时按误拒/误受率评,记住它们 = FPR/FNR</td>
+<td>§2.4</td>
+</tr>
+<tr class="even">
+<td><strong>承接 Week 4(后门攻击)</strong></td>
+<td>本周防御正是针对上周的 BadNets/Blended/SSBA;<strong>STRIP 抓
+BadNets/Blended,抓不到 SSBA</strong>——攻防对照着记</td>
+<td>全章</td>
+</tr>
+<tr class="odd">
+<td><strong>SSBA 是连接攻防的枢纽</strong></td>
+<td>Week 4 学它是「最隐蔽的攻击」,本周它又是「打破 STRIP 的 adaptive
+attack」</td>
+<td>§六</td>
+</tr>
+<tr class="even">
+<td><strong>复用「对抗扰动」思想</strong></td>
+<td>Neural Cleanse 反推 trigger 本质是解一个 adversarial perturbation
+优化——再次印证「对抗样本是众多 AI 攻防的基础积木」</td>
+<td>§4.3</td>
+</tr>
+<tr class="odd">
+<td><strong>Week 6(下周)= Model Stealing</strong></td>
+<td>讲师课上已无缝衔接到模型窃取攻击(softmax、knowledge
+distillation)</td>
+<td>后续</td>
+</tr>
+</tbody>
+</table></div>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

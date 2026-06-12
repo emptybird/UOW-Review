@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 2 · 对抗样本 (Adversarial Examples)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-2--对抗样本-adversarial-examples">Week 2 · 对抗样本
+(Adversarial Examples)</h1>
+<blockquote>
+<p><strong>CSIT375/975 — AI and Cybersecurity</strong> · Dr Wei Zong ·
+University of Wollongong</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>解释</strong> Clever Hans 效应与 <strong>spurious
+features(伪相关特征)</strong>,说清楚"模型准确率高"为什么不等于"模型真懂",并把它和
+adversarial example 联系起来;</li>
+<li><strong>下定义</strong>:用数学语言写出 adversarial
+example(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi><mo>=</mo><mi>x</mi><mo>+</mo><mi>δ</mi></mrow><annotation encoding="application/x-tex">x&#39; = x+\delta</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mi>′</mi><mo>−</mo><mi>x</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msub><mo>&lt;</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">\|x&#39;-x\|_p &lt; \epsilon</annotation></semantics></math>),解释
+<strong>p-norm /
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>p</mi></msub><annotation encoding="application/x-tex">L_p</annotation></semantics></math>
+norm</strong> 在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">p=1,2,\infty</annotation></semantics></math>
+时各是什么,并区分 <strong>targeted vs. untargeted</strong> 攻击;</li>
+<li><strong>推导并复现</strong> 三大白盒攻击
+<strong>FGSM、PGD、CW</strong>
+的核心公式与思想,讲清它们的强弱关系、为什么 FGSM 的 "+/−"
+号要那样取、PGD 为什么要迭代、CW 为什么直接操作 logits;</li>
+<li><strong>区分</strong> white-box / grey-box / black-box
+三种<strong>威胁模型 (threat
+model)</strong>,并说明每种下攻击者能做什么、不能做什么;</li>
+<li><strong>解释</strong> black-box
+攻击的核心武器——<strong>transferability(可迁移性)</strong>:surrogate
+model、single vs. ensemble
+方法,以及"决策边界相似"为什么能解释迁移成功;</li>
+<li><strong>认识</strong> physical attacks、<strong>universal
+adversarial perturbations (UAPs)</strong> 与 unrestricted attacks
+这三类把对抗样本推向真实世界的扩展。</li>
+</ul>
+</blockquote>
+<p>上一周我们把 AI
+的基础——模型、训练流程、评估、PyTorch——打牢了。从这一周起,我们正式进入课程<strong>第一部分(研究
+AI
+模型自身的安全漏洞)<strong>的第一个、也是最基础的话题:<strong>对抗样本
+(adversarial examples)</strong>。讲师反复强调,本章的 FGSM / PGD / CW
+三个算法是</strong>整门课的地基</strong>——后面的
+backdoor、模型窃取等很多技术都直接复用这里的方法,所以这一章"难一点是正常的,吃透了后面就轻松"。</p>
+<p>整章的逻辑是一条层层递进的线:<strong>先问一个尖锐的问题"模型真的学会了吗"(Clever
+Hans)→ 由此引出 adversarial ML 这个研究领域 → 给对抗样本下严格的数学定义
+→ 在"攻击者无所不知"的理想设定下造出三种白盒攻击 →
+逐步收紧攻击者的知识,过渡到更现实的灰盒/黑盒攻击 →
+最后把战场从数字世界扩展到物理世界、通用扰动和不受限攻击。</strong></p>
+<blockquote>
+<p>📎 <strong>本章横跨两节课的录音(重要)</strong> — 这份"adversarial
+examples"slides 的内容实际讲了<strong>两次课</strong>:Lecture 2
+因进度关系讲到 <strong>black-box 攻击与决策边界可视化(slide 27)</strong>
+就下课了,讲师说"physical / UAP / unrestricted 下周继续";Lecture 3
+一开头就<strong>补完了后三节</strong>(physical / UAP /
+unrestricted),然后才进入 Week 3
+自己的主题(对抗鲁棒性/防御)。<strong>本指南整合了这两节录音</strong>,所以全部
+13 节都有课堂讲解支撑,内容是完整的。后三节里和 Lecture 3
+防御部分有承接关系的地方(如"把所有变换塞进优化"既用于物理攻击、也用于对抗防御),会用
+📎 点出。</p>
+</blockquote>
+<hr />
+<h2
+id="一引子模型真的学会了吗clever-hans-效应">一、引子:模型真的"学会"了吗?——Clever
+Hans 效应</h2>
+<p>机器学习模型今天在各种任务上表现亮眼:<strong>image
+classification(图像分类)、object detection(目标检测)、self-driving
+cars(自动驾驶)、speech-to-text(语音转文字)</strong>……准确率动辄 90%
+以上。但讲师抛出了一个让人不安的问题:<strong>这些模型,会不会只是"聪明的汉斯"?</strong></p>
+<blockquote>
+<p><strong>🔑 例 (Worked example) — 一匹会"算术"的马</strong> 1904
+年,德国有一匹叫 <strong>Hans</strong>
+的马,它的主人声称它会做简单算术。问它"1+2
+等于几",它就用蹄子敲地三下,然后停下——观众欢呼。科学家研究后发现:<strong>马根本不会算术</strong>。它其实是在<strong>读人的反应</strong>——当它敲到正确次数时,围观者会不自觉地流露出期待/紧张的神情变化,Hans
+捕捉到这个线索就停下来。换句话说,它用一个**和任务本身无关的"捷径"**蒙对了答案。这就是
+<strong>Clever Hans effect(聪明的汉斯效应)</strong>。</p>
+</blockquote>
+<p>把这个故事搬到机器学习上,就是本章的核心隐忧。看下面这个对抗样本的"开山例子":</p>
+<blockquote>
+<p><strong>🔑 例 — 一只被"改写"的熊猫(Goodfellow et al., 2015)</strong>
+一个图像分类器看一张熊猫照片,正确地说"这是
+<strong>panda</strong>,置信度约
+57%"。研究者算出一层<strong>精心设计、再乘以极小系数缩小</strong>的噪声
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>,把它叠加到原图上。新图人眼看上去<strong>和原图完全一样</strong>,还是熊猫。可模型却以
+<strong>99% 的高置信度</strong>说"这是
+<strong>gibbon(长臂猿)</strong>"。 📎 <strong>拓展(超出 slides
+的经典数值)</strong> — 这就是 Goodfellow
+论文里那张著名的图:<code>57.7% panda</code>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mspace width="0.278em"></mspace><mi>ϵ</mi><mo>⋅</mo><mtext mathvariant="normal">sign</mtext><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>∇</mi><mi>x</mi></msub><mi>J</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">+\;\epsilon\cdot\text{sign}(\nabla_x J)</annotation></semantics></math>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi><mo>=</mo><mn>0.007</mn></mrow><annotation encoding="application/x-tex">\epsilon=0.007</annotation></semantics></math>)<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>→</mo><annotation encoding="application/x-tex">\to</annotation></semantics></math>
+<code>99.3% gibbon</code>。slides
+没给精确数字,但记住这个量级有助于理解"扰动有多小、欺骗有多强"。</p>
+</blockquote>
+<p>为什么会这样?因为模型很可能根本没理解"什么是熊猫",它只是抓住了某些<strong>伪相关特征</strong>蒙对了:</p>
+<blockquote>
+<p>📎 <strong>关键概念 — Spurious features(伪相关特征)</strong>
+当模型靠<strong>非因果 (non-causal)
+的模式、背景或相关性</strong>来做预测、而非真正理解任务时,就会出现
+Clever Hans 效应。比如模型可能只是记住"图里有蓝色背景 →
+判熊猫"。一旦你加的噪声破坏了这些背景线索,模型就崩了。一句话总结:<strong>Correlation
+does not imply
+causation(相关不蕴含因果)</strong>——模型学到的相关性,不等于它学到了底层概念。</p>
+</blockquote>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;模型准确率很高&lt;br/&gt;(看起来&#39;学会了&#39;)&quot;] --&gt; B{&quot;它靠什么做对的?&quot;}
+    B --&gt;|&quot;真正理解底层概念&lt;br/&gt;(因果特征)&quot;| C[&quot;✅ 鲁棒的好模型&quot;]
+    B --&gt;|&quot;抓背景/相关性等&lt;br/&gt;spurious features&quot;| D[&quot;⚠️ Clever Hans 模型&lt;br/&gt;= 用捷径蒙对&quot;]
+    D --&gt; E[&quot;微小扰动破坏捷径&lt;br/&gt;→ 对抗样本骗倒它&quot;]</code></pre>
+<p>这个"模型在用捷径"的经验证据 (empirical evidence),正是
+<strong>adversarial machine learning</strong> 这个研究领域的起点。</p>
+<hr />
+<h2
+id="二什么是对抗机器学习-adversarial-machine-learning">二、什么是对抗机器学习
+(Adversarial Machine Learning)</h2>
+<p>"对抗样本"只是更大图景里的一个具体技术。它所属的领域叫
+<strong>adversarial machine learning(对抗机器学习)</strong>。讲师用
+Google Trends 指出:这个话题<strong>大约从 2016
+年起才迅速变热</strong>,至今仍是很新的方向。</p>
+<p>它的官方定义(引自澳大利亚国防科技部 DST)可以浓缩成一句话:</p>
+<blockquote>
+<p><strong>Adversarial Machine Learning</strong> —
+攻击者<strong>知道</strong>有一个 ML 系统正被部署来对付他,于是利用对 ML
+技术的了解,<strong>操纵输入</strong>或<strong>污染训练数据</strong>,来操控/规避这个学好的分类器,或利用算法弱点做出错误决策。</p>
+</blockquote>
+<p>注意这个定义点出了<strong>两条不同的攻击路线</strong>,本课会分别在不同周展开:</p>
+<pre class="mermaid"><code>flowchart TD
+    AML[&quot;Adversarial Machine Learning&quot;]
+    AML --&gt; P1[&quot;&lt;b&gt;操纵输入&lt;/b&gt;&lt;br/&gt;(本周:对抗样本)&lt;br/&gt;改一张熊猫图骗模型&quot;]
+    AML --&gt; P2[&quot;&lt;b&gt;污染训练数据&lt;/b&gt;&lt;br/&gt;(Week 4:backdoor 攻击)&lt;br/&gt;在训练集里下毒&quot;]</code></pre>
+<p>本周聚焦<strong>第一条路线——操纵输入</strong>,也就是对抗样本。Week 4
+再讲第二条(后门攻击)。</p>
+<hr />
+<h2
+id="三对抗样本的数学定义扰动p-norm-与攻击目标">三、对抗样本的数学定义:扰动、p-norm
+与攻击目标</h2>
+<h3 id="31-定义一次小到看不见的修改">3.1
+定义:一次"小到看不见"的修改</h3>
+<p>给定一个原始输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>(比如一张熊猫图),它的
+<strong>adversarial example(对抗样本)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">x&#39;</annotation></semantics></math>
+是对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+做一点点修改得到的:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi><mo>←</mo><mi>x</mi><mo>+</mo><mi>δ</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>x</mi><mi>′</mi><mo>≈</mo><mi>x</mi></mrow><annotation encoding="application/x-tex">x&#39; \leftarrow x + \delta, \qquad x&#39; \approx x</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+是我们加上去的<strong>扰动 / 噪声 (perturbation /
+noise)</strong>。关键约束是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">x&#39;</annotation></semantics></math>
+必须<strong>和原图足够像</strong>——像到人眼察觉不出。怎么把"足够像"变成可计算的条件?用<strong>向量范数
+(vector norm)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mi>′</mi><mo>−</mo><mi>x</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msub><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><mo stretchy="false" form="postfix">∥</mo><mi>δ</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msub><mspace width="0.278em"></mspace><mo>&lt;</mo><mspace width="0.278em"></mspace><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">\|x&#39;-x\|_p \;=\; \|\delta\|_p \;&lt;\; \epsilon</annotation></semantics></math></p>
+<p>也就是说,扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+的范数必须小于一个很小的常数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>。</p>
+<h3 id="32-p-norml_p-norm把一个向量压成一个数">3.2
+p-norm(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>p</mi></msub><annotation encoding="application/x-tex">L_p</annotation></semantics></math>
+norm):把一个向量压成一个数</h3>
+<blockquote>
+<p>📎 <strong>为什么需要 norm?(课堂答疑的精华)</strong>
+有同学问:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">x&#39;</annotation></semantics></math>
+都是图像,直接相减得到的还是一张"差异图像",而我们想要的是<strong>一个数</strong>来描述"差异有多大"。<strong>p-norm
+的作用,就是把一个向量(这里是扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>)变换成一个标量
+(scalar),用来度量"噪声有多大"。</strong>
+算法生成攻击时,就靠它来确保噪声足够小、足够隐蔽。</p>
+</blockquote>
+<p>向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>
+的 <strong>p-norm(也叫
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>p</mi></msub><annotation encoding="application/x-tex">L_p</annotation></semantics></math>
+norm)</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+取
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mn>3</mn><mo>,</mo><mi>…</mi></mrow><annotation encoding="application/x-tex">1,2,3,\dots</annotation></semantics></math>
+直到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>∞</mi><annotation encoding="application/x-tex">\infty</annotation></semantics></math>,定义为:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>v</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msub><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><munder><mo>∑</mo><mi>i</mi></munder><msup><mrow><mo stretchy="true" form="prefix">|</mo><msub><mi>v</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><mi>p</mi></msup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mn>1</mn><mi>/</mi><mi>p</mi></mrow></msup></mrow><annotation encoding="application/x-tex">\|v\|_p = \left(\sum_i |v_i|^p\right)^{1/p}</annotation></semantics></math></p>
+<p>公式看着抽象,但代入具体的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+就很直观了:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math></th>
+<th>名称</th>
+<th>公式</th>
+<th>直观含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">p=1</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+norm</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mo stretchy="true" form="prefix">|</mo><mi>v</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>1</mn></msub><mo>=</mo><msub><mo>∑</mo><mi>i</mi></msub><mo stretchy="false" form="prefix">|</mo><msub><mi>v</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|v|_1=\sum_i\lvert v_i\rvert</annotation></semantics></math></td>
+<td>所有元素<strong>绝对值之和</strong></td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">p=2</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+norm</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mo stretchy="true" form="prefix">|</mo><mi>v</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msub><mo>=</mo><msqrt><mrow><msub><mo>∑</mo><mi>i</mi></msub><msubsup><mi>v</mi><mi>i</mi><mn>2</mn></msubsup></mrow></msqrt></mrow><annotation encoding="application/x-tex">|v|_2=\sqrt{\sum_i v_i^2}</annotation></semantics></math></td>
+<td><strong>欧氏距离 (Euclidean distance)</strong></td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">p=\infty</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+norm</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mo stretchy="true" form="prefix">|</mo><mi>v</mi><mo stretchy="true" form="postfix">|</mo></mrow><mi>∞</mi></msub><mo>=</mo><msub><mo>max</mo><mi>i</mi></msub><mo stretchy="false" form="prefix">|</mo><msub><mi>v</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|v|_\infty=\max_i\lvert v_i\rvert</annotation></semantics></math></td>
+<td>元素里<strong>最大的绝对值</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>⚠️ <strong>与 Assignment 1 的直接关联</strong> —
+讲师明确说:<strong>Assignment 1 生成攻击时,你必须用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>p</mi></msub><annotation encoding="application/x-tex">L_p</annotation></semantics></math>
+norm 约束你的扰动</strong>(常见是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>
+或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>)。批改代码会算出你的攻击与原图之差的范数,<strong>确保它小于规定的常数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math></strong>,否则不算合格的对抗样本。所以这三个范数的计算务必烂熟。</p>
+</blockquote>
+<h3 id="33-两种攻击目标targeted-vs-untargeted">3.3 两种攻击目标:targeted
+vs. untargeted</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>攻击类型</th>
+<th>目标</th>
+<th>例子</th>
+<th>难度</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Untargeted attack(无目标攻击)</strong></td>
+<td>只要让模型<strong>判错</strong>就行,错成什么不管</td>
+<td>熊猫 → 随便什么(鸟也行)</td>
+<td>较易</td>
+</tr>
+<tr class="even">
+<td><strong>Targeted attack(有目标攻击)</strong></td>
+<td>让模型输出<strong>预先指定</strong>的标签</td>
+<td>熊猫 → <strong>必须</strong>判成"猫"</td>
+<td>较难</td>
+</tr>
+</tbody>
+</table></div>
+<p>记住这个区分——它会贯穿后面每一个攻击算法(FGSM/PGD/CW 都各有 targeted
+与 untargeted 两个版本)。</p>
+<hr />
+<h2 id="四white-box-攻击一fgsm--一步到位的快攻">四、White-box
+攻击(一):FGSM —— 一步到位的快攻</h2>
+<p>从这里开始进入本章的"三大白盒攻击"。先明确什么是<strong>白盒</strong>:</p>
+<blockquote>
+<p>📎 <strong>White-box(白盒)假设</strong> —
+攻击者<strong>对目标模型无所不知</strong>:模型架构、模型权重
+(weights)、训练数据、训练算法……全都知道。可以想象成攻击者下载了一份模型的本地副本。<strong>关键推论:既然知道全部权重,攻击者就能计算损失对输入的梯度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>∇</mi><mi>x</mi></msub><mi>J</mi></mrow><annotation encoding="application/x-tex">\nabla_x J</annotation></semantics></math>——而这个"对输入求梯度"正是生成对抗样本的钥匙。</strong></p>
+</blockquote>
+<p><strong>FGSM(Fast Gradient Signed Method,快速梯度符号法)</strong>
+是历史上第一个对抗样本算法,核心卖点就一个字:<strong>快</strong>——只需<strong>计算一次梯度</strong>就能造出攻击。简单,却出奇有效,只要三行:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="bold">(𝟏)</mtext><mspace width="1.0em"></mspace><mi>δ</mi><mo>←</mo><mi>ϵ</mi><mo>⋅</mo><mtext mathvariant="normal">sign</mtext><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>∇</mi><mi>x</mi></msub><mi>J</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>θ</mi><mo>,</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="bold">(𝟐)</mtext><mspace width="1.0em"></mspace><mi>x</mi><mi>′</mi><mo>←</mo><mi>x</mi><mo>+</mo><mi>δ</mi><mspace width="2.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mtext mathvariant="normal">“</mtext><mo>+</mo><mtext mathvariant="normal">” 用于 untargeted,</mtext><mi>y</mi><mo>=</mo><mtext mathvariant="normal">真实标签</mtext><mo>;</mo><mspace width="0.222em"></mspace><mtext mathvariant="normal">“</mtext><mo>−</mo><mtext mathvariant="normal">” 用于 targeted,</mtext><mi>y</mi><mo>=</mo><mtext mathvariant="normal">目标标签</mtext><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="bold">(𝟑)</mtext><mspace width="1.0em"></mspace><mi>x</mi><mi>′</mi><mo>←</mo><mtext mathvariant="normal">clip</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mi>′</mi><mo>,</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr></mtable><annotation encoding="application/x-tex">
+\begin{aligned}
+&amp;\textbf{(1)}\quad \delta \leftarrow \epsilon \cdot \text{sign}\big(\nabla_x J(\theta, x, y)\big)\\
+&amp;\textbf{(2)}\quad x&#39; \leftarrow x + \delta \qquad(\text{“}+\text{” 用于 untargeted,}y=\text{真实标签};\ \text{“}-\text{” 用于 targeted,}y=\text{目标标签})\\
+&amp;\textbf{(3)}\quad x&#39; \leftarrow \text{clip}(x&#39;, 0, 1)
+\end{aligned}
+</annotation></semantics></math></p>
+<p>逐行拆解(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>θ</mi><mo>,</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">J(\theta,x,y)</annotation></semantics></math>
+是训练模型用的 <strong>cost
+function</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+是模型参数,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+是输入,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+是标签):</p>
+<ol type="1">
+<li><strong>算梯度再取符号</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>∇</mi><mi>x</mi></msub><mi>J</mi></mrow><annotation encoding="application/x-tex">\nabla_x J</annotation></semantics></math>
+是损失对输入图像的梯度(回忆 Week
+1:梯度指向损失<strong>增长最快</strong>的方向)。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">sign</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\text{sign}(\cdot)</annotation></semantics></math>
+把每个分量压成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">+1</annotation></semantics></math>
+或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">-1</annotation></semantics></math>(正数→+1,负数→−1)——这就是"gradient
+<strong>signed</strong> method"名字的由来。再乘上一个很小的常数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>,得到隐蔽的噪声
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>。</li>
+<li><strong>加到原图上</strong>得到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">x&#39;</annotation></semantics></math>。</li>
+<li><strong>clip 回合法范围</strong>:PyTorch 里像素值在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[0,1]</annotation></semantics></math>,所以把结果裁剪回这个区间,保证
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">x&#39;</annotation></semantics></math>
+仍是一张合法图像。</li>
+</ol>
+<blockquote>
+<p><strong>🔑 例 — FGSM 把熊猫变长臂猿</strong> 取熊猫图
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>,设
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo></mrow><annotation encoding="application/x-tex">y=</annotation></semantics></math>
+panda(真实标签),算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">sign</mtext><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>∇</mi><mi>x</mi></msub><mi>J</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\text{sign}(\nabla_x J)</annotation></semantics></math>
+得到噪声,乘以极小的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>
+缩小后加到熊猫上。新图人眼仍是熊猫,但喂给模型,它高置信度地说"gibbon"。这正是开篇那只熊猫背后的算法。</p>
+</blockquote>
+<h3 id="41-号到底怎么回事讲师重点强调">4.1
+"+/−"号到底怎么回事(讲师重点强调)</h3>
+<p>这是 FGSM 最容易绕晕的地方,讲师花了很大篇幅。核心要抓住**"沿梯度方向
+= 增大损失 = 增大错误"**这条因果链:</p>
+<ul>
+<li><strong>Untargeted(用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>+</mo><annotation encoding="application/x-tex">+</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>=真实标签)</strong>:沿梯度方向移动输入
+→ <strong>增大</strong> cost function。而 cost
+衡量的是模型的<strong>误差</strong>,误差被人为推高 →
+模型预测出错。我们不在乎错成什么,所以这是无目标攻击。</li>
+<li><strong>Targeted(用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>−</mo><annotation encoding="application/x-tex">-</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>=目标标签)</strong>:这里
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+不是真实标签,而是我们想要的<strong>目标</strong>(如"鸟")。沿梯度<strong>反方向</strong>移动
+→ <strong>减小</strong>"把熊猫判成鸟"这件事的损失 →
+模型越来越"自信地"把熊猫说成鸟。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>讲师的"别钻牛角尖"提醒</strong> — 同学纠结于"+ 是加噪声、−
+是减噪声"。讲师说:其实
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>−</mo><mi>δ</mi></mrow><annotation encoding="application/x-tex">x-\delta</annotation></semantics></math>
+等价于
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mi>δ</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x+(-\delta)</annotation></semantics></math>,<strong>两者都是在'施加噪声',只是把噪声翻了个方向</strong>。不要纠结加减这个操作本身,<strong>真正要懂的是"什么时候该用
++、什么时候该用 −"——答案就是上面那条"增大/减小误差"的逻辑。</strong></p>
+</blockquote>
+<h3 id="42-fgsm-的效果与短板">4.2 FGSM 的效果与短板</h3>
+<p>只有三行代码,FGSM 在多个数据集上却很猛:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>数据集</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math></th>
+<th>error rate</th>
+<th>average confidence</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>MNIST</strong>(手写数字 0–9)</td>
+<td>0.25</td>
+<td><strong>99.9%</strong></td>
+<td>79.3%</td>
+</tr>
+<tr class="even">
+<td><strong>CIFAR-10</strong></td>
+<td>0.1</td>
+<td><strong>87.15%</strong></td>
+<td>96.6%</td>
+</tr>
+</tbody>
+</table></div>
+<p>(error rate 越高 = 攻击越成功;confidence
+是模型对错误预测的自信程度。)</p>
+<p><strong>短板:FGSM 常常做不成 targeted 攻击。</strong>
+讲师用决策边界图解释:</p>
+<blockquote>
+<p><strong>🔑 例 — 为什么 FGSM 的 targeted 会失败</strong> 在
+bird/cat/dog 三类的决策空间里,起点是
+dog(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>),目标是
+cat。FGSM 一步算出的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+方向是固定的;沿这个方向走,<strong>无论
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>
+取多大,这条直线都可能永远进不了 cat
+的决策区域</strong>。一步定生死,方向不对就到不了——这就引出了下一个算法。</p>
+</blockquote>
+<pre class="mermaid"><code>flowchart LR
+    X[&quot;原图 x (dog)&quot;] --&gt;|&quot;沿单一方向 δ 走一步&quot;| F[&quot;FGSM 结果&quot;]
+    F -.-&gt;|&quot;方向不对&lt;br/&gt;永远进不了 cat 区&quot;| MISS[&quot;❌ targeted 失败&quot;]</code></pre>
+<hr />
+<h2 id="五white-box-攻击二pgd--迭代版-fgsm">五、White-box 攻击(二):PGD
+—— 迭代版 FGSM</h2>
+<p><strong>PGD(Projected Gradient Descent,投影梯度下降)</strong> 是比
+FGSM <strong>强得多</strong>的白盒攻击,尤其擅长 <strong>targeted
+攻击</strong>。它的思路一句话就能说清:</p>
+<blockquote>
+<p><strong>核心思想:既然一步(FGSM)可能走不到,那就走很多步。PGD =
+迭代版的 FGSM。</strong></p>
+</blockquote>
+<p>算法(以 targeted 为例):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="bold">𝟏.</mtext><mspace width="1.0em"></mspace><mi>x</mi><mi>′</mi><mo>←</mo><mi>x</mi><mspace width="1.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mtext mathvariant="normal">初始化为原图</mtext><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="bold">𝟐.</mtext><mspace width="1.0em"></mspace><mi>x</mi><mi>′</mi><mo>←</mo><mi>x</mi><mi>′</mi><mo>−</mo><mi>ϵ</mi><mo>⋅</mo><mtext mathvariant="normal">sign</mtext><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>∇</mi><mrow><mi>x</mi><mi>′</mi></mrow></msub><mi>J</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>θ</mi><mo>,</mo><mi>x</mi><mi>′</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mspace width="1.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mtext mathvariant="normal">targeted 用 “</mtext><mo>−</mo><mtext mathvariant="normal">”,</mtext><mi>y</mi><mo>=</mo><mtext mathvariant="normal">目标标签</mtext><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="bold">𝟑.</mtext><mspace width="1.0em"></mspace><mi>δ</mi><mo>←</mo><mtext mathvariant="normal">clip</mtext><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mi>′</mi><mo>−</mo><mi>x</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><mo>−</mo><mi>ϵ</mi><mo>,</mo><mspace width="0.222em"></mspace><mo>+</mo><mi>ϵ</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mspace width="1.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mtext mathvariant="normal">要求 </mtext><mspace width="0.333em"></mspace></mrow><mo stretchy="false" form="postfix">∥</mo><mi>δ</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msub><mo>≤</mo><mi>ϵ</mi><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="bold">𝟒.</mtext><mspace width="1.0em"></mspace><mi>x</mi><mi>′</mi><mo>←</mo><mtext mathvariant="normal">clip</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>+</mo><mi>δ</mi><mo>,</mo><mspace width="0.222em"></mspace><mn>0</mn><mo>,</mo><mspace width="0.222em"></mspace><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="bold">𝟓.</mtext><mspace width="1.0em"></mspace><mrow><mtext mathvariant="normal">若 </mtext><mspace width="0.333em"></mspace></mrow><mi>x</mi><mi>′</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 还没被判成目标,回到第 2 步</mtext></mrow></mtd></mtr></mtable><annotation encoding="application/x-tex">
+\begin{aligned}
+&amp;\textbf{1.}\quad x&#39; \leftarrow x \quad(\text{初始化为原图})\\
+&amp;\textbf{2.}\quad x&#39; \leftarrow x&#39; - \epsilon\cdot\text{sign}\big(\nabla_{x&#39;} J(\theta, x&#39;, y)\big)\quad(\text{targeted 用 “}-\text{”,}y=\text{目标标签})\\
+&amp;\textbf{3.}\quad \delta \leftarrow \text{clip}\big(\|x&#39;-x\|_p,\ -\epsilon,\ +\epsilon\big)\quad(\text{要求 }\|\delta\|_p\le\epsilon)\\
+&amp;\textbf{4.}\quad x&#39; \leftarrow \text{clip}(x+\delta,\ 0,\ 1)\\
+&amp;\textbf{5.}\quad \text{若 }x&#39;\text{ 还没被判成目标,回到第 2 步}
+\end{aligned}
+</annotation></semantics></math></p>
+<p>理解要点:</p>
+<ul>
+<li><strong>第 2 步</strong>就是一次 FGSM 更新(走一小步);</li>
+<li><strong>第 3 步是"Projected"的来历</strong>:每走一步后,把累积的扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+<strong>投影/裁剪回
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>-球</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>δ</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msub><mo>≤</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">\|\delta\|_p\le\epsilon</annotation></semantics></math>),保证总扰动不超标、仍然隐蔽;</li>
+<li><strong>第 5
+步</strong>:检查有没有成功,没成功就继续迭代。一步一步地,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">x&#39;</annotation></semantics></math>
+从 dog 区域慢慢挪进 cat 区域。</li>
+</ul>
+<pre class="mermaid"><code>flowchart TD
+    S1[&quot;1. x&#39; = x (起点 dog 区)&quot;] --&gt; S2[&quot;2. 走一小步&lt;br/&gt;x&#39; -= ε·sign(∇J)&quot;]
+    S2 --&gt; S3[&quot;3. 投影:把 δ 裁回 ε-球&lt;br/&gt;‖δ‖ₚ ≤ ε&quot;]
+    S3 --&gt; S4[&quot;4. clip 到 [0,1]&quot;]
+    S4 --&gt; S5{&quot;5. 已判成目标?&quot;}
+    S5 --&gt;|否| S2
+    S5 --&gt;|是| DONE[&quot;✅ 攻击成功&quot;]</code></pre>
+<p><strong>效果(CIFAR-10,untargeted,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi><mo>=</mo><mn>0.03</mn></mrow><annotation encoding="application/x-tex">\epsilon=0.03</annotation></semantics></math>)</strong>——PGD
+也能轻松改成 untargeted(把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>−</mo><annotation encoding="application/x-tex">-</annotation></semantics></math>
+换成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>+</mo><annotation encoding="application/x-tex">+</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+换成真实标签):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>简单模型</th>
+<th>复杂模型</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>干净图准确率</td>
+<td>92%</td>
+<td>95%</td>
+</tr>
+<tr class="even">
+<td>FGSM 攻击后</td>
+<td>~30%</td>
+<td>~30%</td>
+</tr>
+<tr class="odd">
+<td><strong>PGD 攻击后</strong></td>
+<td><strong>~1–3%</strong></td>
+<td><strong>~1–3%</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>PGD 把模型准确率打到近乎 0,<strong>显著强于 FGSM</strong>。</p>
+<hr />
+<h2 id="六white-box-攻击三cw--直接操纵-logits">六、White-box 攻击(三):CW
+—— 直接操纵 logits</h2>
+<p><strong>CW(Carlini-Wagner)攻击</strong>
+是第三个经典且广泛使用的强白盒攻击。本课<strong>只关注它的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+版本</strong>(扰动用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+norm 度量,追求在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+意义下失真最小;CW 还有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>0</mn></msub><annotation encoding="application/x-tex">L_0</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+版本,本课不涉及)。</p>
+<p>它和 FGSM/PGD 的<strong>根本区别</strong>在于攻击的"靶子":</p>
+<blockquote>
+<p>📎 <strong>关键洞察:FGSM/PGD 攻击的是 loss function(如
+cross-entropy);CW 不用 loss,直接操纵 logits。</strong>
+回忆:模型对一张图输出若干
+<strong>logits</strong>(每个类别一个原始分数),<strong>最大的 logit
+对应的类别就是预测结果</strong>。CW 的想法是:既然预测只看哪个 logit
+最大,那我<strong>直接去改 logits</strong> 不就行了?例如三类 cat/bird/dog
+的 logits 是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">1,2,3</annotation></semantics></math>(预测
+dog),要让它判 cat,就想办法把 cat 的 logit 顶上去。</p>
+</blockquote>
+<p><strong>Targeted 的核心目标</strong>:让<strong>目标类的 logit
+比第二大的 logit 大出一个指定的
+gap(间隔)</strong>。优化目标(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+版本):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mi>w</mi></munder><mspace width="0.222em"></mspace><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">∥</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>x</mi><msubsup><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">∥</mo><mn>2</mn><mn>2</mn></msubsup><mspace width="0.278em"></mspace><mo>+</mo><mspace width="0.278em"></mspace><mi>c</mi><mo>⋅</mo><mi>f</mi><mspace width="-0.167em"></mspace><mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">(</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\min_{w}\ \Big\|\tfrac{1}{2}(\tanh(w)+1)-x\Big\|_2^2 \;+\; c\cdot f\!\Big(\tfrac{1}{2}(\tanh(w)+1)\Big)</annotation></semantics></math></p>
+<p>这个式子有三个零件,逐个拆:</p>
+<p><strong>零件 1 — <code>tanh</code>
+重参数化,保证生成的是合法图像。</strong> 我们优化的自由变量是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>(可以任意取值)。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\tanh(w)</annotation></semantics></math>
+把任意实数压进
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(-1,1)</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">+1</annotation></semantics></math>
+后变
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(0,2)</annotation></semantics></math>,再
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>×</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac></mrow><annotation encoding="application/x-tex">\times\tfrac12</annotation></semantics></math>
+变
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(0,1)</annotation></semantics></math>——正好是合法像素范围。所以</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi><mo>=</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mo>tanh</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>w</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">x&#39; = \tfrac{1}{2}(\tanh(w)+1)</annotation></semantics></math></p>
+<p><strong>永远是一张合法图像</strong>,这就是我们要生成的对抗样本。</p>
+<p><strong>零件 2 — 第一项
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>x</mi><mi>′</mi><mo>−</mo><mi>x</mi><msubsup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\|x&#39;-x\|_2^2</annotation></semantics></math>,衡量隐蔽性。</strong>
+即对抗样本与原图在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+下的(平方)距离,越小越隐蔽。这正是"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+版本"的来历。</p>
+<p><strong>零件 3 —
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+函数,衡量"欺骗力"(最难的一块):</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>max</mo><mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">(</mo><mspace width="0.222em"></mspace><munder><mo>max</mo><mrow><mi>i</mi><mo>≠</mo><mi>t</mi></mrow></munder><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mi>Z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>i</mi></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mo>−</mo><mi>Z</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>t</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><mspace width="0.222em"></mspace><mo>−</mo><mi>k</mi><mspace width="0.222em"></mspace><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(x&#39;) = \max\Big(\ \max_{i\neq t}\big(Z(x&#39;)_i\big) - Z(x&#39;)_t,\ \ -k\ \Big)</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>i</mi></msub><annotation encoding="application/x-tex">Z_i</annotation></semantics></math>
+= 第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+个
+logit,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+=
+目标类,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+= 指定的
+gap,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+= 平衡两项的常数。理解它要看<strong>两层 max</strong>:</p>
+<blockquote>
+<p><strong>🔑 例 — 跟着 logits 走一遍 CW 的最小化</strong> 三类
+cat/bird/dog,初始 logits
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">=1,2,3</annotation></semantics></math>,bird
+图被正确判成 bird(3),目标是 cat。</p>
+<ul>
+<li><strong>内层
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mo>max</mo><mrow><mi>i</mi><mo>≠</mo><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">\max_{i\neq t}</annotation></semantics></math></strong>:取"<strong>除目标外</strong>最大的
+logit"。此刻 cat 是目标(=1),所以在 bird(2)、dog(3) 里取最大 →
+<strong>dog=3</strong>。</li>
+<li>减去目标
+logit:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mo>−</mo><mn>1</mn><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">3 - 1 = 2</annotation></semantics></math>。这个
+<strong>gap=2</strong> 就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+返回的值,<strong>它是"最强竞争者"与"目标"之间的差距</strong>。</li>
+<li><strong>最小化 gap</strong>:优化会压低竞争者、抬高目标。gap 从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>2</mn><annotation encoding="application/x-tex">2</annotation></semantics></math>
+慢慢降。当 gap 变成<strong>负数</strong>(例如目标 cat 的 logit
+超过其他所有类)时,<strong>模型就把图判成 cat 了——targeted
+攻击成功</strong>。</li>
+<li><strong>外层
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo>,</mo><mo>−</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\max(\cdot, -k)</annotation></semantics></math>
+是"刹车"</strong>:我们不想无限优化下去。一旦 gap 小到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">-k</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+就返回常数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">-k</annotation></semantics></math>;此时
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+不再随
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+变化,优化自动停下。</li>
+</ul>
+</blockquote>
+<p><strong>两个旋钮的作用:</strong></p>
+<ul>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+控制 gap 大小 =
+控制置信度</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+越大,目标 logit
+领先越多,模型预测<strong>越自信</strong>——但也引入<strong>越多失真
+(distortion)</strong>。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+平衡隐蔽性与欺骗力</strong>:第一项管隐蔽、第二项管欺骗,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+调两者的权重。</li>
+</ul>
+<p><strong>Untargeted 版本</strong>很直接:反过来,让<strong>正确类的
+logit 比最大的小一个 gap</strong> 即可。</p>
+<blockquote>
+<p>⚠️ <strong>与 Lab 2 的关联</strong> — 你会在 <strong>Lab 2</strong>
+里实验 CW,亲眼看到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+对失真的影响:<code>k=1</code>(小
+gap)失真很小、几乎看不出;<code>k=40</code>、<code>k=80</code>(大
+gap)失真越来越明显。<strong>"gap 越大 → 越自信 → 越多失真"</strong>
+这个权衡要记牢。</p>
+</blockquote>
+<h3 id="61-三大白盒攻击对比必背">6.1 三大白盒攻击对比(必背)</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>FGSM</strong></th>
+<th><strong>PGD</strong></th>
+<th><strong>CW(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>一句话</td>
+<td>一步梯度符号法</td>
+<td>迭代版 FGSM</td>
+<td>直接优化 logits 的 gap</td>
+</tr>
+<tr class="even">
+<td>迭代?</td>
+<td>否(算一次梯度)</td>
+<td>是(多步 + 投影)</td>
+<td>是(优化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>)</td>
+</tr>
+<tr class="odd">
+<td>攻击对象</td>
+<td>loss function</td>
+<td>loss function</td>
+<td><strong>logits</strong>(不用 loss)</td>
+</tr>
+<tr class="even">
+<td>速度</td>
+<td><strong>最快</strong></td>
+<td>慢</td>
+<td>慢</td>
+</tr>
+<tr class="odd">
+<td>强度</td>
+<td>弱(targeted 易失败)</td>
+<td>强</td>
+<td>强,失真可控</td>
+</tr>
+<tr class="even">
+<td>关键旋钮</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>、步数</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>(gap/置信度)、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>(平衡)</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>讲师的话</strong> — "FGSM、PGD、CW
+是这门课算法的<strong>地基</strong>。理解了它们,后面的攻击都很相似,会容易很多。"</p>
+</blockquote>
+<hr />
+<h2 id="七威胁模型谱系white--grey--black-box">七、威胁模型谱系:white /
+grey / black box</h2>
+<p>前面三种攻击都假设攻击者"无所不知"(白盒)。现实中攻击者掌握的信息往往少得多。按<strong>攻击者对目标模型的知识量</strong>,从多到少排成一个谱系:</p>
+<pre class="mermaid"><code>flowchart LR
+    W[&quot;&lt;b&gt;White-box 白盒&lt;/b&gt;&lt;br/&gt;知道一切:架构+权重+训练数据&lt;br/&gt;✅ 能算 ∇ₓJ&quot;] --&gt; G[&quot;&lt;b&gt;Grey-box 灰盒&lt;/b&gt;&lt;br/&gt;部分知识:可能知架构 / logits&lt;br/&gt;❌ 不能算 ∇ₓJ&quot;] --&gt; B[&quot;&lt;b&gt;Black-box 黑盒&lt;/b&gt;&lt;br/&gt;只能看 输入→输出 对&lt;br/&gt;❌ 不能算 ∇ₓJ&lt;br/&gt;(最现实)&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>威胁模型</th>
+<th>攻击者知道什么</th>
+<th>能否算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>∇</mi><mi>x</mi></msub><mi>J</mi></mrow><annotation encoding="application/x-tex">\nabla_x J</annotation></semantics></math>?</th>
+<th>现实程度</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>White-box</strong></td>
+<td>架构、权重、训练数据、训练算法——<strong>全部</strong></td>
+<td><strong>能</strong></td>
+<td>最理想化</td>
+</tr>
+<tr class="even">
+<td><strong>Grey-box</strong></td>
+<td><strong>部分</strong>:也许知道架构,也许能看到 logits 输出</td>
+<td><strong>不能</strong>(通常假设)</td>
+<td>居中</td>
+</tr>
+<tr class="odd">
+<td><strong>Black-box</strong></td>
+<td><strong>只能观察输入和输出</strong>(如:喂熊猫图,得到标签"panda")</td>
+<td><strong>不能</strong></td>
+<td><strong>最现实</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>⚠️ <strong>Assignment 1 Task 1 的硬性规则</strong> — A1 Task 1
+实现的是 <strong>black-box
+攻击</strong>,遵循"普通假设":<strong>你不能用目标模型去计算关于输入的梯度</strong>。这正是
+Week 1 提到的"保分红线"——instruction
+明确禁止算梯度,违反会被扣分甚至清零。原因很简单:能算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>∇</mi><mi>x</mi></msub><mi>J</mi></mrow><annotation encoding="application/x-tex">\nabla_x J</annotation></semantics></math>
+就意味着你知道了全部权重,那就不是黑盒了。</p>
+</blockquote>
+<p><strong>核心难题</strong>:白盒攻击(FGSM/PGD/CW)全都依赖
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>∇</mi><mi>x</mi></msub><mi>J</mi></mrow><annotation encoding="application/x-tex">\nabla_x J</annotation></semantics></math>。灰盒/黑盒下算不了梯度,<strong>白盒方法直接用不了</strong>。那怎么办?</p>
+<hr />
+<h2 id="八black-box-攻击用-transferability-迁移">八、Black-box 攻击:用
+transferability 迁移</h2>
+<p>讲师选择聚焦<strong>黑盒</strong>——因为黑盒能攻破,加上一点额外知识灰盒自然也能攻破。核心武器叫
+<strong>transferability(可迁移性)</strong>。</p>
+<h3 id="81-基本策略训练一个替身">8.1 基本策略:训练一个"替身"</h3>
+<pre class="mermaid"><code>flowchart LR
+    D[&quot;收集相似数据&lt;br/&gt;(网上下载)&quot;] --&gt; S[&quot;训练 surrogate model&lt;br/&gt;(替身/本地模型)&quot;]
+    S --&gt; A[&quot;在替身上做&lt;br/&gt;白盒攻击(PGD/FGSM/CW)&quot;]
+    A --&gt; T[&quot;把攻击样本&lt;br/&gt;迁移到目标黑盒模型&quot;]
+    T --&gt; R{&quot;成功?&quot;}
+    R --&gt;|&quot;不保证,但常常奏效&quot;| OK[&quot;✅&quot;]</code></pre>
+<ol type="1">
+<li><strong>训练一个 surrogate
+model(替身模型)</strong>:用<strong>相似的架构 +
+相似的数据</strong>,在本地训练一个模型。虽然不知道目标(比如 Google
+部署的分类器)的确切架构和训练数据,但可以猜一个常见架构、从网上下载相似数据。</li>
+<li><strong>在替身上做白盒攻击</strong>:替身是我们自己的,拥有完全访问权,尽管用
+PGD/FGSM/CW。</li>
+<li><strong>把攻击迁移到目标</strong>:在目标黑盒模型上评估这些攻击。</li>
+</ol>
+<ul>
+<li><strong>直觉</strong>:<strong>相似的模型 + 相似的数据 →
+学到相似的东西 → 一个模型上的攻击,很可能也能骗倒另一个。</strong></li>
+<li>注意:不保证成功。而且如果你<strong>恰好用了相同架构 +
+相同数据</strong>,这其实已经把黑盒降级成了<strong>灰盒</strong>(引入了部分知识)。</li>
+</ul>
+<h3 id="82-single-model-vs-ensemble关键实验结论">8.2 Single model vs.
+Ensemble(关键实验结论)</h3>
+<p><strong>单模型法</strong>:只用<strong>一个</strong>替身生成攻击,迁移到目标。</p>
+<p><strong>集成法
+(Ensemble)</strong>:用<strong>多个</strong>替身模型的集成来生成攻击。表格里的"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>−</mo><annotation encoding="application/x-tex">-</annotation></semantics></math>某模型"表示<strong>留一法</strong>——集成里包含除该模型外的所有模型,被排除的那个就是要攻击的黑盒目标。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>单模型(Single)</th>
+<th>集成(Ensemble)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Untargeted</strong></td>
+<td>还不错(平均 ~20% 迁移成功;能把目标准确率压到 &lt;40%)</td>
+<td><strong>极强</strong>(可把目标准确率压到 0–5%)</td>
+</tr>
+<tr class="even">
+<td><strong>Targeted</strong></td>
+<td><strong>很差</strong>(只有 1%–4%)</td>
+<td><strong>大幅提升</strong>(可达 ~40%–45%)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>一句话结论</strong>:<strong>Untargeted
+攻击就算单模型也能迁移得不错;但 targeted
+攻击必须靠集成多个替身,成功率才能从个位数飙到 40%+。</strong> Assignment
+1 Task 1
+给你一个黑盒目标模型,你就可以用这套(尤其是集成)策略去攻破它。</p>
+<blockquote>
+<p><strong>🔑 例 — 迁移攻击长什么样</strong> 一张清晰的"water
+buffalo(水牛)"图,经集成攻击后被识别成"rugby
+ball";一张"zebra(斑马)"图被识别成"beehouse"。讲师坦言:图像上的噪声其实<strong>挺明显</strong>——因为图像里小噪声本就容易被察觉。</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 例 — 把噪声藏进音乐里(audio black-box)</strong>
+图像里藏不住噪声,但<strong>音乐里可以</strong>!用一个替身模型生成扰动,迁移到商用黑盒语音模型(如商业语音识别)。播放时你只听到背景里有点杂音,<strong>被音乐盖住了</strong>,远不如图像噪声扎眼——里面却藏着秘密指令。(参考
+<em>devil-whisper</em>。)同一套"训练替身→攻击→迁移"的思路,换个领域照样成立。</p>
+</blockquote>
+<hr />
+<h2
+id="九为什么迁移有效决策边界可视化">九、为什么迁移有效?——决策边界可视化</h2>
+<p>讲师用决策边界 (decision boundary)
+的可视化,给"迁移为什么能成功"一个直观解释。</p>
+<p><strong>怎么画的</strong>(以正确预测为例,slide 26):</p>
+<ul>
+<li><strong>原点</strong> = 原始图像;</li>
+<li><strong>X 轴</strong> = VGG-16
+的<strong>梯度方向</strong>(回忆:沿此方向走 = 做 untargeted 攻击);</li>
+<li><strong>Y 轴</strong> = 一个<strong>随机正交方向</strong>;</li>
+<li>坐标轴每一格 = <strong>1 个像素值</strong>;</li>
+<li>边界内的所有点 = 被(对应模型)正确分类为真实标签的区域。</li>
+</ul>
+<p><strong>关键观察 1(untargeted,slide
+26)</strong>:<strong>不同模型(VGG、各种
+ResNet、GoogLeNet)的决策边界长得很像。</strong> 所以当你沿 VGG-16
+的梯度方向把图推出 VGG
+的边界时,它<strong>很可能也同时被推出了其他模型的边界</strong>。这解释了为什么<strong>单模型的
+untargeted 攻击迁移效果就不错</strong>,集成则几乎稳压到 0。</p>
+<p><strong>关键观察 2(targeted,slide 27)</strong>:</p>
+<ul>
+<li><strong>X 轴</strong>换成<strong>targeted adversarial
+方向</strong>(= 对抗图与原图之差);</li>
+<li>边界内的点都被分类为<strong>目标标签</strong>(如 window);</li>
+<li>集成攻击包含除 <strong>ResNet-101</strong> 外的所有模型,ResNet-101
+是被攻击的黑盒目标。</li>
+</ul>
+<p>要让 targeted
+攻击对<strong>所有模型同时</strong>成功,攻击样本必须落在<strong>所有替身边界的交集</strong>里。而一旦落进这个交集,<strong>它极有可能也落进目标模型(ResNet-101)的目标标签边界内</strong>——于是
+targeted 攻击成功。这就解释了 <strong>ensemble 为什么能把 targeted
+成功率从个位数拉到 40%+</strong>。</p>
+<pre class="mermaid"><code>flowchart TD
+    O[&quot;原图&lt;br/&gt;(坐标原点)&quot;] --&gt; E[&quot;集成攻击:推进到&lt;br/&gt;所有替身边界的交集&quot;]
+    E --&gt; I[&quot;落入交集区域&quot;]
+    I --&gt;|&quot;边界高度相似&lt;br/&gt;→ 极可能也落入&quot;| Tgt[&quot;目标黑盒模型的&lt;br/&gt;目标标签区域&quot;]
+    Tgt --&gt; Win[&quot;✅ targeted 迁移成功&quot;]</code></pre>
+<blockquote>
+<p>📎 <strong>Lecture 2
+录音到这里就下课了</strong>("今天先到这,下周继续对抗样本")。以下三节(physical
+/ UAP / unrestricted)由 <strong>Lecture 3
+开头补完</strong>,下面的讲解已据该录音整理。</p>
+</blockquote>
+<hr />
+<h2 id="十physical-adversarial-examples物理对抗样本">十、Physical
+Adversarial Examples(物理对抗样本)</h2>
+<p>前面所有攻击都是<strong>数字攻击 (digital
+attack)</strong>:直接修改数字格式的文件像素,再把文件喂给分类器。但模型大量部署在<strong>真实物理世界</strong>里(自动驾驶就是典型),于是出现了<strong>物理对抗样本</strong>——攻击被<strong>摄像头等物理设备捕获</strong>后仍能骗倒背后的模型。讲师强调:这可能造成<strong>生命损失</strong>等严重危害——想象自动驾驶系统被一个路牌上的贴纸骗了。</p>
+<p><strong>为什么物理攻击更难?物理世界的四大挑战</strong>(slide 29):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>挑战</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Environmental conditions(环境条件)</strong></td>
+<td>自动驾驶摄像头到路牌的<strong>距离、角度连续变化</strong>,还有光照、天气等都在变</td>
+</tr>
+<tr class="even">
+<td><strong>Spatial constraints(空间约束)</strong></td>
+<td>真实路牌上,攻击者<strong>只能改路牌表面</strong>,<strong>无法操纵背景</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Physical limits on
+imperceptibility(物理可感知性限制)</strong></td>
+<td>扰动不能太小,否则<strong>摄像头根本拍不出来、直接被忽略</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Fabrication error(制造误差)</strong></td>
+<td>攻击最终要<strong>打印</strong>出来,要保证打印后和生成的扰动差别不大(打印机有颜色误差)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>解法:Robust Physical Perturbation(RP₂,鲁棒物理扰动,Eykholt et
+al., 2018)</strong>——一种 targeted 攻击。核心思想一句话:</p>
+<blockquote>
+<p><strong>把所有可能的变换都"塞进"扰动的计算里</strong>——不同距离、不同角度、不同光照、打印误差(用
+<strong>Non-Printability Score, NPS</strong>
+度量)等。如果不考虑这些,攻击被摄像头拍下来后就可能失效。最后:把优化出的扰动<strong>打印在纸上,按
+mask 裁剪出形状,贴到目标物体(路牌)上</strong>。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>这个思想会再次出现(承接 Lecture 3 防御部分)</strong> —
+讲师特别点出:"把各种变换塞进优化以提升扰动鲁棒性"是个<strong>通用套路</strong>。它不仅用于物理攻击,后面讲<strong>对抗防御</strong>时,攻击者为了<strong>击穿防御</strong>也会用同样的思想造
+<strong>adaptive
+attack(自适应攻击)</strong>——比如让对抗样本扛得住防御方做的图像预处理。(文献里这套"对变换分布求期望"的技术叫
+<strong>Expectation Over Transformation, EOT</strong>;下一节的 UAP
+也是同一个内核。)</p>
+</blockquote>
+<p>优化目标(slide 31):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><mo>min</mo><mi>δ</mi></munder><mspace width="0.222em"></mspace><mi>λ</mi><mspace width="0.167em"></mspace><mo stretchy="false" form="postfix">∥</mo><msub><mi>M</mi><mi>x</mi></msub><mo>⋅</mo><mi>δ</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msub><mspace width="0.278em"></mspace><mo>+</mo><mspace width="0.278em"></mspace><mtext mathvariant="normal">NPS</mtext><mspace width="0.278em"></mspace><mo>+</mo><mspace width="0.278em"></mspace><msub><mi>𝔼</mi><mrow><msub><mi>x</mi><mi>i</mi></msub><mo>∼</mo><msup><mi>X</mi><mi>V</mi></msup></mrow></msub><mspace width="0.167em"></mspace><mi>J</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>f</mi><mi>θ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><msub><mi>T</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>M</mi><mi>x</mi></msub><mo>⋅</mo><mi>δ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="0.222em"></mspace><msup><mi>y</mi><mo>*</mo></msup><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\min_{\delta}\ \lambda\,\|M_x\cdot\delta\|_p \;+\; \text{NPS} \;+\; \mathbb{E}_{x_i\sim X^V}\,J\big(f_\theta(x_i + T_i(M_x\cdot\delta)),\ y^*\big)</annotation></semantics></math></p>
+<p>逐项拆解(讲师按"先看记号再读公式"的方法讲的):</p>
+<ul>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mi>x</mi></msub><annotation encoding="application/x-tex">M_x</annotation></semantics></math>
+= 扰动掩码 (mask)</strong>:和输入同尺寸的 2D 矩阵,<strong>路牌表面区域为
+1,背景区域为 0</strong>。式中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>M</mi><mi>x</mi></msub><mo>⋅</mo><mi>δ</mi></mrow><annotation encoding="application/x-tex">M_x\cdot\delta</annotation></semantics></math>
+的"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>⋅</mo><annotation encoding="application/x-tex">\cdot</annotation></semantics></math>"是
+<strong>element-wise(逐元素)乘法,不是矩阵乘法</strong>——背景处
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>×</mo><mi>δ</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">0\times\delta=0</annotation></semantics></math>,于是<strong>扰动只保留在路牌表面</strong>,正好满足"不能动背景"的空间约束。第一项就是最小化这块掩码扰动的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>p</mi></msub><annotation encoding="application/x-tex">L_p</annotation></semantics></math>
+norm(让它尽量小)。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtext mathvariant="normal">NPS</mtext><annotation encoding="application/x-tex">\text{NPS}</annotation></semantics></math>
+= Non-Printability Score</strong>:衡量打印失真,本课不深入。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>X</mi><mi>V</mi></msup><annotation encoding="application/x-tex">X^V</annotation></semantics></math>
+=
+变换后路牌的分布</strong>:把目标物体在<strong>物理变换</strong>(不同距离/角度拍照)和<strong>合成变换</strong>(随机裁剪、调亮度等)下的样子都囊括进来。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>i</mi></msub><annotation encoding="application/x-tex">x_i</annotation></semantics></math>
+是从这个分布(可理解成"一大堆被各种变换过的路牌图"的集合)里取的一张。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mi>i</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">T_i(\cdot)</annotation></semantics></math>
+= 对齐函数 (alignment
+function)</strong>:物体怎么变,扰动就得<strong>同样地变</strong>再贴上去。比如路牌被旋转了某个角度,就要把扰动也旋转<strong>相同角度</strong>再加上去,这样攻击才真实可用。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></strong>
+= 损失(如
+cross-entropy),<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>θ</mi></msub><annotation encoding="application/x-tex">f_\theta</annotation></semantics></math></strong>
+=
+要攻击的分类器,<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>y</mi><mo>*</mo></msup><annotation encoding="application/x-tex">y^*</annotation></semantics></math></strong>
+=
+目标标签。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>y</mi><mo>*</mo></msup><annotation encoding="application/x-tex">y^*</annotation></semantics></math>
+是目标标签 ⟹ 最小化损失 = 生成 <strong>targeted</strong> 攻击(回忆第六节
+PGD/CW)。</li>
+</ul>
+<p><strong>结果</strong>(slide
+32):掩码形状可以自己定(贴满整块,或做成涂鸦状的特定形状)。优化后在真实世界取得<strong>很高的
+targeted 成功率(接近
+100%)</strong>,而且<strong>从不同距离、不同角度拍摄都依然奏效</strong>——正是因为优化时通过
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>X</mi><mi>V</mi></msup><annotation encoding="application/x-tex">X^V</annotation></semantics></math>
+<strong>显式考虑了这些变换</strong>。目标标签例子:<strong>"Speed Limit
+45"</strong>(把 STOP 等路牌骗成限速牌)。</p>
+<hr />
+<h2
+id="十一universal-adversarial-perturbations通用对抗扰动-uap">十一、Universal
+Adversarial Perturbations(通用对抗扰动 UAP)</h2>
+<p>目前为止,每个扰动都是<strong>针对某一张特定输入</strong>量身定制的(给这张路牌算的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>,换张图就不灵)。新问题:<strong>能不能有一个固定的扰动,加到任意输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo>,</mo><msub><mi>x</mi><mn>3</mn></msub><mo>,</mo><mi>…</mi></mrow><annotation encoding="application/x-tex">x_1,x_2,x_3,\dots</annotation></semantics></math>
+上都能骗倒模型?</strong> 能——这就是 <strong>Universal Adversarial
+Perturbation(UAP,通用对抗扰动)</strong>,"universal" =
+<strong>image-agnostic(与图像无关)</strong>。</p>
+<blockquote>
+<p>⚠️ <strong>UAP = Assignment 1 Task 2</strong> — 讲师明说:"A1 的 task
+2 就是要你生成 universal adversarial perturbations。"
+所以本节(untargeted 与 targeted UAP)是 <strong>A1 Task 2
+的直接考点</strong>,务必吃透算法。</p>
+</blockquote>
+<h3 id="111-untargeted-uapmoosavi-dezfooli-et-al-2017">11.1 Untargeted
+UAP(Moosavi-Dezfooli et al., 2017)</h3>
+<p>目标:找一个<strong>与图像无关、很小</strong>的扰动向量
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>,让<strong>自然图像以高概率被误分类</strong>。两个约束:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="bold">(𝟏)</mtext><mspace width="0.222em"></mspace><mspace width="0.222em"></mspace><mo stretchy="false" form="postfix">∥</mo><mi>v</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msub><mo>≤</mo><mi>ξ</mi><mspace width="2.0em"></mspace><mspace width="2.0em"></mspace><mtext mathvariant="bold">(𝟐)</mtext><mspace width="0.222em"></mspace><mspace width="0.222em"></mspace><msub><mi>ℙ</mi><mrow><mi>x</mi><mo>∼</mo><mi>μ</mi></mrow></msub><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mover><mi>k</mi><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>+</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>≠</mo><mover><mi>k</mi><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mspace width="0.222em"></mspace><mo>≥</mo><mspace width="0.222em"></mspace><mn>1</mn><mo>−</mo><mi>δ</mi></mrow><annotation encoding="application/x-tex">
+\textbf{(1)}\ \ \|v\|_p \le \xi \qquad\qquad
+\textbf{(2)}\ \ \mathbb{P}_{x\sim\mu}\big(\hat{k}(x+v)\neq \hat{k}(x)\big)\ \ge\ 1-\delta
+</annotation></semantics></math></p>
+<ul>
+<li>(1):扰动幅度受
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ξ</mi><annotation encoding="application/x-tex">\xi</annotation></semantics></math>
+限制(够小、够隐蔽);</li>
+<li>(2):对数据分布
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
+中<strong>随机一张图</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>,加上<strong>同一个</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>
+后预测<strong>改变</strong>的概率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>1</mn><mo>−</mo><mi>δ</mi></mrow><annotation encoding="application/x-tex">\ge 1-\delta</annotation></semantics></math>;</li>
+<li>注意符号(照搬原论文,故意和前面不同):<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>
+是
+UAP,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>k</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{k}</annotation></semantics></math>
+是分类器,<strong>这里的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+不是扰动,而是"期望准确率"</strong>——比如想把准确率打到 10%,就设
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>δ</mi><mo>=</mo><mn>0.1</mn></mrow><annotation encoding="application/x-tex">\delta=0.1</annotation></semantics></math>,则
+fooling rate
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>1</mn><mo>−</mo><mn>0.1</mn><mo>=</mo><mn>90</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">\ge 1-0.1=90\%</annotation></semantics></math>。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>记号提醒(讲师反复强调)</strong> —
+深度学习文献<strong>没有统一的符号约定</strong>,不同论文
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>
+含义可能不同。本节沿用原论文记号,目的是你课后读原文不至于混乱。看公式先认记号,别想当然。</p>
+</blockquote>
+<p><strong>生成算法(贪心地逐张"补刀"):</strong></p>
+<pre><code>v ← 0                                    # 初始无扰动
+while 攻击成功率还不够高:
+    for 每个训练样本 x_i:
+        if  k̂(x_i + v) == k̂(x_i):        # 当前 v 还骗不倒这张图(预测没变)
+            求一个最小的额外扰动 r,使 k̂(x_i + v + r) ≠ k̂(x_i)   # 把它推过决策边界
+            v ← v + r                    # 把这点扰动累加进通用扰动
+# 直到 v 能骗倒(几乎)所有图,或达到最大迭代</code></pre>
+<ul>
+<li>"求最小的额外扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>"
+这一步<strong>就是一次对抗攻击</strong>:既然要最小化
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+norm,<strong>用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+版 CW 正合适</strong>;也可以用
+<strong>PGD</strong>(把扰动投影回范数球)。范数选
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+还是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>
+都行,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>
+只是其一。</li>
+<li>直觉:UAP
+是把"每张图各需要的那一点点扰动"<strong>一点点累加、求同存异</strong>,最后凝练出一个对<strong>所有</strong>图都管用的公共扰动。</li>
+</ul>
+<p><strong>结果</strong>(slide 34–36):为不同架构(用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">p=\infty</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ξ</mi><mo>=</mo><mn>10</mn><mi>/</mi><mn>255</mn></mrow><annotation encoding="application/x-tex">\xi=10/255</annotation></semantics></math>)算出的
+UAP,<strong>不同网络呈现不同的视觉花纹</strong>(VGG-16、各种
+ResNet、GoogLeNet 的 UAP
+图案各异);幻灯片里像素值被<strong>放大以便观看</strong>,实际<strong>相当小</strong>。把
+GoogLeNet 的 UAP 加到各种图上:狗 → elephant、另一张 →
+forks……<strong>同一个固定扰动</strong>骗倒了一大批不同图像。</p>
+<blockquote>
+<p>📎 <strong>为什么 UAP 比单图攻击更"看得见"?</strong>
+因为它要同时骗倒<strong>所有</strong>图像,扰动幅度往往略大,有时能在天空等平滑区域<strong>隐约看出</strong>花纹——这是"通用"必须付出的代价。</p>
+</blockquote>
+<blockquote>
+<p>⚠️ <strong>A1 Task 2 实用 tip(讲师原话)</strong> —
+上面"先用一条、再逐步加入"的渐进式子集做法是<strong>为语音任务</strong>设计的(见下)。<strong>图像分类的优化容易得多</strong>,所以
+Task 2
+里你<strong>不必</strong>搞渐进子集,<strong>一开始就把所有图像放进去</strong>一起生成
+UAP 即可。</p>
+</blockquote>
+<h3
+id="112-targeted-uap-for-speechzong-et-al-2021--本课讲师自己的工作">11.2
+Targeted UAP for Speech(Zong et al., 2021 —— 本课讲师自己的工作)</h3>
+<p>对抗机器学习<strong>几乎在所有 AI 领域通用</strong>,不止图像。这里把
+UAP 推到<strong>语音转文字 (speech-to-text)</strong>(如 Siri),且做成
+<strong>targeted</strong>——让<strong>任意语音</strong>都被转写成<strong>同一句预设文本</strong>(如
+"open the door")。这需要一次<strong>视角的彻底翻转</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>传统对抗样本</th>
+<th>Targeted UAP</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+的角色</td>
+<td><strong>信号 (signal)</strong></td>
+<td>被当成施加到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+上的**"噪声"**</td>
+</tr>
+<tr class="even">
+<td>扰动
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+的角色</td>
+<td>加在信号上的噪声,<strong>为每个输入定制</strong></td>
+<td><strong>信号本身</strong>——它<strong>携带分类结果的信息</strong>(如目标转写文本)</td>
+</tr>
+<tr class="odd">
+<td>要鲁棒于什么</td>
+<td>——</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+要对"被加上各种不同输入音频"这件事<strong>鲁棒</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>换句话说:既然不管喂什么音频、模型都输出 "open the
+door",那<strong>这句话的信息其实藏在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+里</strong>;输入音频反倒成了叠加在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+上的"干扰"。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+必须<strong>对这种干扰鲁棒</strong>。</p>
+<p><strong>生成算法</strong>——输入:目标模型
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>、一组音频(训练集)、目标短语
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>(如
+"open the door")、最低成功率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>η</mi><annotation encoding="application/x-tex">\eta</annotation></semantics></math>。思路和物理攻击一脉相承:<strong>让
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+对不同输入鲁棒</strong>。</p>
+<blockquote>
+<p>📎 <strong>为什么语音要"渐进加子集",图像不用?</strong> 语音识别用的是
+<strong>CTC loss</strong>,比图像分类的 cross-entropy
+<strong>难优化得多</strong>。所以这里从<strong>只含 1
+条音频</strong>的子集
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+起步:当
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+能攻破
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+里全部音频后,<strong>才加入一条新音频</strong>;子集逐步从 1 长到
+<strong>150 条</strong>。(图像简单,故 Task 2 可一次性全放——见上方
+tip。)</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 例 — UAP 的 "aha moment"(顿悟时刻)</strong> 横轴 =
+子集里音频数,纵轴 = 攻破全部音频所需迭代数。<strong>早期</strong>:1
+条音频约需 20 次迭代,到 ~10 条时升到 ~40
+次(要照顾的音频更多,自然更难)。<strong>但子集涨到约 20
+条时,迭代数反而开始下降</strong>;到 125
+条时,再加一条新音频往往<strong>只需 1–2
+次更新</strong>就能适应。这说明过了"20 条"这个临界点,<strong>UAP
+已经"学会"了输入音频带来的扰动模式,变得越来越鲁棒</strong>——对一大批音频鲁棒后,攻破新音频几乎不费力。</p>
+</blockquote>
+<p>两个关键实证结果:</p>
+<ul>
+<li><strong>泛化到未见音频</strong>:UAP 只用训练集生成,再去测试集(700+
+条 2–4 秒音频)上验证。用 <strong>1 条</strong>音频训练 →
+对新音频成功率近 <strong>0%</strong>;用 <strong>50 条</strong> →
+<strong>90%</strong>;用 <strong>150 条</strong> → 近
+<strong>100%</strong>。训练音频越多,UAP 对新输入越鲁棒。</li>
+<li><strong>UAP 本身就是"信号"(验证视角翻转)</strong>:直接把生成的 UAP
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>(纯"噪声")<strong>喂给模型转写</strong>。结果:只取
+UAP 前 10% → 转写出 "use airplane";取前半 → "use airplane
+mode"……<strong>切片转写结果与目标短语逐段对应</strong>。这有力证明了
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+确实<strong>像正常语音一样携带信息</strong>——"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+是信号"的假设成立。</li>
+</ul>
+<hr />
+<h2
+id="十二unrestricted-adversarial-examples不受限对抗样本">十二、Unrestricted
+Adversarial Examples(不受限对抗样本)</h2>
+<p>传统对抗扰动都用 <strong>p-norm
+约束</strong>。但讲师指出一个深刻问题:<strong>p-norm
+不一定是衡量"隐蔽性"的好指标。</strong></p>
+<blockquote>
+<p><strong>🔑 例 — 一根白条说明 p-norm 的失灵</strong>
+想象一张黑底图,中间一根白色竖条。把这根白条<strong>整体右移一两个像素</strong>——人眼看上去<strong>完全是同一张图</strong>。但两张图相减、算
+p-norm,<strong>值会非常大</strong>!原因:<strong>p-norm
+是逐像素比较的,它根本不理解"像素的位移"</strong>。可见 p-norm 小 ≠
+人眼看着像;p-norm 大也 ≠ 人眼看着不同。</p>
+</blockquote>
+<p>既然如此,何必把自己绑死在 p-norm 上?于是有了"不受限"攻击:</p>
+<ul>
+<li><strong>Spatially Transformed AEs(空间变换对抗样本,Xiao et al.,
+2018)</strong>:不加像素噪声,而是<strong>让像素朝某些方向轻微移动、平滑地改变几何形状</strong>。例:手写数字
+<strong>"0" 被几何微调后骗倒模型</strong>,人眼仍认得是 0。其 p-norm
+可以很大,但视觉上几乎无差别。</li>
+<li><strong>Semantic manipulation(语义操纵,Bhattad et al.,
+2019)</strong>:用<strong>生成模型 (generative models)</strong>
+造攻击,<strong>改变颜色</strong>——而且常改成<strong>目标类里常见</strong>的颜色。例:ground
+truth 是 pretzel(椒盐卷饼),染上绿色 → 被判成 golfcart / sandbar;ground
+truth 是 cat,把地面染成蓝色 → 被判成
+<strong>tench(丁鱥鱼,常见于蓝色水景)</strong>。讲师提醒:这些图<strong>颜色怪怪的</strong>,因为是五六年前的工作,生成模型还不够好。</li>
+<li><strong>Content-based unrestricted attack(基于内容的不受限攻击,Chen
+et al.,
+2024)</strong>:<strong>现代生成模型大幅进步</strong>,能造出更自然的攻击——如热气球<strong>微调天空颜色
++
+气球纹理</strong>、草莓<strong>加一点纹理</strong>,语义不变却能骗倒模型,几乎看不出是攻击。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>为什么这类攻击值得警惕</strong> —
+核心理念:<strong>只要攻击看起来"合理 (reasonable)",就没必要用 p-norm
+约束自己。</strong> 讲师强调:<strong>unrestricted
+对抗样本至今仍很难防御,是一个开放问题 (open question)。</strong>
+这也呼应了整条演进线:从"严格 p-norm 的像素噪声"(FGSM/PGD/CW)→
+几何/语义/生成式的不受限攻击,趋势是<strong>越来越自然、越来越难用简单距离度量察觉</strong>,也越来越贴近真实威胁。</p>
+</blockquote>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>Clever Hans 效应 &amp; spurious
+features</strong>:模型准确率高 ≠
+真懂。它可能靠<strong>非因果的伪相关特征</strong>(如背景)蒙对——熊猫被微小噪声一改就变长臂猿,正是证据。<strong>相关
+≠ 因果。</strong> 这是 adversarial ML 的起点。</li>
+<li><strong>对抗样本定义</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mi>′</mi><mo>=</mo><mi>x</mi><mo>+</mo><mi>δ</mi></mrow><annotation encoding="application/x-tex">x&#39;=x+\delta</annotation></semantics></math>
+且
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="postfix">∥</mo><mi>δ</mi><msub><mo stretchy="false" form="postfix">∥</mo><mi>p</mi></msub><mo>&lt;</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">\|\delta\|_p&lt;\epsilon</annotation></semantics></math>。<strong>p-norm
+把扰动向量压成一个标量来度量"噪声多大"</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>1</mn></msub><annotation encoding="application/x-tex">L_1</annotation></semantics></math>=绝对值和,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mn>2</mn></msub><annotation encoding="application/x-tex">L_2</annotation></semantics></math>=欧氏距离,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>∞</mi></msub><annotation encoding="application/x-tex">L_\infty</annotation></semantics></math>=最大绝对值。攻击分
+<strong>targeted(指定错成什么)/ untargeted(错就行)</strong>。</li>
+<li><strong>三大白盒攻击(地基,必背)</strong>:都假设攻击者知道一切、能算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>∇</mi><mi>x</mi></msub><mi>J</mi></mrow><annotation encoding="application/x-tex">\nabla_x J</annotation></semantics></math>。<strong>FGSM</strong>
+=
+一步梯度符号法(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>δ</mi><mo>=</mo><mi>ϵ</mi><mspace width="0.167em"></mspace><mtext mathvariant="normal">sign</mtext><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>∇</mi><mi>x</mi></msub><mi>J</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\delta=\epsilon\,\text{sign}(\nabla_x J)</annotation></semantics></math>,快但
+targeted 易失败,"+"增大误差/"−"奔向目标);<strong>PGD</strong> = 迭代版
+FGSM + 投影回
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϵ</mi><annotation encoding="application/x-tex">\epsilon</annotation></semantics></math>-球,更强;<strong>CW</strong>
+= 不碰 loss,<strong>直接优化 logits 的 gap</strong>(tanh
+保证合法图像,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+控制
+gap/置信度/失真,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+平衡隐蔽与欺骗)。</li>
+<li><strong>威胁模型谱系</strong>:<strong>white(知一切,能算梯度)→
+grey(部分知识,不能算梯度)→
+black(只看输入输出,最现实)</strong>。白盒方法都依赖梯度,黑盒下用不了。<strong>A1
+Task 1 是黑盒,严禁用模型算梯度(保分红线)。</strong></li>
+<li><strong>Black-box = transferability</strong>:训练
+<strong>surrogate(替身)模型</strong>做白盒攻击,再<strong>迁移</strong>到目标。<strong>Untargeted
+单模型就能迁移得不错;targeted 必须用
+ensemble(留一集成)</strong>,成功率从 1–4% 飙到
+40%+。直觉:相似模型+相似数据→相似行为。</li>
+<li><strong>为什么迁移有效</strong>:<strong>不同模型的决策边界高度相似</strong>。untargeted
+推出一个模型的边界常同时推出其他模型;targeted
+落进所有替身边界的交集时,极可能也落进目标模型的目标区域。</li>
+<li><strong>三类"走向真实世界"的扩展</strong>(由 Lecture 3 开头补完):
+<ul>
+<li><strong>Physical(物理攻击,RP₂)</strong>:把距离/角度/光照/打印误差等<strong>所有变换塞进优化</strong>(EOT
+思想),mask
+逐元素乘只在路牌表面加扰动,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>T</mi><mi>i</mi></msub><annotation encoding="application/x-tex">T_i</annotation></semantics></math>
+让扰动跟物体同步变换;打印裁剪贴上去,各距离角度下 targeted 成功率近
+100%。<strong>这个"塞变换求鲁棒"的套路后面打防御时还会用(adaptive
+attack)。</strong></li>
+<li><strong>UAP(通用扰动)= A1 Task 2</strong>:一个
+<strong>image-agnostic</strong>
+的固定扰动骗倒几乎所有输入;算法是"逐张补刀、把每张所需的最小扰动累加进
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>"(内层可用
+CW/PGD)。讲师把它做成<strong>针对语音的 targeted
+版</strong>——<strong>视角翻转:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+是携带目标文本的信号、输入音频才是噪声</strong>;语音用 CTC loss
+难优化故渐进加子集(1→150),约 20 条出现"<strong>aha
+moment</strong>"迭代骤降;UAP
+切片直接转写出目标短语,证明"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
+是信号"。</li>
+<li><strong>Unrestricted(不受限)</strong>:<strong>p-norm
+不是好的隐蔽性指标</strong>(白条平移一像素→视觉相同但 p-norm
+巨大),于是放弃 p-norm,用<strong>几何变换 / 语义换色 /
+生成模型</strong>造更自然的攻击;<strong>至今仍很难防御,是开放问题。</strong></li>
+</ul></li>
+<li><strong>实务</strong>:Lab 2 实验 CW(看
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+如何影响失真);<strong>Assignment 1 Task 1 = 黑盒攻击</strong>(用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>p</mi></msub><annotation encoding="application/x-tex">L_p</annotation></semantics></math>
+norm 约束扰动、禁止算梯度),<strong>Task 2 = 生成
+UAP</strong>(图像任务可一次性用全部图像、不必渐进加子集)。<strong>FGSM/PGD/CW
+吃透了,后面 backdoor 等很多攻击都在复用它们。</strong></li>
+</ul>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>
