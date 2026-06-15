@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CSIT970 Security Essentials · Week 13 期末总复习指南 (Revision & Exam-Prep Guide)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="csit970-security-essentials--week-13-期末总复习指南-revision--exam-prep-guide">CSIT970
+Security Essentials · Week 13 期末总复习指南 (Revision &amp; Exam-Prep
+Guide)</h1>
+<blockquote>
+<p>本周是<strong>复习课 (Revision)</strong>,没有新知识点。Dr. Steven
+Duong 在课上逐周(Week
+1–12)回顾了整门课的脉络,并为<strong>每一周给出了一组示例考题 (Sample
+Questions)</strong>。这份指南把那些示例考题逐题配上<strong>考试可直接用的模型答案
+(model answers)</strong>,再补上跨周的辨析速查与答题策略。</p>
+<p>它是你考前的"一站式过卷"材料。想对某一周深挖,请回到对应的逐周详版指南(<code>week1-…</code>
+至 <code>week12-…</code>)。</p>
+</blockquote>
+<hr />
+<h2 id="0-先把考试信息搞清楚来自-week-13-课堂">0.
+先把考试信息搞清楚(来自 Week 13 课堂)</h2>
+<blockquote>
+<p>📎 <strong>拓展(来自讲师口述,非 slides)</strong> —
+以下是讲师在复习课上讲的考试安排与得分规则,直接决定你怎么复习、怎么答题。<strong>务必以
+Moodle 上的官方信息为准,自行二次核对时间。</strong></p>
+</blockquote>
+<h3 id="考试形式">考试形式</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>平台 / 时间</strong></td>
+<td>Moodle 在线考试,<strong>6 月 16 日
+9:00–12:00</strong>(请自行核对),时长 <strong>3 小时</strong></td>
+</tr>
+<tr class="even">
+<td><strong>性质</strong></td>
+<td><strong>闭卷 (closed book)</strong>,<strong>Proctorio
+在线监考</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>题量</strong></td>
+<td>共 <strong>26 题</strong> = <strong>11 道 MCQ(选择)</strong> +
+<strong>15 道 SAQ(简答)</strong></td>
+</tr>
+<tr class="even">
+<td><strong>总分</strong></td>
+<td><strong>50 分</strong>(970 计 50 分;470 学生换算为 40 分)</td>
+</tr>
+<tr class="odd">
+<td><strong>及格线</strong></td>
+<td><strong>必须拿到 ≥ 40%(即 ≥ 20 分)</strong>,否则即使总分过 50 也算
+<strong>technical fail(技术性挂科)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="分数怎么分布">分数怎么分布</h3>
+<ul>
+<li><strong>MCQ:11 题 = 11 分</strong>(每题 1
+分)。<strong>每人随机抽题</strong>,你和同学拿到的题不一样;<strong>单选,只有一个正确答案,没有填空</strong>;风格类似平时的
+quiz。</li>
+<li><strong>SAQ:15 题 = 39 分</strong>。<strong>多数 2 分</strong>,部分
+3 分,少数 <strong>4–5 分</strong>;高分题往往是<strong>场景题
+(scenario)</strong>——给一段情境,下设 A/B/C 小问,每小问标明分值。</li>
+</ul>
+<h3 id="讲师给的答题建议原话要点">讲师给的答题建议(原话要点)</h3>
+<ul>
+<li><strong>理解,不要死记</strong> ("understand, not
+memorize"),但概念名词该记还得记。</li>
+<li><strong>答案要踩中 keywords</strong>
+——本指南每题后的「考点关键词」就是给你对照用的。</li>
+<li><strong>长度无下限也无上限</strong>,"信息够了就行";<strong>可以用
+bullet points,也可以写段落</strong>。</li>
+<li><strong>不要把题干抄进答案</strong>,直接作答;考试中<strong>禁止
+copy-paste</strong>(监考会捕捉)。</li>
+<li>题目<strong>可以前后跳转</strong>修改。</li>
+<li><strong>别忘了 workshop</strong>:考试覆盖所有 lecture <strong>和
+workshop notes</strong>,讲师特别强调"<strong>focus on the questions in
+the workshop notes</strong>"。</li>
+<li>出现技术问题(断网等)<strong>不要联系
+coordinator</strong>,按指引重连、重新登录、从断点继续。</li>
+</ul>
+<h3
+id="复习覆盖范围一览对应逐周详版指南">复习覆盖范围一览(对应逐周详版指南)</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>周</th>
+<th>主题</th>
+<th>详版指南</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>W1</td>
+<td>Security Analysis Framework &amp; Concepts</td>
+<td><code>week1-security-analysis-framework-study-guide</code></td>
+</tr>
+<tr class="even">
+<td>W2</td>
+<td>Cyber Threats</td>
+<td><code>week2-cyber-threats-study-guide</code></td>
+</tr>
+<tr class="odd">
+<td>W3</td>
+<td>Cryptographic Issues</td>
+<td><code>week3-cryptography-study-guide</code></td>
+</tr>
+<tr class="even">
+<td>W4</td>
+<td>Network Attack &amp; Defence</td>
+<td><code>week4-network-attack-defence-study-guide</code></td>
+</tr>
+<tr class="odd">
+<td>W5</td>
+<td>Usability</td>
+<td><code>week5-usability-study-guide</code></td>
+</tr>
+<tr class="even">
+<td>W7</td>
+<td>Cybersecurity Standards</td>
+<td><code>week7-cybersecurity-standards-study-guide</code></td>
+</tr>
+<tr class="odd">
+<td>W9</td>
+<td>Privacy Issues</td>
+<td><code>week9-privacy-issues-study-guide</code></td>
+</tr>
+<tr class="even">
+<td>W10</td>
+<td>Cloud &amp; Edge Computing</td>
+<td><code>week10-cloud-edge-computing-study-guide</code></td>
+</tr>
+<tr class="odd">
+<td>W11</td>
+<td>TPM / Enclave / CPS / SCADA</td>
+<td><code>week11-tpm-enclave-cps-scada-study-guide</code></td>
+</tr>
+<tr class="even">
+<td>W12</td>
+<td>Info Warfare / Cyberweapon / CCI / APT</td>
+<td><code>week12-infowar-cyberweapon-cci-apt-study-guide</code></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>注:<strong>Week 6 与 Week 8 没有课</strong>(Week 8 因 Anzac Day
+停课);故无 W6/W8 内容。</p>
+</blockquote>
+<hr />
+<h2 id="1-整门课的脉络一张概念地图">1. 整门课的脉络:一张概念地图</h2>
+<p>这门课从"<strong>怎么分析安全</strong>"出发,先认识<strong>威胁</strong>,再分<strong>技术、人、治理</strong>三条防线,最后进入<strong>隐私、新计算范式与国家级对抗</strong>等前沿议题。复习时把每一周挂回这张地图,比孤立背诵更牢。</p>
+<pre class="mermaid"><code>mindmap
+  root((CSIT970&lt;br/&gt;Security Essentials))
+    分析与威胁
+      W1 分析框架与概念&lt;br/&gt;PMAI · 安全术语
+      W2 网络威胁&lt;br/&gt;botnet · ransomware · 监控
+    技术防线
+      W3 密码学&lt;br/&gt;对称/非对称 · hash/MAC/签名 · PKI
+      W4 网络攻防&lt;br/&gt;BGP · DNS · DDoS · VPN/TLS
+    人与治理
+      W5 可用性&lt;br/&gt;人因 · 社会工程 · 密码
+      W7 安全标准&lt;br/&gt;分级 · E8 · ISO27001 · NIST CSF
+    隐私与新范式
+      W9 隐私&lt;br/&gt;SMPC · HE · DP · GDPR/APP
+      W10 云与边缘&lt;br/&gt;IaaS/PaaS/SaaS · edge
+      W11 硬件与工控&lt;br/&gt;TPM/Enclave · CPS/IoT · SCADA
+    国家级对抗
+      W12 信息战&lt;br/&gt;cyberweapon · CCI · APT</code></pre>
+<p><strong>贯穿全课的一把尺子——CIA
+triad</strong>(<code>Confidentiality</code> 机密性 /
+<code>Integrity</code> 完整性 / <code>Availability</code>
+可用性):遇到任何攻击或防护,先问"它影响的是 C、I 还是
+A?"这是简答题最稳的得分切入点(见最后的「跨周辨析速查」)。</p>
+<hr />
+<h2
+id="week-1--overview-of-security-analysis--framework-and-security-concepts">Week
+1 · Overview of Security Analysis — Framework and Security Concepts</h2>
+<h3 id="本周核心内容">本周核心内容</h3>
+<ul>
+<li><strong>Security Engineering</strong> = building systems to remain
+dependable in the face of <strong>malice / error / mischance</strong>;与
+software engineering 的根本区别在于后者"确保坏事<em>不</em>发生",需要
+<strong>adversarial thinking</strong>。</li>
+<li><strong>Security Analysis Framework</strong>
+四要素(PMAI):<strong>Policy</strong>(想要什么)/
+<strong>Mechanism</strong>(拿什么实现)/
+<strong>Assurance</strong>(有多可靠)/
+<strong>Incentive</strong>(谁有动机)——四者相互作用;切勿与 <strong>CIA
+triad</strong> 混淆。</li>
+<li>角色术语层层不同:<strong>Principal</strong>(参与系统的<em>任意</em>实体,含设备与密钥,最宽)、<strong>Subject</strong>(人/法人)、<strong>Role</strong>(职能位,由人先后承担)、<strong>Identity</strong>(名字↔︎principal
+的无歧义对应)。</li>
+<li><strong>Trusted ≠ Trustworthy</strong>:trusted = 其失效会破坏
+policy;trustworthy = 不会失效。"trusted but not trustworthy"
+最危险。</li>
+<li>信息不外泄三词:<strong>Secrecy</strong>(机制效果)、<strong>Confidentiality</strong>(为组织利益的保密义务)、<strong>Privacy</strong>(为个人利益的权利,可延伸到家庭但不及法人)。</li>
+<li><strong>Authenticity = Integrity + genuineness</strong>:integrity
+只说"没被改"(哈希即可,人人能算);authenticity 还说"确实是 TA
+发的"(需密钥,如 HMAC/数字签名)。</li>
+<li>三层规约:<strong>Security policy</strong>(要什么)→ <strong>Security
+target</strong>(具体产品怎么实现并据此验收)→ <strong>Protection
+profile</strong>(设备无关版,供横向比较)。</li>
+</ul>
+<h3 id="示例考题与模型答案">示例考题与模型答案</h3>
+<p><strong>Q1. Explain the difference between "privacy" and
+"confidentiality" in the context of cyber security (not
+cryptography).</strong></p>
+<p>二者都是"保密",但服务的利益主体不同:<strong>privacy</strong>
+是为了<strong>个人(individual)<strong>利益的保密——即个人保护自身信息、防止他人侵入私人空间的能力和/或权利(可延伸到家庭,但不延伸到法人);<strong>confidentiality</strong>
+则是为了</strong>组织(organisation)<strong>利益的保密——即当你知晓了别人(个人或组织)的秘密时,所负有的保护它的</strong>义务(duty)</strong>。一个经典区分:<code>privacy is secrecy for the benefit of the individual; confidentiality is secrecy for the benefit of the organisation</code>。例如医院场景:病人对自己的信息<strong>享有
+privacy</strong>,而医护人员对该信息<strong>负有
+confidentiality</strong>(替病人承担的保密义务)。</p>
+<p><strong>考点关键词:</strong> <code>privacy</code> ·
+<code>confidentiality</code> · <code>individual vs organisation</code> ·
+<code>duty of confidence</code> ·
+<code>not extend to legal person</code></p>
+<p><strong>Q2. How does a "trustworthy system" differ from a "trusted
+system"? Can a system be trusted but not trustworthy? Explain with
+justification.</strong></p>
+<p><strong>Trusted</strong>
+指一个组件<strong>一旦失效就会破坏安全策略</strong>(security
+policy)——即我们已经把安全压在它身上;<strong>trustworthy</strong>
+指一个组件<strong>不会(不太可能)失效</strong>——即它真的靠得住。两者并不等价:一个系统<strong>完全可能
+trusted but not
+trustworthy</strong>,而这正是最危险的情形。典型例子是一名情报机构雇员,组织把机密<strong>托付(trusted)<strong>给他,他却打算把情报卖给外国——他被信任却</strong>不可靠(not
+trustworthy)</strong>。因此安全工程的目标之一,就是缩小"被信任"的部分,并让真正被信任的部分尽可能
+trustworthy。</p>
+<p><strong>考点关键词:</strong>
+<code>trusted = failure breaks policy</code> ·
+<code>trustworthy = unlikely to fail</code> ·
+<code>trusted but not trustworthy (最危险)</code> ·
+<code>justification by example</code></p>
+<p><strong>Q3. What is the difference between a "principal" and a "role"
+in the context of system security? Provide an example to illustrate your
+answer.</strong></p>
+<p><strong>Principal</strong>
+是<em>参与安全系统的任意实体</em>,范围最宽——可以是一个人、一台设备(笔记本、手机、智能卡)、一条通信信道(端口),甚至一把<strong>密码密钥(crypto
+key)</strong>,也可以是群组或合取(如"Alice 且
+Bob")。<strong>Role</strong>
+则是<em>一组由不同的人先后承担的职能</em>——它是一个职位/功能位,而非具体某人,谁坐上这个位子谁就充当它。举例:在网银系统里,"用于签名交易的<strong>密码密钥</strong>"是一个
+principal;而"现任冰岛医学会主席"或 LMS 中的 "Tutor" 则是一个
+role(随任职者更替而由不同人承担)。</p>
+<p><strong>考点关键词:</strong>
+<code>principal = any entity (含 device / crypto key)</code> ·
+<code>role = function held by different people in turn</code> ·
+<code>crypto key 是 principal</code> ·
+<code>Tutor / 主席 是 role</code></p>
+<h3 id="速记要点">速记要点</h3>
+<ul>
+<li><strong>PMAI</strong> ≠ <strong>CIA</strong>:PMAI
+是"怎么分析系统",CIA 是"保住哪些属性"——高频陷阱。</li>
+<li><strong>Principal 最宽</strong>(含设备、密钥);Subject 是人/法人;Role
+是职能位;Identity 是"名字↔︎principal 的无歧义对应"。</li>
+<li><strong>Trusted = 失效会破坏 policy;Trustworthy =
+不会失效</strong>;"trusted but not trustworthy" 必考。</li>
+<li><strong>Privacy = 个人利益的保密;Confidentiality =
+组织利益的保密;Secrecy = 机制效果</strong>。</li>
+<li><strong>Authenticity = Integrity +
+genuineness</strong>;哈希(SHA-256)只给 integrity(人人能算),authenticity
+必须用密钥(HMAC/签名)。</li>
+</ul>
+<hr />
+<h2 id="week-2--cyber-threats">Week 2 · Cyber Threats</h2>
+<h3 id="本周核心内容-1">本周核心内容</h3>
+<ul>
+<li><strong>Cybercrime</strong> =
+使用计算机或网络实施犯罪;趋势是"更可规模化、更专业、更具破坏性",目标涵盖个人/企业/教育/政府。</li>
+<li><strong>Criminal
+infrastructure</strong>(犯罪基础设施)是一条分工产业链,像"地下服务经济":botnet
+herders、malware writers、spam/phishing operators、info-stealer/initial
+access brokers、cashout operators。</li>
+<li><strong>Botnet</strong> = 被 <strong>C2
+(command-and-control)</strong> 远程操控的一大片被攻陷设备(含
+PC、路由器、摄像头、IoT);代表 Storm / Conficker(<strong>DGA</strong>) /
+Mirai(IoT 默认口令)。</li>
+<li><strong>Staged delivery</strong>
+三件套:<strong>Dropper</strong>(自带并释放下一阶段)、<strong>Downloader</strong>(从网上下载下一阶段)、<strong>Payload</strong>(真正动手干活的部分)。</li>
+<li><strong>Ransomware</strong> =
+用于敲诈的恶意软件(加密/扰乱/威胁泄露);演化出 <strong>double
+extortion</strong>、<strong>RaaS</strong>;付款用伪匿名加密货币。</li>
+<li><strong>Hacktivism</strong> = 政治/意识形态驱动的在线活动;手法含
+DoS、website defacement、hack-and-leak、doxxing。</li>
+<li><strong>Mass surveillance</strong>:Snowden 揭露的 PRISM / Tempora /
+Muscular / Bullrun(Dual_EC_DRBG) / XKeyScore;现代转向 <strong>mercenary
+spyware</strong>。</li>
+<li>关键认识:加密货币是 <strong>pseudonymous(伪匿名)而非
+anonymous(匿名)</strong>,区块链可溯源,KYC/AML 收紧套现。</li>
+</ul>
+<h3 id="示例考题与模型答案-1">示例考题与模型答案</h3>
+<p><strong>Q1. Explain what the dropper mechanisms of the virus and
+Trojan are.</strong></p>
+<p>Dropper 是 <strong>staged (malware)
+delivery</strong>(分阶段投递)里的<strong>第一阶段(first-stage)<strong>恶意软件,其唯一任务是在受害者系统上</strong>安装或释放(install/release)另一段
+payload</strong>。其机制特点是"<strong>自带并释放</strong>":dropper
+<strong>本身就携带</strong>着下一阶段的恶意代码,运行后把它落到磁盘上并执行——它<strong>本身不是最终的恶意组件</strong>,而是"先遣队"。Trojan(木马)常被用作
+dropper
+的伪装外壳:它<strong>伪装成合法/无害软件骗用户运行</strong>,运行后便由内部的
+dropper 把真正的 payload 释放出来。需与 <strong>downloader</strong>
+区分:downloader
+<strong>自身不携带</strong>载荷,而是初次攻陷后<strong>联网从 internet
+下载</strong>下一阶段。一句话:<strong>dropper 自带、downloader
+去取、payload 动手</strong>。</p>
+<p><strong>考点关键词:</strong>
+<code>dropper = install/release next-stage payload</code> ·
+<code>自带并释放 (carries internally)</code> ·
+<code>staged delivery</code> · <code>Trojan 伪装外壳</code> ·
+<code>vs downloader (从网上下载)</code></p>
+<p><strong>Q2. What is a botnet, and how is it typically used in
+cybercrime?</strong></p>
+<p><strong>Botnet</strong>
+是一个由被攻陷的计算机和联网设备(含家用路由器、摄像头、IoT)组成的网络,攻击者通过
+<strong>C2 (command-and-control)</strong>
+基础设施<strong>远程协同操控</strong>它,而设备主人通常毫不知情。生命周期为三步:<strong>infection</strong>(经钓鱼、恶意下载、默认口令、暴露服务、未打补丁漏洞感染)→
+<strong>command and control</strong>(设备回连 C2 等待指令)→
+<strong>uses</strong>(干活)。在网络犯罪中典型用途包括:发动
+<strong>DDoS</strong> 攻击、分发 spam 与
+phishing、窃取凭证或投递恶意软件、<strong>匿名代理犯罪流量</strong>(借肉鸡
+IP 隐藏真实身份)、以及 cryptomining
+等资源滥用。其威力在于把海量设备协同起来<strong>放大攻击规模</strong>,且因分布式、持久、隐藏而<strong>难以根除</strong>(如
+Conficker 用 DGA 使 C2 难封、Mirai 利用无人管的 IoT 默认口令)。</p>
+<p><strong>考点关键词:</strong>
+<code>network of compromised devices</code> ·
+<code>C2 / command-and-control</code> ·
+<code>infection → C2 → uses</code> ·
+<code>DDoS / spam / proxy / cryptomining</code> ·
+<code>难根除 (distributed, persistent, hidden)</code></p>
+<p><strong>Q3. Compare and contrast ransomware and hacktivism in terms
+of their objectives, methods, and typical targets.</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th><strong>Ransomware(勒索软件)</strong></th>
+<th><strong>Hacktivism(黑客行动主义)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Objectives 动机</strong></td>
+<td><strong>财务驱动(financially motivated)</strong>——敲诈牟利</td>
+<td><strong>政治/意识形态驱动</strong>——表达诉求、施压、抗议</td>
+</tr>
+<tr class="even">
+<td><strong>Methods 手法</strong></td>
+<td>加密数据、扰乱系统、威胁泄露(<strong>double extortion</strong>);常用
+<strong>RaaS</strong> 模式;索要加密货币赎金</td>
+<td><strong>DoS</strong> 攻击、<strong>website
+defacement</strong>、<strong>hack-and-leak</strong>、<strong>doxxing and
+harassment</strong>;借社交媒体放大</td>
+</tr>
+<tr class="odd">
+<td><strong>Typical targets 目标</strong></td>
+<td>高价值实体,尤其<strong>公共部门与医疗机构</strong>(服务中断后果严重)</td>
+<td><strong>政府与面向公众的组织</strong>、高知名度或卷入争议议题的公司</td>
+</tr>
+<tr class="even">
+<td><strong>核心差异</strong></td>
+<td>目的是<strong>金钱</strong>;成败看能否收到赎金</td>
+<td>目的是<strong>影响力/声誉打击</strong>;哪怕技术不高深,经舆论放大损害也可能极大</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>考点关键词:</strong>
+<code>ransomware = financially motivated / extort</code> ·
+<code>hacktivism = politically/ideologically motivated</code> ·
+<code>double extortion / RaaS</code> ·
+<code>DoS / defacement / hack-and-leak / doxxing</code> ·
+<code>healthcare vs government targets</code></p>
+<p><strong>Q4. What role does mass surveillance technology play in
+cybersecurity, and why is it considered both a protective tool and a
+potential threat to privacy?</strong></p>
+<p>Mass surveillance technology
+是国家级行为体的工具集,既能对网络做<strong>被动监控(passive
+surveillance)</strong>(如监听骨干流量),也能对系统发起<strong>主动攻击(active
+attacks)</strong>。作为<strong>保护工具(protective
+tool)</strong>:它可用于国家安全、情报收集、识别与追踪犯罪与恐怖活动——配合
+XKeyScore
+这类搜索分析系统,大规模收集的数据才能在反犯罪/反恐中真正发挥威力。作为<strong>隐私威胁(threat
+to privacy)</strong>:Snowden 泄密揭示的 PRISM、Tempora、Muscular
+等项目表明监控可发生在<strong>网络骨干</strong>而非仅终端,且
+<strong>Muscular</strong>
+证明用户可见的加密(HTTPS)并不保证每条内部链路都受保护;<strong>Bullrun/Edgehill</strong>(如
+Dual_EC_DRBG)更主动<strong>破坏密码学标准与供应链</strong>,削弱所有人的防护;现代
+<strong>mercenary spyware</strong>
+还能高度针对性地监控记者、活动人士等个人。因此它本质是一柄双刃剑:同一套能力既能保护公众,也能在缺乏监督时<strong>无差别侵蚀公民隐私</strong>。</p>
+<p><strong>考点关键词:</strong>
+<code>passive surveillance vs active attacks</code> ·
+<code>PRISM / Tempora / Muscular / Bullrun / XKeyScore</code> ·
+<code>protective: 情报/反恐/犯罪追踪</code> ·
+<code>threat: backbone collection / 削弱密码学 / mercenary spyware</code>
+· <code>dual-use / 缺乏监督</code></p>
+<h3 id="速记要点-1">速记要点</h3>
+<ul>
+<li><strong>Dropper 自带并释放、Downloader 从网上下载、Payload
+动手</strong>——本周最常考辨析。</li>
+<li><strong>Botnet = 被 C2
+控制的被攻陷设备网</strong>;三著名:Conficker(<strong>DGA</strong>)、Mirai(IoT
+默认口令)、Storm(早期)。</li>
+<li><strong>Ransomware = 财务驱动</strong>;<strong>Hacktivism =
+政治/意识形态驱动</strong>——两者对比的最核心分界。</li>
+<li><strong>RaaS</strong>:operators
+提供工具与基础设施,affiliates(无需技术)实施攻击;<strong>double
+extortion</strong> = 加密 + 威胁泄露。</li>
+<li>加密货币 <strong>pseudonymous ≠
+anonymous</strong>,区块链可溯源(KYC/AML);<strong>Muscular</strong>
+教训:用户可见加密 ≠ 每条内部链路受保护。</li>
+</ul>
+<hr />
+<h2 id="week-3--cryptographic-issues">Week 3 · Cryptographic Issues</h2>
+<h3 id="本周核心内容-2">本周核心内容</h3>
+<ul>
+<li><strong>Cryptography ≠ encryption + decryption</strong>:它是一族
+primitives,1976 年 Diffie–Hellman 是分水岭(之前只有对称加密)。</li>
+<li><strong>Taxonomy</strong>:<code>Keyless</code>(hash)/
+<code>Key-based</code>,后者再分 <code>Symmetric</code>(SKE、MAC)与
+<code>Asymmetric</code>(key exchange、PKE、digital
+signature)。判据:用前是否要先共享同一把秘密密钥。</li>
+<li><strong>Key = n-bit string</strong>:猜中概率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mn>2</mn><mi>n</mi></msup></mrow><annotation encoding="application/x-tex">1/2^n</annotation></semantics></math>,暴力破解时间
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><msup><mn>2</mn><mi>n</mi></msup><mi>/</mi><mi>C</mi></mrow><annotation encoding="application/x-tex">T=2^n/C</annotation></semantics></math>;<code>128-bit</code>
+very safe、<code>256-bit</code> 物理不可破。</li>
+<li><strong>Symmetric encryption</strong>:同一把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+加解密;<code>stream cipher</code>(逐位 XOR keystream)vs
+<code>block cipher</code>(分块,代表 <code>AES</code>)。</li>
+<li><strong>三件套</strong>:<code>hash</code>(无密钥,只给 integrity)→
+<code>MAC</code>(对称,integrity + authentication)→
+<code>digital signature</code>(非对称,额外给 non-repudiation)。</li>
+<li><strong>Asymmetric / RSA</strong>:接收方公钥加密、私钥解密;RSA
+安全性建立在 <code>factorization</code>(大数分解)难题,故
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>,</mo><mi>q</mi></mrow><annotation encoding="application/x-tex">p,q</annotation></semantics></math>
+取 1024/2048 位;<code>Shor's algorithm</code> 是量子威胁。</li>
+<li><strong>PKI / CA</strong>:公钥需认证身份绑定,否则有
+<code>MITM</code>;CA 用私钥签 <code>digital certificate</code>。</li>
+<li><strong>Side-channel
+attack</strong>:绕过数学证明,从实现的物理泄漏(timing/power/EM/sound)偷密钥。</li>
+</ul>
+<h3 id="示例考题与模型答案-2">示例考题与模型答案</h3>
+<p><strong>Q1. What is the main difference between symmetric and
+asymmetric encryption? Provide one example of each.</strong></p>
+<p>核心区别在于密钥结构:<code>symmetric encryption</code>(对称加密)中收发双方使用<strong>同一把</strong>
+secret key
+进行加密和解密,因此使用前双方必须<strong>先共享这把密钥</strong>;而
+<code>asymmetric encryption</code>(非对称加密,又称 public key
+encryption)使用<strong>一对密钥</strong>——公开的 <code>public key</code>
+用于加密、保密的 <code>private key</code>
+用于解密,公钥可以公开发布,因此<strong>无需事先共享任何秘密</strong>,从而解决了陌生人之间的首次密钥分发难题。代价是对称加密<strong>快</strong>而非对称加密<strong>慢得多</strong>。Example:symmetric
+的例子是 <code>AES</code>(或一般的 block cipher);asymmetric 的例子是
+<code>RSA</code>。</p>
+<p><strong>考点关键词:</strong> <code>same shared secret key</code> ·
+<code>public key / private key pair</code> ·
+<code>key distribution</code> · <code>AES</code> · <code>RSA</code></p>
+<p><strong>Q2. What is a side-channel attack? Give one example of how it
+can be used to compromise a cryptographic system.</strong></p>
+<p><code>Side-channel attack</code>(侧信道攻击)是一类<strong>不去攻击算法本身</strong>(算法可能数学上完美无缺),而是利用密码算法<strong>运行时从具体实现中泄漏的物理信息</strong>来恢复密钥的攻击;可被利用的侧信道包括
+<code>timing</code>(计算耗时)、<code>power consumption</code>(功耗)、<code>electromagnetic leaks</code>(电磁泄漏)和
+<code>sound</code>(声学)。它属于
+<code>passive attack</code>,因为攻击者只是旁观/测量而不干预通信。一个典型例子是对
+<strong>RSA 解密</strong>的 <code>power analysis</code>(功耗分析):RSA
+解密用 <code>square-and-multiply</code> 做指数运算,私钥比特为 1
+时会多做一次乘法、从而<strong>多耗一点电</strong>,攻击者观察功耗曲线(宽峰=1、窄峰=0)即可<strong>逐位读出私钥</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>——算法没被破,密钥却从实现里漏了出来。</p>
+<p><strong>考点关键词:</strong>
+<code>information from implementation</code> ·
+<code>timing / power / EM / sound</code> · <code>passive attack</code> ·
+<code>RSA square-and-multiply</code> · <code>power analysis</code></p>
+<h3 id="速记要点-2">速记要点</h3>
+<ul>
+<li><strong>Hash vs MAC vs Signature</strong>:三者都给
+integrity;<code>MAC</code> 和 <code>signature</code> 额外给
+authentication;<strong>只有 <code>digital signature</code> 给
+<code>non-repudiation</code></strong>(因为只有签名者持私钥;MAC
+双方共享密钥都能造 tag)。</li>
+<li><strong>Digital signature 原理</strong>:发送方用<strong>自己的
+private key 签</strong>、任何人用其 <strong>public key
+验</strong>;注意与 PKE 的用钥方向<strong>相反</strong>(PKE
+用接收方公钥加密)。</li>
+<li><strong>PKI/CA 作用</strong>:把"身份↔︎公钥"用 CA 的签名绑定成
+<code>certificate</code>,防
+<code>man-in-the-middle</code>;信任被归约到"信任一个 CA 的公钥"。</li>
+<li><strong>RSA 安全来源</strong>:<code>prime factorization</code>
+难题;量子威胁 = <code>Shor's algorithm</code>,应对是
+<code>post-quantum cryptography</code>。</li>
+<li><strong>MD5 / SHA-1 已 broken</strong>(不再
+collision-resistant),现用 <code>SHA-2</code>/<code>SHA-3</code>。</li>
+<li><strong>密钥强度取决于真实 entropy,不是输出长度</strong>:10
+位种子哈希成"128 位"密钥,真实安全性仍只有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>2</mn><mn>10</mn></msup><annotation encoding="application/x-tex">2^{10}</annotation></semantics></math>。</li>
+</ul>
+<hr />
+<h2 id="week-4--network-attack-and-defence">Week 4 · Network Attack and
+Defence</h2>
+<h3 id="本周核心内容-3">本周核心内容</h3>
+<ul>
+<li><strong>基础协议为"连通"而生、不为"安全"而生</strong>:<code>IP</code>
+只送达且明文、可被 spoof;<code>ARP</code>
+无认证可被欺骗;<code>DHCP</code> 自动分配 IP;<code>NAT</code>
+让多设备共享一个公网 IP。</li>
+<li><strong>路由层</strong>:Internet =
+<code>AS</code>(自治系统)互联;<code>BGP</code> 在 AS
+间交换路由、建立在信任之上;攻击是 <code>BGP hijacking</code>,防御是
+<code>RPKI</code> + <code>ROA</code>(数字签名)。</li>
+<li><strong>名字解析层</strong>:<code>DNS</code> 把域名解析为 IP;攻击是
+<code>DNS hijacking / pharming / cache poisoning</code>;防御是
+<code>DNSSEC</code>(签名保完整性/真实性)与
+<code>DoH</code>(加密保隐私)。</li>
+<li><strong>可用性攻击</strong>:<code>DDoS</code> 用
+<code>botnet</code>(2016 后大量 IoT 设备,如
+<code>Mirai</code>)海量流量压垮目标,纯打
+<code>Availability</code>。</li>
+<li><strong>邮件</strong>:<code>SMTP</code>
+默认不加密、易伪造发件人;反垃圾靠 <code>DKIM</code>(签名 + DNS 公钥)+
+机器学习过滤。</li>
+<li><strong>三大防御</strong>:<code>packet filtering/firewall</code>(按包头过滤,不加密)、<code>VPN/IPSec</code>(IP
+层,认证+完整性+可选机密性,用
+<code>IKE</code>/<code>Diffie–Hellman</code>
+建密钥)、<code>TLS</code>(传输层,机密性+完整性+服务器认证)。</li>
+</ul>
+<h3 id="示例考题与模型答案-3">示例考题与模型答案</h3>
+<p><strong>Q1. What is the disadvantage of using DNS-over-HTTPS
+(DoH)?</strong></p>
+<p><code>DoH</code> 把 DNS 查询<strong>加密后走 HTTPS</strong>
+发送,提升了用户<strong>隐私</strong>(ISP、网络运营商看不到用户查了哪些域名);但其主要缺点是<strong>削弱了网络防御方的可见性
+(visibility)</strong>,使企业/网络的<strong>监控与过滤变难</strong>。具体而言,安全团队更难检测试图联系可疑/C2
+域名的 <code>malware</code>、更难监测
+<code>DNS hijacking</code>、也更难在受管环境里封锁不当或违规域名;同时它把
+DNS 的控制权推向应用层提供商。一句话:<strong>DoH 提升
+confidentiality(隐私),代价是降低了网络层的安全可见性与可控性。</strong></p>
+<p><strong>考点关键词:</strong> <code>encrypts DNS queries</code> ·
+<code>privacy ↑</code> · <code>reduced network visibility</code> ·
+<code>harder monitoring / filtering</code> ·
+<code>malware / C2 detection</code></p>
+<p><strong>Q2. How can attackers exploit the Border Gateway Protocol
+(BGP) to launch a network attack?</strong></p>
+<p><code>BGP</code> 是 AS
+之间交换路由信息的协议,但它在历史上<strong>建立在 AS
+运营者之间的相互信任之上,缺乏对路由通告真伪的强校验</strong>。攻击者据此发动
+<code>BGP hijacking</code>:<strong>谎称自己拥有或能到达某段 IP 前缀 (IP
+prefix)</strong>,而实际并不拥有它;一旦这条虚假路由通告被邻居接受,就会像谣言一样<strong>扩散到全网</strong>,把本应流向真正目的地的流量引到攻击者控制的路径上。后果包括:把用户重定向到假网站做
+<code>phishing</code>、通过流量黑洞 (<code>blackholing</code>)
+造成<strong>拒绝服务</strong>、或把流量绕经攻击者以进行<strong>窃听/监控</strong>。防御是
+<code>RPKI</code> +
+<code>ROA</code>,用数字签名验证"谁被授权通告该前缀"。</p>
+<p><strong>考点关键词:</strong>
+<code>built on trust / no strong validation</code> ·
+<code>false route advertisement</code> · <code>bogus IP prefix</code> ·
+<code>traffic redirection</code> · <code>RPKI / ROA</code></p>
+<p><strong>Q3. What problem does DNSSEC aim to solve in the Domain Name
+System, and how does it achieve this?</strong></p>
+<p><code>DNSSEC</code> 要解决的根本问题是:<strong>普通 DNS 无法让
+resolver 分辨收到的应答是真是假</strong>,因此 DNS
+记录可被篡改或伪造(导致
+<code>DNS hijacking</code>、<code>cache poisoning</code>、<code>pharming</code>,把用户导向恶意
+IP)。它的解决办法是给 DNS 记录<strong>附加数字签名 (digital
+signatures)</strong>:resolver
+用相应公钥验证签名,从而确认该记录<strong>确实来自权威服务器、且传输中未被篡改</strong>。因此
+DNSSEC 提供的是 DNS 响应的 <strong>integrity(完整性)+
+authenticity(真实性)</strong>——注意它<strong>不提供机密性</strong>(不加密查询),也<strong>不能防
+DDoS</strong>(其更大的响应反而可被滥用做 amplification 攻击)。</p>
+<p><strong>考点关键词:</strong>
+<code>tampered / forged DNS records</code> ·
+<code>digital signatures</code> · <code>integrity + authenticity</code>
+· <code>not confidentiality</code> · <code>cache poisoning</code></p>
+<p><strong>Q4. What is the role of NAT (Network Address Translation) in
+network security, and why is it not considered a true security
+mechanism?</strong></p>
+<p><code>NAT</code>
+的主要功能是<strong>地址转换</strong>:让一个私有网络里的<strong>多台</strong>设备<strong>共享一个</strong>对外公网
+IP(靠端口号区分),其设计目的是应对 IPv4
+地址耗尽,而非安全。它带来的安全相关"副作用"是:外部看不到内网具体是哪台设备,攻击者较难直接定位内网某台主机。但它<strong>不是真正的安全机制
+(not a security control by itself)</strong>,因为它<strong>不提供
+confidentiality、integrity 或
+authentication</strong>——既不加密也不认证流量,所谓隐藏只是地址转换的不可靠副产品。它真正的安全影响其实是<strong>负面的</strong>:让事后追责
+(<code>attribution</code>) 变难,因为日志里往往只剩那个共享的公网
+IP,看不出是内网哪台机器。</p>
+<p><strong>考点关键词:</strong>
+<code>address translation / share one public IP</code> ·
+<code>not a security control by itself</code> ·
+<code>no encryption / authentication</code> ·
+<code>attribution harder</code></p>
+<p><strong>Q5. How does a VPN using IPsec ensure confidentiality and
+integrity of data over the internet?</strong></p>
+<p><code>VPN</code> 在不可信的互联网之上、于 <strong>IP
+层</strong>建立一条受保护的隧道,靠 <code>IPsec</code>
+协议套件实现。它通过 <code>IKE</code>(Internet Key Exchange,常用
+<code>Diffie–Hellman</code>)在双方之间<strong>协商并建立共享密钥</strong>,并由
+<code>Security Association (SA)</code>(密钥+算法+参数的配置)规定如何保护流量。<strong>Confidentiality(机密性)</strong>:用协商出的密钥对
+IP
+数据包<strong>加密</strong>,使路径上的窃听者读不到内容;<strong>Integrity
++ authenticity(完整性与真实性)</strong>:IPsec
+对数据包附加认证,使任何篡改都能被检测、并确认数据确实来自合法对端。IPsec
+有两种强度:"仅认证"只保完整性/真实性,"认证 + 加密"再加上机密性。</p>
+<p><strong>考点关键词:</strong> <code>IP-layer tunnel</code> ·
+<code>IKE / Diffie–Hellman key exchange</code> ·
+<code>Security Association</code> ·
+<code>encryption → confidentiality</code> ·
+<code>authentication → integrity</code></p>
+<h3 id="速记要点-3">速记要点</h3>
+<ul>
+<li><strong>DNS 劫持 vs BGP 劫持</strong>:<code>DNS hijacking</code>
+改"地址簿"(域名→IP 的映射,打
+<code>Integrity</code>);<code>BGP hijacking</code>
+改"路线图"(流量走的路径,主打 <code>Availability</code>)。</li>
+<li><strong>CIA
+速判</strong>:<code>DDoS</code>→A;<code>BGP 黑洞</code>→A;<code>DNS hijacking</code>→I(可波及
+C);网络窃听→C。</li>
+<li><strong>TLS = handshake + record</strong>:<code>Handshake</code>
+认证双方、协商算法、用 <code>Diffie–Hellman</code>
+建共享密钥;<code>Record</code>
+用该密钥做<strong>带认证的对称加密</strong>保护数据。体现"非对称定身份 +
+对称传数据"。</li>
+<li><strong>DNSSEC ≠ 万能</strong>:引入
+<code>zone enumeration</code>(NSEC3 缓解)和
+<code>amplification</code>(响应更大可被滥用做反射型
+DDoS)两个新问题。</li>
+<li><strong>DKIM</strong>:发信方给邮件附数字签名,收信方用<strong>发信域名
+DNS 里公布的公钥</strong>验证 → 认证域名 + 防篡改。</li>
+<li><strong>包过滤局限</strong>:可被 <code>packet fragmentation</code>
+绕过;不加密、不提供机密性。</li>
+</ul>
+<hr />
+<h2 id="week-5--usability--security">Week 5 · Usability &amp;
+Security</h2>
+<h3 id="本周核心内容-4">本周核心内容</h3>
+<ul>
+<li>安全首先是<strong>人的问题 (human
+factor)</strong>,其次才是技术问题;攻击者绕过技术,直接利用人的心理弱点。</li>
+<li>Cognitive psychology 三类 <strong>human
+error</strong>:<code>slips/lapses</code>(技能层,如 post-completion
+error)、<code>mistakes</code>(规则层,信息过载下走捷径)、<code>misconceptions</code>(认知层,根本没理解,如
+Why Johnny Can't Encrypt)。</li>
+<li>Social psychology:<strong>Asch / Milgram / Zimbardo</strong>
+证明人极易服从权威与群体;<code>bystander effect</code>(责任分散)。</li>
+<li>Social engineering:攻击人而非技术,有可复用剧本(Cialdini
+六原则、Stajano &amp; Wilson 七大诈骗原则);<code>phishing</code>
+是旗舰攻击,已演化为 <code>spear-phishing</code>。</li>
+<li>OPSEC = 训练员工 + 讲清原因 + 建立 culture of
+compliance,不只是堆规则。</li>
+<li>Password system 存 <strong>hash 不存明文</strong>(加
+<code>salt</code> 加固);<code>password recovery</code>
+是认证体系最弱入口(security questions、email recovery、SIM swap)。</li>
+<li>好记 vs. 安全的最优解是 <strong>mnemonic passphrase</strong>(Yan
+2004 验证);用 <code>password entropy</code>
+量化强度;避开强制定期改密(NIST 已改建议)。</li>
+<li><strong>CAPTCHA</strong> 反向利用人类强项,本质是一个困难 AI
+问题,但会被攻破且有公平性缺陷。</li>
+</ul>
+<h3 id="示例考题与模型答案-4">示例考题与模型答案</h3>
+<p><strong>Q1. Explain what generating passwords using mnemonic phrases
+means.</strong></p>
+<p>Mnemonic
+phrase(助记短语)方法指:用户先想出一句自己记得住、但别人难以猜到的句子,再从每个词中<strong>抽取首字母</strong>(并掺入数字、大小写等变化),拼成密码。例如
+"CSIT970 is a fantastic subject, but I hate the lecturer" →
+<code>C9IAFSBIHTL</code>。这样生成的密码<strong>对攻击者看起来像随机串</strong>(难猜、熵高),但用户靠原句就能复现(好记)。Yan
+等人 2004 年的实验证明,基于 mnemonic phrase
+的密码与纯随机密码安全性相当、重置率无显著差异,因此被视为兼顾 usability
+与 security 的 "best of both worlds"。</p>
+<p><strong>考点关键词:</strong> <code>mnemonic phrase</code> ·
+<code>passphrase</code> · <code>password entropy</code> ·
+<code>Yan 2004</code> · <code>memorable yet hard to guess</code></p>
+<p><strong>Q2. What is the bystander effect, and how can it influence
+security behaviour in an organization during a cyber
+incident?</strong></p>
+<p>Bystander
+effect(旁观者效应)指:当<strong>很多人</strong>都注意到一个问题时,每个人都假设"别人会去处理",结果<strong>没有一个人</strong>采取行动;关键变量是
+responsibility(责任感)的分散(经典案例为 Kitty Genovese,单独旁观者 85%
+会施救,但以为还有 4 人在场时降至
+31%)。在组织遭遇网络事件时,员工收到可疑邮件会想"公司这么多人,肯定早有人报给
+IT
+了",于是人人如此想、最终无人上报,白白延长了攻击窗口。对策是明确每个员工对上报负有责任,并提供便捷的钓鱼/可疑活动上报渠道。</p>
+<p><strong>考点关键词:</strong> <code>bystander effect</code> ·
+<code>diffusion of responsibility</code> · <code>Kitty Genovese</code> ·
+<code>no one reports</code> · <code>reporting channels</code></p>
+<p><strong>Q3. What is social engineering, and why is it often more
+successful than technical attacks?</strong></p>
+<p>Social engineering(社会工程)指通过<strong>心理操纵 (psychological
+manipulation)</strong>,诱使人泄露机密信息或执行不安全操作——它<strong>攻击的是使用技术的人,而非技术本身</strong>。它之所以常比技术攻击更成功,原因在于:①
+人类对抗欺骗的天然防御几乎都为 face-to-face
+场景进化而来,面对邮件/短信时这些线索全失效;②
+它绕开了加密、防火墙等技术防线,直接利用 Cialdini
+六原则(authority、scarcity、social proof 等)和认知/社会心理弱点;③
+Internet 和 SNS
+让攻击者能低成本获取目标信息、批量触达。换句话说,即使技术机制完美无缺,只要人被操纵,安全依然失效。</p>
+<p><strong>考点关键词:</strong> <code>psychological manipulation</code>
+· <code>attack the human, not the technology</code> ·
+<code>Cialdini principles</code> · <code>phishing</code> ·
+<code>bypasses technical controls</code></p>
+<p><strong>Q4. Explain how poor operational security (Opsec) practices
+in personal life can lead to organizational data breaches.</strong></p>
+<p>OPSEC(Operational
+Security)关注让员工有能力<strong>抵御外部人员套取机密的劝诱</strong>;个人生活中的薄弱
+OPSEC
+会成为组织的入口。例如:员工在社交媒体上公开晒出宠物名、生日、喜好,攻击者据此猜中
+security questions 的答案或定制
+<code>spear-phishing</code>;在工作账号与个人账号上<strong>复用同一密码</strong>,个人账号一旦泄露便殃及公司账号;用安全设置很差的个人设备(BYOD)收发工作邮件,把组织数据暴露给恶意软件。由此可见
+OPSEC
+不只是几条规则,而要靠<strong>训练、讲清原因、建立合规文化</strong>,且即使受信任的员工也是社会工程目标。</p>
+<p><strong>考点关键词:</strong> <code>OPSEC</code> ·
+<code>password reuse</code> · <code>social media exposure</code> ·
+<code>spear-phishing</code> · <code>BYOD</code> ·
+<code>culture of compliance</code></p>
+<p><strong>Q5. What are common weaknesses in password recovery
+mechanisms, and how can they be exploited by attackers?</strong></p>
+<p>Recovery
+往往是整条认证链上<strong>最弱的一环</strong>,因为攻击者无需攻破主登录,只要利用更弱的重置流程即可拿到账户。三种主流机制各有软肋:</p>
+<ol type="1">
+<li><strong>Security
+questions(安全问题)</strong>——答案常是公开或近乎公开的(Google
+2015:"最喜欢的食物"一次猜中率 19.7%,16%
+答案可公开获取),攻击者翻社交媒体即可猜出。</li>
+<li><strong>Email recovery(邮箱找回)</strong>——邮箱是单点故障 (single
+point of failure),一旦邮箱被攻破,所有依赖它重置的账户全部沦陷。</li>
+<li><strong>SMS recovery(短信找回)</strong>——可被 <strong>SIM
+swap</strong> 攻击截获:攻击者冒充受害者诱使运营商补办
+SIM,使所有验证码改发到攻击者手中。</li>
+</ol>
+<p>此外 help-desk 客服流程也可能被社会工程骗过。</p>
+<p><strong>考点关键词:</strong> <code>password recovery</code> ·
+<code>security questions</code> ·
+<code>email recovery (single point of failure)</code> ·
+<code>SIM swap</code> · <code>help-desk social engineering</code> ·
+<code>weakest link</code></p>
+<p><strong>Q6. Explain the security risk of the password
+manager.</strong></p>
+<p>Password
+manager(密码管理器)能自动生成强密码、检测复用、备份恢复并追踪泄露,但它引入了<strong>单点故障风险</strong>:所有密码都受一个
+<strong>master password(主密码)</strong>
+保护——一旦主密码被攻破或被钓走,攻击者可能<strong>一次性拿到全部密码</strong>;若用户忘记主密码,也可能丢失所有凭据。尽管如此,从可用性安全角度看其收益通常大于风险,因此<strong>禁用/屏蔽密码管理器(如禁止粘贴密码)反而会把用户推向更弱的密码</strong>,应予避免。</p>
+<p><strong>考点关键词:</strong> <code>password manager</code> ·
+<code>master password</code> · <code>single point of failure</code> ·
+<code>generates strong passwords</code> ·
+<code>don't block password managers</code></p>
+<h3 id="速记要点-4">速记要点</h3>
+<ul>
+<li>三类 human error:<code>slips/lapses</code>(技能)·
+<code>mistakes</code>(规则)· <code>misconceptions</code>(认知)。</li>
+<li>Cialdini 六原则:<code>Reciprocity</code> ·
+<code>Commitment/consistency</code> · <code>Social proof</code> ·
+<code>Liking</code> · <code>Authority</code> ·
+<code>Scarcity</code>。</li>
+<li>钓鱼家族:<code>phishing</code>(邮件)· <code>smishing</code>(短信)·
+<code>vishing</code>(电话)· <code>spear-phishing</code>(定向)·
+<code>pretexting</code>(借口铺垫)。</li>
+<li>找回三弱点 + 攻击:security questions(易猜)· email(单点故障)·
+SMS(<code>SIM swap</code>)。</li>
+<li>系统存 <strong>hash 不存明文</strong> +
+<code>salt</code>;<code>hashing ≠ encryption</code>(不可还原)。</li>
+<li>CAPTCHA = Completely Automated Public Turing test = 困难 AI
+问题;局限:被 AI 攻破 + 公平性(视障/听障)。</li>
+</ul>
+<hr />
+<h2 id="week-7--cybersecurity-standards--frameworks">Week 7 ·
+Cybersecurity Standards &amp; Frameworks</h2>
+<h3 id="本周核心内容-5">本周核心内容</h3>
+<ul>
+<li>四个概念枢纽:<code>policy</code>(内部规则,要什么)→
+<code>control</code>(降风险的安全措施,怎么做)→
+<code>standard</code>(正式参考,如 ISO 27001)→
+<code>framework</code>(宏观模型,如 NIST CSF);实践中四者协同。</li>
+<li>好的 information security
+policy:清晰、贴合本组织威胁与业务、能指导控制设计、传达安全期望。</li>
+<li>Access control +
+<code>need-to-know principle</code>:权限随角色/职责走,只给完成工作必需的最小访问权,在账户被攻破时限制损失。</li>
+<li>Authentication:唯一账户保证
+<code>accountability</code>,记录成败登录以发现攻击信号、支撑取证。</li>
+<li>Data
+classification:<code>Public / Internal / Confidential / Restricted</code>,分级决定该上多强的控制。</li>
+<li><strong>Essential Eight</strong>(ASD 的有优先级基线)+
+<code>maturity level 0–3</code>;对 enterprise mobility 与
+OT(ICS/SCADA/PLC)需另作补充。</li>
+<li><strong>Risk management</strong> 五步循环;<strong>ISO/IEC
+27001</strong>(ISMS 标准,以 CIA + 风险为核心,持续改进);<strong>NIST
+CSF</strong> 五大功能。</li>
+</ul>
+<h3 id="示例考题与模型答案-5">示例考题与模型答案</h3>
+<p><strong>Q1. What is the purpose of classifying data within an
+organization, and what are common classification levels?</strong></p>
+<p>Data
+classification(数据分级)的目的是:并非所有信息都需要同等强度的保护,否则成本高得离谱;因此按<strong>敏感度
+(sensitivity)</strong> 给数据分级,从而<strong>决定每类数据需要多强的控制
+(classification decides what control is
+needed)</strong>,把加密等高成本手段精准投放到最该保护的数据上。常见的四级模型(从低到高)为:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>级别</th>
+<th>含义</th>
+<th>控制含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Public</strong>(公开)</td>
+<td>可对外公开分享(如市场宣传资料)</td>
+<td>不需要加密</td>
+</tr>
+<tr class="even">
+<td><strong>Internal</strong>(内部)</td>
+<td>仅供组织内部正常使用</td>
+<td>一般内部管控</td>
+</tr>
+<tr class="odd">
+<td><strong>Confidential</strong>(机密)</td>
+<td>敏感,仅限特定用户访问</td>
+<td>访问受限</td>
+</tr>
+<tr class="even">
+<td><strong>Restricted</strong>(受限/绝密)</td>
+<td>高度敏感,需最强保护(如病历、薪资)</td>
+<td>必须加密</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>考点关键词:</strong> <code>data classification</code> ·
+<code>sensitivity</code> ·
+<code>Public/Internal/Confidential/Restricted</code> ·
+<code>classification decides the control</code> ·
+<code>encrypt restricted data</code></p>
+<p><strong>Q2. List the five core functions of the NIST Cybersecurity
+Framework (CSF).</strong></p>
+<p>NIST CSF 的五大核心功能,按顺序为:</p>
+<ol type="1">
+<li><strong>Identify</strong>(识别)——认清需要保护的流程与资产:"你有什么、什么最重要"。</li>
+<li><strong>Protect</strong>(保护)——部署恰当的 safeguards
+保护企业资产。</li>
+<li><strong>Detect</strong>(检测)——部署机制以发现网络安全事件的发生。</li>
+<li><strong>Respond</strong>(响应)——遏制 (contain) 并处理事件影响。</li>
+<li><strong>Recover</strong>(恢复)——还原因事件受损的能力与服务,回到正常运营。</li>
+</ol>
+<p>其深意在于:<strong>安全不止于预防</strong>——detect、respond、recover
+同等重要,即假设攻击迟早会突破,你还得能发现、控制并从中恢复。</p>
+<p><strong>考点关键词:</strong> <code>Identify</code> ·
+<code>Protect</code> · <code>Detect</code> · <code>Respond</code> ·
+<code>Recover</code> · <code>not just prevention</code></p>
+<p><strong>Q3. What are the essential steps of the risk management
+process?</strong></p>
+<p>Risk
+management(风险管理)是系统化地识别、度量、处置各种损失暴露,以降低事件概率与影响、并为安全决策排序。其标准流程为五步:</p>
+<ol type="1">
+<li><strong>Identify</strong>(识别风险)——找出可能出错的地方。</li>
+<li><strong>Analyze</strong>(分析风险)——理解其性质与成因。</li>
+<li><strong>Evaluate</strong>(评估风险,即 risk
+assessment)——衡量其可能性与影响、排定优先级。</li>
+<li><strong>Treat</strong>(处置风险)——采取缓解/转移/接受等措施。</li>
+<li><strong>Monitor &amp;
+Review</strong>(监控与复查)——持续观察控制是否有效。</li>
+</ol>
+<p>关键点是:这是一个<strong>永不停止的循环
+(cycle)</strong>,而非一次性任务——监控复查后又回头识别下一周期的新风险,因为威胁和技术在不断变化。</p>
+<p><strong>考点关键词:</strong>
+<code>Identify → Analyze → Evaluate → Treat → Monitor &amp; Review</code>
+· <code>risk assessment</code> · <code>continuous cycle</code> ·
+<code>not one-off</code></p>
+<h3 id="速记要点-5">速记要点</h3>
+<ul>
+<li>四个词:<code>policy</code>(要什么)· <code>control</code>(怎么做)·
+<code>standard</code>=ISO 27001 · <code>framework</code>=NIST CSF。</li>
+<li><strong>Essential
+Eight</strong>(三组记法):阻止恶意代码运行(<code>application control</code>
+· <code>Office macros</code> · <code>user app hardening</code>)+
+削弱攻击者(<code>restrict admin privileges</code> · <code>MFA</code>)+
+减少暴露并可恢复(<code>patch applications</code> · <code>patch OS</code>
+· <code>regular backups</code>);<code>maturity level 0–3</code>。</li>
+<li><strong>ISO/IEC 27001</strong> = 建立 <strong>ISMS</strong>
+的标准;目标 = <strong>CIA triad</strong>;以风险为中心 +
+<code>continuous improvement</code>;14 domains、114 controls。</li>
+<li><strong>NIST CSF</strong>
+五功能:<code>Identify → Protect → Detect → Respond → Recover</code>。</li>
+<li><code>need-to-know</code>:只给必需的最小访问权,可在账户被攻破时限制损失。</li>
+<li>MFA 三因素:<code>something you know</code> ·
+<code>something you have</code> · <code>something you are</code>。</li>
+</ul>
+<hr />
+<h2 id="week-9--privacy-issues">Week 9 · Privacy Issues</h2>
+<h3 id="本周核心内容-6">本周核心内容</h3>
+<ul>
+<li><strong>隐私 (Privacy) = 控制权</strong>:对"披露什么 / 给谁 /
+在什么条件下"的控制能力,三要素是
+<code>When</code>(时间敏感性)、<code>How</code>(手动 vs
+自动)、<code>Extent</code>(模糊 vs 精确);不是"藏起一切"。</li>
+<li><strong>在线隐私三大威胁</strong>:<code>Hacking</code>(未授权入侵窃取)、<code>Tracking</code>(行为追踪
+→ profiling
+画像)、<code>Trading</code>(数据交易卖给第三方);后两者多为"自愿提供、后续被滥用",必须靠法规约束。</li>
+<li><strong>四种隐私保护技术</strong>:<code>SMPC</code>(多方算函数不暴露输入)、<code>Federated Learning</code>(数据留本地、只传
+model
+updates)、<code>Homomorphic Encryption</code>(密文上计算、输入与结果都加密)、<code>Differential Privacy</code>(给发布结果加噪声、由
+<code>ε</code> 量化)。</li>
+<li><strong>SMPC 核心机制</strong>:加性
+<code>secret sharing</code>——拆随机份额 → 各持一份 →
+公开各自手里份额之和 → 求总和 / 人数;无需
+<code>Trusted Third Party (TTP)</code>。</li>
+<li><strong>DP 核心不等式</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>≤</mo><msup><mi>e</mi><mi>ε</mi></msup><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\Pr[M(D)\in S]\le e^{\varepsilon}\Pr[M(D&#39;)\in S]</annotation></semantics></math>:<code>D</code>
+与 <code>D'</code> 只差一条记录;<code>ε</code> 越小 → 噪声越多 →
+隐私越强但精度越低。</li>
+<li><strong>为何 ML 需要隐私技术</strong>:ML 本质是 multi-stakeholder
+computation(data owner / model owner / service provider / end user
+互不信任),原始数据含敏感信息,直接共享带来隐私 / 法律 /
+安全三重风险。</li>
+<li><strong>GDPR</strong>(EU,2018-05-25):区分 <code>Controller</code> /
+<code>Processor</code>;7 大原则 + 8 项权利(含 <code>SAR</code>);罚款
+€10M/2% 或 €20M/4%。</li>
+<li><strong>Australian Privacy Act 1988</strong>:13 条
+<code>APPs</code>,principle-based + technology
+neutral;<code>Ethical AI</code> 核心难题是不透明 + bias,澳洲有 8 条 AI
+Ethics Principles。</li>
+</ul>
+<h3 id="示例考题与模型答案-6">示例考题与模型答案</h3>
+<p><strong>Q1. Do calculations as in the Assignment and Example in Class
+for MPC.</strong></p>
+<p>下面是一个完整、可复现的
+<code>Secure Multi-Party Computation (SMPC)</code> worked
+example——三位同事 Alice、Bob、Cate
+想算出<strong>平均工资</strong>,但谁都不愿透露自己的工资,且<strong>没有可信第三方
+(Trusted Third Party)</strong>。工具是 <strong>加性 (additive)
+(3,3)-secret sharing</strong>:每个秘密拆成 3
+份随机份额,三份之和等于真实值,任意单份泄露不了原值。</p>
+<p>设真实工资为:Alice = $70K,Bob = $60K,Cate = $80K(真实平均应为
+(70+60+80)/3 = $70K,用来校验)。</p>
+<p><strong>第一步:每人把自己的工资随机拆成 3
+份</strong>(拆法任意,只要三份相加 =
+真实工资;给自己留一份,另两份发给另外两人)</p>
+<pre><code>Alice $70K → ( 35,  10,  25)   自己留 35, 给 Bob 10, 给 Cate 25
+Bob   $60K → ( 50, -20,  30)   给 Alice 50, 自己留 -20, 给 Cate 30
+Cate  $80K → ( 15,  95, -30)   给 Alice 15, 给 Bob 95, 自己留 -30</code></pre>
+<p>校验拆分正确:35+10+25 = 70;50−20+30 = 60;15+95−30 =
+80。注意份额可以是负数或大于工资——这正是为什么单看一份(如 Bob 收到的
+95)推不出任何人的真实工资。</p>
+<p><strong>第二步:每人把"自己手里持有的所有份额"加起来,只公开这个和</strong>(单位
+$K)</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>真实工资(行)</th>
+<th>Alice 持有</th>
+<th>Bob 持有</th>
+<th>Cate 持有</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>70 (Alice)</td>
+<td>35</td>
+<td>10</td>
+<td>25</td>
+</tr>
+<tr class="even">
+<td>60 (Bob)</td>
+<td>50</td>
+<td>−20</td>
+<td>30</td>
+</tr>
+<tr class="odd">
+<td>80 (Cate)</td>
+<td>15</td>
+<td>95</td>
+<td>−30</td>
+</tr>
+<tr class="even">
+<td><strong>公开的和(列)</strong></td>
+<td><strong>100</strong></td>
+<td><strong>85</strong></td>
+<td><strong>25</strong></td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Alice 公开:35 + 50 + 15 = <strong>$100K</strong></li>
+<li>Bob 公开:10 + (−20) + 95 = <strong>$85K</strong></li>
+<li>Cate 公开:25 + 30 + (−30) = <strong>$25K</strong></li>
+</ul>
+<p><strong>第三步:把三个公开的和相加,再除以人数 3</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">平均工资</mtext><mo>=</mo><mfrac><mrow><mn>100</mn><mo>+</mo><mn>85</mn><mo>+</mo><mn>25</mn></mrow><mn>3</mn></mfrac><mo>=</mo><mfrac><mn>210</mn><mn>3</mn></mfrac><mo>=</mo><mi>$</mi><mn>70</mn><mtext mathvariant="normal">K</mtext></mrow><annotation encoding="application/x-tex">\text{平均工资} = \frac{100 + 85 + 25}{3} = \frac{210}{3} = \$70\text{K}</annotation></semantics></math></p>
+<p>结果与真实平均 $70K 完全一致。</p>
+<p><strong>为什么没人能看到他人原始值:</strong>
+三个公开和之和按列重组,正好把每个人的 3
+份份额都收齐,因此<strong>三个公开和之和恰好等于三人工资之和</strong>。整个过程<strong>只暴露了"总和
+/ 平均"这一个聚合量</strong>;Alice
+只见过别人发给她的份额(50、15),Bob、Cate
+同理,谁都无法反推出他人真实工资。</p>
+<p><strong>诚实补充(常考易错点):</strong> SMPC 不是"零泄露"。若 Alice
+自己工资 = $80K 而算出平均 =
+$70K,她能推断"另两人平均比我低",但<strong>推不出具体是谁、具体多少</strong>。这呼应了"隐私是控制的程度,而非绝对零泄露"。</p>
+<blockquote>
+<p>备考变体——平均年龄:若题目改成"3 人算平均年龄"(如
+25/30/35),做法完全一致:各自把年龄随机拆 3 份 → 互换 → 各公开手中份额之和
+→ 三和相加 ÷ 3 = (25+30+35)/3 = 30。只是把 $K 换成"岁"。</p>
+</blockquote>
+<p><strong>考点关键词:</strong> <code>additive secret sharing</code> ·
+<code>(3,3)-secret sharing</code> · <code>no Trusted Third Party</code>
+· <code>secure aggregation</code> ·
+<code>privacy ≠ zero leakage</code></p>
+<p><strong>Q2. Explain how Homomorphic Encryption (HE) keeps user data
+privacy on clouds or machine learning.</strong></p>
+<p><code>Homomorphic Encryption (HE,同态加密)</code>
+是一种允许<strong>在密文 (ciphertext)
+上直接做计算</strong>的加密技术:对密文做运算得到的是"加密的结果",解密后等于直接在明文上做同样运算的结果。最重要的性质(以加法为例)是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>M</mi><mn>1</mn></msub><mo>+</mo><msub><mi>M</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>M</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>M</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">E(M_1 + M_2) = E(M_1) + E(M_2)</annotation></semantics></math>。它在云/ML
+中保护隐私的流程是(外包计算类比):<strong>① 用自己的密钥把数据加密 → ②
+把密文发给云 → ③ 云在密文上直接跑算法(全程不解密)→ ④ 返回加密的结果 → ⑤
+你用自己的密钥解密得到答案。</strong> 全程云只见到密文。HE
+的强大之处在于它<strong>同时保护输入数据和计算结果的机密性</strong>(不像
+SMPC 最终结果是明文);代价是<strong>效率</strong>——HE
+目前仍较慢,是隐私保护 ML 的研究热点。</p>
+<p><strong>考点关键词:</strong> <code>compute on ciphertext</code> ·
+<code>E(M1+M2)=E(M1)+E(M2)</code> · <code>outsourced computation</code>
+· <code>input AND result encrypted</code> ·
+<code>post-quantum</code></p>
+<p><strong>Q3. What is Differential Privacy, and how does it help
+protect individual data in machine learning applications?</strong></p>
+<p><code>Differential Privacy (DP,差分隐私)</code>
+关注<strong>发布出去的结果</strong>:其目标是让观察者<strong>无法从输出反推出任何个体的"在场或缺席"</strong>。它解决的问题是
+differential
+attack——即使隐藏姓名,"一个人加入/退出数据集"造成的可见变化也会泄露信息(例:统计"上月生病人数",加入
+Casey 前 100、加入后精确返回 101,攻击者立刻断定 Casey
+生病)。做法是<strong>加噪声
+(perturbation)</strong>:按精心选择的分布(常用 Laplace 噪声,scale =
+1/ε)返回"真实答案 + 噪声"。形式化定义:对只相差一条记录的 <code>D</code>
+与 <code>D'</code>,机制 <code>M</code> 满足
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>≤</mo><msup><mi>e</mi><mi>ε</mi></msup><mo>⋅</mo><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\Pr[M(D)\in S] \le e^{\varepsilon}\cdot \Pr[M(D&#39;)\in S]</annotation></semantics></math>。<code>ε</code>
+越小 → 加噪越多 → 隐私越强但精度越低(privacy–accuracy trade-off)。在 ML
+中,训练/发布时加噪使单条记录对模型的影响被"淹没",既保护个体又仍允许有意义的分析。</p>
+<p><strong>考点关键词:</strong> <code>differential attack</code> ·
+<code>randomized mechanism</code> · <code>e^ε bound</code> ·
+<code>privacy loss parameter ε</code> · <code>noise scale = 1/ε</code> ·
+<code>privacy–accuracy trade-off</code></p>
+<p><strong>Q4. Explain the concept of Secure Multi-Party Computation
+(SMPC) and how it enables privacy-preserving collaboration between
+parties.</strong></p>
+<p><code>Secure Multi-Party Computation (SMPC / MPC)</code>
+解决的问题是:<strong>多方各持私有输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>x</mi><mi>n</mi></msub></mrow><annotation encoding="application/x-tex">x_1,\dots,x_n</annotation></semantics></math>,想共同计算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>x</mi><mi>n</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z = f(x_1,\dots,x_n)</annotation></semantics></math>,使得每一方除了最终输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+之外得不到任何额外信息。</strong> 关键约束是函数 <code>f</code>
+公开、只有输入保密。难点在于:直接报输入虽能算对,但各方会学到远超
+<code>z</code> 的信息;而现实中往往<strong>没有可信第三方 (TTP)</strong>
+可代收输入。实现靠 secret
+sharing——每方把秘密拆成随机份额分发,各方对手中份额做本地运算后只公开聚合量,最终重建
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>,<strong>任何单方都拿不到他人原始输入</strong>(详见
+Q1)。典型应用:多家医院联合算病例统计而不互相暴露病历;<code>Federated Learning</code>
+用 secure aggregation 汇总各方 model updates 联合训练。</p>
+<p><strong>考点关键词:</strong> <code>z = f(x1,...,xn)</code> ·
+<code>learn only the output</code> · <code>public function f</code> ·
+<code>no TTP</code> · <code>secret sharing</code> ·
+<code>secure aggregation</code></p>
+<p><strong>Q5. Why is machine learning important for cybersecurity, and
+what is the difference between supervised and unsupervised learning in
+this context?</strong></p>
+<p>现代网络威胁数量巨大、变化快,人工规则难以覆盖;ML
+能从海量数据中<strong>自动学习模式</strong>用于威胁检测——如 malware
+分类、intrusion/anomaly detection、phishing/spam
+过滤、流量异常识别,并能更快适应<strong>新型/未知攻击</strong>、大规模实时处理。</p>
+<ul>
+<li><strong>Supervised learning(监督学习):</strong>
+用<strong>带标签数据</strong>(每条样本标注
+malicious/benign)训练,学习"特征→已知标签"的映射,用于<strong>分类/预测已知类型威胁</strong>(如垃圾邮件分类器)。准确但需大量标注,对全新攻击较弱。</li>
+<li><strong>Unsupervised learning(无监督学习):</strong>
+用<strong>无标签数据</strong>自行发现结构/聚类/异常,常用于
+<strong>anomaly
+detection</strong>(先学正常基线,再标出显著偏离)。<strong>无需标签、能发现未知/零日攻击</strong>,但
+false positive 通常更高。</li>
+</ul>
+<p>一句话:supervised 擅长"识别已知威胁类型",unsupervised
+擅长"发现偏离正常的未知异常"。</p>
+<p><strong>考点关键词:</strong> <code>labeled vs unlabeled data</code> ·
+<code>classification</code> · <code>anomaly detection</code> ·
+<code>zero-day / unknown attacks</code> ·
+<code>multi-stakeholder computation</code></p>
+<p><strong>Q6. How does location tracking raise privacy concerns, and
+what are common methods used to mitigate these risks?</strong></p>
+<p>网站和 App 持续收集物理位置属于在线隐私威胁中的
+<code>Tracking</code>。位置数据高度敏感,因为它能把零散活动<strong>拼成完整画像
+(profiling)</strong>——揭示家庭住址、工作地点、作息、就医/宗教/社交场所;一旦被滥用可导致
+surveillance、stalking、定向广告,甚至 location
+trading(被卖给第三方长期留存、超出原始目的使用)。缓解方法:<strong>data
+minimisation / purpose
+limitation</strong>(只在必要时、按所需精度收集)、<strong>降低精度/模糊化</strong>(城市级代替精确
+GPS)、<strong>anonymisation / pseudonymisation</strong> 及对位置查询用
+<code>Differential Privacy</code> 加噪、<strong>细粒度权限与
+consent</strong>(如"仅使用 App 时""仅本次")、<strong>加密传输存储 +
+及时删除 (storage limitation)</strong>。</p>
+<p><strong>考点关键词:</strong> <code>profiling</code> ·
+<code>location trading</code> · <code>data minimisation</code> ·
+<code>anonymisation / pseudonymisation</code> ·
+<code>consent &amp; permissions</code> ·
+<code>coarse-grained location</code></p>
+<p><strong>Q7. Explain what "data minimisation" means as a key principle
+of GDPR.</strong></p>
+<p><code>Data minimisation(数据最小化)</code> 是 GDPR Article 5
+的七大原则之一,要求组织<strong>只收集为实现既定目的所必需的最少个人数据</strong>——数据应
+adequate(充分)、relevant(相关)且 limited to what is
+necessary(限于必要)。例:网店为让你订阅营销邮件只需邮箱,就<strong>不应</strong>索要政治观点、健康状况等无关信息。重要性在于:收集越少,一旦
+breach 暴露的敏感信息越少,既降风险也减合规负担;并直接体现"隐私 =
+控制"——把不必要的采集挡在源头。注意:即便已用 MPC/DP 等技术,data
+minimisation 仍适用,技术不能替代"该不该收集"的治理判断。</p>
+<p><strong>考点关键词:</strong>
+<code>adequate, relevant, limited to necessary</code> ·
+<code>Article 5</code> · <code>collect only what is needed</code> ·
+<code>reduces breach exposure</code></p>
+<p><strong>Q8. Explain the purpose of the Australian Privacy Principles
+(APPs) and name three key principles.</strong></p>
+<p><code>Australian Privacy Principles (APPs)</code> 是
+<code>Privacy Act 1988</code> 的基石,共 <strong>13
+条</strong>,构成澳洲保护个人信息处理的核心框架。其目的是规范联邦公共部门和私营部门对个人信息的<strong>收集、使用、存储、披露</strong>全生命周期。两个关键特征:<strong>principle-based</strong>(给组织灵活性,可按业务裁剪)和
+<strong>technology
+neutral</strong>(适应技术变化无需频繁修法)。任选三条:</p>
+<ul>
+<li><strong>APP 1 — Open and transparent management:</strong>
+以公开透明方式管理个人信息,维护清晰最新的隐私政策。</li>
+<li><strong>APP 6 — Use or disclosure:</strong>
+规定何种情形才可使用/披露所持个人信息(一般限于收集目的)。</li>
+<li><strong>APP 11 — Security of personal information:</strong>
+采取合理步骤保护信息免遭滥用、丢失、未授权访问,某些情形须销毁或去标识化。</li>
+</ul>
+<p><strong>考点关键词:</strong> <code>Privacy Act 1988</code> ·
+<code>13 APPs</code> · <code>principle-based</code> ·
+<code>technology neutral</code> ·
+<code>collection/use/storage/disclosure</code></p>
+<p><strong>Q9. Describe the concept of "purpose limitation" in GDPR and
+why it is important.</strong></p>
+<p><code>Purpose limitation(目的限制)</code> 是 GDPR Article 5
+七原则之一,要求在收集数据时就<strong>事先明确、具体、合法地说明收集目的</strong>,此后<strong>不得用于与原目的不相容的新用途</strong>(除非另有合法依据如新
+consent)。例:收集邮箱本为发送订单确认,却拿去投放无关政治/定向广告,即违反。重要性:①
+给 data subject 以<strong>可预期性与信任</strong>;② <strong>限制 scope
+creep(用途蔓延)</strong>;③ 落实 fairness 与
+transparency,是技术手段无法替代的治理约束。</p>
+<p><strong>考点关键词:</strong>
+<code>specified, explicit, legitimate purpose</code> ·
+<code>no incompatible further use</code> · <code>Article 5</code> ·
+<code>scope creep</code> · <code>data subject trust</code></p>
+<p><strong>Q10. Explain the significance of accountability under GDPR
+and how organizations can demonstrate compliance.</strong></p>
+<p><code>Accountability(问责制)</code> 是 GDPR Article 5
+的统领性原则:组织<strong>不仅要遵守其他原则,还必须能够证明 (demonstrate)
+自己遵守了</strong>。证明合规的做法:<strong>记录处理活动
+(documentation)</strong>(为什么收、收了什么、存多久、采取哪些安全措施;&gt;250
+名员工的公司须保留书面记录)、<strong>任命 <code>DPO</code>(Data
+Protection
+Officer)</strong>(对大规模系统性监控或处理大量敏感数据者必需)、<strong>员工培训
++ 定期评估</strong>、以及落实 privacy by design、consent
+记录与泄露通报。重要性:不合规可招致重罚(€10M/2% 或
+€20M/4%,取较高者),accountability
+把"纸面合规"变成"可被审计验证的合规"。</p>
+<p><strong>考点关键词:</strong>
+<code>able to demonstrate compliance</code> ·
+<code>records of processing</code> ·
+<code>&gt;250 employees → documentation</code> · <code>DPO</code> ·
+<code>staff training &amp; review</code> ·
+<code>fines €10M/2% or €20M/4%</code></p>
+<h3 id="速记要点-6">速记要点</h3>
+<ul>
+<li><strong>GDPR 七原则(Article
+5)</strong>:<code>Lawfulness/fairness/transparency</code> ·
+<code>Purpose limitation</code> · <code>Data minimisation</code> ·
+<code>Accuracy</code> · <code>Storage limitation</code> ·
+<code>Integrity &amp; confidentiality</code> ·
+<code>Accountability</code>。</li>
+<li><strong>GDPR 角色与权利</strong>:<code>Controller</code>(定 purpose
+&amp; means)vs <code>Processor</code>(只按指令);8 项权利里高频考
+<code>Subject Access Request (SAR)</code>(一个月内回复)。罚款
+<strong>€10M/2%</strong> 或 <strong>€20M/4%</strong>。</li>
+<li><strong>Australian Privacy Act 1988 = 13 条
+APPs</strong>,principle-based + technology neutral。</li>
+<li><strong>澳洲 AI Ethics = 8 条原则</strong>;AI 伦理核心难题 = 不透明
++ bias。</li>
+<li><strong>DP
+公式</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>≤</mo><msup><mi>e</mi><mi>ε</mi></msup><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\Pr[M(D)\in S]\le e^{\varepsilon}\Pr[M(D&#39;)\in S]</annotation></semantics></math>,<code>ε↓ → 噪声↑ → 隐私↑、精度↓</code>。</li>
+<li><strong>MPC 计算口诀</strong>:拆随机份额(和=真值)→ 各持一份 →
+公开手中份额之和 → 三和相加 ÷ 人数 = 平均(校验 70/60/80 → 100/85/25 →
+210/3 = 70K)。MPC ≠ 零泄露。</li>
+</ul>
+<p><strong>三种隐私技术对比(最易混,必背)</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>技术</th>
+<th>核心原理</th>
+<th>保护什么</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>SMPC</strong></td>
+<td>各方拆 secret share,只学最终输出</td>
+<td>计算时各方的<strong>私有输入</strong></td>
+<td>多方联合算统计/训练(FL),结果是<strong>明文</strong></td>
+</tr>
+<tr class="even">
+<td><strong>HE</strong></td>
+<td>在 ciphertext 上计算,全程不解密</td>
+<td><strong>输入 + 结果</strong>都加密</td>
+<td>把计算<strong>外包给云</strong>,连结果都要保密</td>
+</tr>
+<tr class="odd">
+<td><strong>DP</strong></td>
+<td>给发布结果加噪声(scale=1/ε)</td>
+<td>发布结果中的<strong>个体隐私</strong></td>
+<td>发布<strong>统计/报表</strong>,藏住个体</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>一句话区分:<strong>SMPC</strong> 算答案不交输入(结果公开)·
+<strong>HE</strong> 外包算密文(连结果都密)· <strong>DP</strong>
+发统计加噪声(藏住个人)。</p>
+</blockquote>
+<hr />
+<h2 id="week-10--cloud-computing-and-edge-computing">Week 10 · Cloud
+Computing and Edge Computing</h2>
+<h3 id="本周核心内容-7">本周核心内容</h3>
+<ul>
+<li><strong>Cloud computing</strong> = <em>the on-demand delivery of IT
+resources over the Internet with pay-as-you-go pricing</em>;继承自
+<code>Grid computing</code> 与 <code>Utility computing</code>。</li>
+<li>五大特征:<code>shared pool of resources</code>、<code>over the Internet</code>、<code>scaled up/down on demand</code>、<code>measured &amp; charged by usage</code>、<code>cost-effective</code>;最常考
+<code>elasticity</code>,勿与 <code>resource multiplexing</code>
+混淆。</li>
+<li>三种部署模型:<code>Public</code> / <code>Private</code> /
+<code>Hybrid</code>(医院为典型混合云)。</li>
+<li>三种交付模型构成"控制权光谱":<code>IaaS</code>(EC2)→
+<code>PaaS</code>(App Engine)→
+<code>SaaS</code>(Gmail),越往右控制越少、越省心。</li>
+<li>云安全核心难题:<code>control shift</code>(控制权外移)+ 责任模糊;分清
+<code>data integrity</code> 与 <code>data confidentiality</code>。</li>
+<li>纵深防御四层:物理 →
+网络(<code>DMZ</code>、<code>IDS/IPS</code>、VPN)→
+加密(<code>TLS</code>、<code>AES≥128</code>)→
+备份容灾(<code>failover site</code>)。</li>
+<li><strong>Edge computing</strong> 动因:云数据中心离用户太远(光速论证)+
+<code>push from cloud</code> / <code>pull from IoT</code> /
+终端变数据生产者。</li>
+<li>边缘风险:物理保护弱、默认/弱口令、本地凭据泄露牵连数据中心;最佳实践总纲是"把边缘当公有云对待"(<code>zero trust</code>)。</li>
+</ul>
+<h3 id="示例考题与模型答案-7">示例考题与模型答案</h3>
+<p><strong>Q1. What are the key characteristics that define cloud
+computing?</strong></p>
+<p>云计算的核心特征是:计算资源被汇集成一个
+<code>shared pool of resources</code>,由众多用户共享同一批物理基础设施,但各自数据和应用在逻辑上彼此隔离;所有服务都
+<code>over the Internet</code>(经互联网)交付,并可根据需求
+<code>scaled up or down on demand</code>(按需弹性伸缩)。其用量被
+<code>measured</code>(度量)并据此
+<code>charged according to usage</code>(按用量计费),因此整体上
+<code>cost-effective</code>。其中最标志性的概念是
+<code>elasticity</code>(弹性):<em>the ability to dynamically acquire or
+release computing resources according to
+workload</em>,即随流量高峰自动扩容、回落时释放。</p>
+<p><strong>考点关键词:</strong> <code>shared pool of resources</code> ·
+<code>on-demand</code> · <code>elasticity</code> ·
+<code>pay-as-you-go</code> · <code>measured/metered usage</code></p>
+<p><strong>Q2. Compare and contrast the three main types of cloud
+deployment models: public, private, and hybrid clouds.</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th><strong>Public Cloud</strong></th>
+<th><strong>Private Cloud</strong></th>
+<th><strong>Hybrid Cloud</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>谁能用</td>
+<td>公众 / 大型行业群体</td>
+<td>单一组织专用</td>
+<td>组合使用</td>
+</tr>
+<tr class="even">
+<td>拥有方</td>
+<td>第三方服务商</td>
+<td>该组织(可自管或外包)</td>
+<td>公私混合</td>
+</tr>
+<tr class="odd">
+<td>优点</td>
+<td>成本低、扩展性强、<code>pay-as-you-go</code></td>
+<td>控制力强、易定制、更安全</td>
+<td>兼顾两者、数据/应用可移植</td>
+</tr>
+<tr class="even">
+<td>典型场景</td>
+<td>用 AWS 托管网站</td>
+<td>银行、政府</td>
+<td>医院(病历私有 + 挂号公有)</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Hybrid cloud</code> 把两种或多种云通过
+<code>standardized technology</code> 组合,实现数据与应用的
+<code>portability</code>(可移植性),兼顾低成本与强控制。</p>
+<p><strong>考点关键词:</strong> <code>public cloud</code> ·
+<code>private cloud</code> · <code>hybrid cloud</code> ·
+<code>portability</code> · <code>third-party provider</code></p>
+<p><strong>Q3. Describe the different cloud service delivery models
+(IaaS, PaaS, SaaS) and give an example of each.</strong></p>
+<p>三种交付模型的本质区别在于"用户控制多少、服务商负责多少",构成一条控制权光谱。判断诀窍是问:<strong>"用户管到哪一层?"</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>模型</th>
+<th>用户控制</th>
+<th>服务商负责</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>IaaS</strong></td>
+<td>OS、存储、部署的应用</td>
+<td>物理硬件、虚拟化、核心网络</td>
+<td><strong>Amazon EC2</strong></td>
+</tr>
+<tr class="even">
+<td><strong>PaaS</strong></td>
+<td>应用代码</td>
+<td>OS、服务器、运行时、底层全包</td>
+<td><strong>Google App Engine</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>SaaS</strong></td>
+<td>仅自己的数据 + 有限设置</td>
+<td>整个应用、基础设施、更新、备份</td>
+<td><strong>Gmail / Google Docs</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>考点关键词:</strong> <code>IaaS</code> · <code>PaaS</code> ·
+<code>SaaS</code> · <code>control spectrum</code> ·
+<code>EC2 / App Engine / Gmail</code></p>
+<p><strong>Q4. Explain the motivation behind edge computing and how it
+complements cloud computing.</strong></p>
+<p>边缘计算的根本动因是:集中式云数据中心<strong>离用户太远,造成延迟瓶颈</strong>。讲师用光速论证——5G
+要把延迟压到 1ms 内,而光在 1ms 内只能走
+300km,算上往返与处理,数据中心得建在每个用户约 100km
+内,显然不可行。因此把计算和存储下放到
+<code>edge node</code>(任何具备存储/计算/连接能力的网络设备)就近处理。它对云的<strong>补充关系</strong>在于按优先级分流:<code>latency-sensitive</code>
+数据(实时告警、自动控制)在边缘本地处理,<code>low-priority</code>
+数据(长期趋势、月度报表)上送中心云做深度分析——边缘负责"快",云负责"深"。</p>
+<p><strong>考点关键词:</strong> <code>latency</code> ·
+<code>edge node</code> · <code>latency-sensitive data</code> ·
+<code>pull from IoT</code> · <code>complements cloud</code></p>
+<p><strong>Q5. Identify common security risks in edge computing and
+suggest best practices to mitigate them.</strong></p>
+<p>边缘计算特有的安全风险:边缘设备缺乏数据中心那样的
+<code>physical security</code>(易被物理篡改);因缺本地 IT 团队而用
+<code>default/weak passwords</code>;边缘
+<code>expands the IT perimeter</code>,本地存的凭据一旦被攻破会牵连数据中心、扩大攻击范围;IoT/M2M
+协议常 <code>lack encryption</code>
+且难打补丁。对应最佳实践:用门禁/生物识别/监控加强
+<code>physical security</code>、改默认口令并强制强认证、从中央 IT
+统一配置、对边缘与设备间施加强网络安全(<code>firewall/VPN/encryption</code>)、全程
+<code>monitoring &amp; logging</code>,核心思想是<strong>把边缘当成"公有云"对待、默认不信任(<code>zero trust</code>)</strong>。</p>
+<p><strong>考点关键词:</strong> <code>physical security</code> ·
+<code>default/weak passwords</code> · <code>expanded IT perimeter</code>
+· <code>zero trust</code> · <code>monitoring &amp; logging</code></p>
+<h3 id="速记要点-7">速记要点</h3>
+<ul>
+<li><code>elasticity</code> =
+动态获取/释放资源;<code>resource multiplexing</code> =
+同一物理资源服务多用户。</li>
+<li>部署模型记拥有方:Public=第三方、Private=单一组织、Hybrid=组合(医院例子)。</li>
+<li>交付模型记"用户管到哪层":IaaS 管 OS、PaaS 管代码、SaaS
+只管数据。</li>
+<li>边缘动因一句话:数据中心离用户太远(光速:1ms→300km),延迟敏感数据就近处理。</li>
+<li>边缘最佳实践总纲:把边缘当公有云对待 = <code>zero trust</code>。</li>
+</ul>
+<hr />
+<h2 id="week-11--tpm-secure-enclave-cps-scada-security">Week 11 · TPM,
+Secure Enclave, CPS, SCADA Security</h2>
+<h3 id="本周核心内容-8">本周核心内容</h3>
+<ul>
+<li><strong>TPM</strong> = 主板上一颗独立安全芯片,用硬件保管
+<code>passwords / certificates / encryption keys</code> 等认证工件,即使
+OS 被攻破也难提取。</li>
+<li>本章最高频考点:<code>Authentication</code>(你是谁/身份)vs
+<code>Attestation</code>(你现在可信吗/配置完整性)。</li>
+<li>TPM 2.0 用 <code>RSA + SHA256 + HMAC</code>;典型用例
+<code>BitLocker</code> 全盘加密、<code>measured boot</code>。</li>
+<li><strong>TEE</strong> = 主处理器内被隔离的安全区,同时保护
+<code>confidentiality</code> 与 <code>integrity</code>;实现有
+<code>Intel SGX</code>、<code>Apple Secure Enclave</code>。</li>
+<li>Secure Enclave
+组件:<code>SEP</code>、<code>Memory Protection Engine</code>、<code>AES Engine</code>、<code>TRNG</code>、<code>UID/GID</code>、<code>PKA</code>;<code>UID</code>
+每台唯一、永不外泄。</li>
+<li><code>Side-channel attack</code>:算法数学安全 ≠
+实现安全;<code>Confidential computing</code> = 保护"使用中(in
+use)"的数据。</li>
+<li><strong>CPS</strong> 整合 cyber 与
+physical,三层架构(感知/通信/控制);CPS 重
+<code>real-time control</code>,IoT 重
+<code>interconnection</code>。</li>
+<li><strong>SCADA</strong> 控制工业过程,分 high-level management 与
+<code>PLC</code> 两层;四类威胁
+hackers/malware/terrorists/employees;<code>Stuxnet</code>
+是里程碑。</li>
+</ul>
+<h3 id="示例考题与模型答案-8">示例考题与模型答案</h3>
+<p><strong>Q1. Why is SCADA security critical for protecting
+infrastructure, and what are common threats faced by SCADA
+systems?</strong></p>
+<p><code>SCADA</code>(Supervisory Control and Data
+Acquisition)是控制工厂、电厂、水处理厂等
+<code>critical infrastructure</code>
+工业过程的架构,分高层管理(计算机+GUI)和直接控制机器的
+<code>PLC</code>(Programmable Logic
+Controller)两层。它关键在于:一旦被攻破就能迅速瘫痪基础设施,后果不再是数据泄露而是<strong>断电、停水、设施损坏等物理灾难</strong>。常见威胁分四类:<code>hackers</code>(图谋不正当利益)、<code>malware</code>(危害支撑
+SCADA
+的基础设施)、<code>terrorists</code>(只求最大破坏)、<code>employees / insiders</code>(无心失误或蓄意破坏)。最著名案例是
+<code>Stuxnet</code>——感染西门子
+PLC、对伊朗核设施造成真实物理损害,证明网络攻击可直接破坏物理设备,哪怕目标并不直接连互联网。</p>
+<p><strong>考点关键词:</strong> <code>SCADA</code> · <code>PLC</code> ·
+<code>critical infrastructure</code> ·
+<code>hackers/malware/terrorists/insiders</code> ·
+<code>Stuxnet</code></p>
+<p><strong>Q2. What is the purpose of Secure Enclave technology, and in
+what way does it protect sensitive data?</strong></p>
+<p><code>Secure Enclave</code> 是集成进 Apple SoC 的专用安全子系统,是
+<code>TEE</code>(Trusted Execution
+Environment)的具体实现——在主处理器内划出一块被隔离的"安全飞地",<strong>连主操作系统都看不到它内部</strong>。目的是同时保护数据的
+<code>confidentiality</code>(外部读不到)和
+<code>integrity</code>(内部代码不被篡改)。手段包括:<code>hardware-level isolation</code>
+与 <code>memory encryption</code>(<code>Memory Protection Engine</code>
+写内存时 AES 加密 + 认证标签、读时先验标签);硬件密钥
+<code>UID</code>(每台唯一、烧进芯片、永不离开、连 Apple
+都不知道)把加密数据锁死在本机;并通过 <code>attestation</code>
+向远程方证明硬件为真、内存完整,从而挡住
+insider、特权软件、<code>zero-day</code> 乃至云运营商。核心价值即
+<code>confidential computing</code>——保护"使用中(in use)"的数据。</p>
+<p><strong>考点关键词:</strong> <code>Secure Enclave</code> ·
+<code>TEE</code> · <code>confidentiality &amp; integrity</code> ·
+<code>UID</code> · <code>attestation</code> ·
+<code>confidential computing</code></p>
+<p><strong>Q3. Explain the main differences between Cyber-Physical
+Systems (CPS) and the Internet of Things (IoT).</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th><strong>IoT</strong></th>
+<th><strong>CPS</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>核心概念</td>
+<td><code>interconnection</code>(互联)</td>
+<td><code>real-time control</code>(实时控制)</td>
+</tr>
+<tr class="even">
+<td>本质</td>
+<td>网络基础设施(连接海量设备)</td>
+<td>自包含系统(机器人/无人机/自动驾驶)</td>
+</tr>
+<tr class="odd">
+<td>架构</td>
+<td>水平架构(horizontal)</td>
+<td>垂直架构(vertical)</td>
+</tr>
+<tr class="even">
+<td>互联是否必需</td>
+<td>是核心目标</td>
+<td>重要但非强制(可独立运行)</td>
+</tr>
+<tr class="odd">
+<td>侧重</td>
+<td>连接性与规模</td>
+<td>精确性与控制</td>
+</tr>
+</tbody>
+</table></div>
+<p>两者都实现赛博与物理世界交互、都靠传感设备自动采集数据,但 IoT
+的主心骨是 <code>interconnection</code>、CPS 的主心骨是
+<code>real-time control</code>;CPS 常作为 IoT
+与工业互联网的底层基础。</p>
+<p><strong>考点关键词:</strong> <code>interconnection</code> ·
+<code>real-time control</code> · <code>horizontal vs vertical</code> ·
+<code>self-contained system</code> · <code>not mandatory</code></p>
+<p><strong>Q4. What is a Trusted Platform Module (TPM), and how does it
+enhance hardware security?</strong></p>
+<p><code>TPM</code>(Trusted Platform
+Module)是通常嵌在主板上的专用安全芯片,用来安全存储用于认证平台的工件——<code>passwords</code>、<code>certificates</code>、<code>encryption keys</code>。它增强安全的关键在于
+<code>hardware-based cryptography</code>:密钥可生成于芯片内部、永不以明文离开芯片,软件只能"请求
+TPM 代为操作"而拿不到密钥本身,故即使 OS
+被攻破或硬盘被拆下,秘密依然安全。TPM
+还把"访问秘密的权利"绑定到"平台配置的完整性"——通过
+<code>measured boot</code>,若开机检测到配置被未授权改动就拒绝释放密钥(<code>sealed off</code>),这正是
+<code>attestation</code>(有别于只验身份的
+<code>authentication</code>)。TPM 2.0 使用
+<code>RSA + SHA256 + HMAC</code>,典型用例是为 <code>BitLocker</code>
+全盘加密安全存储密钥。</p>
+<p><strong>考点关键词:</strong> <code>TPM</code> ·
+<code>hardware-based cryptography</code> ·
+<code>authentication vs attestation</code> · <code>measured boot</code>
+· <code>BitLocker</code></p>
+<h3 id="速记要点-8">速记要点</h3>
+<ul>
+<li><code>Authentication</code> =
+"你是谁"(身份);<code>Attestation</code> =
+"你现在可信吗"(配置/完整性没被改)——最高频考点。</li>
+<li>TPM:看到"硬件 + 存认证工件/密钥"基本就是它;TPM 2.0 =
+<code>RSA+SHA256+HMAC</code>。</li>
+<li><code>UID</code> = Unique = 每台唯一 + 永不外泄;对称运算找
+<code>AES Engine</code>,公钥运算找 <code>PKA</code>。</li>
+<li>三态数据:at rest(传统加密)、in
+transit(TLS/VPN)、<code>in use</code>(enclave / confidential computing
+补上的一环)。</li>
+<li>CPS=实时控制(vertical),IoT=互联(horizontal)。</li>
+<li><code>Stuxnet</code> 感染西门子 PLC、损坏伊朗核设施 =
+网络攻击造成物理破坏的铁证。</li>
+</ul>
+<hr />
+<h2
+id="week-12--information-warfare-cyberweapon-cyber-counterintelligence-apt">Week
+12 · Information Warfare, Cyberweapon, Cyber Counterintelligence,
+APT</h2>
+<h3 id="本周核心内容-9">本周核心内容</h3>
+<ul>
+<li><strong>Information warfare</strong>
+两个定义:<code>Denning</code>(极宽:利用信息媒介取得对敌优势,含宣传/间谍/电子战)vs
+<code>Waltz</code>(军事:保证己方信息流不间断、同时否定敌方)。</li>
+<li><code>Gulf War 1</code>
+是最早范例:干扰机+反辐射导弹、巡航导弹、特种部队挖电缆、黑客手段瘫痪伊拉克指挥控制。</li>
+<li><code>critical infrastructure</code>(尤其电力)是首要打击目标;<code>Modbus / DNP3</code>
+天生无认证、上 IP 网后致命(Maroochy 污水事件)。</li>
+<li>攻击控制系统的主力是
+<code>state actors / proxies</code>(瘫痪电网"不赚钱"但符合国家战略);<code>Stuxnet</code>、乌克兰停电、<code>NotPetya</code>
+外溢是里程碑。</li>
+<li><strong>Cyberweapon</strong> = 国家用于军事/情报的恶意软件,与
+malware 的分水岭是 <code>selectivity</code>(高 vs 低)。</li>
+<li>网络武器四大危险:难追踪、可匿名长期潜伏(<code>zero-day</code>)、<code>cost asymmetry</code>、可被缴获反向使用(<code>EternalBlue</code>)。</li>
+<li><strong>CCI</strong>
+"目的防御、手段进攻":防御=渗透测试→漏洞评估→威胁情报→威胁狩猎;进攻=<code>honeypots</code>
++ <code>sockpuppets</code>;软肋=成本+合法性。</li>
+<li><strong>APT</strong> = 精密能力+可观资源+多向量;四特征 +
+六阶段(必背);<code>Stuxnet/Duqu/Flame</code> 勾出破坏↔︎情报光谱。</li>
+</ul>
+<h3 id="示例考题与模型答案-9">示例考题与模型答案</h3>
+<p><strong>Q1. What is information warfare, and how can attacks on
+critical infrastructure fit into this concept?</strong></p>
+<p><code>Information warfare</code>(信息战)有两个经典定义:<code>Dorothy Denning</code>
+给出极宽的定义——<em>operations that target or exploit information media
+to win some advantage over an
+adversary</em>,囊括黑客、电子战、情报搜集乃至宣传;<code>Edward Waltz</code>
+从军事视角收窄——在保证己方信息不间断采集/处理/分发的同时,削弱或剥夺敌方做同样事情的能力,核心是
+<code>protection and denial</code>。对
+<code>critical infrastructure</code>(尤其
+<code>electricity generation and distribution</code>)的攻击完美契合:电力是现代社会的
+<code>backbone</code>,断电会让通信、银行、交通、医疗全部停摆,因此打击电网可以"不开一枪"就制造大规模混乱,常被用作
+<code>prelude to full-scale war</code>。这正是 Week 11 学的
+<code>CPS</code>(<code>cyber-physical convergence</code>)思想在国家冲突层面的体现(如
+Auckland 停电、Maroochy 污水、Stuxnet)。</p>
+<p><strong>考点关键词:</strong> <code>Denning vs Waltz</code> ·
+<code>protection and denial</code> ·
+<code>critical infrastructure</code> ·
+<code>cyber-physical convergence</code> ·
+<code>prelude to full-scale war</code></p>
+<p><strong>Q2. Define a cyberweapon and explain how it differs from
+traditional malware.</strong></p>
+<p><code>Cyberweapon</code>(网络武器)是一种作为网络攻击一部分、为军事/准军事/情报目的而使用的恶意软件代理,手段上仍是病毒、木马、蠕虫、间谍软件,通常由
+<code>state or non-state actor</code> 赞助。它与普通 malware
+的本质分水岭是 <code>selectivity</code>(选择性):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th><strong>Cyberweapon</strong></th>
+<th><strong>Malware</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>选择性</td>
+<td><strong>高</strong>:只打预定目标</td>
+<td><strong>低</strong>:广撒网,见者就中</td>
+</tr>
+<tr class="even">
+<td>操作者</td>
+<td>国家 / 非国家行为体</td>
+<td>新手黑客、诈骗者</td>
+</tr>
+<tr class="odd">
+<td>动机</td>
+<td>战略优势(军事/政治)</td>
+<td>直接经济收益</td>
+</tr>
+<tr class="even">
+<td>典型例子</td>
+<td><code>Stuxnet</code>、<code>NotPetya</code></td>
+<td>僵尸网络、窃财木马</td>
+</tr>
+<tr class="odd">
+<td>对受害者身份</td>
+<td>极度在意(精确锁定)</td>
+<td>不在意(谁都行)</td>
+</tr>
+</tbody>
+</table></div>
+<p>其四大独特危险:难追踪/难防御(无物理组件)、可匿名长期潜伏(常用
+<code>zero-day</code>)、<code>cost asymmetry</code>(造比防便宜)、可被缴获反向使用(<code>WannaCry/NotPetya</code>
+都用了 NSA 的 <code>EternalBlue</code>)。</p>
+<p><strong>考点关键词:</strong> <code>cyberweapon</code> ·
+<code>selectivity</code> · <code>state/non-state actor</code> ·
+<code>espionage vs sabotage</code> · <code>EternalBlue</code></p>
+<p><strong>Q3. Explain what an Advanced Persistent Threat (APT) is and
+describe common motivations behind APT attacks.</strong></p>
+<p><code>APT</code>(Advanced Persistent Threat)按 NIST 定义是一个拥有
+<code>sophisticated levels of expertise</code> 与
+<code>significant resources</code> 的对手,能通过
+<code>multiple attack vectors</code>(cyber/physical/deception)在目标基础设施中建立并扩展
+<code>foothold</code>,以窃取信息、破坏关键使命或为将来预先占位。四大特征:<strong>目标特定</strong>(只打高价值行业)、<strong>资源雄厚</strong>(<code>state-sponsored</code>、握有零日漏洞)、<strong>长期持久</strong>(潜伏数月数年、失败就适应再试)、<strong>隐蔽规避</strong>(融入正常流量,用
+<code>zero-day + encryption + polymorphic</code>)。攻击分六阶段:<code>Reconnaissance → Delivery → Initial intrusion → Command &amp; Control → Lateral movement → Data exfiltration</code>。<strong>常见动机</strong>并非直接经济收益,而是国家级<strong>战略目标</strong>——<code>espionage</code>(窃取国家安全数据/知识产权/商业机密)与
+<code>sabotage</code>(破坏关键基础设施),因为只有国家才有动机和资源去做"不赚钱但有战略价值"的事(光谱:<code>Stuxnet</code>
+纯破坏 ↔︎ <code>Duqu</code> 为破坏侦察 ↔︎ <code>Flame</code> 纯情报)。</p>
+<p><strong>考点关键词:</strong> <code>APT (NIST)</code> ·
+<code>foothold</code> · <code>state-sponsored</code> ·
+<code>persistence</code> · <code>six stages</code> ·
+<code>espionage/sabotage</code></p>
+<h3 id="速记要点-9">速记要点</h3>
+<ul>
+<li>信息战两定义:<code>Denning</code>
+宽(含宣传/间谍/电子战)、<code>Waltz</code> 窄(军事信息流:protection +
+denial)。</li>
+<li>攻击控制系统的逻辑链:罪犯求利润 → 攻控制系统不赚钱 →
+主力是国家或其代理人。</li>
+<li>cyberweapon vs malware 最快问法:"它挑不挑目标?"挑=网络武器(高
+<code>selectivity</code>)、不挑=普通 malware。</li>
+<li>CCI =
+"目的防御、手段进攻";防御四步(渗透测试/漏洞评估/威胁情报/威胁狩猎)+
+进攻两件(<code>honeypots</code>/<code>sockpuppets</code>),软肋=成本+合法性。</li>
+<li>APT 六阶段必背:Recon → Delivery → Intrusion → C2 → Lateral →
+Exfiltration。</li>
+<li>三例定位:<code>Stuxnet</code>=物理破坏、<code>Duqu</code>=破坏前侦察、<code>Flame</code>=纯情报。</li>
+</ul>
+<hr />
+<h2 id="2-跨周辨析速查高频易混点">2. 跨周辨析速查(高频易混点)</h2>
+<p>考试常通过"区分两个相近概念 +
+举例"来测理解。下面这些是跨周必背的对比。</p>
+<h3 id="21-保密家族别再搞混">2.1 "保密"家族:别再搞混</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>词</th>
+<th>一句话</th>
+<th>出处</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Secrecy</code></td>
+<td>机制的<strong>效果</strong>(藏住了)</td>
+<td>W1</td>
+</tr>
+<tr class="even">
+<td><code>Confidentiality</code></td>
+<td>为<strong>组织</strong>利益的保密<strong>义务</strong></td>
+<td>W1</td>
+</tr>
+<tr class="odd">
+<td><code>Privacy</code></td>
+<td>为<strong>个人</strong>利益的保密<strong>权利</strong>(控制权)</td>
+<td>W1 / W9</td>
+</tr>
+<tr class="even">
+<td><code>Integrity</code></td>
+<td>没被篡改(人人可验,如 hash)</td>
+<td>W1 / W3</td>
+</tr>
+<tr class="odd">
+<td><code>Authenticity</code></td>
+<td>= Integrity + 确实来自声称者(需密钥)</td>
+<td>W1 / W3</td>
+</tr>
+<tr class="even">
+<td><code>Non-repudiation</code></td>
+<td>事后抵赖不掉(只有数字签名给)</td>
+<td>W3</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="22-三种-hijacking--三种信任协议被滥用">2.2 三种 hijacking /
+三种"信任协议"被滥用</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>攻击</th>
+<th>改了什么</th>
+<th>主打 CIA</th>
+<th>防御</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>BGP hijacking</code></td>
+<td>路由"路线图"</td>
+<td>A(也可 C)</td>
+<td><code>RPKI</code> / <code>ROA</code></td>
+</tr>
+<tr class="even">
+<td><code>DNS hijacking</code></td>
+<td>域名"地址簿"</td>
+<td>I(可波及 C)</td>
+<td><code>DNSSEC</code></td>
+</tr>
+<tr class="odd">
+<td><code>ARP spoofing</code></td>
+<td>局域网 MAC 映射</td>
+<td>I / C</td>
+<td>静态 ARP、检测</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="23-一眼区分各周招牌对比">2.3 一眼区分(各周招牌对比)</h3>
+<ul>
+<li><strong>Trusted vs Trustworthy</strong>(W1):被信任 vs
+真靠得住。</li>
+<li><strong>Symmetric vs Asymmetric</strong>(W3):同一把密钥(快)vs
+公私钥对(解决分发)。</li>
+<li><strong>Hash vs MAC vs Signature</strong>(W3):integrity /
++authentication / +non-repudiation。</li>
+<li><strong>Ransomware vs Hacktivism</strong>(W2):求财 vs
+求政治影响。</li>
+<li><strong>SMPC vs HE vs DP</strong>(W9):不交输入 / 算密文 / 加噪声(见
+W9 对比表)。</li>
+<li><strong>IaaS vs PaaS vs SaaS</strong>(W10):管 OS / 管代码 /
+只管数据。</li>
+<li><strong>CPS vs IoT</strong>(W11):实时控制(vertical)vs
+互联(horizontal)。</li>
+<li><strong>Cyberweapon vs Malware</strong>(W12):高选择性、国家、战略 vs
+低选择性、罪犯、求财。</li>
+<li><strong>Authentication vs Attestation</strong>(W11):你是谁 vs
+你现在可信吗。</li>
+<li><strong>Cloud vs Edge</strong>(W10):深度集中 vs 低延迟就近。</li>
+</ul>
+<h3 id="24-把贯穿全课的密码学和-cia-串起来">2.4 把"贯穿全课"的密码学和
+CIA 串起来</h3>
+<pre class="mermaid"><code>flowchart LR
+    A[需要保护的属性&lt;br/&gt;CIA] --&gt; C[Confidentiality]
+    A --&gt; I[Integrity]
+    A --&gt; AV[Availability]
+    C --&gt; C1[&quot;加密: 对称AES / 非对称RSA (W3)&lt;br/&gt;VPN·TLS (W4) · HE (W9)&quot;]
+    I --&gt; I1[&quot;hash / MAC / 数字签名 (W3)&lt;br/&gt;DNSSEC · DKIM (W4) · TPM measured boot (W11)&quot;]
+    AV --&gt; AV1[&quot;防 DDoS (W4) · 备份/容灾 (W10)&lt;br/&gt;SCADA 防护 (W11)&quot;]</code></pre>
+<hr />
+<h2 id="3-答题策略与考前-checklist">3. 答题策略与考前 checklist</h2>
+<h3 id="saq简答答题模板">SAQ(简答)答题模板</h3>
+<p>讲师明说"信息够了就行、可用 bullet
+points",所以<strong>别堆废话,直接踩分点</strong>:</p>
+<ol type="1">
+<li><strong>先一句定义</strong>(用上对应的英文 keyword)。</li>
+<li><strong>再展开机制 / 原因</strong>(为什么、怎么做)。</li>
+<li><strong>给一个例子或对比</strong>(题目要求 "provide an example /
+compare" 时必给)。</li>
+<li><strong>分值高(4–5 分)= 场景题</strong>:看清 A/B/C
+小问各自分值,按问作答、不要漏小问。</li>
+</ol>
+<blockquote>
+<p>例:回答 "What is a side-channel attack? Give one example" → ①
+定义(不打算法、打实现的物理泄漏)→ ② 列侧信道(timing/power/EM)→ ③
+举例(RSA 功耗分析逐位读私钥)。三步即满分。</p>
+</blockquote>
+<h3 id="mcq-小贴士">MCQ 小贴士</h3>
+<ul>
+<li>单选、只有一个正确答案、每人随机;<strong>先排除明显错误项</strong>再选。</li>
+<li>风格像平时 quiz,概念辨析题居多——本指南各「速记要点」就是 MCQ
+高发区。</li>
+</ul>
+<h3 id="考前-24-小时该做什么">考前 24 小时该做什么</h3>
+<ol type="1">
+<li><strong>过一遍这份指南的所有「考点关键词」</strong>——能默写出关键词,SAQ
+就稳了。</li>
+<li><strong>背牢列举类</strong>:NIST CSF 五功能、risk management
+五步、GDPR 七原则、APT 六阶段、Essential Eight、数据分级四级、SMPC
+计算口诀。</li>
+<li><strong>回到 workshop 解答</strong>重做计算/分析题(讲师强调"focus on
+workshop questions"),尤其 <strong>W9 的 MPC/DP 计算</strong>。</li>
+<li>**跨周对比表(第 2 节)**默背一遍——区分概念是最稳的送分题。</li>
+</ol>
+<h3 id="监考环境-checklistproctorio">监考环境 checklist(Proctorio)</h3>
+<ul class="task-list">
+<li><input type="checkbox" />装好 Google Chrome / Edge + Proctorio
+扩展,<strong>提前做 practice test</strong>。</li>
+<li><input
+type="checkbox" /><strong>只开一块屏幕</strong>;不戴耳机;不开其他标签页(闭卷)。</li>
+<li><input type="checkbox" />准备好学生 ID;确认网络稳定、环境安静。</li>
+<li><input type="checkbox" />考中<strong>不要
+copy-paste</strong>;断网别慌,重连后从断点继续,<strong>不要联系
+coordinator</strong>。</li>
+</ul>
+<hr />
+<blockquote>
+<p><strong>祝考试顺利!</strong> 记住及格硬线:<strong>期末 ≥ 40%(20/50
+分)</strong>,否则技术性挂科。把每道 sample question 都能用 keywords
+答出来,你就准备好了。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

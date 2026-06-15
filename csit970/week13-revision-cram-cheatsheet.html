@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CSIT970 Final Exam Cram Cheat Sheet (All Weeks)</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  :root { --fs: 9.0pt; --cols: 2; --accent: #1f4e79; --rule: #b9c2cc; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #e9ebee; }
+  body {
+    margin: 0; color: #111; font-size: var(--fs); line-height: 1.32;
+    font-family: "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  /* On screen, present the sheet as a padded A4 page on a desk — gives it real
+     margins and a paper look, so what you read ≈ what prints. */
+  @media screen {
+    body { max-width: 210mm; margin: 24px auto; padding: 14mm 13mm; background: #fff;
+           box-shadow: 0 8px 28px rgba(0,0,0,.16); }
+  }
+  @media print {
+    html { background: none; }
+    body { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+  }
+  .sheet-title {
+    column-span: all; margin: 0 0 6px; padding-bottom: 4px;
+    border-bottom: 2px solid var(--accent); color: var(--accent);
+    font-size: calc(var(--fs) * 1.7); letter-spacing: .2px;
+  }
+  /* balance (not auto): on screen the page has no fixed height, and column-fill:auto
+     would pour everything into the first column and leave the right side blank.
+     balance spreads content evenly across columns. */
+  .content { column-count: var(--cols); column-gap: 7mm; column-fill: balance; column-rule: 1px solid var(--rule); }
+
+  h1, h2, h3 { break-after: avoid; margin: 8px 0 3px; color: var(--accent); }
+  h1 { font-size: calc(var(--fs) * 1.25); border-left: 3px solid var(--accent); padding-left: 5px; }
+  h2 { font-size: calc(var(--fs) * 1.12); }
+  h3 { font-size: var(--fs); font-style: italic; color: #333; }
+  p { margin: 0 0 4px; }
+  ul, ol { margin: 0 0 5px; padding-left: 1.1em; }
+  li { margin: 0 0 1.5px; break-inside: avoid; }
+  strong { color: #000; }
+  code, .formula { font-family: "SF Mono", Consolas, monospace; font-size: .94em;
+    background: #f1f3f5; padding: 0 2px; border-radius: 2px; }
+  math { font-size: 1.02em; }
+  math[display="block"] { display: block; margin: 4px 0 7px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 6px 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3px 0 6px; break-inside: avoid; font-size: .95em; }
+  th, td { border: 1px solid var(--rule); padding: 2px 5px; text-align: left; vertical-align: top; }
+  th { background: #eef2f6; color: var(--accent); font-weight: 600; }
+
+  blockquote { margin: 3px 0; padding: 2px 7px; border-left: 3px solid #e0a800;
+    background: #fff8e1; break-inside: avoid; }
+  blockquote p { margin: 0; }
+
+  /* tag a section as "must know" with > [!key] in source → rendered as blockquote starting with 🔑 */
+</style>
+</head>
+<body>
+<h1 class="sheet-title">CSIT970 Final Exam Cram Cheat Sheet (All Weeks)</h1>
+<div class="content">
+<h1 id="csit970-final-exam-cram-cheat-sheet-all-weeks">CSIT970 Final
+Exam Cram Cheat Sheet (All Weeks)</h1>
+<style>
+.k{color:#c0181d;font-weight:600}
+.s{color:#1452cc;font-weight:600}
+.q{color:#8312a8;font-weight:600}
+.lg{font-size:.92em}
+table{font-size:.95em}
+</style>
+<p><span class="lg"><strong>Colour key</strong>: <span class="k">red =
+key term (must appear in your answer)</span> · <span class="s">blue =
+sequence / model steps (memorise in order)</span> · <span
+class="q">purple = sample / workshop question
+(self-test)</span></span></p>
+<p><strong>Exam</strong>: 16 Jun 9:00–12:00 · 3h · closed book ·
+Proctorio · <span class="k">26 Q = 11 MCQ (11 marks) + 15 SAQ (39 marks)
+= 50</span> · <span class="k">must score ≥40% (20 marks) or technical
+fail</span> · MCQ single-answer, random per student · SAQ mostly 2
+marks, scenario Q 4–5 marks (A/B/C parts) · hit the keywords, bullets
+OK, no copy-paste · <strong>covers workshop Qs too</strong>. No
+Wk6/Wk8.</p>
+<hr />
+<h2 id="wk1-analysis-framework-security-concepts">Wk1 · Analysis
+Framework &amp; Security Concepts</h2>
+<p><span class="q">Q: privacy vs confidentiality? (not crypto)</span>
+<span class="k">privacy</span> = secrecy for the
+<strong>individual’s</strong> benefit = a right/control (extends to
+family, <strong>not</strong> legal person); <span
+class="k">confidentiality</span> = secrecy for the
+<strong>organisation’s</strong> benefit = a <strong>duty</strong> to
+protect others’ secrets; <span class="k">secrecy</span> = the
+mechanism’s effect. Hospital: patient <em>has</em> privacy, staff
+<em>owe</em> confidentiality.</p>
+<p><span class="q">Q: trusted vs trustworthy? Can a system be trusted
+but not trustworthy?</span> <span class="k">trusted</span> = its failure
+<strong>would break the security policy</strong> (we’ve leaned on it);
+<span class="k">trustworthy</span> = <strong>won’t fail</strong>
+(actually reliable). <strong>Trusted but not trustworthy = most
+dangerous</strong> (e.g. an intelligence officer entrusted with secrets
+who plans to defect).</p>
+<p><span class="q">Q: principal vs role? Give an example.</span> <span
+class="k">principal</span> = <strong>any entity</strong> in the system
+(person/device/channel/<span class="k">crypto key</span>/group —
+widest); <span class="k">role</span> = a function <strong>held by
+different people in turn</strong> (Tutor / society president).</p>
+<p><strong>Also</strong>: <span class="k">PMAI</span> framework = <span
+class="s">Policy→Mechanism→Assurance→Incentive</span>, <strong>≠
+CIA</strong> (common trap). <span class="k">authenticity</span> =
+integrity + genuineness; integrity is verifiable by anyone (hash),
+authenticity needs a <strong>key</strong> (HMAC/signature). Spec chain
+<span class="s">security policy→security target→protection
+profile</span>.</p>
+<h2 id="wk2-cyber-threats">Wk2 · Cyber Threats</h2>
+<p><span class="q">Q: dropper mechanism of virus/Trojan?</span> <span
+class="k">dropper</span> = first stage of staged delivery,
+<strong>carries and releases</strong> the next-stage payload itself; vs
+<span class="k">downloader</span> = fetches it from the internet, vs
+<span class="k">payload</span> = does the actual work; <span
+class="k">Trojan</span> = disguise as legit software. <strong>Dropper
+carries · downloader fetches · payload acts.</strong></p>
+<p><span class="q">Q: what is a botnet, how used in cybercrime?</span>
+<span class="k">botnet</span> = network of compromised devices
+(incl. IoT) controlled remotely via <span class="k">C2
+(command-and-control)</span>. <span class="s">Lifecycle:
+infection→C2→uses</span>. Uses: <span
+class="k">DDoS</span>/spam-phishing/credential theft/<strong>anonymising
+proxy for crime</strong>/cryptomining. Hard to kill: Conficker (<span
+class="k">DGA</span>), Mirai (IoT default passwords).</p>
+<p><span class="q">Q: ransomware vs hacktivism
+(objective/method/target)?</span></p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th><span class="k">Ransomware</span></th>
+<th><span class="k">Hacktivism</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Objective</td>
+<td><strong>financial</strong> (extort)</td>
+<td><strong>political/ideological</strong></td>
+</tr>
+<tr class="even">
+<td>Method</td>
+<td>encrypt + threaten leak (<span class="k">double extortion</span>),
+<span class="k">RaaS</span></td>
+<td><span class="k">DoS</span>/<span class="k">defacement</span>/<span
+class="k">hack-and-leak</span>/<span class="k">doxxing</span></td>
+</tr>
+<tr class="odd">
+<td>Target</td>
+<td>public sector, <strong>healthcare</strong></td>
+<td><strong>government</strong>/public-facing orgs</td>
+</tr>
+</tbody>
+</table>
+<p><span class="q">Q: role of mass surveillance — why both protective
+and a privacy threat?</span> Dual-use: <strong>protective</strong> =
+intelligence/counter-terror/crime tracking (with <span
+class="k">XKeyScore</span>); <strong>threat</strong> = backbone
+collection (<span class="k">PRISM/Tempora/Muscular</span>) + weakening
+crypto (<span class="k">Bullrun</span>/Dual_EC_DRBG) + <span
+class="k">mercenary spyware</span>. Crypto-currency is <span
+class="k">pseudonymous ≠ anonymous</span> (traceable).</p>
+<h2 id="wk3-cryptography">Wk3 · Cryptography</h2>
+<p><span class="q">Q: symmetric vs asymmetric + one example each?</span>
+<span class="k">symmetric</span> = <strong>same shared secret
+key</strong> (must pre-share, fast; e.g. <span class="k">AES</span>);
+<span class="k">asymmetric</span> = <strong>key pair</strong> (public
+encrypts / private decrypts, no pre-share, solves <span class="k">key
+distribution</span>, slow; e.g. <span class="k">RSA</span>).</p>
+<p><span class="q">Q: what is a side-channel attack + one
+example?</span> Attacks the <strong>implementation’s physical
+leakage</strong>, not the algorithm (<span
+class="k">timing/power/EM/sound</span>), it’s <span
+class="k">passive</span>. E.g. RSA decryption <span class="k">power
+analysis</span> — <span class="s">square-and-multiply</span>, a key-bit
+= 1 draws extra power → <strong>read the private key
+bit-by-bit</strong>.</p>
+<p><strong>Must know</strong>: <span class="k">hash</span> (integrity) →
+<span class="k">MAC</span> (+authentication, shared key) → <span
+class="k">digital signature</span> (+<span
+class="k">non-repudiation</span>, <strong>sign with private / verify
+with public</strong>). <span class="k">PKI/CA</span> binds
+identity↔︎public key, defeats <span class="k">MITM</span>. RSA security =
+<strong>integer factorisation</strong>; quantum threat <span
+class="k">Shor’s algorithm</span> → <span class="k">post-quantum</span>.
+MD5/SHA-1 broken. Key strength = real <strong>entropy</strong>, not
+output length.</p>
+<h2 id="wk4-network-attack-defence">Wk4 · Network Attack &amp;
+Defence</h2>
+<p><span class="q">Q: disadvantage of DoH?</span> Encrypting DNS boosts
+privacy but <strong>reduces network visibility</strong> → defenders
+can’t easily monitor/filter malware or <span class="k">C2</span>
+domains, or spot DNS hijacking.</p>
+<p><span class="q">Q: how can attackers exploit BGP?</span> <span
+class="k">BGP</span> is built on trust with no strong validation → <span
+class="k">BGP hijacking</span>: falsely advertise an <span class="k">IP
+prefix</span> you don’t own → bogus route spreads → traffic redirected
+(fake-site phishing / <span class="k">blackholing</span> DoS /
+eavesdropping). Defence <span class="k">RPKI + ROA</span>
+(signatures).</p>
+<p><span class="q">Q: what problem does DNSSEC solve, how?</span> DNS
+records can be forged (<span class="k">cache poisoning</span>/pharming)
+→ add <strong>digital signatures</strong> to records → <span
+class="k">integrity + authenticity</span> (<strong>no confidentiality,
+no DDoS protection</strong>, can even enable amplification).</p>
+<p><span class="q">Q: role of NAT in security, why not a true security
+mechanism?</span> <span class="k">NAT</span> = many devices share one
+public IP (to fight IPv4 exhaustion). <strong>Not a security
+control</strong>: no encryption/authentication; it actually makes <span
+class="k">attribution</span> harder (logs show only the shared IP).</p>
+<p><span class="q">Q: how does a VPN/IPsec ensure confidentiality &amp;
+integrity?</span> <span class="k">IP-layer tunnel</span>; <span
+class="k">IKE</span> (/<span class="k">Diffie–Hellman</span>) sets up
+the shared key + <span class="k">SA</span>; <strong>encryption →
+confidentiality</strong>, <strong>authentication →
+integrity/authenticity</strong>.</p>
+<p><strong>Contrasts</strong>: <span class="k">DNS hijack</span> edits
+the address-book (→I) vs <span class="k">BGP hijack</span> edits the
+road-map (→A); DDoS→A. <span class="k">TLS</span> = <span
+class="s">handshake (authenticate + DH key) → record (symmetric
+encryption)</span>. <span class="k">DKIM</span> = sign with the sender
+domain’s DNS public key.</p>
+<h2 id="wk5-usability">Wk5 · Usability</h2>
+<p><span class="q">Q: what does generating passwords from mnemonic
+phrases mean?</span> Pick a memorable, hard-to-guess sentence → take
+<strong>first letters of each word</strong> + digits/case → looks random
+yet memorable (<span class="k">passphrase</span>, Yan 2004).</p>
+<p><span class="q">Q: what is the bystander effect, how does it affect
+security behaviour?</span> <span class="k">bystander effect</span> =
+<span class="k">diffusion of responsibility</span> → everyone assumes
+someone else will report → <strong>no one reports</strong> (Kitty
+Genovese). Fix: assign clear reporting responsibility + easy
+channels.</p>
+<p><span class="q">Q: what is social engineering, why often more
+successful than technical attacks?</span> <span class="k">social
+engineering</span> = <strong>psychological manipulation of people (not
+tech)</strong>. More successful because it <strong>bypasses technical
+controls</strong> + exploits <span class="k">Cialdini’s
+principles</span> (authority/scarcity…) + our anti-deception instincts
+evolved for face-to-face (fail on email).</p>
+<p><span class="q">Q: how does poor personal OPSEC lead to org
+breaches?</span> Social-media exposure → guess security questions /
+craft <span class="k">spear-phishing</span>; <strong>password
+reuse</strong>; insecure <span class="k">BYOD</span>. Need a <span
+class="k">culture of compliance</span>.</p>
+<p><span class="q">Q: common weaknesses in password recovery?</span>
+<span class="k">security questions</span> (guessable) / <span
+class="k">email recovery</span> (single point of failure) / <span
+class="k">SMS</span> (<span class="k">SIM swap</span>) + help-desk
+social engineering. <strong>Recovery = the weakest link.</strong></p>
+<p><span class="q">Q: security risk of a password manager?</span> All
+passwords behind one <span class="k">master password</span> =
+<strong>single point of failure</strong> (phished → all stolen); but
+<strong>don’t block them</strong> (users pick weaker passwords
+otherwise).</p>
+<p><strong>Also</strong>: three <span class="k">human errors</span> =
+<span class="s">slips/lapses · mistakes · misconceptions</span>; store
+<span class="k">hash + salt</span> (≠ encryption); <span
+class="k">CAPTCHA</span> = a hard AI problem (beaten by AI + fairness
+flaws).</p>
+<h2 id="wk7-cybersecurity-standards">Wk7 · Cybersecurity Standards</h2>
+<p><span class="q">Q: purpose of data classification + common
+levels?</span> Classify by <span class="k">sensitivity</span> to
+<strong>decide how strong a control is needed</strong> (not everything
+needs equal protection — saves cost). <span
+class="s">Public→Internal→Confidential→Restricted</span> (Restricted
+must be encrypted).</p>
+<p><span class="q">Q: five core functions of NIST CSF?</span> <span
+class="s">Identify→Protect→Detect→Respond→Recover</span>
+(<strong>security is not just prevention</strong>).</p>
+<p><span class="q">Q: essential steps of the risk management
+process?</span> <span class="s">Identify→Analyze→Evaluate (risk
+assessment)→Treat→Monitor&amp;Review</span> = a <strong>continuous
+cycle</strong> (not one-off).</p>
+<p><strong>Must know</strong>: <span class="k">Essential Eight</span>,
+three groups = stop malicious code (application control / Office macros
+/ user app hardening) + limit attackers (restrict admin / <span
+class="k">MFA</span>) + reduce exposure &amp; recover (patch apps /
+patch OS / backups); <span class="k">maturity 0–3</span>. <span
+class="k">ISO27001</span> = standard for an <span class="k">ISMS</span>,
+goal <span class="k">CIA</span> + risk-based + continuous improvement.
+<span class="k">need-to-know</span>; MFA factors <span
+class="s">know/have/are</span>; policy/control/standard/framework.</p>
+<h2 id="wk9-privacy">Wk9 · Privacy</h2>
+<p><span class="q">Q: do the MPC calculation (as in
+assignment/class)</span> <span class="k">additive secret sharing</span>,
+<strong>no TTP</strong>, average salary (70/60/80): <span class="s">①
+each splits value into 3 random shares (sum = true value, may be
+negative)</span> → <span class="s">② keep one, send the other two</span>
+→ <span class="s">③ each publishes the sum of shares it holds</span> →
+<span class="s">④ add the three sums ÷ count</span>. E.g. published sums
+<strong>100/85/25</strong> → (100+85+25)/3 = <strong>210/3 =
+70K</strong> ✓. <strong>MPC ≠ zero leakage</strong> (you learn “who’s
+higher/lower”, not exact values). Age version is identical
+(25/30/35→30).</p>
+<p><span class="q">Q: how does HE keep data private on clouds/ML?</span>
+<span class="k">Homomorphic Encryption</span> = <strong>compute on
+ciphertext</strong>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>M</mi><mn>1</mn></msub><mo>+</mo><msub><mi>M</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>M</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>M</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">E(M_1{+}M_2)=E(M_1){+}E(M_2)</annotation></semantics></math>;
+<span class="s">encrypt locally → send to cloud → cloud computes on
+ciphertext (never decrypts) → returns ciphertext → decrypt
+locally</span>. <strong>Both input AND result stay encrypted</strong>;
+downside: slow.</p>
+<p><span class="q">Q: what is Differential Privacy, how does it protect
+individuals?</span> <span class="k">DP</span> defeats a <span
+class="k">differential attack</span> (adding/removing one person changes
+the output and leaks their presence) by <strong>adding noise</strong>
+(scale = 1/ε):
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>≤</mo><msup><mi>e</mi><mi>ε</mi></msup><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\Pr[M(D)\in S]\le e^{\varepsilon}\Pr[M(D&#39;)\in S]</annotation></semantics></math>
+(D, D’ differ by one record). <span class="k">smaller ε → more noise →
+more privacy, less accuracy</span> (privacy–accuracy trade-off).</p>
+<p><span class="q">Q: concept of SMPC, how it enables private
+collaboration?</span> <span class="k">SMPC</span>: parties compute
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>1</mn></msub><mi>.</mi><mi>.</mi><msub><mi>x</mi><mi>n</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z=f(x_1..x_n)</annotation></semantics></math>
+and <strong>learn only the output z</strong>; f is public, <strong>no
+TTP</strong>, via <span class="k">secret sharing</span>. E.g. hospitals
+computing joint stats; <span class="k">Federated Learning</span> with
+<span class="k">secure aggregation</span>.</p>
+<p><span class="q">Q: why is ML important for security, supervised vs
+unsupervised?</span> ML auto-learns patterns to detect threats (malware
+classification/intrusion/phishing) and adapt to new attacks. <span
+class="k">supervised</span> = <strong>labelled</strong> → classify known
+threats; <span class="k">unsupervised</span> =
+<strong>unlabelled</strong> → <span class="k">anomaly detection</span>,
+finds <span class="k">zero-day</span> (higher false positives).</p>
+<p><span class="q">Q: privacy concerns of location tracking +
+mitigations?</span> Builds a <span class="k">profiling</span> picture;
+<span class="k">location trading</span>. Mitigate: <span class="k">data
+minimisation</span>/coarsening/<span
+class="k">anonymisation</span>+DP/<span class="k">consent</span>/timely
+deletion.</p>
+<p><span class="q">Q: GDPR’s data minimisation?</span> Collect only the
+<strong>minimum personal data necessary</strong> for the purpose
+(adequate/relevant/limited) → less breach exposure.</p>
+<p><span class="q">Q: purpose of the APPs + name three?</span> <span
+class="k">Australian Privacy Act 1988</span>, <span class="k">13
+APPs</span>, <span class="k">principle-based + technology
+neutral</span>. E.g. <strong>APP1</strong> transparent management /
+<strong>APP6</strong> use &amp; disclosure / <strong>APP11</strong>
+security.</p>
+<p><span class="q">Q: GDPR’s purpose limitation?</span> State a
+<strong>specified, explicit, legitimate purpose</strong> at collection;
+no incompatible further use → prevents <span class="k">scope
+creep</span>.</p>
+<p><span class="q">Q: significance of accountability under GDPR + how to
+demonstrate compliance?</span> Not only comply but <strong>be able to
+demonstrate it</strong>: records of processing (&gt;250 staff must
+document) / appoint a <span class="k">DPO</span> / training &amp;
+review. Fines <span class="k">€10M/2% or €20M/4%</span>.</p>
+<p><strong>Must know — GDPR 7 principles</strong>: <span
+class="s">lawfulness-fairness-transparency · purpose limitation · data
+minimisation · accuracy · storage limitation ·
+integrity&amp;confidentiality · accountability</span>. <span
+class="k">Controller</span> (sets purpose) vs <span
+class="k">Processor</span> (acts on instructions); <span
+class="k">SAR</span> answered within one month.</p>
+<p><strong>Three privacy techniques (memorise)</strong></p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Principle</th>
+<th>Protects</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="k">SMPC</span></td>
+<td>split shares, learn only output</td>
+<td>each party’s <strong>input</strong></td>
+<td>joint computation, result is <strong>plaintext</strong></td>
+</tr>
+<tr class="even">
+<td><span class="k">HE</span></td>
+<td>compute on ciphertext</td>
+<td><strong>input + result</strong></td>
+<td><strong>outsource to cloud</strong></td>
+</tr>
+<tr class="odd">
+<td><span class="k">DP</span></td>
+<td>add noise</td>
+<td><strong>individual privacy</strong></td>
+<td><strong>publish statistics</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="wk10-cloud-edge">Wk10 · Cloud &amp; Edge</h2>
+<p><span class="q">Q: key characteristics that define cloud
+computing?</span> <span class="k">shared pool of resources</span> · over
+internet · <span class="k">on-demand (elasticity)</span> · <span
+class="k">measured/pay-as-you-go</span> · cost-effective. (elasticity ≠
+resource multiplexing)</p>
+<p><span class="q">Q: public vs private vs hybrid?</span></p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Public</th>
+<th>Private</th>
+<th>Hybrid</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Users</td>
+<td>public</td>
+<td>single org</td>
+<td>mix</td>
+</tr>
+<tr class="even">
+<td>Owner</td>
+<td><strong>third party</strong></td>
+<td>the org</td>
+<td>public+private</td>
+</tr>
+<tr class="odd">
+<td>Trait</td>
+<td>low cost/scalable</td>
+<td>control/more secure</td>
+<td><span class="k">portability</span> (hospital)</td>
+</tr>
+</tbody>
+</table>
+<p><span class="q">Q: IaaS/PaaS/SaaS + an example each?</span> Control
+spectrum (how far the user manages): <span class="k">IaaS</span> =
+manage the OS (<span class="k">EC2</span>) · <span class="k">PaaS</span>
+= manage code (<span class="k">App Engine</span>) · <span
+class="k">SaaS</span> = manage only data (<span
+class="k">Gmail</span>).</p>
+<p><span class="q">Q: motivation behind edge computing + how it
+complements cloud?</span> Data centres are <strong>too far →
+latency</strong> (light travels ~300km in 1ms) → <span class="k">edge
+node</span> processes nearby; <span class="s">latency-sensitive handled
+at edge / low-priority sent to cloud for deep analysis</span>.</p>
+<p><span class="q">Q: common edge security risks + best
+practices?</span> Risks: <strong>weak physical security</strong> /
+default-weak passwords / expanded <span class="k">IT perimeter</span> /
+local credentials reach back to the data centre. Practice: <strong>treat
+the edge like a public cloud = <span class="k">zero
+trust</span></strong> + strong auth + encryption + monitoring.</p>
+<h2 id="wk11-tpmenclavecpsscada">Wk11 · TPM/Enclave/CPS/SCADA</h2>
+<p><span class="q">Q: why is SCADA security critical + common
+threats?</span> <span class="k">SCADA</span> controls industrial
+processes (power/water), two tiers = management + <span
+class="k">PLC</span>; a breach causes <strong>physical disaster</strong>
+(blackout/no water). Threats: <span
+class="s">hackers/malware/terrorists/insiders</span>. <span
+class="k">Stuxnet</span> = damaged Iran’s nuclear centrifuges (Siemens
+PLC).</p>
+<p><span class="q">Q: purpose of Secure Enclave, how it protects
+data?</span> A <span class="k">TEE</span> implementation, isolated
+region inside the main processor (OS can’t see it) → <span
+class="k">confidentiality + integrity</span>: hardware isolation +
+memory encryption + <span class="k">UID</span> (per-device, never leaves
+chip) + <span class="k">attestation</span> = <span
+class="k">confidential computing</span> (protects data <strong>in
+use</strong>).</p>
+<p><span class="q">Q: main differences between CPS and IoT?</span></p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>IoT</th>
+<th>CPS</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Core</td>
+<td><span class="k">interconnection</span></td>
+<td><span class="k">real-time control</span></td>
+</tr>
+<tr class="even">
+<td>Nature</td>
+<td>connect many devices</td>
+<td>self-contained system (car/drone)</td>
+</tr>
+<tr class="odd">
+<td>Arch</td>
+<td>horizontal</td>
+<td>vertical</td>
+</tr>
+<tr class="even">
+<td>Connectivity</td>
+<td>core goal</td>
+<td>important, not mandatory</td>
+</tr>
+</tbody>
+</table>
+<p><span class="q">Q: what is a TPM, how does it enhance hardware
+security?</span> <span class="k">TPM</span> = on-board security chip
+storing keys/certs/passwords; <span class="k">hardware-based
+crypto</span> (key never leaves chip) + <span class="k">measured
+boot</span> (config altered → refuse to release key = <span
+class="k">attestation</span>). TPM 2.0 = <span class="s">RSA + SHA256 +
+HMAC</span>; use case <span class="k">BitLocker</span>.</p>
+<p><strong>Core distinction</strong>: <span
+class="k">authentication</span> (who are you) vs <span
+class="k">attestation</span> (are you trustworthy now / config
+unaltered). Data states <span class="s">at rest / in transit / in
+use</span>.</p>
+<h2 id="wk12-infowarcyberweaponcciapt">Wk12 ·
+InfoWar/Cyberweapon/CCI/APT</h2>
+<p><span class="q">Q: what is information warfare, how do attacks on
+critical infra fit in?</span> <span class="k">Denning</span> (broad:
+incl. propaganda/espionage/electronic warfare) vs <span
+class="k">Waltz</span> (military: <span class="k">protection +
+denial</span>). Hitting <span class="k">critical infrastructure</span>
+(power) = mass disruption without firing a shot, a <span
+class="k">prelude to war</span> (cyber-physical convergence).</p>
+<p><span class="q">Q: define a cyberweapon, how it differs from
+malware?</span> Watershed = <span class="k">selectivity</span>:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th><span class="k">Cyberweapon</span></th>
+<th><span class="k">Malware</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Selectivity</td>
+<td><strong>high</strong> (targeted)</td>
+<td>low (broad)</td>
+</tr>
+<tr class="even">
+<td>Actor</td>
+<td>state/non-state</td>
+<td>criminals</td>
+</tr>
+<tr class="odd">
+<td>Motive</td>
+<td>strategic (military/political)</td>
+<td>profit</td>
+</tr>
+<tr class="even">
+<td>Example</td>
+<td>Stuxnet/NotPetya</td>
+<td>botnet</td>
+</tr>
+</tbody>
+</table>
+<p>Four dangers: hard to trace / <span class="k">zero-day</span>
+dormancy / <span class="k">cost asymmetry</span> / captured &amp; reused
+(<span class="k">EternalBlue</span>).</p>
+<p><span class="q">Q: what is an APT + common motivations?</span> <span
+class="k">APT</span> = high expertise + significant resources + multiple
+vectors, builds a <span class="k">foothold</span> and persists (<span
+class="k">state-sponsored</span> / persistence / stealth). <span
+class="s">6 stages: Recon→Delivery→Initial intrusion→C2→Lateral
+movement→Exfiltration</span>. Motives = <span class="k">espionage</span>
+/ <span class="k">sabotage</span> (not profit). E.g. Stuxnet
+(sabotage)/Duqu (recon)/Flame (espionage).</p>
+<p><strong>CCI</strong> = defensive in aim, offensive in method:
+defensive <span class="s">pen-testing→vulnerability assessment→threat
+intelligence→threat hunting</span>; offensive <span
+class="k">honeypots</span>/<span class="k">sockpuppets</span>.</p>
+<hr />
+<h2 id="cross-week-distinctions-easy-marks">Cross-week distinctions
+(easy marks)</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Pair</th>
+<th>Difference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="k">secrecy/confidentiality/privacy</span></td>
+<td>effect / org duty / individual right</td>
+</tr>
+<tr class="even">
+<td><span class="k">integrity/authenticity/non-repudiation</span></td>
+<td>unaltered / +really from them (key) / can’t deny (signature)</td>
+</tr>
+<tr class="odd">
+<td><span class="k">trusted/trustworthy</span></td>
+<td>failure breaks policy / won’t fail</td>
+</tr>
+<tr class="even">
+<td><span class="k">symmetric/asymmetric</span></td>
+<td>same key (fast) / key pair (solves distribution)</td>
+</tr>
+<tr class="odd">
+<td><span class="k">hash/MAC/signature</span></td>
+<td>I / I+auth / I+auth+non-repud</td>
+</tr>
+<tr class="even">
+<td><span class="k">DNS/BGP hijack</span></td>
+<td>edits address-book (I) / edits road-map (A)</td>
+</tr>
+<tr class="odd">
+<td><span class="k">SMPC/HE/DP</span></td>
+<td>don’t share input / compute on ciphertext / add noise</td>
+</tr>
+<tr class="even">
+<td><span class="k">IaaS/PaaS/SaaS</span></td>
+<td>manage OS / manage code / manage only data</td>
+</tr>
+<tr class="odd">
+<td><span class="k">CPS/IoT</span></td>
+<td>real-time control (vert) / interconnection (horiz)</td>
+</tr>
+<tr class="even">
+<td><span class="k">auth/attestation</span></td>
+<td>who you are / are you trustworthy now</td>
+</tr>
+<tr class="odd">
+<td><span class="k">cyberweapon/malware</span></td>
+<td>high-selectivity·state·strategic / low·criminal·profit</td>
+</tr>
+</tbody>
+</table>
+<p><strong>CIA quick-judge</strong>: encryption/VPN/TLS/HE → <span
+class="k">C</span>; hash/MAC/signature/DNSSEC/DKIM/measured boot → <span
+class="k">I</span>; DDoS/BGP blackhole/backups/SCADA → <span
+class="k">A</span>.</p>
+<h2 id="sequences-to-memorise-blue-in-order">Sequences to memorise (blue
+= in order)</h2>
+<ul>
+<li>NIST CSF: <span
+class="s">Identify→Protect→Detect→Respond→Recover</span></li>
+<li>Risk mgmt: <span
+class="s">Identify→Analyze→Evaluate→Treat→Monitor&amp;Review</span></li>
+<li>GDPR 7 principles: <span class="s">lawful-fair-transparent · purpose
+limitation · data minimisation · accuracy · storage limitation ·
+integrity&amp;confidentiality · accountability</span></li>
+<li>APT 6 stages: <span
+class="s">Recon→Delivery→Intrusion→C2→Lateral→Exfiltration</span></li>
+<li>MPC: <span class="s">split random shares→keep one→publish sum
+held→add the sums ÷ count</span></li>
+<li>Data classes: <span
+class="s">Public→Internal→Confidential→Restricted</span></li>
+<li>Malware delivery: <span class="s">dropper (carries)→downloader
+(fetches)→payload (acts)</span></li>
+<li>Botnet: <span class="s">infection→C2→uses</span></li>
+<li>TLS: <span class="s">handshake (authenticate + DH key)→record
+(symmetric encryption)</span></li>
+</ul>
+<blockquote>
+<p><strong>Pass line ≥40% (20/50).</strong> If you can answer every
+purple question using the red keywords, you’re ready.</p>
+</blockquote>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 9 · 隐私问题与隐私保护技术 (Privacy Issues)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-9--隐私问题与隐私保护技术-privacy-issues">Week 9 ·
+隐私问题与隐私保护技术 (Privacy Issues)</h1>
+<blockquote>
+<p><strong>关于周次的说明</strong> — 这份讲义的文件名是
+<strong>W9</strong>,但幻灯片标题写的是 <strong>"Week 8 – Privacy
+Issues"</strong>。讲师在录音里解释了原因:之前有两周没有
+lecture(为了赶进度),而原本计划分成两节、内容都偏短的 privacy
+课被合并成了这一节较长的课。所以本章篇幅比平时大,但都是同一个主题。本周的
+<strong>workshop(W9-Solutions)</strong> 正好配套本章——讲师特别强调"this
+week's workshop is very important",因为你会用 Python 亲手做 MPC 和 DP
+的实验,而这些"will be useful for your assignment"。</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>用"控制"这个核心思想<strong>解释</strong>隐私的定义,并区分隐私的三个要素(When
+/ How / Extent);</li>
+<li><strong>说清</strong>在线隐私的三大威胁(Hacking / Tracking /
+Trading)各自的机制;</li>
+<li><strong>解释并手算</strong>基于 secret sharing 的 Secure Multi-Party
+Computation(用平均工资的例子);</li>
+<li><strong>区分</strong> MPC、Federated Learning、Homomorphic
+Encryption、Differential Privacy 四种隐私保护技术的原理与适用场景;</li>
+<li><strong>读懂</strong> Differential Privacy 的形式化定义
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>≤</mo><msup><mi>e</mi><mi>ε</mi></msup><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\Pr[M(D)\in S]\le e^{\varepsilon}\Pr[M(D&#39;)\in S]</annotation></semantics></math>,并说明
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+大小对隐私/精度的影响;</li>
+<li><strong>复述</strong> GDPR 的 7 大原则、8 项个人权利、罚款规则,以及
+Australian Privacy Act 的 13 条 APPs;</li>
+<li><strong>说明</strong> AI 伦理为什么重要,并列举 Australia 的 8 条 AI
+Ethics Principles。</li>
+</ul>
+</blockquote>
+<p>技术能保护数据,但"隐私"从来不只是技术问题。这一章会带你走完一条完整的链条:先搞清楚<strong>隐私到底是什么、会被怎样侵犯</strong>(Part
+1),再看<strong>密码学和机器学习给出了哪些技术解法</strong>(Part
+2),最后回到<strong>法律、治理和伦理</strong>——因为再强的技术也需要规则来约束"该不该收集、收集来干什么"(Part
+3)。讲师反复提醒:这三部分"directly related to your
+assignment",值得认真过。</p>
+<hr />
+<h2 id="part-1--隐私是什么又是怎么被侵犯的">Part 1 ·
+隐私是什么,又是怎么被侵犯的</h2>
+<h3 id="11-隐私--对信息的控制权不是把一切藏起来">1.1 隐私 =
+对信息的"控制权",不是"把一切藏起来"</h3>
+<p>很多人对隐私有个误解,以为隐私就是"什么都不让别人知道"。讲师在课上特意纠正了这一点:<strong>隐私
+(privacy) 不是隐藏一切,而是一种控制力</strong>。</p>
+<blockquote>
+<p><strong>隐私 (Privacy)</strong> — <em>the ability to control what
+information about yourself is revealed, to whom, and under what
+conditions.</em>(对"关于你自己的哪些信息会被披露、披露给谁、在什么条件下披露"的控制能力。)</p>
+</blockquote>
+<p>注意这个定义里藏着三个变量:<strong>披露什么
+(what)</strong>、<strong>披露给谁 (to
+whom)</strong>、<strong>在什么条件下 (under what
+conditions)</strong>。你愿意把生日告诉朋友,但不愿意写在公开简历上——信息是同一个,变的是"给谁"和"条件"。这就是为什么隐私是"控制",而不是"全有或全无":你在不同场合,对同一条信息有不同的披露意愿。</p>
+<p>讲师把这种控制力进一步拆成<strong>隐私的三个要素 (three elements of
+privacy)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>要素</th>
+<th>含义</th>
+<th>直觉例子(讲师原话)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>When</strong>(时间敏感性)</td>
+<td>当前/未来的信息往往比过去的更敏感</td>
+<td>你愿意分享 5 年前的度假照片,却不愿暴露"我现在就在 Wollongong"</td>
+</tr>
+<tr class="even">
+<td><strong>How</strong>(分享方式的控制)</td>
+<td>人们倾向<strong>手动</strong>分享,而非<strong>自动</strong>分享</td>
+<td>你愿意自己挑一张照片发出去,但不希望 App
+自动把你的所有照片同步上传</td>
+</tr>
+<tr class="odd">
+<td><strong>Extent</strong>(精确程度)</td>
+<td>人们倾向给<strong>模糊</strong>信息,而非<strong>精确</strong>信息</td>
+<td>别人问你在哪,你说"在 Australia",而不是"在某街某号某 suburb"</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 例(幻灯片 QUIZ)</strong> — <em>一个用户愿意分享 5
+年前的度假照片,却不发当前位置更新。这体现了隐私的哪个要素?</em> 答案是
+<strong>When(时间敏感性)</strong>。关键不在"位置"这个内容,而在"当前 vs.
+过去"这个时间维度——过去的信息感觉更安全,当前/未来的更敏感。</p>
+</blockquote>
+<p>把握住"隐私 = 控制"这个出发点很重要,因为后面 Part 2
+的所有技术,本质上都是在<strong>还给数据拥有者一部分控制权</strong>:让你能参与一次计算、贡献你的数据,却不必把原始数据交出去。</p>
+<h3 id="12-在线隐私的三大威胁hackingtrackingtrading">1.2
+在线隐私的三大威胁:Hacking、Tracking、Trading</h3>
+<p>理解了隐私是什么,下一个问题自然是:它在网络世界里<strong>怎么被破坏</strong>?讲师归纳为三个
+"T"(其实第一个是 H,但可以一起记成"黑、追、卖")。</p>
+<pre class="mermaid"><code>graph TD
+    P[在线个人数据] --&gt; H[Hacking 黑客入侵]
+    P --&gt; T1[Tracking 追踪]
+    P --&gt; T2[Trading 数据交易]
+    H --&gt;|未授权访问| H2[窃取/勒索 → 再用于钓鱼、诈骗、二次攻击]
+    T1 --&gt;|收集浏览/搜索/位置| T3[个性化广告 ↔ 画像/监视/犯罪]
+    T2 --&gt;|画像后卖给第三方| T4[数据长期留存,被超出原目的地使用]</code></pre>
+<p><strong>Hacking(黑客入侵)</strong> ——
+攻击者通过未授权访问,进入存有个人/财务信息的设备或第三方系统。如果数据<strong>未加密或保护不当</strong>,就会被直接暴露。更糟的是,被盗数据还会<strong>被复用</strong>:拿去做钓鱼
+(phishing)、诈骗
+(fraud),或进一步攻陷账户。也就是说,一次入侵的危害往往不止于"这次",而是开启后续攻击的链条。</p>
+<p><strong>Tracking(追踪)</strong> —— 网站和 App
+持续收集你的行为:浏览历史、你在哪个页面停留最久、你看了什么商品、你的物理位置。这些数据<strong>本身常被用于个性化和广告</strong>(看似无害甚至"贴心"),但同样的数据也能被滥用为<strong>画像
+(profiling)、监视 (surveillance)
+或网络犯罪</strong>。讲师点出追踪的真正可怕之处:它能把你零散的在线活动,<strong>拼成一份关于你的完整画像</strong>。</p>
+<p><strong>Trading(数据交易)</strong> ——
+个人数据和兴趣会被收集、画像,然后<strong>卖给第三方</strong>。社交媒体的发帖、标签
+(tags)、位置分享,往往泄露的比你以为的多。而且一旦上传,数据可能<strong>长期留存</strong>,被用于<strong>超出最初目的</strong>的用途。讲师举了个本地化的例子:你在某处注册了会员/积分账户,某天突然接到一堆不知从哪弄到你电话的推销电话——这背后很可能就是数据交易。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+这三类威胁恰好对应安全的两个层面:Hacking
+是<strong>外部攻击者违背你的意愿</strong>拿走数据(机密性被攻破);而
+Tracking 和 Trading
+更微妙——数据常常是你"自愿"提供的,问题出在<strong>后续如何被使用</strong>。这也解释了为什么光靠技术防护不够,Part
+3 的法规(限制"目的"和"留存")才是针对后两者的。</p>
+</blockquote>
+<hr />
+<h2 id="part-2--技术上的隐私保护方法">Part 2 · 技术上的隐私保护方法</h2>
+<h3 id="21-为什么机器学习特别需要隐私保护">2.1
+为什么机器学习特别需要隐私保护</h3>
+<p>为什么这一章把隐私技术几乎全部放在机器学习 (ML) 的语境下讲?因为现代
+ML
+天生是一件<strong>多方协作</strong>的事,而协作的各方<strong>彼此并不完全信任</strong>。</p>
+<p>讲师的措辞很直接:"I don't trust you, you don't trust me." 一个典型的
+ML 场景里会有好几类角色:</p>
+<ul>
+<li><strong>数据拥有者 (data owners)</strong> —— 手里有训练数据;</li>
+<li><strong>模型拥有者 (model owners)</strong> —— 拥有模型;</li>
+<li><strong>服务提供者 (service providers)</strong> ——
+提供算力/推理服务;</li>
+<li><strong>终端用户 (end users)</strong> —— 拿数据来做推理。</li>
+</ul>
+<p>训练数据可能在一方手里,推理数据在另一方,模型又属于第三方。这就是讲师说的:<strong>ML
+is fundamentally a multi-stakeholder computation</strong>(ML
+本质上是多方利益相关者的联合计算)。</p>
+<p>问题在于:<strong>原始数据 (raw data)
+里含有大量敏感个人信息</strong>。如果直接共享原始数据,就会同时带来三种风险——<strong>隐私风险、法律/政策风险、安全风险</strong>。</p>
+<blockquote>
+<p><strong>🔑 例(ML 中的不信任,S20)</strong></p>
+<ul>
+<li>医院想用<strong>第三方</strong>的远程分析来处理病人数据(但不想把病历交出去);</li>
+<li>零售商想把购买到的数据变现;</li>
+<li>数据分析公司想把用户的社交媒体数据变现,<strong>同时还要保护用户隐私</strong>。</li>
+</ul>
+</blockquote>
+<p>正是这种"既要合作、又不愿交出原始数据"的张力,催生了下面四种技术:<strong>MPC、Federated
+Learning、Homomorphic Encryption (HE/FHE)、Differential Privacy
+(DP)</strong>。它们是本章的技术核心。</p>
+<h3 id="22-secure-multi-party-computation安全多方计算mpc">2.2 Secure
+Multi-Party Computation(安全多方计算,MPC)</h3>
+<h4 id="问题是什么">问题是什么</h4>
+<p>先建立直觉。设想:<strong>我有一个秘密
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>,你有一个秘密
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>,我们想一起算出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z = f(x,y)</annotation></semantics></math>,但谁都不想把自己的输入交给对方。</strong></p>
+<p>这就是 <strong>Secure Multi-Party Computation(安全多方计算,简称 SMPC
+或 MPC)</strong> 要解决的问题。正式表述:</p>
+<blockquote>
+<p>Alice 有私有输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>,Bob
+有私有输入
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>。两人想计算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z=f(x,y)</annotation></semantics></math>,使得<strong>每一方除了
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math>
+之外,得不到任何额外信息</strong>。</p>
+</blockquote>
+<p>几个要点:</p>
+<ul>
+<li>两方可以推广到
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+方</strong>,各自的私有输入是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>x</mi><mi>n</mi></msub></mrow><annotation encoding="application/x-tex">x_1, x_2, \ldots, x_n</annotation></semantics></math>;</li>
+<li><strong>函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+本身是公开的</strong>——所有人都知道在算什么,要保密的只是各自的输入。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例 1:军事卫星(H. Maji 的例子,S12)</strong> A、B
+两国各有一颗卫星在轨。国家 A 的 Party 1
+知道自己卫星的位置和轨迹(这是它的输入),国家 B 的 Party 2
+知道自己卫星的位置和轨迹(它的输入)。函数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+要算的是:<strong>未来 20 分钟内两颗卫星会不会相撞?</strong>
+输出只有一个布尔值——会 (T) 或不会 (F)。
+双方都想得到这个答案,<strong>但绝不想暴露自己卫星的位置和轨迹</strong>。</p>
+</blockquote>
+<h4
+id="难点为什么不能直接把输入交出来">难点:为什么不能直接把输入交出来</h4>
+<p>你可能会想:这有什么难的?各方把输入一报,谁都能算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>。讲师承认这在<strong>正确性</strong>上确实成立——<em>it
+is trivial to correctly evaluate
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+if each party declares its input</em>。</p>
+<p>但这<strong>不安全</strong>:一旦报了输入,各方学到的就<strong>远超输出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math></strong>。在卫星例子里,双方会顺便知道<strong>对方卫星的精确位置和轨迹</strong>!MPC
+的全部难度,正来自这条<strong>安全约束</strong>:既要算对,又不能让任何人多学到东西。</p>
+<h4
+id="一个偷懒的解法可信第三方-ttp以及它为什么不够">一个偷懒的解法:可信第三方
+(TTP)——以及它为什么不够</h4>
+<p>最简单的办法是引入一个<strong>可信第三方 (Trusted Third Party,
+TTP)</strong>:Alice、Bob 把各自输入发给 TTP,TTP 算出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z=f(x,y)</annotation></semantics></math>
+再发回两人。卫星例子里,可以让某个中立国来收两国的卫星数据,算完只告诉它们"撞
+/ 不撞"。</p>
+<pre class="mermaid"><code>graph LR
+    A[Alice: x] --&gt;|发送 x| TTP{可信第三方 TTP}
+    B[Bob: y] --&gt;|发送 y| TTP
+    TTP --&gt;|只返回 z=f x,y| A
+    TTP --&gt;|只返回 z| B</code></pre>
+<p>讲师一针见血:<strong>如果真有这样一个可信第三方,安全计算就是小菜一碟。</strong>
+难就难在——<strong>现实中往往没有可信的第三方</strong>。"We trust them,
+but are you sure we should trust them?" 一旦假设不存在 TTP,MPC
+就变成一个真正困难的问题。下面这个工资例子,就是在<strong>没有
+TTP</strong> 的前提下解决问题的。</p>
+<h4 id="例-2三人算平均工资无-ttp用-secret-sharing">例
+2:三人算平均工资(无 TTP)——用 Secret Sharing</h4>
+<blockquote>
+<p><strong>🔑 例 2(Boura et al.,S15)</strong> Alice、Bob、Cate
+三位同事想算出<strong>三人的平均工资</strong>,但<strong>谁都不愿把自己的工资告诉别人</strong>,而且<strong>没有可信第三方</strong>。(讲师补充:就算去问
+HR,HR 也会说"这不关我的事"——所以只能他们自己算。)</p>
+</blockquote>
+<p>解决它需要一个密码学工具:<strong>secret
+sharing(秘密分享)</strong>。</p>
+<blockquote>
+<p>📎 <strong>Secret Sharing 预备知识(S15)</strong> — 它把一个秘密值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
+拆成若干<strong>份额 (shares)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><msub><mi>s</mi><mn>2</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>s</mi><mi>n</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(s_1, s_2, \ldots, s_n)</annotation></semantics></math>,使得<strong>单个或部分份额泄露不了关于
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
+的任何信息</strong>。</p>
+<ul>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo>,</mo><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(t, n)</annotation></semantics></math>-secret
+sharing</strong>:拆成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+份,只有当<strong>至少
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+份</strong>凑在一起时,才能重建原始秘密
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>。</li>
+<li><strong>加性 (additive)</strong>
+的方案:份额可以<strong>直接相加</strong>——这正是算"求和/平均"时要用到的性质。</li>
+</ul>
+<p>直觉:如果
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>=</mo><mn>100</mn></mrow><annotation encoding="application/x-tex">s=100</annotation></semantics></math>,我只给你一份
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>50</mn><annotation encoding="application/x-tex">50</annotation></semantics></math>,你<strong>无法</strong>知道原始秘密是多少(它可能被拆成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>50</mn><mo>+</mo><mn>50</mn></mrow><annotation encoding="application/x-tex">50+50</annotation></semantics></math>,也可能是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>50</mn><mo>+</mo><mn>30</mn><mo>+</mo><mn>20</mn></mrow><annotation encoding="application/x-tex">50+30+20</annotation></semantics></math>……)。</p>
+</blockquote>
+<p>现在用 <strong>加性
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>3</mn><mo>,</mo><mn>3</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(3,3)</annotation></semantics></math>-secret
+sharing</strong>(拆成 3 份、要 3
+份才能还原)来解工资问题。每个人把自己的工资拆成 3
+份:<strong>自己留一份,另外两份分别发给另外两人</strong>。</p>
+<p><strong>第一步:各自拆分工资</strong>(拆法随意,只要三份之和等于真实工资)</p>
+<ul>
+<li>Alice 工资 $70K →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>$</mi><mn>35</mn><mi>K</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>$</mi><mn>10</mn><mi>K</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>$</mi><mn>25</mn><mi>K</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\$35K,\ \$10K,\ \$25K)</annotation></semantics></math>,自己留
+$35K,给 Bob $10K,给 Cate $25K</li>
+<li>Bob 工资 $60K →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mi>$</mi><mn>20</mn><mi>K</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>$</mi><mn>50</mn><mi>K</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>$</mi><mn>30</mn><mi>K</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(-\$20K,\ \$50K,\ \$30K)</annotation></semantics></math>,自己留
+−$20K,给 Alice $50K,给 Cate $30K</li>
+<li>Cate 工资 $80K →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mi>$</mi><mn>30</mn><mi>K</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>$</mi><mn>15</mn><mi>K</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>$</mi><mn>95</mn><mi>K</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(-\$30K,\ \$15K,\ \$95K)</annotation></semantics></math>,自己留
+−$30K,给 Alice $15K,给 Bob $95K</li>
+</ul>
+<p><strong>第二步:每人把"手里持有的所有份额"加起来,公开这个和</strong></p>
+<p>下面这张表是理解整个协议的关键。<strong>每一行</strong>是一个人的工资被拆成的三份(分别落到
+Alice/Bob/Cate
+手里);<strong>每一列</strong>是某个人最终持有的三份,求和后公开:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>真实工资(行)</th>
+<th>Alice 持有</th>
+<th>Bob 持有</th>
+<th>Cate 持有</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>$70K (Alice)</td>
+<td>$35K</td>
+<td>$10K</td>
+<td>$25K</td>
+</tr>
+<tr class="even">
+<td>$60K (Bob)</td>
+<td>$50K</td>
+<td>−$20K</td>
+<td>$30K</td>
+</tr>
+<tr class="odd">
+<td>$80K (Cate)</td>
+<td>$15K</td>
+<td>$95K</td>
+<td>−$30K</td>
+</tr>
+<tr class="even">
+<td><strong>公开的和</strong></td>
+<td><strong>$100K</strong></td>
+<td><strong>$85K</strong></td>
+<td><strong>$25K</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>第三步:把三个公开的和加起来,再除以 3</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">平均工资</mtext><mo>=</mo><mfrac><mrow><mi>$</mi><mn>100</mn><mi>K</mi><mo>+</mo><mi>$</mi><mn>85</mn><mi>K</mi><mo>+</mo><mi>$</mi><mn>25</mn><mi>K</mi></mrow><mn>3</mn></mfrac><mo>=</mo><mfrac><mrow><mi>$</mi><mn>210</mn><mi>K</mi></mrow><mn>3</mn></mfrac><mo>=</mo><mi>$</mi><mn>70</mn><mi>K</mi></mrow><annotation encoding="application/x-tex">
+\text{平均工资} = \frac{\$100K + \$85K + \$25K}{3} = \frac{\$210K}{3} = \$70K
+</annotation></semantics></math></p>
+<p>结果正确,因为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>70</mn><mo>+</mo><mn>60</mn><mo>+</mo><mn>80</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>3</mn><mo>=</mo><mn>70</mn></mrow><annotation encoding="application/x-tex">(70+60+80)/3 = 70</annotation></semantics></math>。<strong>而且整个过程中,Alice
+只见过别人给她的份额($50K、$15K),根本推不出 Bob、Cate
+的真实工资</strong>;Bob、Cate 同理。</p>
+<h4 id="为什么它能work形式化证明">为什么它能work(形式化证明)</h4>
+<p>讲师给了一个简洁的代数解释,值得记住,因为它揭示了"加性份额"的精妙之处。设:</p>
+<ul>
+<li>Alice 的秘密
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>A</mi></msub><mo>=</mo><msub><mi>S</mi><mn>1</mn></msub><mo>+</mo><msub><mi>S</mi><mn>2</mn></msub><mo>+</mo><msub><mi>S</mi><mn>3</mn></msub></mrow><annotation encoding="application/x-tex">S_A = S_1 + S_2 + S_3</annotation></semantics></math></li>
+<li>Bob 的秘密
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>B</mi></msub><mo>=</mo><msub><mi>S</mi><mn>1</mn></msub><mi>′</mi><mo>+</mo><msub><mi>S</mi><mn>2</mn></msub><mi>′</mi><mo>+</mo><msub><mi>S</mi><mn>3</mn></msub><mi>′</mi></mrow><annotation encoding="application/x-tex">S_B = S_1&#39; + S_2&#39; + S_3&#39;</annotation></semantics></math></li>
+<li>Cate 的秘密
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>C</mi></msub><mo>=</mo><msub><mi>S</mi><mn>1</mn></msub><mi>″</mi><mo>+</mo><msub><mi>S</mi><mn>2</mn></msub><mi>″</mi><mo>+</mo><msub><mi>S</mi><mn>3</mn></msub><mi>″</mi></mrow><annotation encoding="application/x-tex">S_C = S_1&#39;&#39; + S_2&#39;&#39; + S_3&#39;&#39;</annotation></semantics></math></li>
+</ul>
+<p>按协议,<strong>三个公开的和</strong>分别是(每人把"自己收到的第 1 / 2
+/ 3 类份额"加起来):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><munder><munder><mrow><msub><mi>S</mi><mn>1</mn></msub><mo>+</mo><msub><mi>S</mi><mn>1</mn></msub><mi>′</mi><mo>+</mo><msub><mi>S</mi><mn>1</mn></msub><mi>″</mi></mrow><mo accent="true">⏟</mo></munder><mrow><mrow><mtext mathvariant="normal">Alice 公开 </mtext><mspace width="0.333em"></mspace></mrow><mo>=</mo><mn>100</mn><mi>K</mi></mrow></munder><mo>,</mo><mspace width="1.0em"></mspace><munder><munder><mrow><msub><mi>S</mi><mn>2</mn></msub><mo>+</mo><msub><mi>S</mi><mn>2</mn></msub><mi>′</mi><mo>+</mo><msub><mi>S</mi><mn>2</mn></msub><mi>″</mi></mrow><mo accent="true">⏟</mo></munder><mrow><mrow><mtext mathvariant="normal">Bob 公开 </mtext><mspace width="0.333em"></mspace></mrow><mo>=</mo><mn>85</mn><mi>K</mi></mrow></munder><mo>,</mo><mspace width="1.0em"></mspace><munder><munder><mrow><msub><mi>S</mi><mn>3</mn></msub><mo>+</mo><msub><mi>S</mi><mn>3</mn></msub><mi>′</mi><mo>+</mo><msub><mi>S</mi><mn>3</mn></msub><mi>″</mi></mrow><mo accent="true">⏟</mo></munder><mrow><mrow><mtext mathvariant="normal">Cate 公开 </mtext><mspace width="0.333em"></mspace></mrow><mo>=</mo><mn>25</mn><mi>K</mi></mrow></munder></mrow><annotation encoding="application/x-tex">
+\underbrace{S_1 + S_1&#39; + S_1&#39;&#39;}_{\text{Alice 公开 }=100K},\quad
+\underbrace{S_2 + S_2&#39; + S_2&#39;&#39;}_{\text{Bob 公开 }=85K},\quad
+\underbrace{S_3 + S_3&#39; + S_3&#39;&#39;}_{\text{Cate 公开 }=25K}
+</annotation></semantics></math></p>
+<p>把这三个和<strong>全部相加</strong>,再按份额重新分组:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>S</mi><mn>1</mn></msub><mo>+</mo><msub><mi>S</mi><mn>2</mn></msub><mo>+</mo><msub><mi>S</mi><mn>3</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>S</mi><mn>1</mn></msub><mi>′</mi><mo>+</mo><msub><mi>S</mi><mn>2</mn></msub><mi>′</mi><mo>+</mo><msub><mi>S</mi><mn>3</mn></msub><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>S</mi><mn>1</mn></msub><mi>″</mi><mo>+</mo><msub><mi>S</mi><mn>2</mn></msub><mi>″</mi><mo>+</mo><msub><mi>S</mi><mn>3</mn></msub><mi>″</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>S</mi><mi>A</mi></msub><mo>+</mo><msub><mi>S</mi><mi>B</mi></msub><mo>+</mo><msub><mi>S</mi><mi>C</mi></msub></mrow><annotation encoding="application/x-tex">
+(S_1+S_2+S_3) + (S_1&#39;+S_2&#39;+S_3&#39;) + (S_1&#39;&#39;+S_2&#39;&#39;+S_3&#39;&#39;) = S_A + S_B + S_C
+</annotation></semantics></math></p>
+<p>所以三个公开和之和 <strong>恰好等于三人工资之和</strong>,除以 3
+就是平均值。关键是:<strong>最终只暴露了"总和"这一个聚合量,任何中间份额都不泄露个人工资。</strong></p>
+<h4 id="一个诚实的免责声明mpc-不是零泄露">一个诚实的免责声明:MPC
+不是"零泄露"</h4>
+<p>课上有学生提了个好问题:如果 Alice 算出平均是
+$70K,而她自己工资恰好也是
+$70K,她岂不是推出了"另外两人一高一低"?讲师确认:<strong>是的,会泄露一点信息</strong>——比如"有人比我高、有人比我低",但<strong>推不出具体是谁、具体多少</strong>。如果
+Alice 工资是 $80K 而平均是 $70K,她就知道"那两人平均比我低"。</p>
+<p>这正好呼应了 Part 1
+的核心思想:<strong>隐私是关于"控制"的程度,而不是绝对的"零泄露"。</strong>
+你要决定的是"我想保护到什么程度"。讲师也强调,这个工资例子"is not used in
+practice",只是用来<strong>说明 MPC 的思想</strong>的玩具示例(toy
+example)。</p>
+<h3 id="23-federated-learning联邦学习fl">2.3 Federated
+Learning(联邦学习,FL)</h3>
+<p>在工资例子的基础上,把"求和"换成"训练模型",就得到了 <strong>Federated
+Learning(联邦学习)</strong>——一种建立在 MPC 之上的隐私保护 ML 技术。</p>
+<blockquote>
+<p><strong>Federated Learning</strong> —
+让多个独立实体(设备/机构)<strong>共同训练一个 ML
+模型</strong>,方式是<strong>汇集 (pool)
+各自数据的"贡献",但不必把原始数据共享给彼此</strong>。</p>
+</blockquote>
+<p>直觉:数据<strong>留在本地设备</strong>上,每个参与方用自己的本地数据训练,<strong>只把模型更新
+(model updates) 传出去</strong>,再由 MPC 的 <strong>secure
+aggregation(安全聚合)</strong>
+把这些更新汇总。这样既能从多个数据源训练出准确的模型,又不暴露任何一方的原始数据。</p>
+<blockquote>
+<p><strong>🔑 QUIZ(S28)</strong> — <em>在基于 MPC 的 Federated Learning
+中,secure aggregation 的主要目的是?</em> 答案
+<strong>C:在不暴露各方单独输入的前提下,计算模型更新的和/平均。</strong>
+——这正是 MPC 思想在 FL
+里的直接应用:服务器只看到聚合结果,看不到谁贡献了哪条更新。</p>
+</blockquote>
+<h3 id="24-homomorphic-encryption同态加密hefhe">2.4 Homomorphic
+Encryption(同态加密,HE/FHE)</h3>
+<p>MPC 让数据"留在本地",而 <strong>Homomorphic
+Encryption(同态加密,HE)</strong>
+走的是另一条路:<strong>把数据加密后交出去,让别人在密文上直接计算</strong>。</p>
+<blockquote>
+<p><strong>Homomorphic Encryption</strong> — 一种允许<strong>在密文
+(ciphertext)
+上做计算</strong>的加密技术。对密文做运算,得到的是<strong>加密的结果</strong>;把它解密后,等于直接在明文上做同样运算的结果。</p>
+</blockquote>
+<p>它最重要的性质,用加法举例就是:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>M</mi><mn>1</mn></msub><mo>+</mo><msub><mi>M</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>M</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>M</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">
+E(M_1 + M_2) = E(M_1) + E(M_2)
+</annotation></semantics></math></p>
+<p>(对两条明文之和的加密,等于两条密文的"和"。)</p>
+<blockquote>
+<p><strong>🔑 例(讲师的云计算类比)</strong> — 你的 PC 太弱,跑不动某个 ML
+算法,于是想雇一个云服务来算。但你不想让云看到你的原始数据。怎么办?<strong>把数据加密后发给云
+→ 云在密文上跑算法 → 返回加密的结果 →
+你用自己的密钥解密,得到答案。</strong>
+全程云只见到密文,看不懂任何内容。</p>
+</blockquote>
+<p>HE
+的强大在于:它<strong>既保护输入数据的机密性,又保护计算结果的机密性</strong>。对比一下:在
+MPC 里,最终结果(比如 $70K
+平均工资、卫星撞不撞)是<strong>所有人都能看到的明文</strong>;而在 HE
+里,你拿到的结果也是<strong>密文</strong>(比如一串
+"ABCD"),只有持密钥的人能解开。</p>
+<p>代价是<strong>效率</strong>:讲师强调 <em>HE is somewhat inefficient
+to realize in practice</em>——因为它太强,目前仍然较慢,但已是隐私保护 ML
+的研究热点,韩国、法国都有公司在商业化。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)— 关于量子计算的提问</strong> —
+课上有学生问 HE 是否会被量子计算攻破。讲师区分了两类:<strong>经典
+HE</strong>(基于 ElGamal、Paillier
+等,依赖能被量子计算机破解的难题,且只能做很有限的运算);而 ML 里用的 HE
+是<strong>后量子 (post-quantum)、抗量子 (quantum-resistant)</strong>
+的方案——量子计算机对它目前没有有效攻击。</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 QUIZ(S29)</strong> — <em>HE
+要在加密数据上计算,需要具备什么性质?</em> 答案
+<strong>A:能在密文上执行算术运算(如加法/乘法)。</strong> 注意
+<strong>C(计算时临时解密)是错的</strong>——HE
+的全部意义就在于"全程不解密"。</p>
+</blockquote>
+<h3 id="25-differential-privacy差分隐私dp">2.5 Differential
+Privacy(差分隐私,DP)</h3>
+<p>前面三种技术都关注"计算过程中"的数据保护;<strong>Differential
+Privacy(差分隐私,DP)</strong>
+则关注<strong>发布出去的结果</strong>——它是隐私保护 ML
+里最被看好的方向之一。</p>
+<h4 id="它要解决什么问题">它要解决什么问题</h4>
+<blockquote>
+<p><strong>🔑 例:Casey 的"是否生病"调查(S25)</strong> —
+一个数据集记录每个人对"上个月你生病了吗?"的 Yes/No 回答,姓名已隐藏。现在
+Casey
+<strong>新加入</strong>了这个群体,而他<strong>从没说过自己生病</strong>。如果调查<strong>重新做一次</strong>,攻击者只要<strong>对比"说生病的人数"有没有变化</strong>,就能猜出
+Casey 的答案! 如果加入 Casey 前是 100 人说"生病",加入后系统返回
+<strong>101</strong>,攻击者立刻断定 Casey 生病了——因为这个增量只能来自
+Casey。</p>
+</blockquote>
+<p>问题的本质:<strong>即使隐藏了姓名,"一个人加入/退出数据集"对输出造成的可见变化,也会泄露这个人的信息。</strong>
+这种攻击叫<strong>差分攻击</strong>。</p>
+<h4 id="dp-的目标与做法">DP 的目标与做法</h4>
+<blockquote>
+<p><strong>Differential Privacy 的目标</strong> —
+输出<strong>无法被反推回任何个体的"在场或缺席"</strong>;观察者看着输出,<strong>判断不出某个特定个体的信息是否被用于这次计算</strong>。</p>
+</blockquote>
+<p>怎么做到?<strong>加噪声</strong>。</p>
+<blockquote>
+<p><strong>如何实现 DP(S24)</strong> —
+按照一个<strong>精心选择的分布</strong>生成随机噪声,对真实答案做<strong>扰动
+(perturbation)</strong>,返回给用户的是"真实答案 + 噪声"。</p>
+</blockquote>
+<p>回到 Casey 的例子:如果系统不返回精确的 101,而是返回
+<strong>102</strong>(掺了噪声),攻击者就<strong>无法确定</strong>人数到底是因为
+Casey
+才增加的,还是噪声。注意噪声不能乱加——它<strong>必须服从特定分布</strong>,这样才能在保护隐私的同时,<strong>仍然兼容有意义的数据分析</strong>(DP
+的一大优点就是"protective 却不至于让数据失去价值")。</p>
+<h4 id="形式化定义读懂那个不等式">形式化定义:读懂那个不等式</h4>
+<p>DP 把上面的直觉写成了一个精确的条件。设
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+是一个数据集,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">D&#39;</annotation></semantics></math>
+是<strong>只相差一条记录</strong>的数据集(比如
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">D&#39;</annotation></semantics></math>
+比
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+多了 Casey 这一条)。一个<strong>随机化机制 (randomized mechanism)
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math></strong>
+满足 DP,当且仅当对任意可能的输出集合
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow><mspace width="0.278em"></mspace><mo>≤</mo><mspace width="0.278em"></mspace><msup><mi>e</mi><mi>ε</mi></msup><mo>⋅</mo><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">
+\Pr[M(D) \in S] \;\le\; e^{\varepsilon}\cdot \Pr[M(D&#39;) \in S]
+</annotation></semantics></math></p>
+<p>逐符号读这个式子:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">M(D)</annotation></semantics></math>
+是机制作用在数据集
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+上的(随机)输出;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\Pr[M(D)\in S]</annotation></semantics></math>
+是"输出落在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
+里"的概率;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">D&#39;</annotation></semantics></math>
+<strong>只差一条记录</strong>(一个人在或不在);</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>(epsilon)是<strong>隐私损失参数
+(privacy loss
+parameter)</strong>,控制往原始数据里加多少噪声/随机性。</li>
+</ul>
+<p>整句话在说:<strong>"有 Casey"和"没
+Casey"两个数据集,产生任意输出的概率几乎一样</strong>——差距被限制在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>e</mi><mi>ε</mi></msup><annotation encoding="application/x-tex">e^{\varepsilon}</annotation></semantics></math>
+这个倍数之内。两个分布越接近,攻击者越无法区分"Casey
+在不在",隐私就越强。</p>
+<blockquote>
+<p><strong>🔑 怎么"感受"这个公式(S27)</strong> — 把不等式两边同除以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\Pr[M(D&#39;)\in S]</annotation></semantics></math>,得到:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow></mfrac><mo>≤</mo><msup><mi>e</mi><mi>ε</mi></msup></mrow><annotation encoding="application/x-tex">\frac{\Pr[M(D)\in S]}{\Pr[M(D&#39;)\in S]} \le e^{\varepsilon}</annotation></semantics></math>
+已知
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi><mo>≈</mo><mn>2.71</mn></mrow><annotation encoding="application/x-tex">e\approx 2.71</annotation></semantics></math>。算一下不同
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+下的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>e</mi><mi>ε</mi></msup><annotation encoding="application/x-tex">e^{\varepsilon}</annotation></semantics></math>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math></th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>e</mi><mi>ε</mi></msup><annotation encoding="application/x-tex">e^{\varepsilon}</annotation></semantics></math></th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0.1</td>
+<td>≈ 1.105</td>
+<td>两分布差约 10%</td>
+</tr>
+<tr class="even">
+<td>0.01</td>
+<td>≈ 1.010</td>
+<td>差约 1%</td>
+</tr>
+<tr class="odd">
+<td>0.001</td>
+<td>≈ 1.001</td>
+<td>差约 0.1%</td>
+</tr>
+<tr class="even">
+<td>0.0001</td>
+<td>≈ 1.0001</td>
+<td>几乎完全相同</td>
+</tr>
+</tbody>
+</table></div>
+<p>当
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ε</mi><mo>→</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\varepsilon \to 0</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>e</mi><mi>ε</mi></msup><mo>→</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">e^{\varepsilon}\to 1</annotation></semantics></math>,于是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>≈</mo><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\Pr[M(D)\in S]\approx \Pr[M(D&#39;)\in S]</annotation></semantics></math>——两个分布<strong>几乎无法区分</strong>,隐私保护最强。</p>
+</blockquote>
+<p><strong>一句话记住
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+越小 → 加的噪声越多 →
+隐私越强(但精度越低);<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+越大 → 噪声越少 → 能学到的越多(隐私越弱)。</p>
+<blockquote>
+<p><strong>🔑 QUIZ(S30)</strong> — <em>DP 里更小的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+意味着什么?</em> 答案
+<strong>B:更强的隐私保证(加入更多噪声)。</strong></p>
+</blockquote>
+<h3 id="26-四种技术横向对比">2.6 四种技术横向对比</h3>
+<p>这是本章最值得做成一张表的地方——讲师在课上专门口头对比了 FL / MPC 与
+HE。考试很可能考"哪种技术适合哪种场景"。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>Federated Learning + MPC</th>
+<th>Homomorphic Encryption (HE)</th>
+<th>Differential Privacy (DP)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>核心思想</strong></td>
+<td>数据留本地,只共享模型更新</td>
+<td>在密文上计算,全程不解密</td>
+<td>给发布的结果加噪声</td>
+</tr>
+<tr class="even">
+<td><strong>数据位置</strong></td>
+<td>留在本地设备</td>
+<td>加密后发到中心服务器</td>
+<td>通常在持有方,发布时扰动</td>
+</tr>
+<tr class="odd">
+<td><strong>原始数据是否暴露</strong></td>
+<td>从不共享,只交换更新</td>
+<td>全程以加密形式存在</td>
+<td>不直接发布原始数据</td>
+</tr>
+<tr class="even">
+<td><strong>隐私级别</strong></td>
+<td>高(假设半诚实方,由 MPC 增强)</td>
+<td>很高(一切皆密文)</td>
+<td>可量化(由
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+调)</td>
+</tr>
+<tr class="odd">
+<td><strong>计算模式</strong></td>
+<td>分布式(各方在本地训练)</td>
+<td>集中式(全在服务器端算)</td>
+<td>在查询/发布环节加噪</td>
+</tr>
+<tr class="even">
+<td><strong>成熟度</strong></td>
+<td>较为 production-ready</td>
+<td>仍偏研究阶段(较慢但进步快)</td>
+<td>较成熟,广泛使用</td>
+</tr>
+<tr class="odd">
+<td><strong>保护什么</strong></td>
+<td>训练时各方的私有输入</td>
+<td>输入<strong>和</strong>结果都保密</td>
+<td>发布结果中的个体隐私</td>
+</tr>
+</tbody>
+</table></div>
+<pre class="mermaid"><code>graph TD
+    Q{我的隐私需求是?} --&gt; A[多方联合训练&lt;br/&gt;数据不出本地]
+    Q --&gt; B[把计算外包给云&lt;br/&gt;连结果都要保密]
+    Q --&gt; C[要发布统计/报表&lt;br/&gt;但不能暴露个人]
+    A --&gt; FL[Federated Learning + MPC]
+    B --&gt; HE[Homomorphic Encryption]
+    C --&gt; DP[Differential Privacy]</code></pre>
+<blockquote>
+<p><strong>本节小结</strong> — MPC 让多方"算出答案却不交出输入";FL 把
+MPC 用在"联合训练模型"上;HE 让你"把计算外包却连结果都加密";DP
+让你"发布统计却藏住个体"。四者解决的是隐私的不同环节,常常<strong>组合使用</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="part-3--治理法规与伦理">Part 3 · 治理、法规与伦理</h2>
+<p>技术能保护数据,但讲师反复强调一句话(workshop
+里也单独考了):<strong>privacy is not only a technical
+issue</strong>。再强的
+MPC、DP,也回答不了"这个数据该不该收集""收来干什么""能存多久""谁负责"这些问题。这些必须靠<strong>法律、治理和伦理</strong>来约束。Part
+3 讲三套规则:欧盟的 <strong>GDPR</strong>、澳洲的 <strong>Privacy Act
+1988</strong>,以及 <strong>AI 伦理</strong>。</p>
+<h3 id="31-gdprgeneral-data-protection-regulation通用数据保护条例">3.1
+GDPR(General Data Protection Regulation,通用数据保护条例)</h3>
+<h4 id="基础事实">基础事实</h4>
+<blockquote>
+<p><strong>GDPR 基础(S32)</strong></p>
+<ul>
+<li><strong>生效日期</strong>:2018 年 5 月 25 日;</li>
+<li><strong>制定方</strong>:欧盟 (EU);</li>
+<li><strong>目的</strong>:在所有成员国之间<strong>统一
+(harmonise)</strong>
+数据隐私法律,改变企业/组织处理"与之交互者"信息的方式;</li>
+<li><strong>后果</strong>:违规可能面临<strong>巨额罚款</strong>和<strong>声誉损失</strong>;</li>
+<li><strong>地位</strong>:被视为对"个人数据应如何被处理"的一种<strong>进步
+(progressive)</strong> 的范式。</li>
+</ul>
+</blockquote>
+<h4 id="gdpr-管什么数据">GDPR 管什么数据</h4>
+<p>GDPR 区分两个层次的数据:</p>
+<ul>
+<li><strong>个人数据 (Personal data)</strong> ——
+<strong>任何能识别出一个人的数据</strong>:姓名、位置数据、在线用户名、IP
+地址、cookie 标识符,<strong>甚至假名化 (pseudonymised)
+的数据</strong>也算。</li>
+<li><strong>敏感个人数据 (Sensitive personal data)</strong> ——
+种族/民族出身、政治观点、宗教信仰、工会成员身份、基因和生物特征数据、健康信息,以及性生活或性取向相关的数据。这类受到<strong>更严格</strong>的保护。</li>
+</ul>
+<h4 id="两类角色controllers-vs-processors">两类角色:Controllers vs
+Processors</h4>
+<p>GDPR 把所有处理个人数据的主体分成两类,这是高频考点:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>角色</th>
+<th>定义</th>
+<th>关键</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Controller(控制者)</strong></td>
+<td><strong>主要决策者</strong>,决定处理个人数据的<strong>目的
+(purposes)</strong> 和<strong>方式 (means)</strong></td>
+<td>义务<strong>更严格</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Processor(处理者)</strong></td>
+<td>代表控制者、<strong>仅按控制者的指令</strong>行事</td>
+<td>义务相对较轻</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 例(讲师的 Spotify 例子)</strong> — Spotify
+收集用户的听歌历史,用 Google Cloud 来算推荐。这里 <strong>Spotify 是
+Controller</strong>(它决定"为什么收集、怎么用"),<strong>Google Cloud 是
+Processor</strong>(只按 Spotify 的指令处理数据)。</p>
+</blockquote>
+<p>完整的数据流涉及四类实体,记住这张图有助于理解 GDPR 的运作:</p>
+<pre class="mermaid"><code>graph LR
+    DS[Data Subject 数据主体&lt;br/&gt;即用户本人] --&gt;|个人数据| DC[Data Controller 控制者&lt;br/&gt;决定目的与方式]
+    DC --&gt;|按指令处理| DP[Data Processor 处理者]
+    DS -.-&gt;|投诉违规| SA[Supervisory Authority&lt;br/&gt;监管机构]
+    SA -.-&gt;|调查/处罚| DC</code></pre>
+<blockquote>
+<p><strong>🔑 QUIZ(S64)</strong> — <em>下列哪项最准确地描述 GDPR
+controller?</em> 答案
+<strong>C:决定处理个人数据的目的和方式的实体。</strong>(B"只按他方指令行事"描述的是
+processor。)</p>
+</blockquote>
+<h4 id="gdpr-的-7-大关键原则article-5">GDPR 的 7 大关键原则(Article
+5)</h4>
+<p>这是 GDPR 的核心,<strong>必考</strong>。讲师建议"理解而非死背"。</p>
+<pre class="mermaid"><code>mindmap
+  root((GDPR 7 原则&lt;br/&gt;Article 5))
+    1 Lawfulness,fairness &amp; transparency&lt;br/&gt;合法、公平、透明
+    2 Purpose limitation&lt;br/&gt;目的限制
+    3 Data minimisation&lt;br/&gt;数据最小化
+    4 Accuracy&lt;br/&gt;准确性
+    5 Storage limitation&lt;br/&gt;存储限制
+    6 Integrity &amp; confidentiality&lt;br/&gt;完整性与机密性(安全)
+    7 Accountability&lt;br/&gt;问责制</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>原则</th>
+<th>含义(一句话抓住)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><strong>Lawfulness, fairness &amp; transparency</strong></td>
+<td>处理必须<strong>合法</strong>(有明确的 lawful
+basis)、<strong>公平</strong>(符合人们合理预期、不带不正当负面影响)、<strong>透明</strong>(从一开始就清楚告知由谁、如何处理数据)</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><strong>Purpose limitation</strong>(目的限制)</td>
+<td>必须<strong>事先明确</strong>收集数据的目的;不能拿去做与原目的<strong>不相容的新用途</strong>(除非另有合法、公平、透明的依据)</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><strong>Data minimisation</strong>(数据最小化)</td>
+<td>只收集<strong>完成目的所必需的最少数据</strong>,不能"以防万一"多收。例:网店让你订阅邮件,<strong>不该</strong>问你的政治观点</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><strong>Accuracy</strong>(准确性)</td>
+<td>数据必须<strong>准确、及时更新</strong>,不准确时要<strong>擦除或更正</strong>;要采取合理步骤保证准确、来源清晰</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td><strong>Storage limitation</strong>(存储限制)</td>
+<td>能识别个体的数据,<strong>保存时间不得超过目的所需</strong>(科研/统计/公共利益等可适当延长,但仍须保护权利)</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td><strong>Integrity &amp; confidentiality</strong>(完整性与机密性 /
+安全)</td>
+<td>防止未授权/非法处理、意外丢失或损毁;需有适当的安全措施(如<strong>加密</strong>、推荐<strong>假名化</strong>)。GDPR
+不规定具体怎么做,但要求合理的访问控制</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td><strong>Accountability</strong>(问责制)</td>
+<td>要<strong>记录</strong>数据如何被处理、采取了哪些措施;包括<strong>培训员工</strong>、定期评估流程</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 关于 Accountability 的细节(S43–S44)</strong> — 超过
+<strong>250
+名员工</strong>的公司,需要书面记录"为什么收集、收集了什么、保存多久、有哪些技术安全措施"。此外,<strong>大规模、系统性地监控个人</strong>或处理大量敏感数据的组织,必须任命一名
+<strong>DPO(Data Protection
+Officer,数据保护官)</strong>——他要向高管汇报、监督合规、并作为员工和客户的联系人。讲师举例:大学需要
+DPO,但一家外卖小店不需要。</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 QUIZ 串讲(S65–S67)</strong> —</p>
+<ul>
+<li>收集邮箱本是为了发<strong>订单确认</strong>,后来想拿去做<strong>无关的政治广告</strong>
+→ 违反 <strong>Purpose limitation</strong>(目的限制)。</li>
+<li>"只收集当前服务所需的个人数据" → 最能体现 <strong>Data
+minimisation</strong>。</li>
+<li>"加密敏感数据 + 适当的访问控制" → 最符合 <strong>Integrity and
+confidentiality</strong>(关键词:confidentiality ↔︎ encryption)。</li>
+</ul>
+</blockquote>
+<h4 id="个人的-8-项权利">个人的 8 项权利</h4>
+<blockquote>
+<p><strong>GDPR 赋予个人的 8 项权利(S45)</strong></p>
+<ol type="1">
+<li>被告知权 (right to be informed)</li>
+<li>访问权 (right of access)</li>
+<li>更正权 (right to rectification)</li>
+<li>擦除权 (right to erasure,"被遗忘权")</li>
+<li>限制处理权 (right to restrict processing)</li>
+<li>数据可携权 (right to data portability)</li>
+<li>反对权 (right to object)</li>
+<li>关于自动化决策与画像的权利 (rights around automated decision making
+and profiling)</li>
+</ol>
+</blockquote>
+<p>其中两项讲师重点讲了:</p>
+<ul>
+<li><strong>访问权(Right of access)</strong> —— 个人可以发起
+<strong>Subject Access Request
+(SAR)</strong>,要求得知某公司/组织掌握了关于自己的什么信息。回复 SAR
+须包含:① 确认正在处理其个人数据;② 一份该个人数据的副本(除非有豁免);③
+相关补充信息(为何处理、如何使用、保存多久)。<strong>时限:必须在一个月内回复。</strong>
+很多大科技公司都建了数据门户供用户下载自己的信息。</li>
+<li><strong>自动化处理 / 擦除 / 可携权</strong> ——
+个人<strong>有权不被纯自动、且对其产生重大影响的决策所左右</strong>,并有权获得对该决策的解释;在某些情况下有权要求<strong>擦除</strong>自己的数据;<strong>可携权
+(data portability)</strong>
+指数据应能从一个服务转移到另一个服务。讲师举的例子:Facebook
+能把你的照片自动转到 Google Photos——这来自 <strong>Data Transfer
+Project</strong>(Apple、Google、Facebook、Twitter、Microsoft
+共建)。</li>
+</ul>
+<h4 id="违规与罚款">违规与罚款</h4>
+<blockquote>
+<p><strong>GDPR 罚款规则(S48)</strong> —
+监管者可对不合规企业处以重罚。会被罚的情形包括:①
+未以正确方式处理个人数据;② 应设 DPO 却没有;③ 发生安全泄露。</p>
+<ul>
+<li><strong>较轻违规</strong>:最高 <strong>€10 million 或全球营业额的
+2%</strong>(取<strong>较高</strong>者);</li>
+<li><strong>最严重违规</strong>:最高 <strong>€20 million 或全球营业额的
+4%</strong>(取<strong>较高</strong>者)。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p><strong>🔑 例:Google 被罚 €50M(S49)</strong> — GDPR
+之前,监管者很难开出巨额罚单(调查冗长复杂,出错还会被告上法庭)。GDPR
+之后,迄今最大罚单之一是<strong>法国数据保护监管机构 CNIL</strong> 对
+<strong>Google 罚款 €50 million(约 A$75m)</strong>。两个原因:① Google
+没有充分告知用户,它如何使用从 <strong>20 个不同服务</strong>获取的数据;②
+未就处理用户数据获得<strong>适当的同意 (consent)</strong>。</p>
+</blockquote>
+<h3 id="32-australian-privacy-act-1988澳洲隐私法">3.2 Australian Privacy
+Act 1988(澳洲隐私法)</h3>
+<p>欧洲有 GDPR,<strong>澳洲对应的是 Privacy Act
+1988</strong>——这对你(在澳洲读书)更切身。</p>
+<blockquote>
+<p><strong>Privacy Act 1988(S51)</strong> —
+澳洲保护个人信息处理的<strong>主要立法</strong>,涵盖<strong>联邦公共部门和私营部门</strong>对个人信息的<strong>收集、使用、存储和披露</strong>。曾在
+<strong>2014 和 2017 年</strong>重大修订以加强隐私保护。</p>
+</blockquote>
+<p>它的基石是 <strong>13 条 Australian Privacy Principles
+(APPs,澳洲隐私原则)</strong>。讲师强调两个特点:<strong>principle-based(基于原则的)</strong>——给组织灵活性,可按自身业务模式裁剪;<strong>technology
+neutral(技术中立)</strong>——能适应技术变化。违反任一 APP
+即构成对个人隐私的侵犯,可招致监管处罚。</p>
+<blockquote>
+<p><strong>13 条 APPs(S54–S57,记住分组比死背更有效)</strong></p>
+<p><strong>A. 治理与透明(APP 1–2)</strong></p>
+<ol type="1">
+<li><strong>Open and transparent
+management</strong>——以公开透明方式管理个人信息(须有清晰、最新的隐私政策)</li>
+<li><strong>Anonymity and
+pseudonymity</strong>——须给个人"不表明身份"或"用化名"的选项(有限例外)</li>
+</ol>
+<p><strong>B. 收集(APP 3–5)</strong> 3. <strong>Collection of solicited
+personal
+information</strong>——何时可收集主动征集的个人信息(对"敏感"信息标准更高)
+4. <strong>Dealing with unsolicited personal
+information</strong>——如何处理<strong>非主动征集</strong>得到的个人信息
+5. <strong>Notification of
+collection</strong>——收集时须在何种情形下告知个人哪些事项</p>
+<p><strong>C. 使用与披露(APP 6–9)</strong> 6. <strong>Use or
+disclosure</strong>——在何种情形下可使用或披露所持有的个人信息 7.
+<strong>Direct
+marketing</strong>——只有满足特定条件,才能将个人信息用于直销 8.
+<strong>Cross-border
+disclosure</strong>——向境外披露个人信息前必须采取的保护步骤 9.
+<strong>Government related
+identifiers</strong>——仅在有限情形下可采用/使用/披露政府相关标识符</p>
+<p><strong>D. 完整性与访问(APP 10–13)</strong> 10. <strong>Quality of
+personal information</strong>——须采取合理步骤保证信息准确、最新、完整
+11. <strong>Security of personal
+information</strong>——保护信息免遭滥用、干扰、丢失及未授权访问;某些情形须销毁或去标识化
+12. <strong>Access to personal
+information</strong>——个人请求访问其信息时实体的义务(除特定例外须提供)
+13. <strong>Correction of personal
+information</strong>——更正所持个人信息的义务</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展 — GDPR vs Privacy Act 速记</strong> —
+两者都管"个人信息的收集、使用、存储、披露",但 GDPR 用 <strong>7 原则 + 8
+权利</strong>框架、罚款以"营业额百分比"计;澳洲用 <strong>13 条
+APPs</strong> 框架,基于原则、技术中立。考试若问"澳洲的隐私法",答
+<strong>Privacy Act 1988 + 13 APPs</strong>。</p>
+</blockquote>
+<h3 id="33-ethical-aiai-伦理">3.3 Ethical AI(AI 伦理)</h3>
+<p>法规之外,还有伦理。随着 AI 渗透进影响隐私的应用(如人脸识别),"AI
+伦理"的讨论越来越多。</p>
+<h4 id="核心问题不透明--偏见">核心问题:不透明 + 偏见</h4>
+<p>讲师点出 AI 伦理里一个最知名的问题:<strong>AI 算法如何做出推断
+(deductions)
+往往不透明</strong>。算法是个黑盒,你很难知道它的训练数据里<strong>是否含有偏见
+(bias)</strong>,以及这种偏见在得出结论时起了什么作用。</p>
+<blockquote>
+<p><strong>🔑 例:用面部判断"快乐程度"(S60)</strong> —
+假设要设计一个系统,根据面部特征判断一个人有多快乐。它需要在涵盖各种<strong>种族、年龄、性别</strong>组合的数据上训练。但即便能覆盖所有人群,<strong>我们又凭什么毫无疑问地定义"快乐长什么样"?</strong>
+讲师的结论:<strong>bias 是 AI 的主要问题之一</strong>,因为 AI
+的开发总是基于研究者的<strong>主观选择</strong>,这使得"造出一个完全中立的系统"几乎不可能。AI
+伦理就是要正视这个问题。</p>
+</blockquote>
+<p>而且 AI 伦理"不仅关乎技术的<strong>应用</strong>,也关乎 AI
+的<strong>结果和预测</strong>"——一个会影响人的决策(如医疗诊断),它是否考虑了人类会考虑的伦理因素,常常并不清楚。</p>
+<h4 id="australia-的-8-条-ai-ethics-principles">Australia 的 8 条 AI
+Ethics Principles</h4>
+<blockquote>
+<p><strong>目的与收益(S61)</strong> — 澳洲的 8 条 AI 伦理原则,旨在确保
+AI
+<strong>安全、可靠、可信</strong>,为所有澳洲人带来更安全、更公平的结果,降低
+AI 的负面风险。收益包括:建立公众信任、增强消费者忠诚、对 AI
+结果产生正面影响。</p>
+</blockquote>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>原则</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><strong>Human, societal &amp; environmental wellbeing</strong></td>
+<td>AI 应造福个人、社会与环境</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><strong>Human-centred values</strong></td>
+<td>AI 应尊重人权、多样性、个人自主</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><strong>Fairness</strong></td>
+<td>AI 应包容、可及,不得造成不公平歧视</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><strong>Privacy protection &amp; security</strong></td>
+<td>AI 应尊重并维护隐私权与数据保护,确保数据安全</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td><strong>Reliability &amp; safety</strong></td>
+<td>AI 应可靠地按其预期目的运行</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td><strong>Transparency &amp; explainability</strong></td>
+<td>应有透明与负责任的披露,让人知道自己何时被 AI 显著影响、何时在与 AI
+交互</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td><strong>Contestability</strong></td>
+<td>当 AI
+显著影响某人时,应有及时的流程让人<strong>质疑</strong>其使用或结果</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td><strong>Accountability</strong></td>
+<td>AI 生命周期各阶段的责任人应可识别、可问责,并保证人类监督</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 QUIZ(S68)</strong> — <em>哪条澳洲 AI 伦理原则最直接关乎"当
+AI 显著影响人时让系统可被理解"?</em> 答案 <strong>B:Transparency and
+explainability(透明与可解释性)。</strong></p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 QUIZ(Workshop Part C)</strong> — <em>与隐私保护 AI
+最相关的澳洲 AI 伦理原则是哪条?</em> —— <strong>Privacy protection and
+security</strong>,因为 AI
+系统应尊重隐私权、保护数据、使用适当的安全保障。</p>
+</blockquote>
+<hr />
+<h2 id="part-4--workshop-实践w9-lab把概念变成代码">Part 4 · Workshop
+实践(W9 Lab)——把概念变成代码</h2>
+<p>讲师说本周 workshop "very important",因为它把 Part 2
+的两个核心技术(MPC 和 DP)落到了 Python 代码上,并直接服务于
+assignment。下面是 W9-Solutions 的要点。</p>
+<h3 id="41-part-a--三种技术的目标--医院场景">4.1 Part A · 三种技术的目标
++ 医院场景</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>技术</th>
+<th>主要目标</th>
+<th>在"多家医院"场景中的用法</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>MPC</strong></td>
+<td>多方共同计算一个函数;各方输入保密;只学到最终输出</td>
+<td>多家医院<strong>联合计算一个统计量</strong>(如病例总数/平均),无需互相暴露原始病历</td>
+</tr>
+<tr class="even">
+<td><strong>HE/FHE</strong></td>
+<td>在加密数据上计算;计算中数据保持加密;解密后结果与明文计算一致</td>
+<td>医院把数据<strong>加密后发给外部服务器</strong>,服务器在密文上计算,看不到原始病历(适合<strong>外包计算</strong>)</td>
+</tr>
+<tr class="odd">
+<td><strong>DP</strong></td>
+<td>保护发布结果中的个体隐私;返回带噪声的答案;让人难判断某人是否在数据集中</td>
+<td>发布<strong>计数/平均/趋势</strong>等结果时加噪,使输出不暴露单个病人(适合<strong>报表/仪表盘/公开统计</strong>)</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 关键判断题(Q7)</strong> —
+<em>哪种技术最直接关乎"保护已发布的答案"?</em> ——
+<strong>DP</strong>,因为它聚焦于<strong>释放出去的输出</strong>的隐私,目标是隐藏单条记录对最终答案的影响。</p>
+</blockquote>
+<h3 id="42-part-b1--mpc-秘密分享代码对应-22-工资例子">4.2 Part B1 · MPC
+秘密分享代码(对应 2.2 工资例子)</h3>
+<p>代码逻辑(<code>share_secret(s)</code> 把秘密拆成三份加性份额):</p>
+<ul>
+<li>每个人的工资被<strong>单独</strong>拆成三份;</li>
+<li>每个人从每个人那里<strong>各持有一份</strong>;</li>
+<li>每个人<strong>公开自己手里份额的和</strong>;</li>
+<li>三个公开和相加 = 工资总和;除以 3 = 平均工资。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 Reflection 答案</strong></p>
+<ul>
+<li><strong>Q1 为什么单独一份份额泄露不了完整工资?</strong>
+因为一份只是"和"的一部分,缺了其它份额;单份<strong>确定不了</strong>原始秘密。</li>
+<li><strong>Q2 为什么公开和又能还原平均?</strong>
+因为三个公开和<strong>合起来包含了所有人的所有份额</strong>,相加即重建总和,除以
+3 得平均。</li>
+<li><strong>Q3 相比直接共享工资的隐私好处?</strong>
+各方不暴露原始工资,只交换份额,<strong>减少了私有数据的直接暴露</strong>。</li>
+<li><strong>Q4 这个玩具模拟相比真实 MPC 的局限?</strong> 它只是 toy
+example,<strong>没有建模恶意方、协议失败或更强的安全保证</strong>;真实
+MPC 协议复杂得多,需要更严谨的安全设计。</li>
+</ul>
+</blockquote>
+<h3 id="43-part-b2--dp-噪声代码对应-25-的-varepsilon">4.3 Part B2 · DP
+噪声代码(对应 2.5 的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>)</h3>
+<p>代码逻辑:</p>
+<ul>
+<li>数据集是一堆 Yes/No 回答;<code>true_count</code> 是真实的 Yes
+数(本例 <strong>= 6</strong>);</li>
+<li><code>laplace_noise(scale)</code> 生成随机噪声,<strong>噪声 scale
+设为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>ε</mi></mrow><annotation encoding="application/x-tex">1/\varepsilon</annotation></semantics></math></strong>;</li>
+<li>程序尝试多个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+值;</li>
+<li><strong>关键点:系统不发布精确答案,而是发布加噪后的版本。</strong></li>
+</ul>
+<blockquote>
+<p><strong>🔑 预期观察 &amp; Reflection</strong></p>
+<ul>
+<li>真实计数每次运行<strong>不变</strong>;加噪后的计数<strong>每次都不同</strong>(机制是随机化的)。</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+<strong>大</strong> → 噪声小 →
+加噪答案通常<strong>更接近</strong>真值;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+<strong>小</strong> → 噪声大(scale
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mn>1</mn><mi>/</mi><mi>ε</mi></mrow><annotation encoding="application/x-tex">=1/\varepsilon</annotation></semantics></math>
+变大)→ 答案<strong>波动更大</strong>。</li>
+<li><strong>更小的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+的代价:隐私更强,但准确度更低</strong>——这就是 DP 的 privacy–accuracy
+trade-off。</li>
+<li><strong>为什么宁可返回带噪答案?</strong>
+为降低暴露某个体的风险、让人更难推断"某人是否在数据集里",同时仍提供有用的答案。</li>
+</ul>
+</blockquote>
+<h3 id="44-part-c--治理反思为什么技术还不够">4.4 Part C ·
+治理反思(为什么技术还不够)</h3>
+<blockquote>
+<p><strong>🔑 核心论点(Workshop 总结)</strong> —
+<strong>隐私既需要技术工具,也需要治理原则。</strong>
+因为隐私不只是技术问题:组织仍需规则来决定<strong>能收集什么、为什么收集、保存多久、谁负责</strong>。</p>
+<ul>
+<li><strong>Purpose limitation
+的例子</strong>:即使用了强隐私技术,公司仍可能把数据<strong>挪作无关新用途</strong>——为医疗分析收集的数据,不应在没有适当依据时被重用于<strong>定向广告</strong>。</li>
+<li><strong>Data minimisation 的例子</strong>:即便系统用了 MPC 或
+DP,也应<strong>只收集必需数据</strong>——健身 App
+若只需步数,就不该收集精确位置历史。</li>
+<li><strong>Accountability</strong>:隐私技术<strong>不能替代</strong>文档、监督和治理——总得有人对数据的收集、处理、保护、共享负责。</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="part-5--考试相关">Part 5 · 考试相关</h2>
+<h3 id="讲师给的-5-道练习题s69及作答要点">讲师给的 5
+道练习题(S69)及作答要点</h3>
+<p>讲师强调"理解即可,不要求逐字背诵定义":</p>
+<ol type="1">
+<li><strong>解释 GDPR 的 "accountability" 原则</strong> →
+记录个人数据如何被处理、采取了哪些措施;含员工培训、定期评估;大公司须有文档、可能须设
+DPO。</li>
+<li><strong>解释 GDPR 的 "data minimisation" 原则</strong> →
+只收集完成目的所必需的最少个人数据,不能多收。</li>
+<li><strong>GDPR
+下,个人要查询某组织掌握自己什么信息,需要发起什么?</strong> →
+<strong>Subject Access Request (SAR)</strong>,须一个月内回复。</li>
+<li><strong>什么是 Privacy Act 1988?有多少条 APPs?列举 3
+条并简述。</strong> → 澳洲保护个人信息处理的主要立法;<strong>13 条
+APPs</strong>;例如 APP 1(公开透明管理)、APP 11(信息安全)、APP
+12(访问权)。</li>
+<li><strong>澳洲有几条 AI 伦理原则?列举 2 条并简述。</strong> →
+<strong>8 条</strong>;例如 "Fairness"(不得不公平歧视)、"Transparency and
+explainability"(可解释)。</li>
+</ol>
+<h3 id="重要通知s70--录音">重要通知(S70 / 录音)</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>事项</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Quiz 3</strong></td>
+<td>在 <strong>Week 11</strong> 的 lab 进行;范围 = <strong>Week 7–10 的
+lectures 和 workshops</strong>(把这几周的讲义和 workshop 都过一遍)</td>
+</tr>
+<tr class="even">
+<td><strong>Assignment</strong></td>
+<td><strong>截止 5 月 29
+日(周五)23:30</strong>;本周内容对作业很有帮助,问题 1 中有 4
+个小题可由本周 lecture + lab 作答;可用 ChatGPT
+<strong>但必须声明</strong>,且须自己写解答</td>
+</tr>
+<tr class="odd">
+<td><strong>AC(Academic Consideration)</strong></td>
+<td>如不能按时交或参加 quiz,<strong>务必提前</strong>正式申请
+AC(workshop 开始前申请才有效),并附合理理由;紧急情况可邮件联系讲师</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>隐私 =
+对"披露什么/给谁/在什么条件下"的控制权</strong>,而非"藏起一切";其三要素是
+<strong>When(时间)、How(方式)、Extent(精确度)</strong>。</li>
+<li>在线隐私的三大威胁是 <strong>Hacking(入侵窃取)、Tracking(行为追踪 →
+画像)、Trading(数据交易)</strong>;后两者常是"自愿提供、后续被滥用",所以需要法规约束。</li>
+<li><strong>MPC</strong> 让多方算出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>x</mi><mi>n</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z=f(x_1,\dots,x_n)</annotation></semantics></math>
+却互不暴露输入;<strong>有可信第三方时很容易,没有时才困难</strong>;加性
+<strong>secret sharing</strong> 是经典实现(平均工资例子:拆份额 →
+各持一份 → 公开和 → 求平均)。</li>
+<li>MPC
+<strong>不是零泄露</strong>:聚合结果本身可能透露少量信息(谁高谁低),但藏住具体个体值——这呼应"隐私是控制的程度"。</li>
+<li><strong>四种技术分工</strong>:<strong>Federated
+Learning</strong>(数据留本地、只传模型更新)、<strong>Homomorphic
+Encryption</strong>(密文上计算、输入与结果都加密,但慢)、<strong>Differential
+Privacy</strong>(给发布结果加噪声、由
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+量化)。</li>
+<li><strong>DP 核心不等式</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>≤</mo><msup><mi>e</mi><mi>ε</mi></msup><mo>Pr</mo><mrow><mo stretchy="true" form="prefix">[</mo><mi>M</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>′</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>∈</mo><mi>S</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\Pr[M(D)\in S]\le e^{\varepsilon}\Pr[M(D&#39;)\in S]</annotation></semantics></math>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">D&#39;</annotation></semantics></math>
+只差一条记录;<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+越小,两分布越难区分,隐私越强但精度越低</strong>(workshop 里 noise scale
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mn>1</mn><mi>/</mi><mi>ε</mi></mrow><annotation encoding="application/x-tex">=1/\varepsilon</annotation></semantics></math>)。</li>
+<li><strong>GDPR</strong>(EU,2018-05-25):区分 <strong>Controller /
+Processor</strong>;<strong>7
+大原则</strong>(合法公平透明、目的限制、数据最小化、准确、存储限制、完整与机密、问责)+
+<strong>8 项权利</strong>(含 SAR,一个月内回复);罚款
+<strong>€10M/2%</strong> 或 <strong>€20M/4%</strong>;Google 曾被 CNIL 罚
+<strong>€50M</strong>。</li>
+<li><strong>澳洲 Privacy Act 1988</strong> 以 <strong>13 条
+APPs</strong>
+为基石,<strong>基于原则、技术中立</strong>,覆盖个人信息的收集/使用/存储/披露。</li>
+<li><strong>AI 伦理</strong>的核心难题是<strong>不透明 +
+偏见</strong>(完全中立的系统几乎不可能);<strong>澳洲 8 条 AI Ethics
+Principles</strong> 中,"Transparency and explainability"
+关乎可理解性,"Privacy protection and security" 关乎隐私保护。</li>
+<li><strong>一句话贯穿全章</strong>:隐私<strong>既需要技术工具(MPC/HE/DP),也需要治理与伦理(GDPR/APP/AI
+ethics)</strong>——两者缺一不可。</li>
+</ul>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 7 · 网络安全标准与框架 (Cybersecurity Standards & Frameworks)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-7--网络安全标准与框架-cybersecurity-standards--frameworks">Week
+7 · 网络安全标准与框架 (Cybersecurity Standards &amp; Frameworks)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>用一句话各自定义并<strong>清晰区分</strong>
+<strong>policy</strong>(政策)、<strong>control</strong>(控制/安全措施)、<strong>standard</strong>(标准)、<strong>framework</strong>(框架),并说明四者在实践中如何协同;</li>
+<li>解释一份好的 <strong>information security
+policy</strong>(信息安全政策)应具备哪些特征,并能举出 access
+control、need-to-know、authentication、data classification、acceptable
+use/BYOD 等具体政策内容;</li>
+<li>说清 <strong>Essential Eight</strong>(澳大利亚 ASD
+的八大缓解策略)的目的、适用范围与<strong>局限</strong>,逐条解释这 8
+个策略各自防什么、怎么做,并理解 <strong>maturity
+level</strong>(成熟度等级 0–3)的含义;</li>
+<li>区分 <strong>enterprise mobility</strong>(企业移动办公)与
+<strong>operational technology /
+OT</strong>(运营技术)两种环境,以及它们为什么需要"额外"的安全策略;</li>
+<li>复述 <strong>risk
+management</strong>(风险管理)的五个步骤,并理解它为什么是一个<strong>循环</strong>而非一次性任务;</li>
+<li>解释 <strong>ISO/IEC 27001</strong> 作为
+<strong>ISMS</strong>(信息安全管理体系)标准的核心逻辑——以<strong>风险</strong>为中心、用
+<strong>CIA</strong> 三性为目标、靠 <strong>continuous
+improvement</strong>(持续改进)演进——并说明组织为什么要采用它;</li>
+<li>复述 <strong>NIST CSF</strong> 的五大核心功能 (Identify / Protect /
+Detect / Respond / Recover),并理解它和 ISO 27001 的定位差异;</li>
+<li>(Workshop
+补充)解释为什么"安全地存储密码"还不足以保护账户,<strong>login control /
+lockout</strong>(登录控制/锁定)能挡住哪类攻击、挡不住哪类攻击,以及
+<strong>password recovery</strong> 为何常是认证体系最薄弱的环节。</li>
+</ul>
+</blockquote>
+<p>到第 7
+周为止,这门课的前几周几乎全在讲<strong>技术</strong>:加密、数字签名、防火墙、网络攻防,以及第
+5
+周的人因与社会工程。这一周的视角突然<strong>拉远</strong>——我们不再盯着某一项技术,而是问一个组织层面的问题:<em>一家公司到底该如何系统性地组织它的全部安全工作?</em>
+正如讲师开场所说,真实组织"不只是依赖防火墙、密码规则这些技术工具,它还需要
+policy、control、framework、standard,而且这些东西必须协同运作"。本章就是要把这套<strong>治理
+(governance)
+语言</strong>讲清楚:先弄懂组织内部的"规矩"(政策与控制)长什么样,再认识三套业界公认的"参考答案"(Essential
+Eight、ISO 27001、NIST
+CSF),最后理解贯穿其中的主线——<strong>风险管理</strong>。</p>
+<p>本章的脉络是:<strong>①</strong>
+从一份信息安全政策出发,看组织内部都需要哪些"规矩"(§1–§5);<strong>②</strong>
+把容易混淆的四个词 policy / control / standard / framework
+一次性辨清(§6,这是全章的概念枢纽);<strong>③</strong>
+逐一拆解三大外部参考——先是最"接地气"的 Essential
+Eight(§7),再用风险管理(§8)作桥,过渡到体系化的 ISO 27001(§9)和组织化的
+NIST CSF(§10);<strong>④</strong>
+把它们摆在一起对比,看清各自的定位(§11);<strong>⑤</strong> 最后补上本周
+workshop 的认证实战(§12)。</p>
+<blockquote>
+<p>📎 <strong>本章资料来源说明</strong> — 正文主体来自 Week 7
+讲义(标注为
+<code>[S+页码]</code>)与课堂录音(讲师的解释、例子与强调)。凡讲义没有、而来自
+<strong>Week 7 workshop</strong>(其内容延续前几周的密码/认证
+lab)或属于背景补充的知识点,都用 <code>📎 拓展</code>
+明确标出,方便你区分"考点(在 slides/workshop 上)"与"加深理解(超出
+slides)"。讲师明确说过:<strong>本次 Quiz 2 闭卷、45 分钟、20 题,题目基于
+lecture slides 和 workshop materials</strong>——所以 §12 的 workshop
+内容同样是考点。</p>
+</blockquote>
+<hr />
+<h2 id="1-一切的起点信息安全政策-information-security-policy-s3-s4">1.
+一切的起点:信息安全政策 (Information Security Policy)
+<code>[S3-S4]</code></h2>
+<p>我们先从组织安全这座大厦的<strong>地基</strong>讲起。一个组织要保护自己的信息,第一步不是去买防火墙,而是先<strong>写下规矩</strong>:什么要保护、谁能用、用的人该怎么行事。这套写下来的规矩,就是
+<strong>information security
+policy</strong>(信息安全政策)——讲师称它为"组织最基础的安全文档之一"。</p>
+<p>具体地说,一份信息安全政策回答三个问题 <code>[S3]</code>:</p>
+<ul>
+<li><strong>什么信息是敏感的、需要保护的</strong>(what should be
+protected);</li>
+<li><strong>谁可以访问或使用它</strong>(who may access or use it);</li>
+<li><strong>对用户的行为有什么期望</strong>(what behavior is expected
+from users)。</li>
+</ul>
+<p>这里有一个<strong>关键的认知</strong>,很多人会搞错:<strong>政策本身并不直接"执行"安全,它只提供方向
+(direction)。</strong>
+讲师反复强调这一点。政策说"学生成绩只能由授权员工访问"——但真正把这条规矩<strong>落地</strong>的,是后面的<strong>技术控制</strong>和<strong>管理控制</strong>(下一节会讲
+control
+这个词)。打个比方:政策像公司的"宪法",写明价值取向和底线;控制才是把宪法变成现实的"执法机构"。</p>
+<blockquote>
+<p><strong>🔑 例(讲师的例子)</strong> <code>[S3]</code> —
+政策可能规定:"学生报告 (student reports) 只能由授权员工访问。"
+这只是一句<strong>声明</strong>。要让它生效,得靠访问控制系统(一种
+control)去<strong>强制</strong>:登录、校验身份、检查权限、放行或拒绝。政策定方向,控制来兑现。</p>
+</blockquote>
+<p>那么什么样的政策才算<strong>好政策</strong>?讲义给了四条标准
+<code>[S4]</code>,讲师还补充了"为什么":</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>好政策的特征 <code>[S4]</code></th>
+<th>为什么重要(讲师解释)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>清晰、易懂</strong> (clear and easy to understand)</td>
+<td>如果政策含糊,不同人会有<strong>不同解读</strong>,政策就失去了约束力,变得没用。</td>
+</tr>
+<tr class="even">
+<td><strong>反映威胁和业务需求</strong> (reflect threats and business
+needs)</td>
+<td>医院、银行、大学面对的威胁和数据都不同,<strong>需要不同的规则</strong>——没有放之四海皆准的政策。</td>
+</tr>
+<tr class="odd">
+<td><strong>指导安全控制的设计</strong> (guide the design of security
+controls)</td>
+<td>政策要能告诉工程师"该上什么控制",否则就只是一纸空文。</td>
+</tr>
+<tr class="even">
+<td><strong>帮助沟通安全期望</strong> (communicate security
+expectations)</td>
+<td>让每个员工都知道"组织希望我怎么做",安全才能真正落到人头上。</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>本节要点</strong>:信息安全政策是组织安全的<strong>方向盘</strong>——它声明"保护什么、谁能访问、怎么行事",但不亲自执行;一份好政策必须清晰、贴合本组织的威胁与业务,并能指导后续控制的设计。</p>
+<hr />
+<h2 id="2-谁能访问什么访问控制与最小必需原则-s5-s6">2.
+谁能访问什么:访问控制与最小必需原则 <code>[S5-S6]</code></h2>
+<p>政策里最核心的一块,是回答"<strong>谁能访问什么 (who can access
+what)</strong>"。这就是 <strong>access control
+policy</strong>(访问控制政策)<code>[S5]</code>。</p>
+<p>它的基本逻辑是:<strong>权限 (permission) 跟着角色 (role) 和职责
+(responsibility)
+走</strong>,而不是人人平等。讲师用了一连串贴近你日常的例子来说明:</p>
+<ul>
+<li>你作为 UOW 学生,能访问<strong>你选修的</strong>课程的 Moodle
+站点,但不能访问<strong>没选</strong>的课程站点;</li>
+<li>讲师作为课程<strong>协调人
+(coordinator)</strong>,能看到本课程所有学生的姓名、邮箱、成绩——因为他<strong>需要</strong>这些信息来联系学生、登记分数;但他<strong>看不到</strong>全校其他学生的记录;</li>
+<li>会计部门的人只能访问与本部门相关的文档;</li>
+<li>一名护士可以照护病人,却<strong>看不到只允许医生访问的病历</strong>。</li>
+</ul>
+<p>注意一个微妙之处
+<code>[S5]</code>:<strong>junior(初级)员工通常权限更受限,manager(管理者)权限更广——但"更广"不等于"无限"</strong>。讲师特别点明:即便是经理,也仍然受政策约束,不能想看什么就看什么。<strong>核心原则是:访问权应当与你的工作所需相匹配
+(access should match the job you need)。</strong></p>
+<p>这条逻辑推到极致,就是本节真正的主角——<strong>need-to-know
+principle</strong>(最小必需/按需知密原则)<code>[S6]</code>:</p>
+<blockquote>
+<p><strong>need-to-know principle</strong> =
+一个用户<strong>只应</strong>访问完成其工作<strong>所必需</strong>的信息,多一点都不行。</p>
+</blockquote>
+<p>这是一个"简单但极其有力"(讲师原话)的安全思想。它的价值在于三重防护
+<code>[S6]</code>:</p>
+<pre class="mermaid"><code>graph LR
+  NTK[&quot;Need-to-know&lt;br/&gt;只给必需的访问权&quot;] --&gt; R1[&quot;↓ 减少意外泄露&lt;br/&gt;accidental disclosure&quot;]
+  NTK --&gt; R2[&quot;↓ 减少数据滥用&lt;br/&gt;misuse&quot;]
+  NTK --&gt; R3[&quot;↓ 限制账户被攻破后的影响&lt;br/&gt;limit impact if account compromised&quot;]</code></pre>
+<p>第三条尤其重要,把它和前几周的攻击知识连起来想:<strong>即使攻击者攻破了某个账户,这个账户能碰到的数据也被
+need-to-know
+死死圈住了</strong>,损失因此被限制在一个小范围内。这就是为什么
+need-to-know 不只是"管理规矩",更是一道<strong>纵深防御 (defense in
+depth)</strong> 的技术性防线。</p>
+<blockquote>
+<p><strong>🔑 例(讲师的 COVID 例子)</strong> <code>[S6]</code> —
+假设你要训练一个模型,根据症状预测病人是否得了 COVID。按
+need-to-know,你应当<strong>只能访问</strong>"症状 →
+是否阳性"这类建模真正需要的数据;而病人的<strong>姓名、个人身份信息</strong>与建模无关,你就<strong>不应</strong>有权访问。哪怕你是被信任的研究者,"被信任"也不等于"能看一切"。</p>
+</blockquote>
+<p><strong>本节要点</strong>:访问控制让权限随角色与职责分配,经理权限更广但仍受政策约束;而
+need-to-know
+把这一思想推到极致——<strong>只给完成工作所必需的最小访问权</strong>,从而同时减少泄露、滥用,并在账户被攻破时把损失关进一个小笼子里。</p>
+<hr />
+<h2 id="3-先证明你是谁认证要求-authentication-requirements-s7">3.
+先证明你是谁:认证要求 (Authentication Requirements)
+<code>[S7]</code></h2>
+<p>access control
+要决定"给不给你访问权",前提是<strong>先得知道你是谁</strong>。这就引出了
+<strong>authentication</strong>(认证)——在授予访问之前<strong>核验用户身份</strong>的过程
+<code>[S7]</code>。讲师把它拆成两步:先 authentication(你输入用户名 +
+密码 / token / 智能卡 /
+生物特征,证明你是你),通过之后系统才进入"该不该给你权限"的判断。</p>
+<p>讲义对认证给出了三条具体要求
+<code>[S7]</code>,每条背后都有清晰的安全动机:</p>
+<ol type="1">
+<li><strong>使用唯一的用户账户</strong> (use unique user
+accounts)。为什么?因为唯一账户支撑
+<strong>accountability</strong>(可追责性)。讲师解释:当系统记录到某个危险行为时,凭唯一账户就能把行为<strong>直接追溯到具体的人</strong>;如果大家共用账户,就无从追责。</li>
+<li><strong>访问前必须认证</strong> (require authentication before
+access)。先证明身份,再谈权限——顺序不能反。</li>
+<li><strong>记录登录成功与失败</strong> (log successful and failed login
+attempts)。为什么连<strong>失败</strong>也要记?因为大量失败登录往往是<strong>暴力猜解或可疑活动</strong>的信号;而且日志能在事后<strong>调查事件
+(investigate incident)</strong> 时还原现场。</li>
+</ol>
+<blockquote>
+<p>📎 <strong>拓展(与 §12 workshop 的衔接)</strong> — "记录失败登录 +
+在可疑活动后告警"这条认证要求,正是本周 workshop Python
+实验要你动手实现的部分:连续失败 3 次后锁定账户、并向
+<code>security_log.txt</code> 追加一条告警。换句话说,§3 是理论,§12
+是它的代码落地。</p>
+</blockquote>
+<p><strong>本节要点</strong>:认证先于授权——系统必须先核验"你是谁",再决定"你能干什么";唯一账户保证可追责,记录成败登录则既能发现攻击信号、又能支撑事后取证。</p>
+<hr />
+<h2 id="4-不是所有数据都一样金贵数据分级-data-classification-s8">4.
+不是所有数据都一样金贵:数据分级 (Data Classification)
+<code>[S8]</code></h2>
+<p>到这里你可能会问:既然要保护信息,是不是所有信息都要用最高强度去保护?<strong>不是。</strong>
+讲师点明:<strong>并非所有信息都需要同等级别的保护</strong>,否则成本会高得离谱。解决办法是按<strong>敏感度
+(sensitivity)</strong> 给数据<strong>分级</strong>——这就是 <strong>data
+classification</strong>(数据分级)<code>[S8]</code>。</p>
+<p>讲义给出一个最基础的四级模型(从低到高):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>级别 <code>[S8]</code></th>
+<th>含义</th>
+<th>讲师举例 / 控制含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Public</strong>(公开)</td>
+<td>可以公开分享</td>
+<td>市场宣传资料——人人可见,<strong>不需要加密</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Internal</strong>(内部)</td>
+<td>仅供组织内部正常使用</td>
+<td>一般内部文档</td>
+</tr>
+<tr class="odd">
+<td><strong>Confidential</strong>(机密)</td>
+<td>敏感,仅限特定用户访问</td>
+<td>访问受限</td>
+</tr>
+<tr class="even">
+<td><strong>Restricted</strong>(受限/绝密)</td>
+<td>高度敏感,需最强保护</td>
+<td>病历、薪资数据——<strong>必须加密</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>分级的意义在于:<strong>分级决定了该上什么控制 (classification decides
+what control is
+needed)</strong>。这正好把本章和前几周的加密知识连了起来——公开的宣传册不需要加密(谁都能看,加密毫无意义),但病历和薪资必须加密。数据分级,本质上是把有限的安全资源<strong>精准投放</strong>到最该保护的数据上。</p>
+<p><strong>本节要点</strong>:数据按敏感度分为 Public / Internal /
+Confidential / Restricted
+四级;分级的目的不是贴标签,而是据此决定每类数据需要多强的控制——让加密等高成本手段用在刀刃上。</p>
+<hr />
+<h2 id="5-技术挡不住的那一环人行为与-byod-s9-s10">5.
+技术挡不住的那一环:人、行为与 BYOD <code>[S9-S10]</code></h2>
+<p>讲到这里,前几周(尤其第 5
+周)的主题又回来了:<strong>光有技术挡不住一切,很多安全事件恰恰源于人的行为或社会工程攻击</strong>。讲师再次强调这条主线。所以一份完整的安全政策,必须覆盖"人"这一面。</p>
+<p><strong>安全意识与行为 (Security Awareness and Behaviour)</strong>
+<code>[S9]</code>——组织应当:</p>
+<ul>
+<li>把安全政策<strong>告知</strong>全体员工(share security policies with
+staff);</li>
+<li>提供<strong>定期的意识培训</strong>(regular awareness
+training);</li>
+<li><strong>鼓励上报</strong>可疑活动(encourage reporting of suspicious
+activity);</li>
+<li>推广日常的安全好习惯(promote safe daily practices)。</li>
+</ul>
+<p>讲师举的日常例子很接地气:离开座位(比如去洗手间)要<strong>锁屏</strong>、对邮件附件要<strong>警惕</strong>、<strong>不要分享密码</strong>。这些都不是技术,而是要靠培训和文化养成的行为。</p>
+<p><strong>可接受使用与 BYOD (Acceptable Use and BYOD)</strong>
+<code>[S10]</code>——组织还需要明确:</p>
+<ul>
+<li>什么样的上网和设备使用是<strong>可接受</strong>的(acceptable
+internet and device use);</li>
+<li>对不安全网站/服务的<strong>限制</strong>;</li>
+<li><strong>个人设备</strong>用于工作的规则,即 <strong>BYOD(Bring Your
+Own Device,自带设备)</strong>。</li>
+</ul>
+<p>BYOD
+是一把双刃剑(讲师强调):它<strong>提升便利</strong>,但也<strong>增加风险</strong>——因为组织对个人设备的<strong>控制力更弱</strong>。</p>
+<blockquote>
+<p><strong>🔑 例(讲师的 BYOD 例子)</strong> <code>[S10]</code> —
+一名员工用安全设置很差的<strong>个人手机/笔记本</strong>收发工作邮件,就可能把组织数据暴露出去。所以组织必须为
+BYOD 设定明确规则,而不是放任。</p>
+</blockquote>
+<p><strong>本节要点</strong>:安全的最薄弱一环往往是人,所以政策必须包含意识培训、鼓励上报、日常好习惯,以及对上网行为和
+BYOD 的明确规则——BYOD
+带来便利的同时,也因组织失去控制力而放大了风险。</p>
+<hr />
+<h2
+id="6-全章的概念枢纽policy--control--standard--framework-四个词-s11">6.
+全章的概念枢纽:Policy / Control / Standard / Framework 四个词
+<code>[S11]</code></h2>
+<p>现在到了<strong>全章最容易考、也最容易混的一张幻灯片</strong>。讲师专门提醒:"这一页很重要,因为我们有时会把这几个词搞混。"
+这四个词层层递进,务必一次辨清。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>术语 <code>[S11]</code></th>
+<th>一句话定义</th>
+<th>它是什么角色</th>
+<th>例子(讲师)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Policy</strong>(政策)</td>
+<td>组织<strong>内部的规则或期望</strong></td>
+<td>组织自己定的"规矩",说<strong>要达到什么</strong></td>
+<td>"员工远程访问必须用 MFA"</td>
+</tr>
+<tr class="even">
+<td><strong>Control</strong>(控制)</td>
+<td>用来<strong>降低风险的安全措施 (safeguard)</strong></td>
+<td>兑现政策的"手段",说<strong>怎么做到</strong></td>
+<td>MFA 这个机制本身</td>
+</tr>
+<tr class="odd">
+<td><strong>Standard</strong>(标准)</td>
+<td>一份<strong>结构化的参考</strong>,给出更正式的结构</td>
+<td>指导安全实践的"权威参照"</td>
+<td>ISO 27001</td>
+</tr>
+<tr class="even">
+<td><strong>Framework</strong>(框架)</td>
+<td>一个<strong>更宏观的模型</strong>,用来组织安全活动</td>
+<td>组织安全思考的"骨架"</td>
+<td>NIST CSF</td>
+</tr>
+</tbody>
+</table></div>
+<p>理解这四者关系的最好方式,是看一个例子从上到下"贯穿"它们:</p>
+<pre class="mermaid"><code>graph TD
+  P[&quot;Policy 政策&lt;br/&gt;『远程访问必须用 MFA』&lt;br/&gt;——内部规则,定方向&quot;]
+  C[&quot;Control 控制&lt;br/&gt;部署 MFA 机制&lt;br/&gt;——降低风险的具体措施&quot;]
+  S[&quot;Standard 标准&lt;br/&gt;ISO 27001&lt;br/&gt;——正式、结构化的参考&quot;]
+  F[&quot;Framework 框架&lt;br/&gt;NIST CSF&lt;br/&gt;——组织安全活动的宏观模型&quot;]
+  P --&gt;|&quot;由…来落地&quot;| C
+  S -.-&gt;|&quot;为政策与控制提供权威依据&quot;| P
+  F -.-&gt;|&quot;为整体安全工作提供组织骨架&quot;| P
+  F -.-&gt; S</code></pre>
+<p>一个直觉记法:<strong>policy 说"要什么",control 说"怎么做",standard
+给"正式的参照",framework
+给"组织的骨架"</strong>。讲师强调:实践中,一个组织通常会把这四者<strong>全部一起用</strong>——政策定规矩,控制去执行,再用标准和框架来确保整套体系既正式又有条理。本章后半段的
+Essential Eight、ISO 27001、NIST CSF,正是 standard / framework
+这一层的三个具体代表。</p>
+<p><strong>本节要点</strong>:policy = 组织内部规则(要什么);control =
+降低风险的具体安全措施(怎么做);standard = 正式、结构化的参考(如 ISO
+27001);framework = 组织安全活动的宏观模型(如 NIST
+CSF)。四者递进、协同,实践中通常同时使用。</p>
+<hr />
+<h2 id="7-接地气的基线essential-eight-s12-s30">7. 接地气的基线:Essential
+Eight <code>[S12-S30]</code></h2>
+<p>辨清了四个词,我们来看第一个具体的"参考答案"。讲师介绍三大参考时,把
+<strong>Essential Eight</strong>
+放在最前面,因为它最<strong>具体、最容易上手</strong>。</p>
+<h3 id="71-它是什么为什么有用-s12-s14">7.1 它是什么、为什么有用
+<code>[S12-S14]</code></h3>
+<p><strong>Essential Eight</strong>(基本八项)是澳大利亚信号局
+<strong>ASD(Australian Signals Directorate)</strong>
+制定的一套<strong>有优先级的缓解策略 (prioritized mitigation
+strategies)</strong>,目的是帮助组织<strong>降低常见的网络威胁</strong>
+<code>[S12]</code>。</p>
+<p>它的精髓在"<strong>有优先级</strong>"四个字。讲师把它和"风险管理思路"对照:与其想一口气把所有安全措施都做了(既不现实也没重点),Essential
+Eight
+替你<strong>挑出了最重要的几项控制</strong>,这些控制能针对常见威胁提供最强的性价比防护。<strong>它具体、可落地,这是它最大的价值。</strong></p>
+<p>但它<strong>不是万能答案</strong>(讲师反复强调的局限)<code>[S13]</code>:</p>
+<ul>
+<li>Essential Eight <strong>主要面向连接互联网的标准 IT
+环境</strong>(internet-connected IT environments);</li>
+<li>它对许多组织有用,但<strong>不是为每一种环境量身定制</strong>的;</li>
+<li><strong>移动办公密集</strong>或<strong>运营技术 (OT)</strong>
+环境,可能需要<strong>额外</strong>的策略。</li>
+</ul>
+<p>换句话说:Essential Eight 是一条很好的<strong>基线
+(baseline)</strong>,但安全终究要<strong>适配组织的具体场景</strong>。</p>
+<p>光有控制还不够,还得衡量"<strong>做得到不到位</strong>"。这就是
+<strong>maturity
+level</strong>(成熟度等级)<code>[S14]</code>——它描述这些控制<strong>实施得有多好</strong>。讲师举例:只对一小部分用户启用
+MFA,和对整个环境启用 MFA,显然不是一回事。共四级:</p>
+<pre class="mermaid"><code>graph LR
+  L0[&quot;Level 0&lt;br/&gt;存在重大弱点&lt;br/&gt;major weaknesses&quot;] --&gt; L1[&quot;Level 1&lt;br/&gt;能抵御基础攻击&lt;br/&gt;basic attacks&quot;]
+  L1 --&gt; L2[&quot;Level 2&lt;br/&gt;能抵御更强的攻击者&lt;br/&gt;more capable attackers&quot;]
+  L2 --&gt; L3[&quot;Level 3&lt;br/&gt;能抵御更具适应性的攻击者&lt;br/&gt;adaptive attackers&quot;]</code></pre>
+<p>讲师点明:<strong>adaptive
+attackers(有适应能力的攻击者)是最高级、最难缠的对手</strong>,所以放在
+Level 3。等级越高,代表防护越成熟、越能扛住越高级的攻击者。</p>
+<h3 id="72-两类特殊环境enterprise-mobility-与-ot-s15-s16">7.2
+两类"特殊环境":Enterprise Mobility 与 OT <code>[S15-S16]</code></h3>
+<p>为什么 Essential Eight
+在某些环境会"不够用"?讲义专门介绍了两类特殊环境,正是它的盲区。</p>
+<p><strong>Enterprise mobility(企业移动办公)</strong> <code>[S15]</code>
+—
+指员工<strong>不再固定在一个办公室、一台设备</strong>上工作,而是跨地点、跨设备:在家办公、出差途中、<strong>hot-desking</strong>(轮用工位)、用笔记本/平板/智能手机,横跨各种网络。讲师提醒:这会<strong>放大对额外控制的需求</strong>——比如
+MFA、设备管理、安全远程访问——因为员工可能在家用自家
+Wi-Fi,甚至连别处的免费 Wi-Fi。</p>
+<p><strong>Operational technology / OT(运营技术)</strong>
+<code>[S16]</code> — 这和普通办公 IT <strong>本质不同</strong>:OT
+是<strong>直接监控或控制物理过程</strong>的硬件与软件,常见于制造、交通等工业场景。典型例子:</p>
+<ul>
+<li><strong>ICS</strong>(Industrial Control Systems,工业控制系统)</li>
+<li><strong>SCADA</strong>(Supervisory Control and Data
+Acquisition,监控与数据采集系统)</li>
+<li><strong>DCS</strong>(Distributed Control System,分布式控制系统)</li>
+<li><strong>RTU</strong>(Remote Terminal Unit,远程终端单元)</li>
+<li><strong>PLC</strong>(Programmable Logic
+Controller,可编程逻辑控制器)</li>
+</ul>
+<p>记住:OT
+直接关联<strong>物理世界</strong>(机器、流水线),一旦出事可能造成物理后果,所以它的安全需求和纯数据的
+IT 系统不一样,Essential Eight 这套面向互联网 IT
+的基线无法完全覆盖它。</p>
+<h3 id="73-八大策略逐条拆解-s17-s30">7.3 八大策略逐条拆解
+<code>[S17-S30]</code></h3>
+<p>下面是核心中的核心——八个策略
+<code>[S17]</code>。讲师建议<strong>成组地理解</strong>它们,而不是死记八条。按"它们各自起什么作用"可以分成三组:</p>
+<pre class="mermaid"><code>graph TD
+  E8[&quot;Essential Eight 八大策略&quot;]
+  E8 --&gt; G1[&quot;① 阻止恶意代码运行&lt;br/&gt;Application control · Office macros · User app hardening&quot;]
+  E8 --&gt; G2[&quot;② 削弱攻击者能力&lt;br/&gt;Restrict admin privileges · MFA&quot;]
+  E8 --&gt; G3[&quot;③ 减少暴露面 + 可恢复&lt;br/&gt;Patch applications · Patch OS · Regular backups&quot;]</code></pre>
+<p>我们按这三组逐一讲透。</p>
+<h4 id="第①组阻止恶意代码运行">第①组:阻止恶意代码运行</h4>
+<p><strong>1) Application control(应用控制)</strong>
+<code>[S18-S19]</code> —
+只允许<strong>经批准的软件</strong>运行。为什么强?因为<strong>绝大多数攻击都需要先"跑起来"自己的恶意程序和工具</strong>;如果系统只放行白名单内的应用,攻击就难做了。讲师例子:你从钓鱼邮件里下载了一个未知的可执行文件,应用控制会<strong>阻止它运行</strong>,从而掐断后续攻击。它能
+① 拦截恶意软件和未授权软件、② 减少恶意代码执行、③ 抑制攻击扩散。</p>
+<p>实现它有三种常见方法 <code>[S19]</code>,各有取舍:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>方法 <code>[S19]</code></th>
+<th>原理</th>
+<th>取舍(讲师)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Hash rules</strong>(哈希规则)</td>
+<td>用密码学<strong>哈希</strong>信任<strong>某个确切文件</strong></td>
+<td>精确,但软件一<strong>更新</strong>(文件变了)哈希就失效,维护麻烦</td>
+</tr>
+<tr class="even">
+<td><strong>Publisher rules</strong>(发布者规则)</td>
+<td>信任来自<strong>已批准发布者/厂商</strong>的软件</td>
+<td>更<strong>灵活</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Path rules</strong>(路径规则)</td>
+<td>信任来自<strong>已批准位置</strong>的软件</td>
+<td>需要<strong>很强的文件权限</strong>配套</td>
+</tr>
+</tbody>
+</table></div>
+<p>注意 hash
+方法正好复用了前几周的<strong>密码学哈希函数</strong>:文件一旦被篡改(哪怕插入一点东西),哈希就会变,从而被检测出来。讲师结论:应用控制<strong>需要细心管理</strong>,没有哪种方法是免费的午餐。</p>
+<p><strong>3) Configure Microsoft Office macro settings(配置 Office
+宏设置)</strong> <code>[S22-S23]</code> — 先搞清
+<strong>macro(宏)</strong> 是什么:宏是嵌在 Office 文件里、用
+<strong>VBA(Visual Basic for Applications)</strong>
+语言编写的代码,本意是<strong>自动化重复任务</strong>(把一串命令录下来反复重放)。问题在于:这个"有用的功能"长期被攻击者<strong>滥用</strong>——一个文档里的恶意宏会在你<strong>打开文件时</strong>就执行有害动作。它是"功能好用但安全有风险"的经典案例。</p>
+<p>所以组织应当<strong>屏蔽或严格限制不安全的宏</strong>,只在受控条件下允许
+<code>[S22]</code>。一旦决定"不全放开",下一个问题就是<strong>哪些宏可信</strong>?管理宏信任的办法
+<code>[S23]</code>:</p>
+<ul>
+<li><strong>来自可信发布者的数字签名 (digital
+signatures)</strong>——可验证宏确实来自可信方;</li>
+<li><strong>组织控制的可信位置 (trusted
+locations)</strong>——但必须谨慎管理,一旦给得太松,攻击者照样能滥用;</li>
+<li>在<strong>可用性与安全之间</strong>仔细权衡。</li>
+</ul>
+<p><strong>4) User application hardening(用户应用加固)</strong>
+<code>[S24]</code> — "加固"=
+<strong>削减软件里有风险或不必要的功能</strong>,目的是<strong>缩小攻击面
+(attack
+surface)</strong>。软件常带一些在某些场景有用、但在另一些场景很危险的功能;把它们关掉或限制掉,攻击者就更难得手。例子:限制脚本或活动内容(active
+content)、收紧浏览器设置、禁用不用的/有风险的功能(如危险的浏览器行为、有风险的插件)。讲师补充:浏览器有时会提示某插件"可能不安全",这正是加固思路在起作用。</p>
+<h4 id="第②组削弱攻击者能力">第②组:削弱攻击者能力</h4>
+<p><strong>5) Restrict administrative
+privileges(限制管理员权限)</strong> <code>[S25]</code> —
+这一条讲师说"很重要"。管理员账户<strong>权限极广</strong>,因此对攻击者<strong>极有吸引力</strong>——一旦拿到
+admin,就能对系统为所欲为。好的做法:</p>
+<ul>
+<li>仅在<strong>确有需要</strong>时才授予 admin 权限(granting admin
+rights only when needed);</li>
+<li><strong>分离</strong> admin 账户与普通账户(separating admin and
+standard accounts);</li>
+<li><strong>减少</strong>用 admin 账户收发邮件、上网(reducing admin use
+for email and web
+browsing)——因为一旦这个高权限账户被钓中,后果是灾难性的。</li>
+</ul>
+<blockquote>
+<p><strong>🔑 例(讲师的现身说法)</strong> <code>[S25]</code> — Lab PC
+里你装不了软件,因为你没有 admin
+权限;连讲师自己要装软件也得<strong>专门申请</strong> admin
+权限。这就是"按需授予、平时用普通账户"的活教材。</p>
+</blockquote>
+<p><strong>7) Multi-factor authentication / MFA(多因素认证)</strong>
+<code>[S28]</code> —
+要求<strong>两种或以上不同类别</strong>的认证因素。即便攻击者偷到了你的密码,那也<strong>不够</strong>,因为还差一步。这让
+MFA
+成为<strong>降低账户被攻破最实用的手段之一</strong>,尤其对远程访问、邮箱、管理员账户。三类因素(经典分法)<code>[S28]</code>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>因素类别</th>
+<th>含义</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Something you know</strong>(你知道的)</td>
+<td>记忆中的秘密</td>
+<td>PIN、password、passphrase</td>
+</tr>
+<tr class="even">
+<td><strong>Something you have</strong>(你拥有的)</td>
+<td>实体/数字凭证</td>
+<td>安全密钥、智能卡、软件证书、OTP token、智能手机/App、SMS 或 email
+验证码</td>
+</tr>
+<tr class="odd">
+<td><strong>Something you are</strong>(你本身的)</td>
+<td>生物特征 (biometrics)</td>
+<td>指纹、面部几何特征</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师现身说法:他每次登录系统,一开始都要用手机做两步验证。MFA
+的本质是——多设一道关,把"只偷到密码"这条捷径堵死。</p>
+<h4 id="第③组减少暴露面--保证可恢复">第③组:减少暴露面 + 保证可恢复</h4>
+<p><strong>2) Patch applications(给应用打补丁)</strong>
+<code>[S20-S21]</code> — 打补丁 =
+应用厂商发布的、<strong>修复已知漏洞</strong>的更新。逻辑很直接:<strong>一旦漏洞被公开,攻击者就能轻易利用它发起攻击</strong>;你拖着不打,等于给攻击者留着一条现成的入侵通道。所以补丁要
+① 减少已知的攻击机会、② 按<strong>暴露程度和威胁等级</strong>排优先级、③
+对<strong>面向互联网的系统</strong>尤其重要。</p>
+<p>打补丁的<strong>时间框架 (timeframes)</strong> 取决于风险
+<code>[S21]</code>:</p>
+<ul>
+<li><strong>关键漏洞 / 已有可用利用 (working
+exploit)</strong>:<strong>非常快</strong>地打(如 48
+小时内甚至更快);</li>
+<li><strong>面向互联网的服务</strong>:<strong>高优先级</strong>(因为攻击者更容易够到);</li>
+<li><strong>低风险应用</strong>:可在<strong>计划内的维护窗口</strong>里打。</li>
+</ul>
+<p>讲师的实用建议:别纠结理论上的优先级,<strong>看到补丁就更新</strong>通常就是好习惯。</p>
+<p><strong>6) Patch operating systems(给操作系统打补丁)</strong>
+<code>[S26-S27]</code> — 和打应用补丁同等重要,甚至更关键:<strong>OS
+漏洞可能让整台设备乃至整个网络暴露</strong>。优先级同样看<strong>暴露面、关键性、紧急度</strong>。讲义给了一张相当细的推荐时间表
+<code>[S27]</code>,核心规律是"<strong>越暴露、越关键 → 越快打;一旦判定为
+critical 或已有可用利用 → 48 小时内</strong>":</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>系统类型 <code>[S27]</code></th>
+<th>常规时限</th>
+<th>若 critical / 有可用利用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>面向互联网的<strong>网络设备 / 服务器</strong>的 OS</td>
+<td>2 周内</td>
+<td><strong>48 小时</strong>内</td>
+</tr>
+<tr class="even">
+<td><strong>非</strong>面向互联网的网络设备 / 服务器的 OS</td>
+<td>1 个月内</td>
+<td>高威胁环境下 <strong>48 小时</strong>内</td>
+</tr>
+<tr class="odd">
+<td><strong>工作站 (workstations)</strong> 的 OS</td>
+<td>1 个月内</td>
+<td>高威胁环境下 <strong>48 小时</strong>内</td>
+</tr>
+<tr class="even">
+<td><strong>OS 驱动程序、ICT 设备固件</strong></td>
+<td>高威胁环境 1 个月内</td>
+<td><strong>48 小时</strong>内</td>
+</tr>
+</tbody>
+</table></div>
+<p>不用背死每一行,记住那条<strong>主线</strong>即可:基本是 2 周或 1
+个月,但<strong>只要是关键漏洞或已被利用,就压缩到 48 小时</strong>。</p>
+<p><strong>8) Regular backups(定期备份)</strong> <code>[S29-S30]</code>
+— 为什么备份是 Essential Eight
+的压轴?因为<strong>预防永远不可能完美</strong>(讲师原话),即便组织做得再好,事故仍可能发生。备份支撑<strong>恢复
+(recovery) 与业务连续性 (business
+continuity)</strong>,让你能从勒索软件、系统故障中爬起来。但<strong>备份只有在"真的能用"且"攻击者难以篡改"时才有价值</strong>。正确备份的三要点
+<code>[S30]</code>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>要点 <code>[S30]</code></th>
+<th>做法</th>
+<th>目的</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Careful scoping</strong>(谨慎界定范围)</td>
+<td>备份覆盖恢复所需的<strong>全部</strong>内容:重要数据、软件、配置设置</td>
+<td>确保真出事时能完整恢复</td>
+</tr>
+<tr class="even">
+<td><strong>Regular testing</strong>(定期测试)</td>
+<td>定期测试备份<strong>能否真正还原</strong>系统、软件、重要数据</td>
+<td>给组织"我确实能恢复"的信心</td>
+</tr>
+<tr class="odd">
+<td><strong>Restricting privilege</strong>(限制权限)</td>
+<td>让<strong>非特权账户只能访问自己的备份</strong></td>
+<td>降低攻击者篡改/销毁备份的风险</td>
+</tr>
+</tbody>
+</table></div>
+<p>第三点把 §2 的 need-to-know
+又用上了:连备份的访问也要遵循最小权限,否则攻击者攻破普通账户后顺手把备份也毁了,备份就形同虚设。</p>
+<blockquote>
+<p><strong>本节小结(Essential Eight 一句话记法)</strong> — 八策略 =
+<strong>"别让坏代码跑(应用控制/宏/加固)+ 削弱攻击者(限权/MFA)+
+减少暴露并能恢复(打应用补丁/打 OS 补丁/备份)"</strong>;它是 ASD 给互联网
+IT 环境的<strong>有优先级基线</strong>,用 maturity level 0–3
+衡量落实程度,但对移动办公和 OT 环境需另作补充。</p>
+</blockquote>
+<hr />
+<h2 id="8-把控制串成体系的主线风险管理-risk-management-s31-s33">8.
+把控制串成体系的主线:风险管理 (Risk Management)
+<code>[S31-S33]</code></h2>
+<p>讲到这里,讲师做了一个明确的转场:"我们从<strong>具体的控制</strong>,转向一个更<strong>根本的概念</strong>——风险管理。"
+为什么需要这个转场?因为 Essential Eight
+给的是"做什么",但<strong>为什么做、先做哪个、做到什么程度</strong>,需要一套<strong>以风险为中心</strong>的思维来回答。这套思维,正是下面
+ISO 27001 的灵魂,所以风险管理是连接"具体控制"和"体系化标准"的桥。</p>
+<p>先回顾 <strong>risk(风险)</strong> 是什么
+<code>[S31]</code>。讲义给了两层理解:</p>
+<ul>
+<li>风险是<strong>威胁发生(或威胁利用脆弱性)并造成影响的可能性</strong>;影响可能是数据丢失、机密性/完整性/可用性受损,或成本、延误、法律后果等业务问题;</li>
+<li>更正式地:风险意味着关于未来事件的<strong>任何不确定性</strong>,而这种不确定性<strong>威胁到组织达成其使命的能力</strong>。</li>
+</ul>
+<p>而 <strong>risk management(风险管理)</strong>
+则是"<strong>系统化地识别、度量和处置各种损失暴露</strong>"的方法
+<code>[S31]</code>。</p>
+<p>为什么要管理风险?<code>[S32]</code> 因为它帮组织:</p>
+<ul>
+<li><strong>降低事件发生的概率与影响</strong>(reduce the chance and
+impact of incidents);</li>
+<li><strong>支撑业务连续与恢复</strong>(support continuity and
+recovery);</li>
+<li><strong>为安全决策排优先级</strong>(prioritize security
+decisions)。</li>
+</ul>
+<p>讲义还把风险管理浓缩成三个<strong>该问的问题</strong>
+<code>[S32]</code>:<strong>①</strong> 什么可能出错 (what can go
+wrong)?<strong>②</strong> 事件前后我们能做什么 (what can we do before
+and after an incident)?<strong>③</strong> 怎样减小影响 (how do we reduce
+the impact)?</p>
+<p>回答这些问题的标准流程,是<strong>五个步骤</strong>,而且讲师特别强调——它是一个<strong>循环
+(cycle)</strong>,不是一次性任务 <code>[S33]</code>:</p>
+<pre class="mermaid"><code>graph LR
+  I[&quot;1 Identify&lt;br/&gt;识别风险&quot;] --&gt; A[&quot;2 Analyze&lt;br/&gt;分析风险&quot;]
+  A --&gt; E[&quot;3 Evaluate&lt;br/&gt;评估风险&lt;br/&gt;(= risk assessment)&quot;]
+  E --&gt; T[&quot;4 Treat&lt;br/&gt;处置风险&quot;]
+  T --&gt; M[&quot;5 Monitor &amp; Review&lt;br/&gt;监控与复查&quot;]
+  M -.-&gt;|&quot;持续循环&quot;| I</code></pre>
+<p>讲师点明:监控复查之后,又要回头去识别下一周期可能出现的新风险,如此<strong>周而复始</strong>。因为威胁在变、技术在变,风险管理必须是<strong>持续进行</strong>的。(讲师还提到,UOW
+有专门的风险管理课程供深入学习。)</p>
+<p><strong>本节要点</strong>:风险 =
+威胁发生并造成影响的不确定性;风险管理是系统化地识别、度量、处置这些风险,以降低事件概率与影响、并为安全决策排序;它遵循"识别→分析→评估→处置→监控复查"五步,且是一个<strong>永不停止的循环</strong>。这套以风险为中心的思维,正是下一节
+ISO 27001 的内核。</p>
+<hr />
+<h2 id="9-体系化的标准isoiec-27001-s34-s41">9. 体系化的标准:ISO/IEC
+27001 <code>[S34-S41]</code></h2>
+<p>带着风险管理的思维,我们来看三大参考里最"正式"的一个——<strong>ISO/IEC
+27001</strong>,最知名的信息安全标准之一 <code>[S34]</code>。</p>
+<h3 id="91-它管的是什么isms-s34">9.1 它管的是什么:ISMS
+<code>[S34]</code></h3>
+<p>ISO 27001 是关于建立和运行 <strong>ISMS(Information Security
+Management System,信息安全管理体系)</strong>
+的标准。它的核心思想一句话:<strong>安全应当被"系统化地管理",而不是靠零散孤立的技术措施堆出来。</strong>
+ISO 27001
+提供一个框架,帮<strong>任何规模、任何行业</strong>的组织,以<strong>系统化、低成本</strong>的方式保护信息——通过一套
+ISMS(政策 + 流程的组合)。</p>
+<h3 id="92-安全目标的标尺cia-三性-s35">9.2 安全目标的标尺:CIA 三性
+<code>[S35]</code></h3>
+<p>ISO 27001 的基本目标,是保护信息的三个方面,也就是经典的 <strong>CIA
+triad</strong>(CIA 三性)<code>[S35]</code>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>含义</th>
+<th>一句话</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Confidentiality</strong>(机密性)</td>
+<td>对未授权者<strong>保密</strong></td>
+<td>不该看的人看不到</td>
+</tr>
+<tr class="even">
+<td><strong>Integrity</strong>(完整性)</td>
+<td>保持信息<strong>原本的用途和含义</strong>、不被未授权篡改</td>
+<td>不该改的没被改</td>
+</tr>
+<tr class="odd">
+<td><strong>Availability</strong>(可用性)</td>
+<td>让<strong>合法用户</strong>在需要时能访问信息与资源</td>
+<td>该用的时候用得上</td>
+</tr>
+</tbody>
+</table></div>
+<p>CIA 之所以好用,是因为<strong>几乎任何控制都能用"它支撑了 CIA
+的哪一面"来解释</strong>(讲师的串联)。例如:<strong>备份</strong>主要支撑
+<strong>availability</strong>;<strong>访问控制</strong>主要支撑
+<strong>confidentiality 和
+integrity</strong>。这把本章前面所有零散的控制,统一到了一个目标坐标系里。</p>
+<h3 id="93-isms-的关键要素与持续改进-s36-s37">9.3 ISMS
+的关键要素与持续改进 <code>[S36-S37]</code></h3>
+<p>一套 ISMS 要求组织建立起一组规则,来完成以下事项
+<code>[S36]</code>:</p>
+<ul>
+<li><strong>识别利益相关方 (stakeholders)
+对组织在信息安全上的期望</strong>;</li>
+<li><strong>识别</strong>信息安全面临的<strong>风险</strong>;</li>
+<li><strong>定义控制及其他缓解方法</strong>来满足期望、应对风险;</li>
+<li>设定信息安全上<strong>清晰的目标</strong>;</li>
+<li><strong>实施</strong>所有控制与风险处置方法。</li>
+</ul>
+<p>这把安全从"纯 IT 问题"提升为<strong>管理与治理 (governance)
+的一部分</strong>。</p>
+<p>而 ISMS 最强的思想之一,是 <strong>continuous
+improvement(持续改进)</strong> <code>[S37]</code>——这正是 §8
+风险管理循环的延续。安全不是静态的:威胁在变、技术在变,<strong>去年够用的控制今年可能就不够</strong>。所以好的
+ISMS
+要:监控控制是否在起作用、定期复查其有效性、随风险和需求的变化而改进。</p>
+<h3 id="94-为什么要采用-iso-27001-s38">9.4 为什么要采用 ISO 27001
+<code>[S38]</code></h3>
+<p>讲义给了四个理由 <code>[S38]</code>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>理由 <code>[S38]</code></th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>合规 (Comply with legal requirements)</strong></td>
+<td>实施 ISO 27001 能满足大量法律、法规、合同对信息安全的要求</td>
+</tr>
+<tr class="even">
+<td><strong>竞争优势 (Competitive advantage)</strong></td>
+<td>拿到认证的组织比同行更有竞争力,也是值得对外宣传的资质</td>
+</tr>
+<tr class="odd">
+<td><strong>降低成本 (Lower costs)</strong></td>
+<td>预防安全事件发生,能为组织省下大笔钱</td>
+</tr>
+<tr class="even">
+<td><strong>更好的组织 (Better organization)</strong></td>
+<td>帮助组织轻松建立信息安全的流程与规程,不必从零摸索</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="95-它如何运作--14-个域--控制类型-s39-s41">9.5 它如何运作 + 14
+个域 + 控制类型 <code>[S39-S41]</code></h3>
+<p>ISO 27001
+的<strong>运作逻辑</strong>(讲师强调这是要点)<code>[S39]</code>:<strong>识别风险
+→ 选择合适的安全防护 (safeguards) → 通过 ISMS
+来管理它们</strong>。核心信息是——<strong>控制不能随便挑</strong>,必须由组织的<strong>具体情境和风险画像
+(risk profile)</strong> 来论证其必要性。</p>
+<pre class="mermaid"><code>graph LR
+  RA[&quot;Risk assessment&lt;br/&gt;&amp; treatment&lt;br/&gt;风险评估与处置&quot;] --&gt; SI[&quot;Safeguard&lt;br/&gt;implementation&lt;br/&gt;安全防护的实施&quot;]
+  SI -.-&gt;|&quot;持续管理 via ISMS&quot;| RA</code></pre>
+<p>ISO 27001 把信息安全划分为 <strong>14 个域 (domains)</strong>
+<code>[S40]</code>,覆盖面很广。不必逐字背诵,但要对"范围之广"有概念:</p>
+<blockquote>
+<p>信息安全政策、信息安全组织、人力资源安全、资产管理、访问控制、<strong>密码学
+(cryptography)</strong>、物理与环境安全、运营安全、通信安全、系统获取/开发/维护、供应商关系、信息安全事件管理、业务连续性中的信息安全、合规。</p>
+</blockquote>
+<p>注意这 14 个域里就包含了你前几周学的
+<strong>cryptography</strong>、本章学的 <strong>access control</strong>
+等——ISO 27001
+本质上是把全课程的知识点<strong>组织进一个统一体系</strong>。</p>
+<p>实施这些(讲义提到共 <strong>114 个控制</strong>)会落到五类控制上
+<code>[S41]</code>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>控制类型 <code>[S41]</code></th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Technical</strong>(技术控制)</td>
+<td>备份、杀毒软件</td>
+</tr>
+<tr class="even">
+<td><strong>Organisational</strong>(组织控制)</td>
+<td>访问控制政策、BYOD 政策</td>
+</tr>
+<tr class="odd">
+<td><strong>Legal</strong>(法律控制)</td>
+<td>NDA(保密协议)、SLA(服务等级协议)</td>
+</tr>
+<tr class="even">
+<td><strong>Physical</strong>(物理控制)</td>
+<td>CCTV 摄像头、报警系统、门锁</td>
+</tr>
+<tr class="odd">
+<td><strong>Human resource</strong>(人力资源控制)</td>
+<td>安全意识培训、ISO 27001 审计员培训</td>
+</tr>
+</tbody>
+</table></div>
+<p>这张表很好地呼应了 §6:control
+不只有技术一种,组织、法律、物理、人力都是降低风险的"安全措施"。</p>
+<p><strong>本节要点</strong>:ISO 27001 是建立 ISMS
+的标准,主张"系统化管理安全";它以 <strong>CIA
+三性</strong>为目标、以<strong>风险</strong>为中心(控制必须由组织情境和风险论证,而非随意挑选)、靠<strong>持续改进</strong>演进;组织采用它可获得合规、竞争力、降本和更好的组织流程,其内容覆盖
+14 个域、114 个控制,横跨技术/组织/法律/物理/人力五类。</p>
+<hr />
+<h2 id="10-组织安全活动的骨架nist-csf-s42-s43">10.
+组织安全活动的骨架:NIST CSF <code>[S42-S43]</code></h2>
+<p>三大参考的最后一个是 <strong>NIST CSF(NIST Cybersecurity
+Framework,美国国家标准与技术研究院网络安全框架)</strong>
+<code>[S42]</code>。它是一套<strong>指南与最佳实践</strong>,帮组织<strong>建立并改进自身的网络安全态势
+(cybersecurity
+posture)</strong>——给出一组建议和标准,让组织更善于<strong>识别、检测</strong>攻击,并指导如何<strong>响应、预防、恢复</strong>。讲师视它为"构建网络安全项目的必备标准"。</p>
+<p>它和 ISO 27001
+的<strong>定位差异</strong>值得记牢(讲师的对比)<code>[S42-S43]</code>:</p>
+<ul>
+<li><strong>ISO 27001</strong> 以 <strong>ISMS /
+风险管理</strong>为中心,是一套<strong>正式的标准</strong>;</li>
+<li><strong>NIST CSF</strong>
+更常被用作<strong>组织安全活动的实用方式</strong>——帮组织审视当前态势、并在安全工作的<strong>全生命周期</strong>上规划改进。</li>
+</ul>
+<p>NIST CSF 的精华是<strong>五大核心功能 (five core
+functions)</strong>,给出一个"简单但强大"的结构 <code>[S43]</code>:</p>
+<pre class="mermaid"><code>graph LR
+  ID[&quot;Identify 识别&lt;br/&gt;搞清你有什么、&lt;br/&gt;什么最重要&quot;] --&gt; PR[&quot;Protect 保护&lt;br/&gt;部署适当的&lt;br/&gt;safeguards&quot;]
+  PR --&gt; DE[&quot;Detect 检测&lt;br/&gt;发现可疑/&lt;br/&gt;有害活动&quot;]
+  DE --&gt; RS[&quot;Respond 响应&lt;br/&gt;遏制并处理&lt;br/&gt;事件&quot;]
+  RS --&gt; RC[&quot;Recover 恢复&lt;br/&gt;还原系统、&lt;br/&gt;回到正常运营&quot;]</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>功能 <code>[S43]</code></th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Identify</strong>(识别)</td>
+<td>认清需要保护的流程与资产——"你有什么、什么最重要"</td>
+</tr>
+<tr class="even">
+<td><strong>Protect</strong>(保护)</td>
+<td>实施恰当的 safeguards 来保护企业资产</td>
+</tr>
+<tr class="odd">
+<td><strong>Detect</strong>(检测)</td>
+<td>部署机制以识别网络安全事件的发生</td>
+</tr>
+<tr class="even">
+<td><strong>Respond</strong>(响应)</td>
+<td>发展技术以<strong>遏制 (contain)</strong> 事件影响</td>
+</tr>
+<tr class="odd">
+<td><strong>Recover</strong>(恢复)</td>
+<td>实施流程以<strong>还原</strong>因事件而受损的能力与服务</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师点出一个深意:这五大功能提醒我们,<strong>网络安全不只是"预防"</strong>——detect、respond、recover
+同样不可或缺。前几周我们大量讲"怎么挡住攻击",而 NIST CSF
+告诉你:<strong>假设攻击迟早会突破,你还得能发现它、控制它、并从中恢复。</strong>
+这和 §7.3 把"备份"列入 Essential Eight 是同一种成熟的安全观。</p>
+<p><strong>本节要点</strong>:NIST CSF
+是组织网络安全活动的<strong>框架</strong>,核心是五大功能
+<strong>Identify → Protect → Detect → Respond → Recover</strong>;相比以
+ISMS 为中心的 ISO
+27001,它更偏向"实用地组织安全活动、覆盖全生命周期",并强调安全不止于预防——检测、响应、恢复同等重要。</p>
+<hr />
+<h2 id="11-把它们摆在一起快速对比-s44">11. 把它们摆在一起:快速对比
+<code>[S44]</code></h2>
+<p>讲到这里,本章的五个核心概念可以一字排开,看清各自的"身位"<code>[S44]</code>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>概念 <code>[S44]</code></th>
+<th>一句话定位</th>
+<th>层级</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Policy</strong>(政策)</td>
+<td>组织的<strong>内部规则</strong></td>
+<td>组织内部:定方向</td>
+</tr>
+<tr class="even">
+<td><strong>Control</strong>(控制)</td>
+<td>用来<strong>降低风险的安全措施</strong></td>
+<td>组织内部:落地执行</td>
+</tr>
+<tr class="odd">
+<td><strong>Essential Eight</strong></td>
+<td>一组关键控制的<strong>实用基线</strong></td>
+<td>外部参考:具体、可上手</td>
+</tr>
+<tr class="even">
+<td><strong>ISO 27001</strong></td>
+<td>以<strong>风险</strong>为本的 <strong>ISMS 标准</strong></td>
+<td>外部参考:正式、体系化</td>
+</tr>
+<tr class="odd">
+<td><strong>NIST CSF</strong></td>
+<td>组织安全活动的<strong>框架</strong></td>
+<td>外部参考:宏观、全生命周期</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师的总结掷地有声:<strong>这些概念彼此不同,但在实践中是配合使用的。</strong>
+一个成熟的组织,通常会用 policy 定规矩、用 control 去执行、拿 Essential
+Eight 当快速落地的基线、用 ISO 27001 把整套安全管理体系化、再用 NIST CSF
+给全局安全活动搭一个骨架。它们不是"五选一",而是"五合一"。</p>
+<pre class="mermaid"><code>graph TD
+  subgraph 组织内部
+    POL[&quot;Policy 定方向&quot;] --&gt; CON[&quot;Control 去执行&quot;]
+  end
+  subgraph 外部参考
+    E8[&quot;Essential Eight&lt;br/&gt;实用基线&quot;]
+    ISO[&quot;ISO 27001&lt;br/&gt;体系化标准&quot;]
+    NIST[&quot;NIST CSF&lt;br/&gt;宏观框架&quot;]
+  end
+  E8 -.-&gt;|&quot;提供具体控制清单&quot;| CON
+  ISO -.-&gt;|&quot;把控制体系化、以风险论证&quot;| CON
+  NIST -.-&gt;|&quot;组织全局安全活动&quot;| POL</code></pre>
+<blockquote>
+<p>📎 <strong>讲师提示(关于 workshop)</strong> — 讲师说,在后续 workshop
+里你会拿到<strong>组织被攻击的场景</strong>,练习判断"该用上面哪一个(policy
+/ control / Essential Eight / ISO 27001 / NIST
+CSF)"。所以复习时,除了记住每个概念的定义,更要练**"在具体场景里挑对工具"**的能力。</p>
+</blockquote>
+<hr />
+<h2 id="12-workshop-补充认证不只是存好密码-week-7-workshop">12. Workshop
+补充:认证不只是"存好密码" <code>[Week 7 Workshop]</code></h2>
+<blockquote>
+<p>📎 <strong>本节定位</strong> — 本节内容来自 <strong>Week 7
+workshop</strong>(密码/登录控制实验),它<strong>延续前几周(尤其 Week
+5/6)的密码 lab</strong>,主题是<strong>认证安全的实战</strong>,与本周
+lecture 的"标准与框架"主题不同。但讲师明确说 <strong>Quiz 2 涵盖
+workshop 材料</strong>,所以这同样是考点。本节也正好把
+§3"认证要求"里"记录失败登录、对可疑活动告警"落到代码层面。</p>
+</blockquote>
+<h3 id="121-part-a-核心结论为什么存好密码还不够">12.1 Part A
+核心结论:为什么"存好密码"还不够</h3>
+<p>workshop 的 Part A
+用三个问题,点破一个关键认知:<strong>账户安全取决于整个认证流程,而不只是密码怎么存。</strong></p>
+<p><strong>Q1:为什么"安全地存储密码"本身不足以保护账户?</strong></p>
+<ul>
+<li>安全的密码存储(加盐哈希)只在<strong>密码数据库被偷</strong>时保护你——它让攻击者拿到库也算不出原始密码;</li>
+<li>但攻击者仍可能在<strong>登录页</strong>直接<strong>猜密码</strong>;</li>
+<li>还可能<strong>绕过</strong>主登录,走 <strong>password
+recovery(密码找回)、phishing(钓鱼)、social
+engineering(社会工程)</strong>;</li>
+<li>所以账户安全依赖<strong>整个认证过程</strong>,不是单一环节。</li>
+</ul>
+<pre class="mermaid"><code>graph TD
+  ACC[&quot;账户安全&lt;br/&gt;= 整个认证流程&quot;]
+  ACC --&gt; ST[&quot;① 安全存储&lt;br/&gt;(挡：数据库被盗)&quot;]
+  ACC --&gt; LG[&quot;② 登录页防猜解&lt;br/&gt;(挡：在线暴力破解)&quot;]
+  ACC --&gt; RC[&quot;③ 找回流程&lt;br/&gt;(常是最弱环节)&quot;]
+  ACC --&gt; HU[&quot;④ 人/行为&lt;br/&gt;(挡不住：钓鱼、社工)&quot;]
+  style RC fill:#ffe0e0
+  style HU fill:#ffe0e0</code></pre>
+<p><strong>Q2:attempt limits /
+lockout(尝试次数限制/锁定)有什么用?</strong></p>
+<ul>
+<li><strong>限制尝试次数</strong>能<strong>拖慢</strong>反复猜密码的攻击;</li>
+<li><strong>锁定</strong>削弱<strong>在线暴力破解 (online
+brute-force)</strong> 或反复猜测的效果;</li>
+<li>它还给系统一个机会:在可疑活动后<strong>发出告警 (raise an
+alert)</strong>。</li>
+</ul>
+<p><strong>Q3:为什么 password recovery 可能比主登录更脆弱?</strong></p>
+<ul>
+<li>找回流程常用<strong>更弱的校验</strong>:邮箱重置、短信重置、薄弱的安全问题;</li>
+<li><strong>帮助台 (help-desk)
+员工</strong>可能被社会工程<strong>骗过</strong>;</li>
+<li>所以<strong>即便你的密码规则很强、甚至上了
+MFA</strong>,账户仍可能从<strong>找回</strong>这个口子被攻破。</li>
+</ul>
+<p>这条结论和 Week 5
+的主题完全咬合:认证体系往往<strong>最弱的不是密码本身,而是找回入口</strong>。</p>
+<h3 id="122-part-b给密码验证程序加登录控制">12.2 Part
+B:给密码验证程序加"登录控制"</h3>
+<p>Part B 的任务,是在**上周"加盐存储 +
+验证密码"**的基础上,<strong>加上基本的登录控制</strong>
+<code>[Workshop S5]</code>:</p>
+<blockquote>
+<p><strong>任务</strong>:修改密码验证程序,使得——用户<strong>最多 3
+次</strong>尝试;每次失败打印 <code>Incorrect password</code>;若正确打印
+<code>Access granted</code>;<strong>3 次失败后</strong>打印
+<code>Account locked</code>;锁定后向 <code>security_log.txt</code>
+<strong>追加 (append)</strong> 一条消息。</p>
+</blockquote>
+<p>讲义点出几个<strong>实现要点</strong>,每个都对应一个安全原理
+<code>[Workshop S7]</code>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>要点 <code>[WS]</code></th>
+<th>含义</th>
+<th>背后的安全原理</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>salt</code> 从 <strong>hex 转回 bytes</strong></td>
+<td>存储时盐是十六进制字符串,验证时要还原成字节</td>
+<td>验证必须<strong>复用同一个盐</strong>(见下)</td>
+</tr>
+<tr class="even">
+<td><code>stored_key</code></td>
+<td>存下来的<strong>加盐密码哈希</strong></td>
+<td>系统存的是哈希,不是明文(呼应 Week 5)</td>
+</tr>
+<tr class="odd">
+<td><code>hashlib.scrypt(...)</code></td>
+<td>用输入的密码<strong>重新计算</strong>派生密钥</td>
+<td>scrypt 是<strong>慢哈希/KDF</strong>,抗暴力破解</td>
+</tr>
+<tr class="even">
+<td><code>hmac.compare_digest(...)</code></td>
+<td><strong>安全地比较</strong>重算密钥与存储密钥</td>
+<td>防<strong>时序攻击 (timing
+attack)</strong>——不因提前不匹配就提前返回</td>
+</tr>
+<tr class="odd">
+<td><code>success</code> 标志</td>
+<td>跟踪本轮是否输对了密码</td>
+<td>控制循环与日志逻辑</td>
+</tr>
+<tr class="even">
+<td><code>"a"</code> 模式</td>
+<td>文件<strong>追加 (append) 模式</strong></td>
+<td>日志保留旧记录,不被覆盖</td>
+</tr>
+</tbody>
+</table></div>
+<p>workshop 还配了四个思考题,把原理讲透
+<code>[Workshop S8-S9]</code>:</p>
+<ol type="1">
+<li><strong>为什么验证时必须复用同一个 salt?</strong>
+因为存储的密钥就是用<strong>那个特定的盐</strong>生成的;换个盐,即使密码正确,重算出的密钥也会不同,导致验证失败。</li>
+<li><strong>账户锁定主要防哪种攻击?</strong> 主要防<strong>在线密码猜测
+(online password guessing)</strong>
+和反复登录尝试;它<strong>不</strong>直接阻止钓鱼或数据库被盗。</li>
+<li><strong>为什么它挡不住钓鱼?</strong>
+钓鱼里受害者<strong>亲手把密码交给</strong>攻击者,攻击者随后以真实用户身份登录——问题不是"猜",而是
+<strong>credential theft(凭证被窃)</strong>,锁定对此无能为力。</li>
+<li><strong>为什么找回仍是弱点?</strong>
+找回可能用比正常登录更弱的校验;攻击者可利用邮箱重置、短信重置、安全问题或帮助台社工。</li>
+</ol>
+<h3 id="123-workshop-一句话总结-workshop-s10">12.3 Workshop 一句话总结
+<code>[Workshop S10]</code></h3>
+<blockquote>
+<p><strong>密码安全不只是"密码够不够强"</strong>,它还取决于:安全存储、安全验证、尝试次数限制、告警、以及找回机制的设计。<strong>一个系统哪怕用了强哈希,只要找回流程或用户行为是弱的,整体就仍然是弱的。</strong></p>
+</blockquote>
+<p><strong>本节要点</strong>:账户安全是<strong>整个认证链</strong>的事——存储、登录防猜解、找回、人的行为缺一不可;lockout
+能挡在线暴力猜解,但挡不住钓鱼和找回攻击;验证时必须复用同一个盐,用
+<code>hmac.compare_digest</code> 做安全比较,用追加模式记日志。这正是把
+§3 的认证要求落进代码。</p>
+<hr />
+<h2 id="13-本章小结-key-takeaways">13. 本章小结 (Key takeaways)</h2>
+<p>把整章浓缩成必须记住的几条:</p>
+<ol type="1">
+<li><p><strong>四个核心词层层递进</strong>:<strong>policy</strong>(组织内部规则,定"要什么")→
+<strong>control</strong>(降低风险的安全措施,做"怎么做")→
+<strong>standard</strong>(正式结构化参考,如 ISO 27001)→
+<strong>framework</strong>(组织安全活动的宏观模型,如 NIST
+CSF);实践中<strong>四者协同、同时使用</strong>。<code>[S11/S44]</code></p></li>
+<li><p><strong>一份好的信息安全政策</strong>清晰、贴合本组织的威胁与业务、能指导控制设计;其内容包括
+<strong>access
+control</strong>(权限随角色/职责走)、<strong>need-to-know</strong>(只给必需的最小访问权,可在账户被攻破时限制损失)、<strong>authentication</strong>(唯一账户保证可追责、记录成败登录)、<strong>data
+classification</strong>(Public/Internal/Confidential/Restricted,决定该上多强的控制)、以及面向人的
+<strong>awareness 培训</strong>与 <strong>BYOD</strong>
+规则。<code>[S3-S10]</code></p></li>
+<li><p><strong>Essential Eight</strong> 是 ASD 给互联网 IT
+环境的<strong>有优先级基线</strong>,记法:<strong>阻止恶意代码运行</strong>(application
+control、Office macros、user app hardening)+
+<strong>削弱攻击者</strong>(restrict admin privileges、MFA)+
+<strong>减少暴露并可恢复</strong>(patch applications、patch OS、regular
+backups);用 <strong>maturity level 0–3</strong> 衡量落实程度;对
+<strong>enterprise mobility</strong> 和
+<strong>OT</strong>(ICS/SCADA/DCS/RTU/PLC)环境需另作补充。<code>[S12-S30]</code></p></li>
+<li><p><strong>Risk management</strong> 是贯穿一切的主线:风险 =
+威胁发生并造成影响的不确定性;管理它要走"<strong>Identify → Analyze →
+Evaluate → Treat → Monitor &amp;
+Review</strong>"五步,并且是一个<strong>永不停止的循环</strong>。<code>[S31-S33]</code></p></li>
+<li><p><strong>ISO/IEC 27001</strong> 是建立 <strong>ISMS</strong>
+的标准,主张"系统化管理安全";以 <strong>CIA
+三性</strong>(机密性/完整性/可用性)为目标、以<strong>风险</strong>为中心(控制须由组织情境与风险论证,而非随意挑)、靠<strong>持续改进</strong>演进;覆盖
+<strong>14 个域、114
+个控制</strong>,横跨技术/组织/法律/物理/人力五类;采用它带来合规、竞争力、降本与更好的组织流程。<code>[S34-S41]</code></p></li>
+<li><p><strong>NIST CSF</strong>
+是组织安全活动的<strong>框架</strong>,五大功能 <strong>Identify →
+Protect → Detect → Respond → Recover</strong>;相比以 ISMS 为中心的 ISO
+27001,它更偏"实用地组织全生命周期安全活动",并提醒:<strong>安全不止于预防,检测/响应/恢复同等重要</strong>。<code>[S42-S43]</code></p></li>
+<li><p><strong>(Workshop 考点)</strong>
+账户安全是<strong>整个认证流程</strong>的事,不只是"存好密码":<strong>lockout</strong>
+能挡<strong>在线暴力猜解</strong>,但挡不住<strong>钓鱼</strong>(凭证被亲手交出)和<strong>找回攻击</strong>(找回常是最弱入口);验证时必须<strong>复用同一个盐</strong>、用
+<strong><code>hmac.compare_digest</code></strong>
+安全比较、用<strong>追加模式</strong>记日志告警。<code>[Workshop]</code></p></li>
+</ol>
+<blockquote>
+<p><strong>考试提醒</strong>:讲师明确 Quiz 2 <strong>闭卷、45 分钟、20
+题(每题 0.5 分)</strong>,题目来自 <strong>lecture slides + workshop
+materials</strong>。复习时既要会<strong>背定义</strong>(尤其 §6
+四个词、§7.3 八策略、§9 ISO 27001、§10 NIST CSF
+五功能),也要会<strong>在场景里选对工具</strong>(讲师说后续 workshop
+会练这个)。slides 第 45–49 页的 5 道例题务必弄懂——答案分别是:政策=
+B;need-to-know= B;Essential Eight 目的= C;防恶意 Office 文件=
+C(配置宏设置);NIST CSF= B(五大功能)。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

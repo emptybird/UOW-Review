@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 4 · 网络攻击与防御 (Network Attack and Defence)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="week-4--网络攻击与防御-network-attack-and-defence">Week 4 ·
+网络攻击与防御 (Network Attack and Defence)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够：</p>
+<ul>
+<li>说清几个基础网络协议 <strong>IP / ARP / DHCP / NAT</strong>
+各自干什么，并理解一个贯穿全章的事实：<strong>这些协议负责"连通"，但本身不负责"安全"</strong>——既不保密、不保完整、也不做认证；</li>
+<li>解释互联网的宏观结构是 <strong>Autonomous System
+(AS)</strong>(<em>自治系统</em>)互联的"网络的网络"，<strong>Border
+Gateway Protocol (BGP)</strong>(<em>边界网关协议</em>)如何在 AS
+之间交换路由，以及 <strong>BGP hijacking</strong>(<em>BGP
+劫持</em>)为什么可能、会造成什么后果、<strong>RPKI</strong>
+如何缓解；</li>
+<li>复述 <strong>DNS</strong>(<em>域名系统</em>)把域名解析成 IP
+的完整流程，辨析 <strong>DNS hijacking / pharming</strong>(<em>DNS 劫持
+/ 域名欺骗</em>)的多种形式，并解释 <strong>DNSSEC</strong> 与
+<strong>DoH</strong>(<em>DNS-over-HTTPS</em>)各自解决什么、又带来什么新问题；</li>
+<li>解释
+<strong>DDoS</strong>(<em>分布式拒绝服务</em>)攻击的原理、为什么 IoT
+设备 + botnet 让它如此有效，以及攻击者的多种动机；</li>
+<li>说清 <strong>email / SMTP</strong>
+的两大老问题（无默认加密、垃圾邮件），并区分 <strong>DKIM</strong>
+与机器学习过滤两种反垃圾手段；</li>
+<li>描述四类关键防御——<strong>packet filtering /
+firewall</strong>(<em>包过滤 / 防火墙</em>)、<strong>VPN
+(IPsec)</strong>、<strong>TLS</strong>——各自工作在哪一层、保护
+<strong>CIA</strong>(<em>机密性 / 完整性 /
+可用性</em>)三性中的哪几性，并能讲清 TLS 的 <strong>handshake +
+record</strong> 两段式结构与 <strong>Diffie–Hellman</strong>
+密钥交换；</li>
+<li>用 <strong>CIA
+三性</strong>这把统一标尺，比较本章每种攻击"打掉的是哪一性"，并套用
+workshop 的「攻击 / 受损性质 / 即时响应 /
+长期防御」框架分析真实事件。</li>
+</ul>
+</blockquote>
+<p>上一周我们把<strong>密码学 (cryptography)</strong>
+这套"原语工具箱"补齐了：对称/公钥加密、hash、MAC、数字签名、PKI。但密码学是悬在半空的——它保护的是"数据"，而数据要在一张由无数协议拼起来的网络上<strong>真正传输</strong>。这一周我们就落到地面，看看这张网是怎么搭起来的、攻击者在每一层能做什么、我们又拿什么去防。你会发现，上周学的每一个密码学原语，这一周都会以"防御工具"的身份重新登场：RPKI
+和 DNSSEC 用的是<strong>数字签名</strong>，DKIM 用的是<strong>签名 + DNS
+公钥</strong>，TLS 用的是<strong>密钥交换 +
+对称加密</strong>。所以这一章既是网络安全的入门，也是密码学的一次大型应用实战。</p>
+<p>讲师把全章的脉络写在了第一张幻灯片上 [S2]：</p>
+<blockquote>
+<p><strong>protocols → attacks → defences → secure
+communication</strong> （协议 → 攻击 → 防御 → 安全通信）</p>
+</blockquote>
+<p>这就是我们的行进路线。而衡量"攻击有多严重、防御有多到位"的尺子，是
+[S2] 学习目标里点名的 <strong>CIA
+三性</strong>——<strong>Confidentiality</strong>(<em>机密性</em>，别人读不到)、<strong>Integrity</strong>(<em>完整性</em>，别人改不了/能被发现)、<strong>Availability</strong>(<em>可用性</em>，服务还在、用得上)。每讲一种攻击，你都应该下意识地问一句："它破坏的是
+C、I 还是 A？" 全章读完，这个问题会变成你的本能。</p>
+<p>先看一张全章概念地图，建立全局感，读完回头再看会清晰很多：</p>
+<pre class="mermaid"><code>mindmap
+  root((Week 4&lt;br/&gt;网络攻防))
+    协议基础
+      IP: 只送达, 不加密/不认证
+      ARP: 无认证 → 欺骗
+      DHCP: 自动分配 IP
+      NAT: 多设备共享一个公网 IP
+    路由层
+      Internet = AS 互联
+      BGP: AS 间交换路由
+      攻击: BGP hijacking
+      防御: RPKI / ROA
+    名字解析层
+      DNS: 域名 → IP
+      攻击: DNS hijacking / pharming
+      防御: DNSSEC(签名) / DoH(加密)
+    可用性攻击
+      DDoS: 流量淹没
+      botnet / IoT / Mirai
+    邮件
+      SMTP: 默认不加密+垃圾邮件
+      防御: DKIM(签名) / ML 过滤
+    防御机制
+      Firewall / Packet filtering
+      VPN / IPsec / IKE
+      TLS: handshake + record / DH
+    统一标尺
+      CIA 三性
+      事件响应框架</code></pre>
+<hr />
+<h2 id="1-网络协议基础能送到但不保平安-s3s6">1.
+网络协议基础：能"送到"，但不"保平安" [S3–S6]</h2>
+<p>要谈网络攻击，得先认识这张网上跑的几个最基础的协议。讲师反复强调的一个主题贯穿这一节：<strong>这些协议被设计出来的年代，目标是"让数据通"，而不是"让数据安全"。</strong>
+安全是后来才往上打的补丁。记住这一点，后面所有攻击你都能"猜"个八九不离十——攻击者干的事，几乎都是钻这个"先天不设防"的空子。</p>
+<h3 id="11-ip互联网的邮政系统">1.1 IP：互联网的"邮政系统"</h3>
+<p><strong>Internet Protocol
+(IP)</strong>(<em>互联网协议</em>)是把数据从一台机器搬到另一台机器的基础协议。它是
+<strong>stateless</strong>(<em>无状态的</em>)——每个数据包独立寄送，协议本身不记得"上一个包"是谁。讲师打了个很贴切的比方：IP
+把数据切成一个个
+<strong>packet</strong>(<em>数据包</em>)，像一封封信，每封信自己带着地址独立投递。</p>
+<p>每台联网设备（讲师称之为 <strong>host</strong>，主机）至少有一个
+<strong>IP address</strong>(<em>IP
+地址</em>)，在全网唯一标识它。地址有两个版本：</p>
+<ul>
+<li><strong>IPv4</strong>：用 <strong>32-bit</strong>(<em>32
+位</em>)地址，通常写成四段 0–255 的十进制数，如
+<code>172.16.8.93</code>。32 位意味着最多
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>2</mn><mn>32</mn></msup><mo>≈</mo><mn>40</mn></mrow><annotation encoding="application/x-tex">2^{32}\approx 40</annotation></semantics></math>
+亿个地址。听起来很多，但全球人口已经 70–80
+亿，加上每人多台设备，<strong>IPv4 地址正在耗尽</strong>。</li>
+<li><strong>IPv6</strong>：用 <strong>128-bit</strong>(<em>128
+位</em>)地址，地址空间天文数字级别，足够用。采用率正在快速上升——讲义引用
+Google 的统计，2026 年 2 月约 <strong>46.82%</strong> 的流量已经走 IPv6
+[S3]。</li>
+</ul>
+<p>但本节最关键的一句话是：<strong>IP 只提供"送达 (delivery)"，不提供
+confidentiality、integrity 或 authentication。</strong>
+讲师在录音里把这句话掰开讲透了，值得逐条记下，因为后面好几种攻击的根源都在这里：</p>
+<ul>
+<li><strong>不保密</strong>：IP 包基本是<strong>明文 (plain
+text)</strong> 传输，任何在传输路径上的人都能读到数据载荷 (payload) →
+容易被<strong>窃听 (eavesdropping)</strong>。</li>
+<li><strong>不保完整</strong>：包可以被篡改 (tampered)、被改写。</li>
+<li><strong>不认证</strong>：IP
+不核实发送方身份，所以<strong>源地址可以被伪造</strong>，这就是
+<strong>IP spoofing</strong>(<em>IP
+欺骗</em>)——攻击者借此冒充别人。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展（超出 slides）</strong> — 这里其实暗含一个"分层
+(layering)"的思想：网络协议像盖楼，IP
+是地基的"投递层"，它只管把包送到地址。"保密/完整/认证"这些安全属性，是在更上层（如
+TLS）或并行（如 IPsec）另外加的。理解了"IP
+天生不安全、安全靠上层补"，你就能解释为什么本章后半段全是各种"加固层"。</p>
+</blockquote>
+<h3 id="12-arp把-ip-地址翻译成硬件地址">1.2 ARP：把 IP
+地址翻译成"硬件地址"</h3>
+<p>数据包最终要送到一块具体的网卡上。每块网卡有一个固定的物理地址，叫
+<strong>MAC address</strong>(<em>MAC 地址，即 ethernet
+address</em>)。<strong>Address Resolution Protocol
+(ARP)</strong>(<em>地址解析协议</em>)的工作就是在<strong>局域网
+(LAN)</strong> 内，把 IPv4 地址映射到对应的 MAC
+地址——好比"知道某人的门牌号(IP)，问一句'这门牌对应哪台具体的设备(MAC)'"。</p>
+<p>机制很朴素：主机在局域网里<strong>广播</strong>一个 ARP 请求"谁是 IP
+X？"，拥有该 IP 的设备<strong>回应</strong>自己的
+MAC，请求方就把这个对应关系记下来。问题在于——<strong>ARP
+没有任何内置认证</strong>。任何在同一局域网里的设备都能伪造应答。于是攻击者可以做
+<strong>ARP spoofing / ARP cache poisoning</strong>(<em>ARP 欺骗 / ARP
+缓存投毒</em>)：谎称"IP X 对应的是我的
+MAC"，从而把本该发给别人的流量骗到自己这里（典型的局域网中间人攻击前奏）。</p>
+<p>注意又是同一个模式：<strong>协议假设大家都诚实，没人验证身份 →
+攻击者撒个谎就能得手。</strong></p>
+<h3 id="13-dhcp-与-nat自动分地址共享一个公网门面">1.3 DHCP 与
+NAT：自动分地址、共享一个公网门面</h3>
+<ul>
+<li><p><strong>Dynamic Host Configuration Protocol
+(DHCP)</strong>(<em>动态主机配置协议</em>)：设备一接入网络，DHCP
+就<strong>自动</strong>给它分配一个 IP
+地址以及其他网络设置（如默认网关、DNS
+服务器），并确保每台设备拿到的地址在本网内<strong>有效且唯一</strong>。简单说：你的手机连上
+WiFi 就能上网，背后是 DHCP 在自动派发地址。</p></li>
+<li><p><strong>Network Address Translation
+(NAT)</strong>(<em>网络地址转换</em>)：让一个私有网络里的<strong>多台</strong>设备<strong>共享一个</strong>对外的公网
+IP 地址，靠不同的端口号来区分谁是谁。家庭网络、企业网络、移动网络、很多
+ISP 都在用。</p></li>
+</ul>
+<p>讲师用 UOW 的例子把 NAT 讲活了 [S6]：你和我在校园网里各有各的内网
+IP，但当我们访问校外网站时，请求会先经过 NAT，转换成"University of
+Wollongong 的那个公网 IP"再出去。校外服务器看到的只是"有个来自 UOW
+的请求"，<strong>根本不知道是你还是我发的</strong>。</p>
+<pre class="mermaid"><code>flowchart LR
+  subgraph LAN[校园内网 private]
+    A[你的电脑&lt;br/&gt;10.0.0.5]
+    B[我的电脑&lt;br/&gt;10.0.0.6]
+  end
+  A --&gt; NAT[NAT 路由器]
+  B --&gt; NAT
+  NAT --&gt;|对外只暴露&lt;br/&gt;一个公网 IP| INT[(外部网站)]
+  INT -.-|看到的只是&lt;br/&gt;UOW 的公网 IP| NAT</code></pre>
+<p>NAT
+带来一点"副作用式"的隐私好处：外部看不到内网具体是哪台设备，攻击者也较难直接定位内网某台机器。但讲师特别强调——<strong>NAT
+本身不是一种安全控制 (not a security control by
+itself)</strong>。它的主要作用是"改地址"，安全只是顺带的、不可靠的副产品。它真正的安全相关影响是：<strong>让事后追责
+(attribution) 变难</strong>——出了事，日志里往往只有那个共享的公网
+IP，看不出到底是内网哪台机器干的。</p>
+<blockquote>
+<p><strong>🔑 小结这一节</strong> — IP/ARP/DHCP/NAT
+四个协议，一个共同点：<strong>为连通而生，安全靠后补</strong>。IP
+不加密不认证、ARP 无认证可被欺骗、NAT
+不是安全机制。把这条主线记牢，下面每一种攻击都是它的注脚。</p>
+</blockquote>
+<hr />
+<h2 id="2-路由层安全bgp-与-bgp-劫持-s7s11">2. 路由层安全：BGP 与 BGP
+劫持 [S7–S11]</h2>
+<p>我们刚说"IP
+把包送到地址"，但全球这么多网络，包到底<strong>沿哪条路</strong>走？这就引出互联网的宏观结构和它的"导航系统"BGP——以及当导航系统被人误导或欺骗时会发生什么。</p>
+<h3 id="21-互联网是网络的网络autonomous-system">2.1
+互联网是"网络的网络"：Autonomous System</h3>
+<p>讲师纠正了一个常见的天真想法：互联网<strong>不是</strong>一张单一的大网，而是
+<strong>a network of
+networks</strong>(<em>网络的网络</em>)。它的基本单元叫
+<strong>Autonomous System (AS)</strong>(<em>自治系统</em>)——可以是一个
+ISP、一家电信公司、或一个大型组织。每个 AS：</p>
+<ul>
+<li>控制一段 IP 地址（比如某个 500–600 个地址的地址块）；</li>
+<li><strong>自己管理自己的路由策略 (routing policies)</strong>。</li>
+</ul>
+<p>这件事之所以对安全重要，是因为：<strong>跨越整个互联网的通信，依赖众多
+AS 之间的相互合作，而不是某个中央权威说了算。</strong>
+没有中央权威，就意味着"信任"是分布式的、靠协议约定的——而这正是后面 BGP
+劫持的温床。</p>
+<h3 id="22-bgpas-之间的导航协议">2.2 BGP：AS 之间的"导航协议"</h3>
+<p><strong>Border Gateway Protocol
+(BGP)</strong>(<em>边界网关协议</em>)是 AS
+之间交换路由信息的主力协议。它做三件事：</p>
+<ol type="1">
+<li>告诉各 AS：<strong>哪些路由可用</strong>，能到达哪些 IP
+地址块；</li>
+<li>帮路由器维护 <strong>routing table</strong>(<em>路由表</em>)；</li>
+<li>为转发流量<strong>选择合适的路径</strong>。</li>
+</ol>
+<p>讲师的比方很好记：BGP
+就像导航——"你发一个包，它一路告诉你下一步往哪走，左转右转，直到送到目标
+IP" [S8]。</p>
+<p>但 BGP
+有个不同于普通技术协议的关键特点：<strong>它的路由决策不只看技术效率，还要考虑商业关系。</strong>
+不同 AS
+属于不同组织（甚至是互相竞争的公司），它们之间常有"我帮你转发流量、你付钱"这类<strong>商业协议
+(commercial arrangements)</strong>。所以现实中的路由选择是技术 +
+商业双重因素的产物。</p>
+<p>最关键的一点（也是漏洞的根源）：教学视频里点明了——<strong>BGP
+要工作，AS 运营者必须互相信任 (trust each other)</strong>，它们配置
+<strong>pairing agreements</strong>(<em>对等协议</em>)来建立直连、允许
+BGP 流量通过。BGP
+在历史上就是<strong>建立在"大家都诚实"的信任之上</strong>设计的，缺乏对路由通告真伪的强校验。</p>
+<h3 id="23-bgp-hijacking谎报这段地址归我管">2.3 BGP
+hijacking：谎报"这段地址归我管"</h3>
+<p>既然 BGP 靠信任、缺校验，攻击就顺理成章了。<strong>BGP
+hijacking</strong>(<em>BGP
+劫持</em>)指：某个网络<strong>谎称自己拥有或能到达某段 IP 前缀 (IP
+prefix)</strong>，而它其实并不拥有或控制这段地址。一旦这个虚假的路由通告被邻居接受，就可能像谣言一样<strong>扩散</strong>到全网，导致本该流向真正目的地的流量被引到错误的路径上。</p>
+<p>后果可以很严重 [S9]：</p>
+<ul>
+<li><strong>钓鱼</strong>：把用户重定向到假网站，做 phishing
+或社会工程；</li>
+<li><strong>拒绝服务</strong>：通过"流量黑洞
+(blackholing)"或错误引导，让目标服务不可达；</li>
+<li><strong>窃听/监控</strong>：把流量绕经攻击者控制的路径，从而拦截或监视通信。</li>
+</ul>
+<pre class="mermaid"><code>flowchart LR
+  U[用户流量&lt;br/&gt;发往真实服务] --&gt;|正常| R[真实服务器 ✅]
+  U -.-&gt;|攻击者谎报&lt;br/&gt;&#39;这段 IP 归我&#39;| X[攻击者网络]
+  X --&gt;|窃听 / 丢弃 / 转发| R2[假服务器 ❌]
+  style X fill:#fdd
+  style R2 fill:#fdd</code></pre>
+<blockquote>
+<p><strong>🔑 例 — 真实事件 [S10] + 录音视频</strong> —
+这些事件常出现在考题里，记住"年份 + 谁 + 干了啥"：</p>
+<ul>
+<li><strong>2004
+TTNet（土耳其）</strong>：意外通告了<strong>错误的</strong> BGP
+路由，造成大规模互联网中断——说明<strong>配置失误</strong>也能闯大祸。</li>
+<li><strong>2008 Pakistan / YouTube</strong>：巴基斯坦某 ISP
+想在本地<strong>封锁</strong>
+YouTube，结果错误路由<strong>泄漏到全球</strong>，让很多国家都打不开
+YouTube。</li>
+<li><strong>2018 Amazon Route 53</strong>：攻击者劫持路由、重定向 Amazon
+DNS 服务的流量，<strong>盗取加密货币</strong>。</li>
+<li><strong>2019 Verizon route leak</strong>：宾州一个小网络意外成了
+Verizon 网络的"首选路径"，造成大范围中断。</li>
+<li>（视频补充）<strong>2010</strong>：约 18
+分钟内大量美国军事数据流量经过中国，至今不确定是失误还是蓄意。</li>
+</ul>
+<p>一句话总结：<strong>BGP
+事故既可能是恶意攻击，也可能是配置错误，两者都能造成全球性影响。</strong></p>
+</blockquote>
+<h3 id="24-防御rpki-与-route-origin-authorization">2.4 防御：RPKI 与
+Route Origin Authorization</h3>
+<p>怎么防 BGP
+劫持？核心思路是：<strong>给"谁有权通告哪段地址"这件事加上可验证的凭证。</strong>
+这就是 <strong>Resource Public Key Infrastructure
+(RPKI)</strong>(<em>资源公钥基础设施</em>)。</p>
+<ul>
+<li>它用<strong>数字签名 (digital signatures)</strong> + <strong>Route
+Origin Authorizations
+(ROAs)</strong>(<em>路由起源授权</em>)，来声明并验证"哪个网络运营者<strong>被授权</strong>通告某段特定
+IP 前缀"。</li>
+<li>当一个 AS 收到路由通告，可以核对它是否有合法的 ROA →
+拦截掉那些"没有授权却谎报"的通告。</li>
+</ul>
+<p>注意又是上周密码学的应用：<strong>RPKI =
+数字签名用于"授权认证"</strong>。但讲师诚实地指出它<strong>不是完整解决方案</strong>：RPKI
+的部署和验证在全网仍未普及，覆盖不全的地方依然有风险。</p>
+<blockquote>
+<p><strong>CIA 视角</strong> — BGP 劫持主要打击
+<strong>Availability</strong>(<em>可用性</em>，流量被丢弃/黑洞 →
+服务不可达)，也可能危及 <strong>Confidentiality /
+Integrity</strong>(<em>若流量被绕去窃听或篡改</em>)。RPKI
+通过<strong>认证路由来源</strong>来恢复对路由"完整性/真实性"的信任。</p>
+</blockquote>
+<hr />
+<h2 id="3-名字解析层dns-及其攻防-s16s21">3. 名字解析层：DNS 及其攻防
+[S16–S21]</h2>
+<p>BGP 决定包"走哪条路"，但你在浏览器里敲的是
+<code>uow.edu.au</code>，不是一串数字。把"人能记住的名字"翻译成"机器能用的
+IP"——这是 <strong>DNS</strong> 的活儿，也是攻击者最爱下手的一层。</p>
+<h3 id="31-dns-是互联网的电话簿">3.1 DNS 是互联网的"电话簿"</h3>
+<p><strong>Domain Name System
+(DNS)</strong>(<em>域名系统</em>)把人类可读的域名（如
+<code>uow.edu.au</code>）解析成数字 IP
+地址。教学视频的比方一针见血：<strong>DNS
+像电话簿</strong>——你记得住人名（域名），记不住电话号码（IP），DNS
+帮你查。</p>
+<p>一次典型解析分好几步（这是个<strong>层级 (hierarchical)</strong>
+系统）[S16]：</p>
+<pre class="mermaid"><code>sequenceDiagram
+  participant U as 用户/浏览器
+  participant R as DNS Resolver&lt;br/&gt;(常是本地 DNS)
+  participant Root as Root Server
+  participant TLD as TLD Server (.com)
+  participant Auth as Authoritative Server&lt;br/&gt;(amazon.com)
+  U-&gt;&gt;R: 1. 想访问 www.amazon.com
+  R-&gt;&gt;Root: 2. .com 归谁管?
+  Root--&gt;&gt;R: 找 .com 的 TLD 服务器
+  R-&gt;&gt;TLD: 3. amazon.com 归谁管?
+  TLD--&gt;&gt;R: 找 amazon.com 的权威服务器
+  R-&gt;&gt;Auth: 4. www.amazon.com 的 IP?
+  Auth--&gt;&gt;R: 5. 返回 IP 地址
+  R--&gt;&gt;U: 给你 IP, 浏览器去连接</code></pre>
+<p>为了加速，DNS 服务器会<strong>缓存 (cache)</strong>
+解析结果，下次同样的查询就能直接答、更快——记住"缓存"这个词，它待会儿会变成一个攻击面（cache
+poisoning）。</p>
+<h3 id="32-dns-的脆弱性与劫持">3.2 DNS 的脆弱性与劫持</h3>
+<p>DNS 既关键又分布广，自然是靶子 [S17]：</p>
+<ul>
+<li>整个体系是层级化的（root → TLD → ISP/本地
+resolver），又大量依赖缓存；</li>
+<li>它会成为 <strong>DDoS</strong> 的攻击目标——著名例子是 <strong>2016
+年 Mirai botnet 攻击 Dyn</strong>（一家 DNS
+服务商），导致多个主流在线服务瘫痪；</li>
+<li>现代 DNS 更分布、更有韧性，但仍是重要目标。</li>
+</ul>
+<p><strong>DNS hijacking</strong>(<em>DNS 劫持</em>)：操纵 DNS
+查询或响应，把用户<strong>送到错误的目的地</strong>
+[S18]。它可以发生在解析链路的不同环节。视频很好地归纳了几种形式：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>劫持类型</th>
+<th>攻击者怎么做</th>
+<th>影响范围</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Local DNS hijacking</strong></td>
+<td>用木马 (trojan) 改掉<strong>用户电脑</strong>上的 DNS
+服务器设置</td>
+<td>单台机器</td>
+</tr>
+<tr class="even">
+<td><strong>Router DNS hijacking</strong></td>
+<td>利用路由器固件漏洞，改<strong>路由器</strong>的 DNS 设置</td>
+<td>该路由器下<strong>所有</strong>用户</td>
+</tr>
+<tr class="odd">
+<td><strong>Man-in-the-middle</strong></td>
+<td>拦截设备与 DNS 服务器之间的通信，<strong>篡改应答</strong></td>
+<td>被拦截的会话</td>
+</tr>
+<tr class="even">
+<td><strong>Hijacking DNS server</strong></td>
+<td>攻破安全薄弱的 DNS 服务器，直接改其中的 IP 记录</td>
+<td>用该服务器的所有人</td>
+</tr>
+</tbody>
+</table></div>
+<p>还有一个相关概念
+<strong>Pharming</strong>(<em>域名欺骗</em>)：通过<strong>操纵 DNS
+响应</strong>把用户重定向到假冒/恶意网站。其变种 <strong>drive-by
+pharming</strong>：诱骗用户访问一个恶意页面，该页面悄悄<strong>改掉家用路由器的
+DNS 设置</strong>，于是用户之后访问正规网站时都被引向钓鱼站。</p>
+<blockquote>
+<p>📎 <strong>拓展（超出 slides）</strong> — 视频还区分了 <strong>DNS
+spoofing / cache poisoning</strong>(<em>DNS 欺骗 /
+缓存投毒</em>)：攻击者<strong>不改用户端设置</strong>，而是污染 DNS
+<strong>缓存</strong>——往缓存里塞一条假的"域名→IP"。因为缓存是为了加速而"先信先用"，被投毒后，所有读这条缓存的用户都被导向恶意站。这正好印证
+§3.1 埋的伏笔：<strong>缓存是性能优化，也是攻击面。</strong></p>
+</blockquote>
+<h3 id="33-防御一dnssec给-dns-记录盖数字签名">3.3 防御一：DNSSEC——给 DNS
+记录盖"数字签名"</h3>
+<p>劫持的本质是"用户无法分辨 DNS
+应答是真是假"。解决思路自然是：<strong>给 DNS
+记录加上可验证的真实性证明</strong>。这就是 <strong>DNSSEC (DNS Security
+Extensions)</strong>(<em>DNS 安全扩展</em>)：</p>
+<ul>
+<li>给 DNS 记录<strong>附加数字签名 (digital signatures)</strong>；</li>
+<li>resolver 验证签名 →
+确认记录<strong>确实来自权威服务器</strong>、且<strong>传输中未被篡改</strong>；</li>
+<li>因此它提升 DNS 响应的 <strong>integrity（完整性）+
+authenticity（真实性）</strong>。</li>
+</ul>
+<p>又一次，密码学原语（数字签名）来当防御工具。但讲师强调它<strong>部署不均、未普及</strong>，覆盖不到的地方仍不受保护。学生问"为什么不普遍部署"，讲师的回答是：它只解决完整性/真实性，是否值得部署取决于具体场景，所以推广不彻底。</p>
+<p>DNSSEC 还引入了两个<strong>新问题</strong> [S20]，这点考试爱考"DNSSEC
+不是万能的"：</p>
+<ol type="1">
+<li><strong>Zone enumeration（区域枚举，又称"walking the
+zone"）</strong>：DNSSEC
+的某些机制反而让攻击者更容易<strong>枚举出子域名</strong>等信息。缓解技术叫
+<strong>NSEC3</strong>，让枚举变难（细节不要求）。</li>
+<li><strong>Amplification（放大）</strong>：DNSSEC
+的响应通常<strong>比普通 DNS 响应更大</strong> →
+攻击者可滥用它做<strong>反射/放大型
+DDoS</strong>（用小请求换大响应，把流量"放大"砸向受害者）。</li>
+</ol>
+<h3 id="34-防御二隐私向dns-over-https-doh">3.4
+防御二（隐私向）：DNS-over-HTTPS (DoH)</h3>
+<p>DNSSEC 保的是"真不真"，但普通 DNS 查询仍是<strong>明文</strong>——你的
+ISP、网络运营商能看到你查了哪些域名。<strong>DNS-over-HTTPS
+(DoH)</strong> 把 DNS 查询<strong>加密后走 HTTPS</strong> 发给 DoH
+resolver，解决的是<strong>隐私</strong>：网络运营商和 ISP
+看不到（或看得很少）你的 DNS 活动。</p>
+<p>但这是一把双刃剑——讲师把这个"权衡
+(trade-off)"讲得很清楚，是本节考点：DoH
+让企业/网络的<strong>监控与过滤更难</strong>了。受影响的具体场景
+[S21]：</p>
+<ul>
+<li>检测试图联系可疑/C2（命令与控制）域名的<strong>恶意软件</strong>；</li>
+<li>监测 <strong>DNS 劫持</strong>；</li>
+<li>在受管环境里<strong>封锁不当或违规域名</strong>。</li>
+</ul>
+<p>于是出现持续争论：<strong>支持者</strong>看重隐私提升；<strong>批评者</strong>认为它削弱了网络可见性、并把
+DNS 的控制权推向应用层提供商。一句话：<strong>DoH
+提升隐私，却降低了网络防御者的可见性。</strong></p>
+<blockquote>
+<p>📎 <strong>拓展（超出 slides，讲师补充的"以后会学"）</strong> —
+讲师借 DoH 的"加密但仍想分析"延伸到课程后面的 <strong>privacy-preserving
+machine
+learning</strong>(<em>隐私保护机器学习</em>)：你想用云端算力训练，又不想暴露数据，就需要"在加密数据上做计算"或"多方联合训练而互不泄露各自数据"的技术。这条线索现在不展开，但能帮你理解"加密
+vs 可用性/可分析性"这对矛盾在全课程反复出现。</p>
+</blockquote>
+<blockquote>
+<p><strong>CIA 视角</strong> — DNS 劫持主要破坏
+<strong>Integrity</strong>(<em>把"域名→IP"的映射改假</em>，进而可能盗取凭据危及
+Confidentiality)。DNSSEC 用签名恢复
+<strong>Integrity/Authenticity</strong>；DoH 用加密提升
+<strong>Confidentiality（隐私）</strong>，代价是防御方可见性下降。</p>
+</blockquote>
+<hr />
+<h2 id="4-可用性攻击的代表ddos-s26s27">4. 可用性攻击的代表：DDoS
+[S26–S27]</h2>
+<p>前面 BGP 劫持、DNS 劫持主要在"骗"（破坏
+I、C）。这一节的攻击走另一条路——<strong>不偷不改，纯粹把你"淹死"</strong>，直接打
+<strong>Availability</strong>。</p>
+<h3 id="41-ddos-是什么为什么有效">4.1 DDoS 是什么、为什么有效</h3>
+<p><strong>Distributed Denial-of-Service
+(DDoS)</strong>(<em>分布式拒绝服务</em>)：用海量流量或请求<strong>压垮目标</strong>，让合法用户用不了服务。讲师说它"<strong>概念简单，但极其有效</strong>"——不需要多高深的技巧，把目标的带宽/连接/处理能力耗尽即可。</p>
+<p>关键在于"Distributed（分布式）"和它的弹药库——<strong>botnet</strong>(<em>僵尸网络</em>)：一大批被攻陷的设备，听攻击者指挥同时发流量。地下市场甚至<strong>出租/出售</strong>这些被控设备。</p>
+<p>为什么 2016 年后 DDoS 变本加厉？因为攻击者盯上了 <strong>IoT
+设备</strong>（CCTV 摄像头、家用路由器等）：</p>
+<ul>
+<li>常用<strong>弱默认口令</strong>、补丁打得差 → 容易被攻陷；</li>
+<li>资源有限 → 加密往往很弱，安全性差；</li>
+<li>数量巨大 → 组成超大规模 botnet。</li>
+</ul>
+<p><strong>Mirai botnet</strong>
+就是那个标志性例子：它大规模利用不安全的 IoT 设备发动 DDoS（也正是 §3.2
+里打垮 Dyn 的那次）。</p>
+<pre class="mermaid"><code>flowchart LR
+  H[攻击者] --&gt; C{C2 控制}
+  C --&gt; B1[IoT 摄像头]
+  C --&gt; B2[家用路由器]
+  C --&gt; B3[被攻陷 PC]
+  C --&gt; Bn[...成千上万台]
+  B1 &amp; B2 &amp; B3 &amp; Bn --&gt;|海量流量| T[(目标服务&lt;br/&gt;被淹没→不可用)]
+  style T fill:#fdd</code></pre>
+<h3 id="42-动机不只是技术更是钱与政治">4.2
+动机：不只是技术，更是钱与政治</h3>
+<p>讲师强调 DDoS"<strong>不只是技术攻击，背后有多种动机</strong>"
+[S27]：</p>
+<ul>
+<li><strong>扰乱服务</strong>：搞瘫游戏、通信平台、或银行/政务等在线服务；</li>
+<li><strong>DDoS-for-hire</strong>：地下市场里"花钱雇人打"——"我不爽你，付点钱让人用流量淹你"；</li>
+<li><strong>勒索/敲诈
+(extortion/blackmail)</strong>：以持续攻击相威胁，索要赎金；</li>
+<li><strong>政治压制/审查</strong>：打压异见群体或批评性网站；</li>
+<li><strong>黑客行动主义
+(hacktivism)/抗议</strong>：借攻击吸引对某议题的关注。</li>
+</ul>
+<blockquote>
+<p><strong>CIA 视角</strong> — DDoS 是纯粹的
+<strong>Availability</strong>
+攻击：不读你的数据、不改你的数据，就是让你"用不了"。</p>
+</blockquote>
+<hr />
+<h2 id="5-邮件安全smtp-的老毛病与反垃圾-s28s29">5. 邮件安全：SMTP
+的老毛病与反垃圾 [S28–S29]</h2>
+<p>把场景从"网页/路由"切到"邮件"。邮件用的核心协议 <strong>SMTP</strong>
+设计得很早，两个老问题至今困扰我们：<strong>隐私（不加密）</strong> 和
+<strong>垃圾邮件（spam）</strong>。</p>
+<h3 id="51-隐私问题smtp-默认既不加密也不认证">5.1 隐私问题：SMTP
+默认既不加密也不认证</h3>
+<p>传统 SMTP 邮件<strong>默认既不做端到端加密，也不做端到端认证</strong>
+[S28]。后果：任何能监听网络或访问邮件服务器的人，都可能读到邮件内容。</p>
+<p>有工具能补救——<strong>PGP / GPG</strong>
+可以加密邮件——但<strong>始终没普及</strong>，原因讲师讲得很实在：</p>
+<ul>
+<li>对普通用户来说<strong>配置和使用都太麻烦</strong>；</li>
+<li>加密邮件"<strong>单方面用没意义</strong>"：如果你的收件人不也用，加密就发挥不了作用；</li>
+<li>结果它主要停留在<strong>专业小圈子</strong>里。</li>
+</ul>
+<p>一句话：<strong>邮件历来"好用但默认不私密"。</strong></p>
+<h3 id="52-反垃圾邮件dkim认证-机器学习过滤">5.2
+反垃圾邮件：DKIM（认证）+ 机器学习（过滤）</h3>
+<p>垃圾邮件的一大特征是<strong>伪造发件人信息 (forged
+sender)</strong>。所以邮件系统需要办法核实"这封信真的来自它声称的域名吗"。讲义给了两条互补的路
+[S29]：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>手段</th>
+<th>原理</th>
+<th>解决什么</th>
+<th>用到的密码学</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>DKIM</strong> (DomainKeys Identified Mail)</td>
+<td>发信方给邮件<strong>附加数字签名</strong>；收信服务器用<strong>发信域名
+DNS 记录里公布的公钥</strong>验证</td>
+<td>确认邮件<strong>确与所声称的域名关联</strong>、且<strong>传输中未被篡改</strong></td>
+<td>数字签名 + DNS 公钥分发</td>
+</tr>
+<tr class="even">
+<td><strong>机器学习过滤</strong></td>
+<td>综合"认证结果、邮件内容、发送模式、用户举报"等信号判断是否为垃圾</td>
+<td>在认证之外，<strong>统计性地识别</strong>可疑邮件</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师用一个你天天在做的动作把 ML
+过滤讲活了：你把一封邮件拖进"垃圾箱"，其实就是在<strong>给过滤器喂训练数据</strong>——它学会"这类来自某处的邮件是垃圾"，下次自动帮你拦。难点在于：<strong>用户偏好和攻击者行为都会变</strong>，所以垃圾检测是个持续对抗、没有终点的问题。</p>
+<p>要点是：<strong>邮件安全要"认证 (DKIM) + 过滤
+(ML)"双管齐下</strong>，单靠一种都不够。</p>
+<blockquote>
+<p><strong>⚠️ 高频考点（slides 用两道题强调）</strong> — DKIM 和 DNSSEC
+都能"认证"，但<strong>都不能彻底消灭钓鱼</strong>。</p>
+<ul>
+<li>一道题给了组合场景：邮件看似来自银行（<strong>email
+spoofing</strong>）+ 用户敲对域名却到了假页面（<strong>DNS
+hijacking</strong>）→ 答案是"两种攻击叠加"。</li>
+<li>另一道题：某域名同时上了 DNSSEC 和
+DKIM，是否就"再也不会被冒名钓鱼"？<strong>错。</strong> DNSSEC 保护 DNS
+记录的真实性、DKIM
+帮助认证域名邮件，但攻击者仍可用<strong>相似域名、被盗账号、诱导性内容</strong>等手段钓鱼。<strong>它们提升安全，但不消除钓鱼。</strong></li>
+</ul>
+</blockquote>
+<blockquote>
+<p><strong>CIA 视角</strong> — 邮件窃听破坏
+<strong>Confidentiality</strong>；伪造发件人破坏
+<strong>Integrity/Authenticity</strong>。DKIM
+主攻真实性，加密（PGP/GPG/TLS 传输）主攻机密性。</p>
+</blockquote>
+<hr />
+<p>到这里，我们已经走完了"protocols → attacks"。讲义后半段转向
+<strong>defences</strong>：在网络边界<strong>过滤</strong>（防火墙）、在
+IP
+层<strong>建加密隧道</strong>（VPN/IPsec）、在传输层<strong>给网页通信加密认证</strong>（TLS）。</p>
+<h2 id="6-边界防御防火墙与包过滤-s32s33">6. 边界防御：防火墙与包过滤
+[S32–S33]</h2>
+<p>IP
+把数据切成包送达，那么"在入口处检查每个包、拦下可疑的"就是最直接的防御。这就是
+<strong>firewall + packet filtering</strong>。</p>
+<h3 id="61-防火墙与基本包过滤">6.1 防火墙与基本包过滤</h3>
+<p><strong>Firewall</strong>(<em>防火墙</em>)是位于私有网络与互联网之间的设备或软件系统，过滤可能有害的流量——讲师的比方就是"内外之间的一堵墙
+(a wall)"，进出流量都要过它这一关。</p>
+<p>最简单的形式是 <strong>basic packet
+filtering</strong>(<em>基本包过滤</em>)：只检查<strong>包头信息 (packet
+header)</strong>，如 IP 地址和端口号 [S32]：</p>
+<ul>
+<li>这种过滤常<strong>内置在路由器和操作系统</strong>里；</li>
+<li>能<strong>拉黑</strong>已知恶意
+IP（维护一个黑名单库，命中就拦）；</li>
+<li>也常用来"<strong>默认全拦、只放行特定端口</strong>"：比如先只开放
+Web、邮件等常用服务端口，需要时再开其他端口。</li>
+</ul>
+<p>核心思想：<strong>包过滤提供一种基本的"准入/准出"控制——决定哪些网络流量被允许进出。</strong></p>
+<h3 id="62-怎么绕过基本包过滤">6.2 怎么绕过基本包过滤</h3>
+<p>基本包过滤简单，但漏洞也明显 [S33]：</p>
+<ul>
+<li><strong>Packet
+fragmentation（包分片）规避</strong>：正常情况下，过大的包会被切成小片，到目的地再重组。攻击者利用这点——<strong>第一个分片看起来无害、通过了检查，但后续分片把包"补全"成违反安全策略的样子</strong>。检查只看了开头，就被骗过去了。</li>
+<li><strong>黑名单对"善变的
+IP"无力</strong>：包过滤依赖黑名单。若攻击者频繁更换、使用<strong>短命
+(short-lived) IP 地址</strong>，基于地址的封锁很快失效。</li>
+</ul>
+<p>一句话：<strong>基本包过滤有用，但有技巧的攻击者仍能绕过</strong>（分片、换
+IP）。这也是为什么现实中需要更"懂上下文"的高级防火墙——不过本章只要求你说清基本包过滤的原理与这两个局限。</p>
+<blockquote>
+<p><strong>CIA 视角</strong> — 包过滤主要服务于
+<strong>Availability/Integrity</strong>（拦掉恶意流量、保护内网），但它<strong>不加密</strong>，不提供机密性。</p>
+</blockquote>
+<hr />
+<h2 id="7-ip-层加密隧道vpn-与-ipsec-s34s35">7. IP 层加密隧道：VPN 与
+IPsec [S34–S35]</h2>
+<p>包过滤是在边界"挑包"，但它管不了"数据在公网上裸奔被窃听"。如果想在不可信的互联网上开一条<strong>受保护的通道</strong>，就用
+<strong>VPN</strong>。</p>
+<h3 id="71-vpn-与-ipsec-协议套件">7.1 VPN 与 IPsec 协议套件</h3>
+<p><strong>Virtual Private Network
+(VPN)</strong>(<em>虚拟专用网</em>)在不可信网络（如互联网）之上，建立一条受保护的通信通道。它能在
+<strong>IP 层</strong>提供
+<strong>authentication（认证）、integrity（完整性）</strong>，并在需要时提供
+<strong>confidentiality（机密性，加密）</strong>——靠的是
+<strong>IPsec</strong> 协议套件。</p>
+<p>IPsec 的几个关键概念：</p>
+<ul>
+<li><strong>Security Association
+(SA)</strong>(<em>安全关联</em>)：一组"密钥 + 算法 +
+参数"，用来保护某一条特定的流量流。可以理解为"这条流量该怎么加密/认证"的一份配置合同。</li>
+<li>IPsec 可以有两种保护强度：
+<ul>
+<li><strong>仅认证 (Authentication only)</strong> → 保护
+<strong>integrity + authenticity</strong>；</li>
+<li><strong>认证 + 加密 (Authentication + encryption)</strong> → 再加上
+<strong>confidentiality</strong>。</li>
+</ul></li>
+<li><strong>Internet Key Exchange
+(IKE)</strong>(<em>互联网密钥交换</em>)：用来协商参数、建立密钥，<strong>常用
+Diffie–Hellman 密钥交换</strong>（又见上周密码学！）。</li>
+</ul>
+<h3 id="72-vpn-产品形态">7.2 VPN 产品形态</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>类型</th>
+<th>用途</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Site-to-site VPN</strong></td>
+<td>在各站点放 VPN
+网关，把<strong>分支机构网络</strong>安全地连起来</td>
+<td>公司总部 ↔︎ 分公司</td>
+</tr>
+<tr class="even">
+<td><strong>Remote-access VPN</strong></td>
+<td>个人用户（如在家办公的员工）从笔记本安全连入<strong>组织内网</strong></td>
+<td>在家连 UOW 校园网</td>
+</tr>
+<tr class="odd">
+<td><strong>Consumer VPN</strong></td>
+<td>面向个人出售，用于隐私或绕过地域限制</td>
+<td>翻墙看视频、公共 WiFi 保护</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师用了很接地气的例子：在家办公必须连 VPN
+才能访问校内资源；在机场连<strong>公共 WiFi</strong> 前最好开
+VPN，否则个人信息可能被窃；以及在境外用 VPN
+访问被地域限制的服务。要点：<strong>VPN
+既被组织用（安全接入），也被个人用（隐私/绕限制）。</strong></p>
+<blockquote>
+<p><strong>CIA 视角</strong> — VPN/IPsec 可以一次覆盖 <strong>C + I +
+Authentication</strong>（认证+完整性，可选机密性），工作在 <strong>IP
+层</strong>，保护"两个网络/主机之间的整条流量"。</p>
+</blockquote>
+<hr />
+<h2 id="8-安全网页通信tls-s36s39">8. 安全网页通信：TLS [S36–S39]</h2>
+<p>VPN 保护"整条 IP
+流量"，但你访问一个网站时，更常见、更轻量的保护是在<strong>传输层</strong>直接给这次连接加密认证——这就是你地址栏里那个
+<strong>HTTPS</strong> 背后的
+<strong>TLS</strong>。它是本章密码学应用的"集大成者"。</p>
+<h3 id="81-为什么需要-tls">8.1 为什么需要 TLS</h3>
+<p>如今网络通信几乎离不开加密 [S36]：</p>
+<ul>
+<li>安全网页通信普遍用 <strong>HTTPS</strong>（<code>http</code>
+后面那个 <strong>S</strong> 就是 secure）；</li>
+<li>HTTPS 用的标准协议是 <strong>TLS (Transport Layer
+Security)</strong>(<em>传输层安全</em>)；</li>
+<li>TLS 提供
+<strong>confidentiality</strong>：加密传输中的数据，他人难以读取；</li>
+<li>TLS 还提供
+<strong>authentication</strong>：客户端（浏览器）通过<strong>数字证书
+(digital certificate)</strong> 验证服务器身份（呼应上周的
+PKI/证书）。</li>
+</ul>
+<h3 id="82-两段式结构handshake--record">8.2 两段式结构：Handshake +
+Record</h3>
+<p>TLS 的总目标是<strong>在 client 与 server
+之间建立一条安全通道</strong>
+[S37]。它由两个协议配合完成——记住这个分工，是本节核心考点：</p>
+<pre class="mermaid"><code>flowchart TB
+  subgraph HS[Handshake Protocol 握手协议]
+    direction TB
+    H1[认证通信双方&lt;br/&gt;authenticate parties]
+    H2[协商加密算法与参数&lt;br/&gt;negotiate algorithms]
+    H3[建立会话共享密钥&lt;br/&gt;establish shared secrets]
+    H1 --&gt; H2 --&gt; H3
+  end
+  subgraph RC[Record Protocol 记录协议]
+    direction TB
+    R1[用共享密钥保护应用数据]
+    R2[提供 confidentiality + integrity]
+    R1 --&gt; R2
+  end
+  HS --&gt;|握手建好安全参数| RC</code></pre>
+<ul>
+<li><strong>Handshake
+Protocol（握手协议）</strong>：通信开始前先"握手"——<strong>认证双方身份、协商算法与参数、建立本次会话的共享密钥</strong>。</li>
+<li><strong>Record
+Protocol（记录协议）</strong>：握手建好密钥后，用它来<strong>保护实际传输的应用数据</strong>，提供<strong>机密性
++ 完整性</strong>。</li>
+</ul>
+<p>一句话记忆：<strong>握手负责"把安全装置架好"，记录协议负责"用它来保护数据"。</strong></p>
+<h3 id="83-握手怎么凭空商量出一把共享密钥diffiehellman">8.3
+握手怎么"凭空"商量出一把共享密钥：Diffie–Hellman</h3>
+<p>握手要建立"共享密钥"，但 client 和 server
+之前素未谋面、信道还不安全，怎么协商出一把只有它俩知道的密钥？答案是
+<strong>Diffie–Hellman (DH) key exchange</strong>(<em>DH
+密钥交换</em>)——能让双方在<strong>不安全信道</strong>上达成一个共享秘密
+[S38]。</p>
+<p>基本思路（讲师说"不懂数学就记直觉"）：</p>
+<ol type="1">
+<li>双方各自有一个<strong>私有值 (private value)</strong>：client 有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>，server
+有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>；</li>
+<li>双方交换<strong>公开值 (public values)</strong>：client 发
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>g</mi><mi>a</mi></msup><annotation encoding="application/x-tex">g^a</annotation></semantics></math>，server
+发
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>g</mi><mi>b</mi></msup><annotation encoding="application/x-tex">g^b</annotation></semantics></math>；</li>
+<li>各自把"<strong>收到的值</strong>"和"<strong>自己的私有值</strong>"组合：
+<ul>
+<li>client 算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>g</mi><mi>b</mi></msup><mo stretchy="true" form="postfix">)</mo></mrow><mi>a</mi></msup><mo>=</mo><msup><mi>g</mi><mrow><mi>a</mi><mi>b</mi></mrow></msup></mrow><annotation encoding="application/x-tex">(g^b)^a = g^{ab}</annotation></semantics></math></li>
+<li>server 算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>g</mi><mi>a</mi></msup><mo stretchy="true" form="postfix">)</mo></mrow><mi>b</mi></msup><mo>=</mo><msup><mi>g</mi><mrow><mi>a</mi><mi>b</mi></mrow></msup></mrow><annotation encoding="application/x-tex">(g^a)^b = g^{ab}</annotation></semantics></math></li>
+</ul></li>
+<li>两边得到<strong>同一个</strong>共享密钥
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><msup><mi>g</mi><mrow><mi>a</mi><mi>b</mi></mrow></msup></mrow><annotation encoding="application/x-tex">k = g^{ab}</annotation></semantics></math>。</li>
+</ol>
+<pre class="mermaid"><code>sequenceDiagram
+  participant C as Client (私有 a)
+  participant S as Server (私有 b)
+  C-&gt;&gt;S: 发送 g^a (公开)
+  S-&gt;&gt;C: 发送 g^b (公开)
+  Note over C: 计算 k = (g^b)^a = g^ab
+  Note over S: 计算 k = (g^a)^b = g^ab
+  Note over C,S: 双方得到同一把密钥 k = g^ab</code></pre>
+<p>妙处在于：窃听者即使看到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>g</mi><mi>a</mi></msup><annotation encoding="application/x-tex">g^a</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>g</mi><mi>b</mi></msup><annotation encoding="application/x-tex">g^b</annotation></semantics></math>，也<strong>算不出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>g</mi><mrow><mi>a</mi><mi>b</mi></mrow></msup><annotation encoding="application/x-tex">g^{ab}</annotation></semantics></math></strong>（这背后是离散对数难题）。讲师提醒：课件里是
+DH
+的<strong>基础版</strong>，真正部署的是经过加固的安全版本（如带认证、防中间人），细节留给网络安全课。</p>
+<h3 id="84-record-protocol对称加密--认证">8.4 Record Protocol：对称加密
++ 认证</h3>
+<p>握手把共享密钥
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+建好后，Record Protocol 就用 <strong>带认证的对称密钥加密 (symmetric-key
+encryption with authentication)</strong> 来保护后续每一条消息
+[S39]：双方用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+对消息加密
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>,</mo><msub><mi>m</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>,</mo><msub><mi>m</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mi>…</mi><mo>,</mo><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>,</mo><msub><mi>m</mi><mi>n</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">E(k, m_1), E(k, m_2), \dots, E(k, m_n)</annotation></semantics></math>
+互发，对方用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+解密。</p>
+<p>为什么这样就安全？讲师讲得很直白：<strong>对手能截获到加密后的数据，但没有密钥
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>，就解不开、也无法伪造</strong>。于是后续消息同时获得：</p>
+<ul>
+<li><strong>confidentiality（机密性）</strong>：别人读不懂；</li>
+<li><strong>integrity/authentication（完整性/认证）</strong>：篡改能被发现。</li>
+</ul>
+<p>注意 TLS 是"<strong>非对称定身份 +
+对称传数据</strong>"的经典组合：握手阶段用（公钥/DH）建立信任与密钥，数据阶段用<strong>对称加密</strong>（快）批量保护——这正是上周"组合使用密码学"思想的活例子。</p>
+<blockquote>
+<p><strong>CIA 视角</strong> — TLS 在<strong>传输层</strong>为单次
+client↔︎server 连接提供 <strong>Confidentiality + Integrity + 服务器
+Authentication</strong>。它和 VPN 都能加密，但层级与粒度不同：VPN 在 IP
+层保护"整条网络流量"，TLS 在传输层保护"这一个连接/会话"。</p>
+</blockquote>
+<hr />
+<h2 id="9-把它串起来cia-标尺--事件响应框架结合-workshop">9.
+把它串起来：CIA 标尺 + 事件响应框架（结合 Workshop）</h2>
+<p>到这里所有零件都讲完了。这一节做两件让知识"立起来"的事：一是用
+<strong>CIA 三性</strong>横向对比全章；二是套用 <strong>Week 5
+workshop</strong> 的事件分析框架，把"识别攻击 →
+对症防御"练成肌肉记忆。这正是 [S2] 学习目标里那条"<strong>compare
+availability, integrity, and confidentiality risks</strong>"的落地。</p>
+<h3 id="91-一张总表攻击打哪一性用什么防">9.1
+一张总表：攻击打哪一性、用什么防</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>攻击</th>
+<th>发生在哪一层</th>
+<th>主要破坏的 CIA</th>
+<th>关键防御</th>
+<th>防御用到的密码学</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>IP spoofing / 窃听</strong></td>
+<td>IP 层</td>
+<td>C、I、认证</td>
+<td>IPsec/VPN、TLS</td>
+<td>加密 + 认证</td>
+</tr>
+<tr class="even">
+<td><strong>ARP spoofing</strong></td>
+<td>局域网</td>
+<td>I、C</td>
+<td>局域网防护（静态 ARP、检测）</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><strong>BGP hijacking</strong></td>
+<td>路由层</td>
+<td><strong>A</strong>（+C/I）</td>
+<td><strong>RPKI / ROA</strong></td>
+<td>数字签名</td>
+</tr>
+<tr class="even">
+<td><strong>DNS hijacking / pharming</strong></td>
+<td>名字解析层</td>
+<td><strong>I</strong>（+C）</td>
+<td><strong>DNSSEC</strong>、安全路由器、DNS 监控</td>
+<td>数字签名</td>
+</tr>
+<tr class="odd">
+<td><strong>DDoS</strong></td>
+<td>任意层（淹没）</td>
+<td><strong>A</strong></td>
+<td>限流、上游清洗、DDoS 防护、设备打补丁</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><strong>Phishing / email spoofing</strong></td>
+<td>应用层</td>
+<td>C、I/认证</td>
+<td><strong>DKIM</strong>、spam 过滤、用户意识</td>
+<td>数字签名</td>
+</tr>
+<tr class="odd">
+<td><strong>包分片规避</strong></td>
+<td>边界</td>
+<td>A/I</td>
+<td>高级防火墙（非仅基本包过滤）</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>🔑 高频辨析：DNS hijacking vs BGP hijacking（workshop Part D
+原题）</strong> — 两者都能"把用户导向错误的地方"，但层级不同：</p>
+<ul>
+<li><strong>DNS hijacking</strong>
+改的是<strong>名字解析</strong>——同一个域名 <code>www.bank.com</code>
+被解析到<strong>错误的 IP</strong>。问题出在"名字→IP 的映射"。</li>
+<li><strong>BGP hijacking</strong>
+改的是<strong>网络间的路由</strong>——通过谎报路由/IP
+前缀，让流量在到达正确目的地前被<strong>重定向、拦截或丢弃</strong>。问题出在"流量走的路径"。</li>
+<li>记忆口诀：<strong>DNS 劫持改"地址簿"，BGP
+劫持改"路线图"</strong>。</li>
+</ul>
+</blockquote>
+<h3 id="92-事件响应四步框架workshop-part-b">9.2
+事件响应四步框架（Workshop Part B）</h3>
+<p>Workshop
+给了一个分析真实安全事件的好用模板，每个事件都问四个问题：<strong>①
+是什么攻击 → ② 主要受损哪一性 → ③ 即时响应 → ④
+长期防御</strong>。把它套在四类典型事件上：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>事件线索</th>
+<th>① 攻击</th>
+<th>② 受损性质</th>
+<th>③ 即时响应</th>
+<th>④ 长期防御</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>敲对网址却到假登录页；家用路由器 DNS 设置异常</td>
+<td>DNS hijacking / pharming</td>
+<td>Integrity（+C 若凭据被盗）</td>
+<td>改回路由器 DNS、提醒用户</td>
+<td>加固路由器、DNS 监控、DNSSEC</td>
+</tr>
+<tr class="even">
+<td>公司网站在多国不可达；其 IP 前缀被别的网络通告</td>
+<td>BGP hijacking / route leak</td>
+<td>Availability（+C 若被拦截）</td>
+<td>联系上游运营商</td>
+<td>RPKI / ROA / 路由验证</td>
+</tr>
+<tr class="odd">
+<td>收到海量来自不同 IP（多为 IoT）的请求，服务不可用</td>
+<td>DDoS（botnet）</td>
+<td>Availability</td>
+<td>限流、上游缓解、流量清洗</td>
+<td>DDoS 防护服务、设备打补丁与口令卫生</td>
+</tr>
+<tr class="even">
+<td>收到自称"薪资部"的邮件，要求点链接确认信息</td>
+<td>Phishing / spoofed email</td>
+<td>Confidentiality + Integrity</td>
+<td>提醒用户、封锁发件人/链接、查邮件头</td>
+<td>spam 过滤、DKIM、安全意识培训</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="93-workshop-里的综合案例part-a">9.3 Workshop 里的综合案例（Part
+A）</h3>
+<p>Workshop 用一个"周一早晨大学 IT
+团队收到的多起报告"把上面全部串了起来，是绝佳的期末式综合题——学会把<strong>症状</strong>对应到<strong>攻击</strong>：</p>
+<pre class="mermaid"><code>flowchart LR
+  S1[敲对网址→假登录页] --&gt; A1[DNS hijacking/pharming]
+  S2[流量绕经陌生网络] --&gt; A2[BGP hijacking/route leak]
+  S3[薪资邮件诱导点链接] --&gt; A3[Phishing/spoofed email]
+  S4[海量请求→网站瘫痪] --&gt; A4[DDoS]
+  A1 --&gt; D1[DNSSEC]
+  A2 --&gt; D2[RPKI]
+  A3 --&gt; D3[spam 过滤+用户意识]
+  A4 --&gt; D4[DDoS 防护+限流]</code></pre>
+<blockquote>
+<p>📎 <strong>拓展（Workshop Part C 的 hashing
+mini-lab，属上周密码学复习）</strong> — 这次 workshop 还顺带复习了
+hash：① 消息只改一点，hash
+输出会<strong>面目全非</strong>（雪崩效应）；② 因此 hash
+适合<strong>完整性校验</strong>（数据一变、摘要就变）；③ 但 hash
+<strong>不是加密</strong>——它<strong>不可逆</strong>，设计上就不是用来还原原文的。这是上周内容，放在这里帮你巩固。</p>
+</blockquote>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>基础网络协议为"连通"而生，不为"安全"而生</strong>：IP
+只送达、明文、可被 spoof；ARP 无认证可被欺骗；DHCP 自动分配 IP；NAT
+让多设备共享一个公网
+IP、<strong>本身不是安全控制</strong>，只是让追责变难。后面所有攻击几乎都在钻这个"先天不设防"的空子。</li>
+<li><strong>互联网是 AS 互联的"网络的网络"，BGP 在 AS
+间路由，但建立在信任之上</strong>：攻击者谎报 IP 前缀即可发动
+<strong>BGP hijacking</strong>，造成重定向/窃听/拒绝服务；防御是
+<strong>RPKI + ROA</strong>（数字签名验证路由来源），但部署未普及。</li>
+<li><strong>DNS 把域名解析成 IP，是攻击重灾区</strong>：<strong>DNS
+hijacking/pharming</strong>（含 local/router/MITM/服务器劫持、cache
+poisoning）把用户导向假站；<strong>DNSSEC</strong>
+用数字签名保<strong>完整性/真实性</strong>（但有 zone
+enumeration、放大等新问题）；<strong>DoH</strong>
+加密查询保<strong>隐私</strong>，代价是企业可见性下降。</li>
+<li><strong>DDoS 是纯粹的可用性攻击</strong>：用 botnet（2016 后大量 IoT
+设备，如
+Mirai）海量流量压垮目标；动机涵盖捣乱、雇佣攻击、勒索、政治压制、行动主义。</li>
+<li><strong>邮件（SMTP）默认不加密、易被伪造</strong>：PGP/GPG
+能加密但难普及；反垃圾靠 <strong>DKIM</strong>（数字签名 + DNS
+公钥认证域名）+ <strong>机器学习过滤</strong>双管齐下；但
+<strong>DNSSEC/DKIM 都不能彻底消灭钓鱼</strong>。</li>
+<li><strong>三大防御各守一摊、覆盖不同 CIA</strong>：<strong>packet
+filtering/firewall</strong> 按包头过滤（可被分片/换 IP
+绕过，不加密）；<strong>VPN/IPsec</strong> 在 IP
+层提供认证+完整性+（可选）机密性，用 IKE/DH 建密钥；<strong>TLS</strong>
+在传输层为网页连接提供机密性+完整性+服务器认证。</li>
+<li><strong>TLS = 握手 + 记录两段式</strong>：<strong>Handshake</strong>
+认证双方、协商算法、用 <strong>Diffie–Hellman</strong>
+建共享密钥；<strong>Record</strong>
+用该密钥做<strong>带认证的对称加密</strong>保护数据。体现"非对称定身份 +
+对称传数据"的经典组合。</li>
+<li><strong>CIA
+是贯穿全章的统一标尺</strong>：每种攻击都应能立刻答出"它破坏的是 C、I
+还是 A"；<strong>DNS 劫持改'地址簿'(I)、BGP 劫持改'路线图'(A)、DDoS
+纯打可用性(A)</strong>。会用 workshop
+的「攻击/受损性质/即时响应/长期防御」框架分析真实事件。</li>
+</ul>
+<hr />
+<h2 id="自测-quiz含-slides-原题--workshop-题--作者补充">自测 Quiz（含
+slides 原题 + workshop 题 + 作者补充）</h2>
+<blockquote>
+<p>先盖住答案自己答，再对照。带 ★ 的是 slides/workshop
+原题，最可能贴近考试风格。</p>
+</blockquote>
+<p><strong>Q1 ★（DHCP）</strong> DHCP 在网络中的主要作用是？ A.
+加密设备间流量 B. 自动给设备分配 IP 地址及其他网络设置 C. 拦截恶意流量
+D. 把私有 IP 转成公网 IP E. 在 AS 间通告路由</p>
+<details><summary>答案</summary><b>B</b>。DHCP 自动分配 IP + 默认网关、DNS 等设置，确保地址有效且唯一。</details>
+
+<p><strong>Q2 ★（NAT）</strong> 关于 NAT，下列哪句最准确？ A. NAT
+主要用于加密互联网流量 B. NAT 让多台内网设备共享一个对外公网 IP C. NAT
+保证攻击者无法进入网络 D. NAT 取代了防火墙 E. NAT 用于 AS 间交换路由</p>
+<details><summary>答案</summary><b>B</b>。NAT 是地址转换、不是安全控制；它顺带让追责变难，但不"保证"挡住攻击者。</details>
+
+<p><strong>Q3 ★（BGP）</strong> 为什么 BGP 劫持会发生？ A. DHCP
+可能分配重复 IP B. BGP 用的加密容易被破 C. <strong>BGP
+历史上设计为基于互联网络间的信任</strong> D. NAT
+对互联网隐藏了所有路由信息 E. DNS 总返回假 IP</p>
+<details><summary>答案</summary><b>C</b>。BGP 缺乏对路由通告真伪的强校验，谎报的前缀可能扩散全网。</details>
+
+<p><strong>Q4 ★（RPKI）</strong> RPKI 在 BGP 安全中的作用是？ A.
+给内网设备动态分配 IP B. 把私有地址转公网 C.
+<strong>验证哪些运营者被授权通告特定 IP 前缀</strong> D. 对本地网络隐藏
+DNS 查询 E. 解决互联网上所有路由问题</p>
+<details><summary>答案</summary><b>C</b>。RPKI 用数字签名 + ROA 做路由起源验证；不是万能、部署未普及。</details>
+
+<p><strong>Q5 ★（DNS）</strong> DNS 的主要作用是？ A.
+加密浏览器与服务器间流量 B. <strong>把人类可读域名映射到 IP
+地址</strong> C. 给设备自动分配私有 IP D. 私有 IP 转公网 IP E. 在 AS
+间路由数据包</p>
+<details><summary>答案</summary><b>B</b>。</details>
+
+<p><strong>Q6 ★（DNSSEC）</strong> 关于 DNSSEC，下列哪句最准确？ A. 对
+ISP 隐藏 DNS 查询 B. 安全地给客户端分配 IP C. <strong>给 DNS
+记录加数字签名，使 resolver 能验证真实性与完整性</strong> D.
+防止一切针对 DNS 的 DDoS E. 取代权威 DNS 服务器</p>
+<details><summary>答案</summary><b>C</b>。注意它保的是完整性/真实性，不保密、也不防 DDoS（反而响应更大可能被放大滥用）。</details>
+
+<p><strong>Q7 ★（DoH）</strong> DNS-over-HTTPS 的一个关键权衡是？ A.
+<strong>提升隐私，但让企业 DNS 监控与过滤更难</strong> B. 让 DNS
+记录更短但更不准 C. 防钓鱼但增垃圾邮件 D. 不再需要 DNS resolver E.
+完全取代 DNSSEC</p>
+<details><summary>答案</summary><b>A</b>。隐私 ↑、防御可见性 ↓。</details>
+
+<p><strong>Q8 ★（组合攻击）</strong>
+用户收到一封"看似来自银行"的邮件并点击链接，浏览器打开一个假登录页——尽管链接里的域名看起来正确；事后发现该银行网站的
+DNS 响应被恶意篡改，且邮件本身也是伪造的。最佳解释是？ A. DHCP 分错 IP +
+NAT 改了发件人 B. DKIM 阻止了欺骗但 DoH 重定向了用户 C. <strong>DNS
+劫持把用户导向恶意 IP，同时邮件欺骗让消息显得合法</strong> D. RPKI 改了
+DNS 记录、SMTP 加密了消息 E. DNSSEC 导致假页加载、NAT 认证了发件人</p>
+<details><summary>答案</summary><b>C</b>。两种攻击叠加：email spoofing + DNS hijacking。</details>
+
+<p><strong>Q9 ★（DNSSEC+DKIM 的局限）</strong> 某组织为域名部署了
+DNSSEC，又为外发邮件配置了
+DKIM。有学生说"这样冒充该域名的钓鱼邮件就再也不会得逞了"。最佳回应？ A.
+对，DNSSEC+DKIM 完全防住钓鱼 B. 对，因为 DNSSEC 加密 DNS 查询、DKIM
+加密邮件内容 C. <strong>不对，DNSSEC 保护 DNS 记录真实性、DKIM
+帮助认证域名邮件，但两者都不能保证用户不被钓鱼欺骗</strong> D.
+不对，DKIM 只用于 AS 间路由 E. 不对，DNSSEC 只在 NAT 关闭时有效</p>
+<details><summary>答案</summary><b>C</b>。攻击者还能用相似域名、被盗账号、诱导内容等。</details>
+
+<p><strong>Q10 ★（DNS hijacking 场景）</strong>
+员工反映：在浏览器里敲对了银行网址，有时却被带到假登录页；公司确认用户敲的
+URL 正确，也没有证据表明银行服务器被攻陷。最可能的解释？ A. DHCP
+在公司内网分配了重复 IP B. <strong>DNS 劫持把用户导向了错误 IP</strong>
+C. NAT 错误加密了流量 D. TLS 自动改了网站证书 E. DKIM 未能认证网站</p>
+<details><summary>答案</summary><b>B</b>。</details>
+
+<p><strong>Q11 ★（BGP hijacking 场景）</strong>
+攻击者想让某大型在线服务不可用，但不直接攻击其服务器，而是发布<strong>虚假路由通告</strong>，使发往该服务的流量在抵达前被重定向或丢弃。最匹配的攻击是？
+A. DNSSEC exploitation B. 包分片攻击 C. <strong>BGP hijacking</strong>
+D. SMTP 欺骗 E. IPsec 隧道</p>
+<details><summary>答案</summary><b>C</b>。</details>
+
+<p><strong>Q12 ★（Workshop：两种劫持之别）</strong> 用一句话区分 DNS
+劫持与 BGP 劫持。</p>
+<details><summary>答案</summary>DNS 劫持作用于**名字解析**（改"域名→IP"的映射）；BGP 劫持作用于**网络间路由**（改流量走的路径，谎报路由/前缀使其被重定向/拦截/丢弃）。两者都能误导用户，但发生在互联网基础设施的不同层。</details>
+
+<p><strong>Q13 ★（Workshop：TLS 为何重要）</strong> 为什么 TLS
+对安全网页通信重要？</p>
+<details><summary>答案</summary>TLS 为网页流量提供**机密性 + 认证**：保护传输中的数据，并帮助用户（浏览器）验证所连服务器的身份。</details>
+
+<p><strong>Q14 ★（Workshop：包过滤局限）</strong>
+说出基本包过滤的一个局限。</p>
+<details><summary>答案</summary>可被**包分片**绕过（首片无害通过、后续片完成恶意包）；当攻击者使用**不断变化的 IP** 时，基于地址的封锁也会失效。</details>
+
+<p><strong>Q15（CIA 综合，作者补充）</strong> 把下列攻击按"主要破坏的
+CIA 性质"归类：BGP 黑洞、DNS 劫持、DDoS、网络窃听。</p>
+<details><summary>答案</summary>BGP 黑洞 → **A**（可用性）；DNS 劫持 → **I**（完整性，映射被改，可能波及 C）；DDoS → **A**；网络窃听 → **C**（机密性）。</details>
+
+<p><strong>Q16（TLS 结构，作者补充）</strong> TLS 的 handshake 和 record
+协议各负责什么？handshake 用什么算法建立共享密钥？</p>
+<details><summary>答案</summary>Handshake：认证双方、协商算法参数、**用 Diffie–Hellman 建立共享密钥**；Record：用该密钥做**带认证的对称加密**保护应用数据（机密性 + 完整性）。</details>
+
+<p><strong>Q17（VPN/IPsec，作者补充）</strong> IPsec
+的两种保护强度分别提供哪些安全属性？IKE 常用什么做密钥交换？</p>
+<details><summary>答案</summary>"仅认证"→ 完整性 + 真实性；"认证 + 加密"→ 再加机密性。IKE 常用 **Diffie–Hellman** 交换密钥。</details>
+
+<p><strong>Q18（DDoS 动机，作者补充）</strong> 列举至少三种 DDoS
+攻击的动机。</p>
+<details><summary>答案</summary>扰乱服务、DDoS-for-hire（雇佣攻击）、勒索/敲诈、政治压制/审查、黑客行动主义/抗议（任选 3）。</details>
+
+<hr />
+<blockquote>
+<p><strong>复习建议</strong> —
+这一章的"形状"是：<strong>每一层（路由/名字/传输）都有一对'攻击 ↔︎
+防御'，而防御几乎都在复用上周的密码学原语（签名→RPKI/DNSSEC/DKIM，密钥交换+对称加密→TLS/IPsec）。</strong>
+背诵时不要孤立记名词，按"协议先天缺什么安全属性 → 攻击钻这个空子 →
+防御补哪一性"这条因果链来记，并对每个攻击随手标上 C/I/A。把 §9
+的两张表和"DNS 改地址簿 / BGP 改路线图"的口诀记牢，综合题基本稳了。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

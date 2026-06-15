@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 12 · 信息战、网络武器、网络反间谍与 APT (Information Warfare, Cyberweapon, Cyber Counterintelligence, APT)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-12--信息战网络武器网络反间谍与-apt-information-warfare-cyberweapon-cyber-counterintelligence-apt">Week
+12 · 信息战、网络武器、网络反间谍与 APT (Information Warfare,
+Cyberweapon, Cyber Counterintelligence, APT)</h1>
+<blockquote>
+<p><strong>关于周次与材料的说明</strong> — 这份讲义文件名是
+<strong>W12</strong>,幻灯片标题写的是 <strong>"Week 12 – Information
+Warfare, Cyberweapon, Cyber Counterintelligence, APT"</strong>(讲师 Dr.
+Steven Duong),所以本章就是 Week
+12,也是<strong>本课程最后一章正课内容</strong>。讲师在录音结尾说:<strong>下周(Week
+13)是最后一周,主要做全课程总结和考试说明,不再讲新内容。</strong></p>
+<p><strong>关于 workshop</strong>:本课程的 workshop(W2–W11
+solutions)通常滞后讲义一周,但目前<strong>没有 W12 的 workshop
+文件</strong>(最新一份是 W11-Solutions,且它直接对应 Week 11 的
+TPM/Enclave/CPS/SCADA 内容)。所以本章<strong>没有配套的 workshop
+练习</strong>可以融入,正文里的 worked example 全部来自 slides
+和讲师课堂讲述的真实案例。</p>
+<p><strong>本章和上一章的关系</strong>:Week 11 我们刚讲完 <strong>CPS /
+SCADA /
+Stuxnet</strong>——计算机如何与物理世界相连、工业控制系统为什么脆弱。本章相当于把那条线<strong>拔高到国家与战争的层面</strong>:同样是
+Modbus/DNP3、同样是
+Stuxnet,但这次我们问的是——当攻击者是<strong>国家</strong>而不是黑客时,会发生什么?所以读本章时,Week
+11 的 SCADA 知识是直接复用的。</p>
+</blockquote>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>用 <strong>Dorothy Denning</strong> 和 <strong>Edward Waltz</strong>
+两种定义解释什么是 <strong>information
+warfare(信息战)</strong>,并说清两者一宽一窄的区别;</li>
+<li>用 <strong>Gulf War 1(海湾战争)</strong>
+说明信息战如何把电子战、巡航导弹、特种部队和黑客手段结合在一起;</li>
+<li>解释为什么<strong>电力等关键基础设施 (critical
+infrastructure)</strong> 是信息战的首要打击目标,并举出
+Auckland、IRA、Maroochy、Stuxnet、乌克兰停电等案例;</li>
+<li>说清工业控制协议 <strong>Modbus / DNP3</strong>
+为什么天生不安全,以及把它们从私有网搬上 IP 网带来了什么风险;</li>
+<li>解释 <strong>CIP standard</strong> 和 <strong>black-start</strong>
+是什么、为什么"给 SCADA
+加密/认证"在现实中如此困难,以及为什么<strong>专用防火墙/网关 (specialist
+firewalls and gateways)</strong> 成了折中方案;</li>
+<li>解释 <strong>Shodan</strong> 是什么、它和 Google
+有何不同,以及它为什么让基础设施风险"从假设变成现实";</li>
+<li><strong>定义 cyberweapon(网络武器)</strong>,区分它与普通 malware(高
+vs 低 selectivity),说清它的两大目标(espionage /
+sabotage)和四大独特危险;</li>
+<li><strong>定义 cyber
+counterintelligence(CCI,网络反间谍)</strong>,理解它"目的防御、手段进攻"的双重性,并能逐一说明
+defensive(pen testing、vulnerability assessment、threat
+intelligence、threat hunting)与
+offensive(honeypots、sockpuppets)各自的作用;</li>
+<li>用 <strong>NIST 的定义</strong>说清什么是
+<strong>APT(高级持续性威胁)</strong>,讲清它的四大特征,<strong>背出 APT
+攻击的 6 个阶段</strong>,并能用 <strong>Stuxnet / Duqu / Flame</strong>
+三个例子说明 APT 的目标光谱。</li>
+</ul>
+</blockquote>
+<hr />
+<p>前面十一周,我们的安全视角基本停留在<strong>个人与组织</strong>的层面:怎么加密一个文件、怎么防住一次钓鱼、怎么给一台服务器打补丁、怎么保护用户隐私。攻击者在我们的想象里通常是<strong>罪犯</strong>——他们要的是钱:偷信用卡号、勒索比特币、卖数据库。</p>
+<p>本章要做一件事:<strong>把镜头拉到最高一层,看安全在"国家与战争"尺度上是什么样子。</strong>
+在这个尺度上,攻击者不再是为了钱,而是为了<strong>战略优势</strong>——瘫痪一个国家的电网、破坏它的核设施、窃取它的国防机密、在它的关键系统里潜伏数年。这时候我们谈的不再是"网络犯罪",而是
+<strong>information warfare(信息战)</strong>。</p>
+<p>本章沿着一条清晰的逻辑展开,分四个部分:</p>
+<ol type="1">
+<li><strong>信息战 (Information Warfare)</strong> —
+先定义什么是信息战,再看它在现实中长什么样:从海湾战争的电子战,到对电网、水厂、核设施的攻击。这部分会<strong>直接复用
+Week 11 的 SCADA 知识</strong>,但站在国家冲突的高度重新审视它(Part
+1)。</li>
+<li><strong>网络武器 (Cyberweapon)</strong> — 当 malware
+被国家拿来当武器,它就和普通病毒有了本质区别。这部分讲清楚这个区别,以及网络武器为什么特别危险(Part
+2)。</li>
+<li><strong>网络反间谍 (Cyber Counterintelligence, CCI)</strong> —
+防御方如何反过来主动出击:不只是筑墙,还要设陷阱、放假身份、潜入敌方。这是一套"以攻为守"的方法论(Part
+3)。</li>
+<li><strong>高级持续性威胁 (APT)</strong> —
+把前三部分的能力组织起来、长期运作的那个"终极对手"长什么样。APT
+是国家级攻击者的集大成者,本章以它收尾(Part 4)。</li>
+</ol>
+<p>一条主线贯穿全章:<strong>当对手是国家,攻防的逻辑就变了</strong>——目标从"赚钱"变成"战略",攻击从"快进快出"变成"长期潜伏",而防御也必须从"被动筑墙"升级到"主动反制"。</p>
+<hr />
+<h2 id="part-1--信息战当信息本身成为战场">Part 1 ·
+信息战:当信息本身成为战场</h2>
+<h3 id="11-什么是-information-warfare两个经典定义">1.1 什么是
+information warfare:两个经典定义</h3>
+<p>要谈信息战,先得知道这个词到底指什么——而它的边界,取决于你问谁。讲师给了两个权威定义,一宽一窄,正好框出这个概念的范围。</p>
+<p>第一个来自 <strong>Dorothy
+Denning</strong>(一位著名的计算机安全专家)。她把 <strong>information
+warfare(信息战)</strong> 定义为:</p>
+<blockquote>
+<p><strong>Information warfare (Denning)</strong> —
+<em>针对或利用"信息媒介 (information
+media)"以取得对敌优势的各种行动</em> (operations that target or exploit
+information media to win some advantage over an adversary)。</p>
+</blockquote>
+<p>这个定义<strong>故意定得极宽</strong>。它不只包括黑客攻击,还把<strong>电子战
+(electronic warfare)、传统情报搜集(从信号情报 SIGINT、卫星图像 satellite
+imagery,一直到人力间谍 spies)、乃至宣传 (propaganda)</strong>
+全都囊括进去。换句话说:<strong>任何"控制或操纵信息"以压制对手的行为,都算信息战。</strong>
+讲师举的直观例子是——如果你掌控了一家媒体、向民众广播假新闻去误导他们,这在
+Denning 的"伞状定义"下也是信息战。</p>
+<p>第二个定义来自 <strong>Edward
+Waltz</strong>,他从<strong>军事视角</strong>把范围收窄了:</p>
+<blockquote>
+<p><strong>Information warfare (Waltz)</strong> —
+<em>一种能力:在保证己方信息"不间断地"采集、处理、分发的同时,削弱或剥夺敌方做同样事情的能力</em>
+(the capability to collect, process and disseminate an uninterrupted
+flow of information while exploiting or denying an adversary's ability
+to do the same)。</p>
+</blockquote>
+<p>Waltz
+的定义更<strong>战略、更有作战味</strong>,核心是军事行动中"信息的流动
+(flow of information)",并且<strong>同时强调两面:保护己方 + 否定敌方
+(protection and
+denial)</strong>。讲师的直观画面是:<strong>战场上有两支军队</strong>,一支能安全通信、协调进攻、实时获取情报;另一支不能——因为它的系统被破坏或欺骗了。这种"信息上的不对称",就是
+Waltz 所说的优势。</p>
+<blockquote>
+<p>📎 <strong>拓展(帮助理解)</strong> —
+为什么需要记两个定义?因为它们划出了同一个概念的"上下界":<strong>Denning
+是上界</strong>(信息战 = 一切关于信息的对抗,无所不包),<strong>Waltz
+是下界</strong>(信息战 =
+军事作战中对信息流的争夺,聚焦实战)。考试若问"information warfare
+是什么",你给出任一定义并能说清它的侧重点即可;若问两者区别,关键词就是
+<strong>broad(Denning,含宣传/间谍/电子战)vs military
+doctrine(Waltz,聚焦信息流的保护与否定)</strong>。</p>
+</blockquote>
+<p>这个词大约从 <strong>1995
+年</strong>开始流行——正是数字通信成为军事和民用生活核心的年代。今天它涵盖了从攻击基础设施到社交媒体操纵的一整个谱系。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Dorothy Denning 的定义</strong></th>
+<th><strong>Edward Waltz 的定义</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>视角</td>
+<td>宽泛、概念性</td>
+<td>军事、作战性</td>
+</tr>
+<tr class="even">
+<td>范围</td>
+<td>黑客 + 电子战 + 情报搜集 + 宣传</td>
+<td>军事行动中的"信息流"</td>
+</tr>
+<tr class="odd">
+<td>关键词</td>
+<td>利用信息媒介取得优势</td>
+<td>保护己方 + 否定敌方</td>
+</tr>
+<tr class="even">
+<td>直观例子</td>
+<td>广播假新闻误导民众</td>
+<td>一方能安全通信、另一方不能</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="12-信息战长什么样海湾战争-gulf-war-1">1.2
+信息战长什么样:海湾战争 (Gulf War 1)</h3>
+<p>定义讲完了,但信息战在现实中究竟怎么打?讲师用 <strong>1990
+年代初的第一次海湾战争 (Gulf War 1)</strong>
+作为最早、最清晰的范例。</p>
+<p>故事的出发点是一个目标:<strong>NSA
+协助盟军时,希望让开战初期的进攻"尽量少伤亡"</strong>。怎么做到?答案不是靠更多火力,而是靠<strong>先瘫痪伊拉克的指挥与控制
+(command and control)
+系统</strong>,让对方在真正的地面进攻发起前就"又聋又瞎"。为此他们动用了一整套手段,可以分成四类:</p>
+<ol type="1">
+<li><strong>传统电子战 (e-war techniques)</strong> — <strong>干扰机
+(jammers)</strong> 阻塞或干扰敌方雷达和通信信号;<strong>反辐射导弹
+(anti-radiation missiles)</strong>
+顺着敌方雷达发出的电磁辐射"循迹"过去,直接摧毁雷达站。</li>
+<li><strong>巡航导弹 (cruise missile) 打击指挥中心</strong> —
+直接物理摧毁伊拉克的指挥中心,瘫痪其协调反应的能力。</li>
+<li><strong>特种部队 (special forces) 的物理破袭</strong> —
+这点尤其有意思:特种部队被提前派进伊拉克,任务<strong>不只是侦察
+(reconnaissance)</strong>,而是去<strong>沙漠里挖出埋藏的通信电缆</strong>,从物理上切断伊拉克在军队间传递命令的能力。</li>
+<li><strong>黑客手段 (hacking tricks)</strong> —
+用入侵技术瘫痪伊拉克的计算机和电话交换机,进一步削弱其通信与协调。</li>
+</ol>
+<p>把这四类放在一起看,海湾战争的意义就出来了:<strong>它是最早"同时在物理域和信息域中打响"的战争之一。</strong>
+它证明了一件事——在现代战争里,<strong>信息优势 (information dominance)
+而不仅仅是火力
+(firepower),可以起决定性作用</strong>;电子战和网络行动能够与传统军事战术整合,产生最大化的打击效果。</p>
+<pre class="mermaid"><code>flowchart LR
+  G[&quot;目标:开战初期&lt;br/&gt;最小化伤亡&quot;] --&gt; M[&quot;瘫痪伊拉克&lt;br/&gt;指挥与控制系统&quot;]
+  M --&gt; A[&quot;① 干扰机 + 反辐射导弹&lt;br/&gt;(电子战)&quot;]
+  M --&gt; B[&quot;② 巡航导弹&lt;br/&gt;摧毁指挥中心&quot;]
+  M --&gt; C[&quot;③ 特种部队&lt;br/&gt;挖断沙漠通信电缆&quot;]
+  M --&gt; D[&quot;④ 黑客手段&lt;br/&gt;瘫痪计算机/电话交换机&quot;]
+  A &amp; B &amp; C &amp; D --&gt; R[&quot;信息优势&lt;br/&gt;(对手又聋又瞎)→ 地面进攻&quot;]</code></pre>
+<h3 id="13-为什么打基础设施电力是现代社会的命脉">1.3
+为什么打基础设施:电力是现代社会的命脉</h3>
+<p>信息战最具破坏性的一种形式,是打击一个国家的<strong>关键基础设施
+(critical
+infrastructure)</strong>,而这份清单上排在最顶端的,是<strong>电力的生产与分配
+(electricity generation and distribution)</strong>。</p>
+<p>为什么是电?讲师的论证很直白:在现代这个技术驱动的社会里,<strong>电力是一切的脊梁
+(backbone)</strong>。一旦电力中断,<strong>绝不只是"关了灯"</strong>——整个经济会停摆:通信、银行、交通、医疗、安防系统,全部停止运转。正因如此,打击电力基础设施常被用作<strong>全面战争的前奏
+(prelude to full-scale war)</strong>,或者用来"<strong>不开一枪 (without
+firing a single shot)</strong>"就制造大规模的经济与社会混乱。</p>
+<p>讲师给了两个真实例子,说明哪怕在和平时期,城市对基础设施失效有多脆弱:</p>
+<blockquote>
+<p><strong>🔑 例 1(Auckland 停电,1996)</strong> —
+新西兰奥克兰的中央商务区 (CBD)
+经历了一次长达<strong>五周</strong>的灾难性停电。约 <strong>60,000
+名员工被迫在家办公</strong>,<strong>6,000
+名公寓住户被迫搬离</strong>。这还只是一次"事故",就已经让一座城市的核心瘫痪了数周。</p>
+<p><strong>🔑 例 2(IRA 险些得手,near miss)</strong> — 爱尔兰共和军 (IRA)
+曾<strong>险些摧毁为伦敦供电的大型变电站里的变压器
+(transformers)</strong>。如果成功,数百万人和<strong>约占英国 GDP
+三分之一</strong>的商业活动都会受影响,伦敦可能陷入黑暗<strong>长达数月</strong>。</p>
+</blockquote>
+<p>这些<strong>不是孤立的意外</strong>。事实上,<strong>攻击电力的传输与分配系统,一直是美军在多次冲突中的标准战术
+(a standard US tactic in
+wars)</strong>。原因很清楚:瘫痪电网能<strong>削弱敌方士气、拖慢其军事反应、并迫使对方把资源从战场调去应对民用危机</strong>。</p>
+<p>这一节真正要传达的观念是:<strong>信息战不只关乎数字数据,它关乎"赛博—物理的融合
+(cyber-physical
+convergence)"</strong>——真实世界的系统越来越多地由数字手段控制,这就让它们在现代冲突中成了"合法猎物"。这正是
+Week 11 学的 <strong>CPS</strong> 思想在国家冲突层面的体现。</p>
+<h3 id="14-工业控制系统为什么天生不安全modbus-与-dnp3">1.4
+工业控制系统为什么天生不安全:Modbus 与 DNP3</h3>
+<p>既然基础设施是靶子,我们就得理解它的软肋在哪。讲师把焦点对准了<strong>工业控制系统
+(industrial control systems,
+ICS)</strong>——尤其是电网和石化厂里用的两种主流协议:<strong>Modbus</strong>
+和 <strong>DNP3</strong>。(这两个名字在 Week 11 的 SCADA
+部分出现过,这里讲清它们的安全缺陷。)</p>
+<p>问题的根子在于:<strong>这些协议在设计时根本没考虑安全。</strong>
+最致命的一点是——它们<strong>不支持认证 (no
+authentication)</strong>。这意味着接收方<strong>没有任何可靠手段去验证"收到的数据或命令到底是不是来自可信来源"</strong>。</p>
+<p>为什么当初会这样设计?因为这些系统<strong>最初部署在私有、隔离的网络上
+(private, isolated networks)</strong>:工厂内部是固定的局域网 (fixed
+LANs),工厂与中央控制中心之间用<strong>租用专线 (leased lines)</strong>
+连接。<strong>物理访问被严格控制,所以"安全"在当时不是主要顾虑</strong>——你根本进不来,自然也就不用认证。</p>
+<p>转折发生在 <strong>1990
+年代末</strong>:许多公司为了<strong>降低成本</strong>,开始把这些系统<strong>搬到基于
+IP 的网络上 (IP
+networks)</strong>。这一搬,风险就来了。一旦设备<strong>没有认证就上了网</strong>,它们就变得不堪一击:</p>
+<ul>
+<li>如果有人知道某个<strong>传感器 (sensor) 的 IP
+地址</strong>,他就能<strong>读取它的数据</strong>;</li>
+<li>更糟的是,如果有人知道某个<strong>执行器
+(actuator,负责执行物理动作的部件)
+的地址</strong>,他就能<strong>远程操作它</strong>——也就是说,直接在物理世界里"动手"。</li>
+</ul>
+<p>这不是理论。讲师给了一个标志性的真实事故:</p>
+<blockquote>
+<p><strong>🔑 例(Maroochy 污水事件,澳大利亚,2000)</strong> —
+一名对水务公司 IT 承包商心怀不满的<strong>前雇员 (disgruntled former
+employee)</strong>,入侵了污水控制系统。他成功制造了 <strong>800
+吨污水外泄</strong>,污染了河流、酒店场地、甚至公园。原因正是:<strong>他知道地址,而系统里没有任何检查机制能阻止他操作执行器
+(actuators)。</strong></p>
+</blockquote>
+<p>Maroochy 事件揭示了一个更宏观的问题:<strong>当运营技术 (Operational
+Technology, OT) 系统与 IT 网络融合,攻击面 (attack surface)
+就急剧扩大。</strong>
+那些<strong>从设计之初就没打算暴露在互联网上</strong>的系统,如今对任何掌握足够知识、又心怀恶意的人来说,都是脆弱的。所以,今天保护关键基础设施,远不只是"装杀软和防火墙"那么简单——它意味着<strong>重新思考系统架构,并补上那些一开始就不存在的安全机制</strong>。</p>
+<pre class="mermaid"><code>flowchart TD
+  P[&quot;ICS 协议 Modbus / DNP3&lt;br/&gt;设计时无认证 (no authentication)&quot;]
+  P --&gt; Old[&quot;旧时代:私有隔离网络&lt;br/&gt;固定 LAN + 租用专线&lt;br/&gt;物理访问受控 → 安全不是问题&quot;]
+  Old --&gt;|&quot;1990s 末为省成本&lt;br/&gt;搬上 IP 网络&quot;| New[&quot;新风险:设备无认证就上网&quot;]
+  New --&gt; S[&quot;知道 sensor 的 IP&lt;br/&gt;→ 可读取数据&quot;]
+  New --&gt; A[&quot;知道 actuator 的地址&lt;br/&gt;→ 可远程操作物理设备&quot;]
+  A --&gt; Inc[&quot;Maroochy 2000&lt;br/&gt;800 吨污水外泄&quot;]</code></pre>
+<h3 id="15-国家级攻击stuxnet-与乌克兰停电">1.5 国家级攻击:Stuxnet
+与乌克兰停电</h3>
+<p>把上面的脆弱性交到<strong>国家</strong>手里,后果就升级成了战略级事件。讲师给了两个里程碑式的案例。</p>
+<p><strong>第一个是 Stuxnet(震网)。</strong> 据广泛报道,在
+<strong>2008–2010 年间</strong>,美国的<strong>爱达荷国家实验室 (Idaho
+National Labs)</strong> 与
+<strong>NSA</strong>、以色列情报机构合作,开发了一种极其精密的恶意软件,<strong>专门针对伊朗铀浓缩
+(uranium enrichment) 项目里使用的离心机
+(centrifuges)</strong>。它的"创新"在于:<strong>它不只是窃密,它真的去破坏——物理性地损坏离心机,同时让操作员以为一切运转正常。</strong>
+这通常被认为是<strong>第一款真正的网络武器 (the first true
+cyberweapon)</strong>,标志着网络战的转折点。(我们在 Week 11 见过 Stuxnet
+攻击 PLC,这里它的身份是"国家级网络武器"。)</p>
+<p><strong>第二个是乌克兰停电。</strong>
+乌克兰是俄罗斯网络行动的常见目标。在乌克兰对<strong>克里米亚
+(Crimea)</strong>(俄罗斯于 2014
+年吞并的地区)的电力设施发动攻击后,俄罗斯以一次协同网络攻击作为回应,结果是
+<strong>30 座乌克兰变电站被迫下线,造成影响 230,000
+人、持续数小时的大停电</strong>。这显示了网络行动如何在<strong>不发生传统军事交火</strong>的情况下,被用来<strong>报复或升级地缘政治紧张</strong>。</p>
+<p>事情还没完。<strong>同一套恶意软件基础设施——著名的 NotPetya
+蠕虫——后来扩散到了预定目标之外</strong>,对在乌克兰设有办事处的跨国公司造成了巨大的附带损害
+(collateral
+damage):一些全球性企业因系统瘫痪而损失数亿美元。这说明:<strong>一次定向攻击可以"溢出"成全球性灾难</strong>,波及供应链、运营与世界经济。</p>
+<p>这两个案例共同揭示了<strong>军事、政治、数字领域之间界限的模糊化</strong>——对基础设施的网络攻击不再是假设,而是现代冲突中<strong>实实在在被使用的战略工具</strong>。</p>
+<h3 id="16-谁在攻击控制系统不是罪犯是国家">1.6
+谁在攻击控制系统:不是罪犯,是国家</h3>
+<p>知道了攻击多可怕,我们自然要问:<strong>到底是谁在干?</strong>
+这一点的答案有点反直觉,但逻辑很顺。</p>
+<p>讲师引用了 <strong>Ross Anderson
+研究组</strong>的监测结果。他们的方法是<strong>长期观察地下犯罪论坛
+(underground crime forums)</strong>
+上的活动。结论是:<strong>自从控制系统安全开始受到重视以来,并没有发现网络罪犯对"入侵控制系统"有持续而有能力的兴趣
+(no sustained competent interest)。</strong></p>
+<p>这告诉我们:<strong>针对控制系统的网络活动,绝大多数很可能是"国家行为体
+(state actors)"或其"代理人 (proxies)"所为。</strong> 所谓
+proxy,是指那些<strong>未必正式隶属于政府、却替政府行事</strong>的团体,通常得到政府的间接支持或默许。</p>
+<p>为什么会这样?讲师的解释抓住了<strong>动机</strong>这个要害:<strong>瘫痪一个电网、破坏一个水厂,并不"赚钱"</strong>——它不像偷信用卡号那样能直接变现。但它能<strong>瘫痪一个地区、传递一个政治信号、或服务于军事目标</strong>——而这些,<strong>和民族国家的利益高度吻合,却和网络罪犯的利益几乎无关</strong>。所以,看动机就能反推出攻击者的身份。</p>
+<blockquote>
+<p>📎 <strong>拓展(把这条逻辑记牢)</strong> —
+这是一条很常考、也很值得理解的推理链:<strong>犯罪分子追求利润 →
+攻击控制系统不赚钱 → 所以做这件事的主要是国家或其代理人。</strong> 它和
+Part 2、Part 4 会反复出现的主题一致:<strong>网络武器和 APT
+的赞助者都是国家,因为只有国家才有动机和资源去做"不赚钱但有战略价值"的事。</strong></p>
+</blockquote>
+<h3 id="17-怎么保护cip-标准black-start-与加密的现实困境">1.7
+怎么保护:CIP 标准、black-start 与加密的现实困境</h3>
+<p>既然威胁这么大,政府和监管机构自然要出手。讲师介绍了一个早期且重要的尝试:<strong>关键基础设施保护标准
+(Critical Infrastructure Protection, CIP standard)</strong>。</p>
+<blockquote>
+<p><strong>CIP standard</strong> — <em>一套旨在通过"监管
+(regulation)"来改善控制系统安全的标准</em>,由<strong>美国能源部
+(DoE)、国土安全部 (DHS) 和北美电力可靠性公司 (NERC)</strong> 于
+<strong>2006
+年</strong>联合制定,目标是在电力的生产与分配领域建立监管框架——而这正是任何信息战场景里的首要目标。</p>
+</blockquote>
+<p>CIP 里一个特别值得注意的要求,涉及一个叫
+<strong>black-start(黑启动)</strong> 的概念:</p>
+<blockquote>
+<p><strong>Black-start capability(黑启动能力)</strong> —
+<em>一座电厂"即使在电网已经瘫痪的情况下,也能独立地启动并开始发电"的能力</em>。它对"在一次彻底崩溃之后恢复供电"至关重要——你得有几座电厂能"自己点着火",才能带动整个电网重启。</p>
+</blockquote>
+<p>CIP 要求:<strong>任何具备 black-start
+能力的发电机组,都必须满足基本的信息安全合规。</strong>
+哪些电厂有这个能力?讲师讲了一组对照:<strong>水电站可以黑启动;核电站不行;燃煤电厂一般只有在配备了辅助柴油发电机
+(auxiliary diesel generator) 的情况下才能黑启动。</strong></p>
+<p>但这个标准<strong>并不太成功</strong>。行业的反应很讽刺:<strong>一些燃煤电厂干脆拆掉了它们的柴油发电机</strong>——因为信息安全的成本无法被计入它们受监管的成本基数
+(regulated cost
+base),与其花钱合规,不如取消那个让自己"被监管"的能力。这是一个生动的教训:<strong>监管如果与经济激励冲突,可能会适得其反。</strong></p>
+<p>接下来是更技术性的问题:<strong>能不能直接给 Modbus / DNP3
+加上加密和认证?</strong>
+听起来理所当然,但讲师列出了四个现实困境,解释了为什么这件事极难:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>困境</th>
+<th>为什么难</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>① 厂商极少 (few vendors)</strong></td>
+<td>电力变电站的厂商屈指可数,<strong>互操作性 (interoperability)
+至关重要但难以实现</strong>——一家升级了加密、别家没升级,兼容性就崩了,这在关键领域不可接受。</td>
+</tr>
+<tr class="even">
+<td><strong>② 设备寿命极长</strong></td>
+<td>变电站的<strong>设计寿命通常长达 40
+年</strong>,还附带维护合同,所以技术更新极其缓慢,<strong>以"几十年"而非"几年"计</strong>。</td>
+</tr>
+<tr class="odd">
+<td><strong>③ 物理攻击让加密变得"没意义"</strong></td>
+<td>能接触到变电站的人,<strong>根本不用黑你的控制系统</strong>——他可以直接合上/断开开关,甚至<strong>朝变压器开一枪造成内部短路</strong>就能搞垮它。在这种情况下,给变电站局域网流量加密甚至只是认证,<strong>优先级很低、几乎多余</strong>。</td>
+</tr>
+<tr class="even">
+<td><strong>④ 4ms 延迟要求</strong></td>
+<td>很多控制系统要求<strong>极低延迟——动作要在 4
+毫秒内完成</strong>。引入加密会增加计算延迟,可能<strong>拖慢系统、损害可靠性</strong>。</td>
+</tr>
+</tbody>
+</table></div>
+<p>既然"逐个设备加密"行不通,<strong>实际且被广泛采用的折中方案</strong>是什么?<strong>保护"逻辑边界
+(logical
+perimeter)"</strong>——也就是<strong>变电站与网络控制中心之间的通信</strong>,而不是去改造每一台老设备。讲师的类比很形象:<strong>这就像给整片院子修一道围栏
+(securing the
+fence/property),而不是去给院子里每一件电器单独上锁。</strong></p>
+<p>落实这个思路的工具,就是<strong>专用防火墙与网关 (specialist firewalls
+and gateways)</strong>:</p>
+<ul>
+<li>它们<strong>专为工业控制系统设计</strong>,<strong>懂 Modbus / DNP3
+这些专有协议</strong>;</li>
+<li>它们能在<strong>不引入不可接受延迟</strong>的前提下执行安全策略;</li>
+<li>它们充当 <strong>OT(变电站一侧)与 IT(中央控制中心一侧)之间的安全桥梁
+(secure bridge)</strong>;</li>
+<li>具体做法是:<strong>过滤流量、阻断未授权命令、监控异常
+(anomalies)</strong>。</li>
+</ul>
+<pre class="mermaid"><code>flowchart LR
+  subgraph OT[&quot;OT 域:变电站&quot;]
+    D1[&quot;传感器/执行器&lt;br/&gt;Modbus / DNP3&lt;br/&gt;(40 年老设备,难改)&quot;]
+  end
+  FW[&quot;专用防火墙 / 网关&lt;br/&gt;懂 ICS 协议&lt;br/&gt;过滤流量 · 阻断非法命令 · 监控异常&quot;]
+  subgraph IT[&quot;IT 域:网络控制中心&quot;]
+    C1[&quot;集中控制系统&quot;]
+  end
+  D1 ---|&quot;逻辑边界&lt;br/&gt;(logical perimeter)&quot;| FW
+  FW --- C1</code></pre>
+<h3 id="18-把脆弱设备暴露出来shodan-与智能电表">1.8
+把脆弱设备暴露出来:Shodan 与智能电表</h3>
+<p>最后,讲师指出了一类新兴风险:<strong>智能电表 (smart meters)
+的漏洞</strong>,以及一个让这些漏洞"无所遁形"的工具。</p>
+<p>许多欧洲国家(包括英国)安装了智能电表来现代化能源监测、提高效率。但这些设备<strong>常常没有把安全考虑进去</strong>:早期的英国智能电表<strong>缺乏加密认证
+(no cryptographic
+authentication)</strong>,甚至带有一个<strong>可远程下达指令的"断电开关
+(remotely commandable
+off-switch)"</strong>。这意味着:<strong>拿到访问权的攻击者,有可能远程切断对企业乃至关键设施的供电</strong>——这是严重的国家基础设施风险。</p>
+<p>那么研究者(和攻击者)是怎么找到这些脆弱设备的?靠一个叫
+<strong>Shodan</strong> 的工具:</p>
+<blockquote>
+<p><strong>Shodan</strong> — <em>一个"面向物联网 (IoT)
+的搜索引擎"</em>。它和 Google 的根本区别在于:<strong>Google
+索引的是网页,Shodan
+扫描的是"连入互联网的设备"</strong>——智能电表、工业控制系统、甚至摄像头。它会揭示这些设备的
+<strong>IP 地址、开放端口 (open
+ports)、软件版本,以及它们是否存在漏洞</strong>。Shodan 于 <strong>2009
+年</strong>推出。</p>
+</blockquote>
+<p>Shodan 把"基础设施有多脆弱"从抽象变成了触目惊心的数字:</p>
+<ul>
+<li><strong>2011 年</strong>,研究者 <strong>Éireann Leverett</strong> 用
+Shodan 定位到了<strong>数千个</strong>不安全的控制系统;</li>
+<li><strong>2016 年</strong>,<strong>Ariana Mirian</strong>
+及同事做了一次全球扫描,发现了约 <strong>60,000
+个脆弱设备</strong>,从电力变电站到政府大楼里的
+HVAC(暖通空调)系统都有。</li>
+</ul>
+<p>结论是:<strong>威胁不是假设,而是真实且当下的 (real and
+current)。</strong> Shodan
+让定位不安全系统变得轻而易举,而设备如果没有经过适当的<strong>安全加固
+(hardening)</strong>,就会一直暴露、可被利用。这正是为什么**"安全设计
+(security by design)"和"持续打补丁 (ongoing
+patching)"在关键基础设施领域如此重要**。</p>
+<blockquote>
+<p><strong>🔑 Part 1 小结脉络</strong> —
+信息战的逻辑链:<strong>信息本身是战场(定义)→ 现实中怎么打(海湾战争)→
+打什么(电力等基础设施)→ 为什么打得动(Modbus/DNP3 无认证 + 上了 IP 网)→
+国家在打(Stuxnet/乌克兰,因为只有国家有动机)→
+怎么防(CIP/black-start/专用防火墙)→ 脆弱性有多普遍(Shodan 扫出 6
+万台)。</strong></p>
+</blockquote>
+<hr />
+<h2 id="part-2--网络武器当-malware-成为国家的兵器">Part 2 · 网络武器:当
+malware 成为国家的兵器</h2>
+<h3 id="21-什么是-cyberweapon">2.1 什么是 cyberweapon</h3>
+<p>Part 1 反复出现了 Stuxnet、NotPetya
+这些名字。它们和你电脑上可能中过的那种病毒,显然不是一回事。Part 2
+就来精确地定义这种"国家级恶意软件"——<strong>网络武器
+(cyberweapon)</strong>。</p>
+<blockquote>
+<p><strong>Cyberweapon(网络武器)</strong> —
+<em>一种作为网络攻击一部分、为"军事、准军事 (paramilitary)
+或情报目的"而使用的恶意软件代理 (malware
+agent)</em>。它包括能<strong>把损坏代码注入既有软件 (injecting corrupted
+code into existing
+software)</strong>、从而让计算机系统和/或网络执行"违背其操作者意图"的动作的<strong>病毒
+(viruses)、木马 (trojans)、间谍软件 (spyware) 和蠕虫
+(worms)</strong>。</p>
+</blockquote>
+<p>定义里有两个要点。第一,它的<strong>手段</strong>和普通恶意软件没什么神秘的不同——还是病毒、木马、蠕虫、间谍软件那一套,目的还是"让系统做它本不该做的事"(关停关键基础设施、窃取机密数据、操纵通信通道)。第二,也是关键区别——它的<strong>出身</strong>不同:</p>
+<blockquote>
+<p><strong>Threat actors(威胁来源)</strong> —
+网络武器<strong>通常由"国家或非国家行为体 (a state or non-state
+actor)"赞助或使用</strong>。这些行为体可能隶属于某国的军事网络司令部、情报机构,或是替政府行事、与政府目标一致的政治动机黑客团体。</p>
+</blockquote>
+<h3 id="22-网络武器的两大目标与后果">2.2 网络武器的两大目标与后果</h3>
+<p>网络武器通常服务于两大使命,理解它们就理解了网络武器"为什么存在":</p>
+<ol type="1">
+<li><strong>间谍 / 窃密 (Espionage)</strong> —
+针对特定目标进行监视、情报搜集和数据窃取。目标可能是政府机构、军事设施,或持有敏感信息的私营企业。</li>
+<li><strong>破坏 / 蓄意破坏 (Sabotage)</strong> —
+对关键系统的扰乱或破坏:损坏电网这类基础设施、瘫痪军事系统、破坏工业流程。讲师有一句精辟的概括——<strong>"网络武器执行的,是一个本来需要士兵或间谍才能完成的动作
+(an action that would normally require a soldier or spy)。"</strong>
+它模仿传统战争战术,却在数字空间里悄无声息地进行。</li>
+</ol>
+<p>这里有一个<strong>定义性的区别</strong>,务必记牢:<strong>网络武器的目标不是直接的经济收益。</strong>
+它几乎一定会给目标方造成直接或间接的财务损失,但<strong>为赞助者赚钱并不是它的首要目的</strong>——这正是它<strong>区别于"犯罪型恶意软件
+(criminal
+malware)"<strong>的地方。它要的是</strong>战略优势</strong>:军事的、政治的、经济的——通过削弱对手来获得。</p>
+<p>使用网络武器还带来一系列严肃的<strong>法律与伦理后果
+(consequences)</strong>:</p>
+<ul>
+<li><strong>侵犯隐私 (violating privacy)</strong> —
+通过未授权的监视和数据搜集;</li>
+<li><strong>侵犯主权 (infringing sovereignty)</strong> —
+在未经同意的情况下,跨越国界渗透和操纵他国系统;</li>
+<li><strong>造成物理或功能性损害</strong> —
+尽管它本质上是软件,却可能让工业机器过热、爆炸,<strong>模糊了"虚拟"与"物理"战争的界限</strong>。</li>
+</ul>
+<pre class="mermaid"><code>mindmap
+  root((Cyberweapon))
+    手段_与普通malware相同
+      病毒 / 木马
+      蠕虫 / 间谍软件
+      注入损坏代码
+    出身_不同
+      国家 / 非国家行为体赞助
+      军事/情报机构
+    目标
+      Espionage 窃密
+      Sabotage 破坏
+      非直接经济收益
+    后果
+      侵犯隐私
+      侵犯主权
+      软件造成物理破坏</code></pre>
+<h3 id="23-网络武器-vs-普通-malware选择性是分水岭">2.3 网络武器 vs 普通
+malware:选择性是分水岭</h3>
+<p>如果手段都是病毒木马,那网络武器和普通恶意软件到底有什么本质区别?讲师给出的核心判据是一个词:<strong>选择性
+(selectivity)</strong>。</p>
+<ul>
+<li><strong>网络武器:高选择性 (high selectivity)</strong> ——
+在"使用对象"和/或"作用过程"上高度精准。它<strong>只打预先选定的目标</strong>。</li>
+<li><strong>普通恶意软件:低选择性、广撒网 (lower selectivity, wider
+distribution)</strong> ——
+讲师举了两个对照:新手黑客用恶意软件<strong>组建僵尸网络
+(botnet)</strong>
+时,被攻陷机器的<strong>所有者是谁、在哪、平时干什么,几乎都无所谓</strong>;同样,<strong>诈骗者
+(fraudsters)
+用恶意软件窃取个人或财务信息时,也不挑特定目标</strong>——谁中招算谁。</li>
+</ul>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>网络武器 (Cyberweapon)</strong></th>
+<th><strong>普通恶意软件 (Malware)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>选择性</td>
+<td><strong>高</strong>:只打预定目标</td>
+<td><strong>低</strong>:广撒网,见者就中</td>
+</tr>
+<tr class="even">
+<td>典型操作者</td>
+<td>国家 / 非国家行为体</td>
+<td>新手黑客、诈骗者</td>
+</tr>
+<tr class="odd">
+<td>目标动机</td>
+<td>战略优势(军事/政治)</td>
+<td>直接经济收益</td>
+</tr>
+<tr class="even">
+<td>典型例子</td>
+<td>Stuxnet、NotPetya</td>
+<td>僵尸网络、窃取财务信息的木马</td>
+</tr>
+<tr class="odd">
+<td>对受害者身份</td>
+<td>极度在意(精确锁定)</td>
+<td>不在意(谁都行)</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>一句话记忆</strong> —
+区分二者最快的问法是:<strong>"它挑不挑目标?"</strong>
+挑(高选择性、为战略)→ 网络武器;不挑(广撒网、为赚钱)→ 普通恶意软件。</p>
+</blockquote>
+<h3 id="24-网络武器为什么特别危险四个独特之处">2.4
+网络武器为什么特别危险:四个独特之处</h3>
+<p>最后,讲师总结了网络武器<strong>独有的四种危险</strong>,这是本部分最常考的清单:</p>
+<ol type="1">
+<li><strong>难以追踪、难以防御 (difficult to trace or defend
+against)</strong> ——
+因为它<strong>没有物理组件</strong>,你抓不到一个"实体",防御也无从下手。</li>
+<li><strong>匿名性带来长期潜伏 (anonymity)</strong> ——
+攻击者可以<strong>长时间隐藏在系统中不被发现</strong>,等待最佳时机才发动。许多此类攻击利用
+<strong>"零日漏洞 (zero
+days)"</strong>——防御方在被攻击之前根本不知道这个漏洞存在。</li>
+<li><strong>成本不对称,有利于攻击者 (cost imbalance /
+asymmetry)</strong> ——
+<strong>制造网络武器,往往比建立防御它所需的体系便宜得多</strong>。这种不对称天然地<strong>偏向攻击方</strong>。</li>
+<li><strong>可被缴获并反向使用 (reused against the original
+creator)</strong> ——
+一方的网络武器可能被对手<strong>缴获,然后反过来用在它的原创造者身上</strong>。最清楚的例子是
+<strong>WannaCry 和 NotPetya</strong> 两次大爆发——<strong>两者都用了
+EternalBlue</strong>,而 EternalBlue 据信是 <strong>NSA
+开发的</strong>。这种"武器反噬"放大了网络武器的危险性和不可预测性。</li>
+</ol>
+<blockquote>
+<p><strong>🔑 例(EternalBlue 的反噬)</strong> — NSA 开发的漏洞利用工具
+EternalBlue 泄露后,被用来构造了 WannaCry(2017,席卷全球的勒索蠕虫)和
+NotPetya。<strong>国家造的"兵器"流入野外,最终砸到了所有人头上</strong>——这完美诠释了第
+3 条(成本不对称)和第 4 条(反向使用)叠加起来有多可怕。</p>
+</blockquote>
+<hr />
+<h2 id="part-3--网络反间谍-cci以攻为守">Part 3 · 网络反间谍
+(CCI):以攻为守</h2>
+<h3 id="31-什么是-cci目的是防御手段却是进攻">3.1 什么是
+CCI:目的是防御,手段却是进攻</h3>
+<p>到目前为止,我们一直站在攻击方的视角看信息战和网络武器。Part 3
+换到<strong>防御方</strong>,但你会发现一件有意思的事:<strong>最有效的防御,常常带着进攻的姿态。</strong>
+这就是<strong>网络反间谍 (Cyber Counterintelligence, CCI)</strong>。</p>
+<blockquote>
+<p><strong>Cyber Counterintelligence (CCI)</strong> —
+<em>一个组织为"阻止恶意行为体(无论是竞争对手的情报活动、民族国家,还是犯罪组织)搜集关于自己的敏感信息"而采取的各种努力</em>。这里的敏感信息包括<strong>知识产权
+(intellectual property)、商业机密 (trade secrets)、运营计划 (operational
+plans)、机密情报数据</strong>——这些对国家或组织安全至关重要。</p>
+</blockquote>
+<p>CCI 最耐人寻味的特征,是它的<strong>双重性 (dual nature)</strong>:</p>
+<blockquote>
+<p><strong>CCI 的核心特征</strong> — <em>虽然 CCI
+的根本目的是"防御性"的(保护资产和信息),但它所采用的方法本质上往往是"进攻性"的
+(the methods are essentially offensive)。要让 CCI
+真正有效,它必须"攻防兼备 (both offensive and defensive)"。</em></p>
+</blockquote>
+<p>和传统防御(只专注于筑墙、挡攻击)不同,CCI
+可以<strong>主动地试探、欺骗、扰乱攻击者</strong>——部署蜜罐
+(honeypots)、做威胁狩猎 (threat
+hunting)、给攻击者喂假情报、甚至操纵对方的基础设施。它的终极目标不只是"挡住攻击",而是<strong>通过理解对手的战术、预判其行动、主动反制,来在网络战场上占据上风</strong>。</p>
+<p>为了把这套方法论讲清楚,讲师把 CCI 分成两大类:<strong>Defensive
+CCI(防御性)</strong> 和 <strong>Offensive
+CCI(进攻性)</strong>。下面分别看。</p>
+<pre class="mermaid"><code>graph TD
+  CCI[&quot;Cyber Counterintelligence (CCI)&lt;br/&gt;目的:防御 / 手段:进攻&quot;]
+  CCI --&gt; DEF[&quot;Defensive CCI 防御性&quot;]
+  CCI --&gt; OFF[&quot;Offensive CCI 进攻性&quot;]
+  DEF --&gt; D1[&quot;Penetration testing 渗透测试&quot;]
+  DEF --&gt; D2[&quot;Vulnerability assessment 漏洞评估&quot;]
+  DEF --&gt; D3[&quot;Threat intelligence 威胁情报(被动分析)&quot;]
+  DEF --&gt; D4[&quot;Threat hunting 威胁狩猎(主动搜寻)&quot;]
+  OFF --&gt; O1[&quot;Honeypots 蜜罐&quot;]
+  OFF --&gt; O2[&quot;Sockpuppets 马甲身份&quot;]</code></pre>
+<h3 id="32-defensive-cci从渗透测试到威胁狩猎">3.2 Defensive
+CCI:从渗透测试到威胁狩猎</h3>
+<p>防御性 CCI
+是一条**从"了解自己"走向"主动搜捕"**的递进链条,共四步。</p>
+<p><strong>① 渗透测试 (Penetration testing)。</strong>
+这通常是整个防御过程的起点。组织会<strong>聘请专门的"红队 (red
+team)"</strong>——一群用真实攻击战术、来模拟攻击你自己网络和系统的安全专家。通过<strong>模仿对手如何突破防线</strong>,渗透测试能<strong>揭示可能的攻击路径
+(attack vectors)、发现网络与系统的弱点、并画出组织的"攻击面 (attack
+surface)"</strong>。这种深入的洞察,让组织能为真正的攻击做出更有效的应对准备。</p>
+<p><strong>② 漏洞评估 (Vulnerability assessment)。</strong>
+一旦渗透测试识别出潜在弱点,下一步就是用<strong>自动化扫描工具
+(vulnerability scanning tools)</strong>
+对网络和系统基础设施做一次彻底的漏洞评估。关键在于:<strong>漏洞不只是被"列出来",更要被"定义、分类、并最重要地——按严重性和潜在影响排定优先级
+(defining, classifying and most importantly
+prioritizing)"</strong>。排序让组织能把有限的资源<strong>用在刀刃上</strong>,优先修补最要命的问题。</p>
+<p><strong>③ 威胁情报 (Threat intelligence)。</strong>
+这一步是<strong>搜集并分析</strong>关于"过去、当前、未来"网络威胁的指标
+(indicators) 数据。它帮助组织<strong>更好地理解威胁态势 (threat
+landscape)</strong>,从而更明智地排定防御优先级、在攻击被发现时更快响应。讲师特别点出:威胁情报本质上是一种<strong>偏被动的"分析"动作
+(a more passive action)</strong>——你在研究情报、研究攻击者是谁。</p>
+<p><strong>④ 威胁狩猎 (Threat hunting)。</strong>
+这是从"分析"转向"行动"的关键一跃,是一种<strong>主动的防御 (active
+defensive
+CCI)</strong>。和被动监控不同,威胁狩猎是<strong>主动地在网络里搜寻"那些已经躲过了传统端点安全工具
+(endpoint security)
+的隐蔽或高级威胁"</strong>。威胁猎手寻找入侵的<strong>细微迹象 (subtle
+signs of
+compromise)</strong>,在这些隐蔽威胁造成重大损害之前就把它们<strong>隔离
+(isolating)</strong> 出来。</p>
+<p>把③和④放一起看,逻辑就清晰了:<strong>威胁情报(被动分析)+
+威胁狩猎(主动搜捕)让组织能"领先攻击者一步",把防御从"被动反应
+(reactive)"转为"主动出击 (proactive)"。</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>步骤</th>
+<th>性质</th>
+<th>它回答的问题</th>
+<th>关键产出</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>① Penetration testing</td>
+<td>主动模拟</td>
+<td>"如果有人攻我,能从哪进?"</td>
+<td>攻击路径、攻击面地图</td>
+</tr>
+<tr class="even">
+<td>② Vulnerability assessment</td>
+<td>系统扫描</td>
+<td>"我有哪些漏洞,哪个最危险?"</td>
+<td><strong>排好优先级</strong>的漏洞清单</td>
+</tr>
+<tr class="odd">
+<td>③ Threat intelligence</td>
+<td><strong>被动分析</strong></td>
+<td>"外面有什么威胁,是谁?"</td>
+<td>威胁态势认知</td>
+</tr>
+<tr class="even">
+<td>④ Threat hunting</td>
+<td><strong>主动搜捕</strong></td>
+<td>"有没有人已经潜进来了?"</td>
+<td>隔离掉的隐蔽威胁</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="33-offensive-cci蜜罐与马甲身份">3.3 Offensive
+CCI:蜜罐与马甲身份</h3>
+<p>防御性 CCI 是"加固自己",进攻性 CCI
+则是**"反过来盯上攻击者"**。讲师给了两件最有代表性的工具。</p>
+<p><strong>① 蜜罐 (Honeypots)。</strong></p>
+<blockquote>
+<p><strong>Honeypot(蜜罐)</strong> —
+<em>一种被刻意设置在网络中、"故意做得脆弱"的系统或服务,用来"引诱
+(lure)"攻击者</em>。可以把它想成一个<strong>看起来真实、又疏于防护的诱饵系统
+(decoy
+system)</strong>,因而对攻击者极具吸引力;同时它是<strong>被严密监控的"隔离陷阱
+(isolated trap)"</strong>。</p>
+</blockquote>
+<p>蜜罐的价值在于:<strong>当攻击者一头扎进这个陷阱,你就能观察他的活动、监控其行为、捕获他使用的工具和技术,并搜集到平时极难获得的情报。</strong>
+这能揭示攻击者的<strong>技能水平、来源地、偏好的战术或恶意软件</strong>。在某些情况下,蜜罐甚至能<strong>协助"溯源归因
+(attribution)"</strong>——弄清楚是谁在背后发动攻击。虽然归因复杂且很少有定论,但蜜罐能为这块拼图<strong>添上有价值的碎片</strong>。一句话:蜜罐把"被入侵的企图"变成了"学习的机会",是一件强大的进攻性
+CCI 工具。</p>
+<p><strong>② 马甲身份 (Sockpuppets)。</strong></p>
+<blockquote>
+<p><strong>Sockpuppet(马甲身份 / 提线木偶账号)</strong> —
+<em>一种"虚构却看起来完全合法"的线上人格 (online
+persona)</em>。它<strong>不是一次性的小号</strong>——而是被精心培育的:有可信的数字历史、逼真的社交媒体活动、以及随时间积累出真实感的线上互动。</p>
+</blockquote>
+<p>马甲身份服务于一个非常具体的战略目的:<strong>被部署到线上空间去观察、接触、并渗透敌对社群或行动
+(infiltrate adversarial
+communities)</strong>。比如,一个马甲身份可能加入某个黑客论坛,与成员建立信任
+(build
+rapport),然后慢慢开始搜集关于"计划中的攻击、恶意软件开发、威胁行为体能力"的情报。</p>
+<p>讲师点出了马甲身份<strong>为什么特别有效</strong>——它工作在两种情报的交汇处:</p>
+<blockquote>
+<p><strong>OSINT + HUMINT</strong> — 马甲身份是
+<strong>OSINT(开源情报,open source
+intelligence,搜集公开可得的信息)</strong> 与
+<strong>HUMINT(人力情报,human
+intelligence,通过直接的人际互动获得)</strong>
+的结合。这种组合让组织不仅能<strong>被动地观察</strong>威胁,还能<strong>主动地从内部操纵或扰乱</strong>它们。</p>
+</blockquote>
+<p>在高水平的行动中,精心经营的马甲身份甚至能<strong>取得对手的信任,进而把对方的内部人员发展成"双面间谍
+(double-agents)"</strong>,把关键情报反馈给防御方。这是进攻性 CCI
+的一个极致范例——让组织超越单纯防御,<strong>从敌对环境内部直接获取高价值情报</strong>。</p>
+<h3 id="34-cci-的代价成本与合法性">3.4 CCI 的代价:成本与合法性</h3>
+<p>CCI 虽然有效,却也有显著的两大缺点——这通常成对出现,值得记牢。</p>
+<p><strong>① 成本 (Cost)。</strong> 实施一套有效的 CCI
+策略,尤其是<strong>攻防兼备</strong>的那种,可能<strong>极其昂贵</strong>:它往往需要专门人员、高级工具、持续监控、以及红队演练这类模拟攻击。这些资源,<strong>只有那些拥有高价值数字资产的大型组织才负担得起</strong>;对小公司或机构而言,财务负担可能高到让
+CCI<strong>根本无法实施</strong>。</p>
+<p><strong>② 合法性 (Legality)。</strong> 许多 CCI
+技术——尤其是蜜罐、马甲身份、致命监控这类进攻性手段——<strong>处于法律的灰色地带,甚至在某些司法管辖区是被明令禁止的</strong>。涉及<strong>欺骗、从对手处搜集数据、渗透线上社群</strong>的活动,必须极其谨慎地处理。<strong>法律边界因国而异,一旦越界,组织可能面临诉讼或监管处罚。</strong>
+因此,讲师强调:<strong>理解并规划整个行动的全过程至关重要,每一种可能的情形都需要事先考虑到。</strong></p>
+<blockquote>
+<p>📎 <strong>一句话记忆</strong> — CCI 的两个软肋是
+<strong>Cost(贵,小机构玩不起)和
+Legality(进攻性手段游走在法律边缘)</strong>。考点常以"CCI 的
+disadvantages 是什么"出现,记住这两个词即可。</p>
+</blockquote>
+<hr />
+<h2 id="part-4--apt国家级攻击者的集大成者">Part 4 ·
+APT:国家级攻击者的集大成者</h2>
+<h3 id="41-什么是-aptnist-的定义">4.1 什么是 APT:NIST 的定义</h3>
+<p>前三部分我们见识了信息战的目标(基础设施)、武器(cyberweapon)、和攻防方法(CCI)。现在把这一切<strong>组织起来、长期运作</strong>的那个"终极对手"登场了——<strong>高级持续性威胁
+(Advanced Persistent Threat, APT)</strong>。这是本课程压轴的概念。</p>
+<p>讲师采用了<strong>美国国家标准与技术研究院 (NIST)</strong>
+的定义:</p>
+<blockquote>
+<p><strong>APT (NIST 定义)</strong> — <em>一个"拥有精密专业能力
+(sophisticated levels of expertise) 和可观资源 (significant
+resources)"的对手,这些能力和资源使它能够通过"多种攻击向量 (multiple
+attack vectors,如网络 cyber、物理 physical、欺骗
+deception)"的组合,创造机会去达成自己的目标。这些目标通常包括:在目标组织的
+IT 基础设施中"建立并扩展立足点 (establishing and extending
+footholds)",以便"窃取信息 (exfiltrating
+information)、破坏或阻碍某项使命/项目/组织的关键环节,或为将来执行这些目标而预先占位"。</em></p>
+</blockquote>
+<p>把这个定义拆开,APT 有三个内核:<strong>精密的专业能力 + 可观的资源 +
+多向量、长期、有明确目标。</strong>
+它和"普通网络攻击"最大的不同在于——<strong>普通攻击往往是机会主义的、短命的
+(opportunistic or short-lived),而 APT 是战略性的、持久的 (strategic and
+persistent)</strong>。APT
+的目标<strong>不是闯进系统造成即时破坏</strong>,而是<strong>先在目标基础设施里"扎下根
+(establish a
+foothold)"</strong>;一旦进去,它就<strong>隐藏起来,常常潜伏数月甚至数年</strong>,一边窃取数据、监控通信,一边为将来的破坏做准备。</p>
+<h3 id="42-apt-的四大特征">4.2 APT 的四大特征</h3>
+<p>讲师用四个特征把 APT 的"画像"勾勒完整。这四点是本部分的核心考点。</p>
+<p><strong>特征 ①:目标特定、目的明确 (Specific targets and clear
+objectives)。</strong> APT
+的目标通常是<strong>持有大量数字资产的政府或组织</strong>。讲师列出了
+APT 最常瞄准的<strong>十大行业 (top ten industry
+verticals)</strong>:<strong>教育、金融、高科技、政府、咨询、能源、化工、电信、医疗、航空航天
+(education, finance, high-tech, government, consulting, energy,
+chemical, telecom, healthcare,
+aerospace)</strong>——这些都是信息既敏感又高价值的领域。与广撒网的传统攻击截然不同,<strong>APT
+是"外科手术式"的 (surgical in
+nature):它只聚焦于预先选定的目标,主动限制自己的攻击范围</strong>,以求更隐蔽、更有效。它要的数字资产,是那些能带来<strong>竞争优势或战略利益</strong>的东西:国家安全数据、知识产权、商业机密。</p>
+<p><strong>特征 ②:高度组织化、资源雄厚 (Highly organised and
+well-resourced)。</strong> APT
+<strong>不是孤狼黑客</strong>,而是<strong>协同作战的高技能职业团队</strong>,带着"军事级的精准"。这些人往往<strong>隶属于国家的网络部队</strong>,或被政府和私营公司<strong>雇为承包商
+(contractors)</strong>。让他们区别于普通罪犯的,是<strong>资源的深度</strong>:财务上,后盾雄厚到可以<strong>支撑数月乃至数年的行动而无需急于变现</strong>;技术上,他们握有<strong>定制工具包、精密的恶意软件平台、甚至零日漏洞</strong>。一旦是<strong>国家赞助
+(state-sponsored)</strong>
+的,实力还会再上一个台阶——他们可能得到国家情报机构的基础设施支持、能让他们免于被起诉的外交保护、以及精炼其打击目标的内部情报。</p>
+<p><strong>特征 ③:长期作战、反复尝试 (A long-term campaign with repeated
+attempts)。</strong> 与追求"速胜或速财"的一次性攻击不同,<strong>APT
+是被组织成"持续战役 (ongoing
+campaign)"的</strong>。一旦攻入系统(或哪怕初次失败),他们<strong>不会放弃</strong>,而是<strong>法律性地学习、适应、再试一次
+(learn, adapt and try again)</strong>。APT
+在网络中<strong>潜伏数月甚至数年而不被发现</strong>并不罕见,它们一边维持低调,一边在网络里缓慢扩张。这种<strong>持久性
+(persistence)</strong>,正是 APT
+与传统威胁的核心分野——传统攻击者如果攻不破初始目标,<strong>会立刻转向更软的柿子</strong>;APT
+则盯住不放。</p>
+<p><strong>特征 ④:隐蔽且善于规避 (Stealthy and evasive
+techniques)。</strong> 这是 APT
+最危险的方面之一。和那些"高音量、快进快出"的传统攻击者不同,APT
+<strong>无缝融入正常的企业网络流量 (blend into normal network
+traffic)</strong>,只与系统做"刚好够推进目标"的最小交互,因此能<strong>长期"潜在雷达之下
+(below the radar)"</strong>。具体手段包括:<strong>用零日漏洞 (zero-day
+exploits) 绕过基于特征的检测 (signature-based
+detection)</strong>、用<strong>加密 (encryption)
+来混淆网络流量</strong>、以及使用<strong>无文件恶意软件 (fileless
+malware) 或多态技术 (polymorphic
+techniques)</strong>(恶意软件不断改变自身的代码结构以躲避检测)。这与传统攻击的**"砸开就抢
+(smash and grab)"**战术形成鲜明对比——后者会立刻惊动防御方。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>特征</th>
+<th>一句话</th>
+<th>与传统攻击的对比</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>① 目标特定</td>
+<td>只打预选的高价值目标(十大行业)</td>
+<td>传统攻击广撒网</td>
+</tr>
+<tr class="even">
+<td>② 资源雄厚</td>
+<td>国家赞助、高技能团队、零日漏洞</td>
+<td>传统攻击者多为个人/小团伙</td>
+</tr>
+<tr class="odd">
+<td>③ 长期持久</td>
+<td>潜伏数月数年,失败就改进再试</td>
+<td>传统攻击攻不破就换软柿子</td>
+</tr>
+<tr class="even">
+<td>④ 隐蔽规避</td>
+<td>融入正常流量,零日+加密+多态</td>
+<td>传统攻击"砸开就抢",会惊动防御</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="43-apt-攻击的六个阶段必背">4.3 APT 攻击的六个阶段(必背)</h3>
+<p>讲师明确给出:<strong>一次典型的 APT 攻击有以下六个阶段。</strong>
+这是一个高频考点,务必能按顺序背出来,并理解每一步在干什么。</p>
+<ol type="1">
+<li><strong>侦察 (Reconnaissance)</strong> —
+搜集关于目标基础设施、员工、技术、潜在漏洞的情报。</li>
+<li><strong>投递 (Delivery)</strong> —
+传递攻击载荷,手段如:<strong>带恶意附件的邮件、水坑网站 (watering
+hole)、感染的 USB</strong> 等。</li>
+<li><strong>初始入侵 (Initial intrusion)</strong> —
+利用漏洞或人为失误,获得对系统的初始访问权。</li>
+<li><strong>命令与控制 (Command and control, C2)</strong> —
+建立一条<strong>隐蔽的通信通道</strong>,以便远程控制被攻陷的系统。</li>
+<li><strong>横向移动 (Lateral movement)</strong> —
+在网络内部扩展访问范围,寻找更高价值的目标,并<strong>提升权限 (escalate
+privilege)</strong>。</li>
+<li><strong>数据窃取 (Data exfiltration)</strong> —
+窃取敏感数据,并将其传输到攻击者控制的外部服务器。</li>
+</ol>
+<pre class="mermaid"><code>flowchart LR
+  R[&quot;① Reconnaissance&lt;br/&gt;侦察&quot;] --&gt; D[&quot;② Delivery&lt;br/&gt;投递(钓鱼/水坑/USB)&quot;]
+  D --&gt; I[&quot;③ Initial intrusion&lt;br/&gt;初始入侵&quot;]
+  I --&gt; C[&quot;④ Command &amp; Control&lt;br/&gt;命令与控制&quot;]
+  C --&gt; L[&quot;⑤ Lateral movement&lt;br/&gt;横向移动 + 提权&quot;]
+  L --&gt; E[&quot;⑥ Data exfiltration&lt;br/&gt;数据窃取&quot;]</code></pre>
+<blockquote>
+<p>📎 <strong>记忆法</strong> —
+六阶段可以理解成一次"潜入大楼盗窃"的完整剧本:<strong>先踩点(侦察)→
+想办法混进门(投递)→ 真的进了门(初始入侵)→ 偷偷架好对讲机和接应(C2)→
+在楼里到处摸,找到金库并搞到钥匙(横向移动+提权)→
+把东西运出去(数据窃取)。</strong> 顺序一旦理解了就很难忘:Recon →
+Delivery → Intrusion → C2 → Lateral → Exfiltration。</p>
+</blockquote>
+<h3 id="44-apt-的真实案例stuxnetduquflame">4.4 APT
+的真实案例:Stuxnet、Duqu、Flame</h3>
+<p>最后,讲师用三个著名的真实案例,展示了 APT
+目标的"光谱"——从纯粹的物理破坏,到纯粹的情报搜集。它们也为整门课画上了一个呼应开头的句号(Stuxnet
+在 Week 11 和本章 Part 1 都出现过)。</p>
+<blockquote>
+<p><strong>🔑 例 ① Stuxnet(震网)——物理破坏的极致</strong>
+一种<strong>蠕虫 (worm)</strong>,常被归类为 <strong>APT
+恶意软件</strong>。它专门攻击<strong>核离心机的可编程逻辑控制器
+(programmable logic controllers, PLC)</strong>,据信<strong>摧毁了伊朗近
+20% 的核离心机</strong>,显著迟滞了其核计划。它代表了 APT
+谱系里"<strong>纯破坏 (sabotage)</strong>"的一端。</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 例 ② Duqu——为下一次攻击搜集情报</strong>
+许多专家怀疑它<strong>与 Stuxnet 同源</strong>(可能由同一团队开发)。但
+Duqu
+的首要使命<strong>不是破坏,而是情报搜集</strong>——它被设计用来<strong>窃取那些"日后可用于攻击
+SCADA 系统"的信息</strong>。换句话说,Duqu
+是为破坏做"前期侦察"的工具,正好对应 §4.3 的第①阶段。</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 例 ③ Flame(火焰)——全功能间谍平台</strong>
+主要用于在<strong>中东</strong>进行侦察与情报搜集。Flame
+相比典型恶意软件<strong>体量巨大,约 20
+MB</strong>,内部打包了多种功能模块,可以<strong>录制音频、截取屏幕、记录键盘活动、甚至捕获
+Skype 通话</strong>。它能<strong>通过 USB
+闪存盘传播</strong>,这让它格外危险且难以察觉。Flame
+被认为是有史以来最复杂、最先进的恶意软件之一。它代表了 APT
+谱系里"<strong>纯情报搜集 (espionage)</strong>"的一端。</p>
+</blockquote>
+<p>把三者放在一条谱线上,APT 的目标范围就一目了然了:</p>
+<pre class="mermaid"><code>graph LR
+  S[&quot;Stuxnet&lt;br/&gt;破坏 PLC/离心机&lt;br/&gt;(物理破坏 Sabotage)&quot;]
+  D[&quot;Duqu&lt;br/&gt;窃取攻击 SCADA 所需情报&lt;br/&gt;(为破坏做侦察)&quot;]
+  F[&quot;Flame&lt;br/&gt;录音/截屏/键盘/Skype&lt;br/&gt;(纯情报 Espionage)&quot;]
+  S --- D --- F
+  classDef sab fill:#ffe0e0;
+  classDef esp fill:#e0e8ff;
+  class S sab;
+  class F esp;</code></pre>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>案例</th>
+<th>类型</th>
+<th>主要目标</th>
+<th>标志性事实</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Stuxnet</strong></td>
+<td>蠕虫 / APT</td>
+<td><strong>破坏</strong>核离心机 PLC</td>
+<td>毁掉伊朗约 20% 离心机;第一款真正的网络武器</td>
+</tr>
+<tr class="even">
+<td><strong>Duqu</strong></td>
+<td>与 Stuxnet 同源</td>
+<td><strong>搜集</strong>攻击 SCADA 的情报</td>
+<td>"破坏前的侦察兵"</td>
+</tr>
+<tr class="odd">
+<td><strong>Flame</strong></td>
+<td>间谍平台</td>
+<td>中东<strong>情报搜集</strong></td>
+<td>约 20MB,录音/截屏/键盘/Skype,USB 传播</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<ul>
+<li><strong>信息战 (Information warfare)</strong>
+有两个经典定义:<strong>Denning
+的极宽定义</strong>(任何利用信息媒介取得对敌优势的行动,含宣传、间谍、电子战)和
+<strong>Waltz
+的军事定义</strong>(保证己方信息流不间断、同时否定敌方)。这个词约在 1995
+年开始流行。</li>
+<li><strong>海湾战争 (Gulf War 1)</strong>
+是信息战的最早范例:用干扰机、反辐射导弹、巡航导弹、特种部队挖断电缆、以及黑客手段,先瘫痪伊拉克的指挥控制系统,以最小伤亡发起进攻——这是第一场"同时在物理域和信息域打响"的战争。</li>
+<li><strong>关键基础设施(尤其电力)是信息战的首要目标</strong>,因为断电会让整个现代经济停摆,可以"不开一枪"制造混乱(Auckland、IRA、Maroochy
+是经典案例)。</li>
+<li>工业控制协议 <strong>Modbus 和 DNP3
+天生无认证</strong>;它们本为私有隔离网络设计,1990 年代末为省成本搬上 IP
+网后,<strong>任何知道传感器/执行器地址的人都能读取或操作物理设备</strong>——这是
+Maroochy 污水事件和大量基础设施风险的根源。</li>
+<li>攻击控制系统的<strong>主力是国家或其代理人,而非罪犯</strong>:因为瘫痪电网"不赚钱",却符合国家的战略利益。<strong>Stuxnet(破坏伊朗核离心机)和乌克兰停电(30
+座变电站、NotPetya 外溢)</strong> 是国家级网络攻击的里程碑。</li>
+<li>给老旧 SCADA 直接加密/认证在现实中极难(<strong>厂商少、设备寿命 40
+年、物理攻击让加密失去意义、4ms
+延迟要求</strong>),所以折中方案是用<strong>专用防火墙/网关保护"逻辑边界"</strong>;而
+<strong>Shodan</strong> 这类 IoT
+搜索引擎已扫出数万台脆弱设备,证明威胁真实而当下。</li>
+<li><strong>网络武器 (Cyberweapon)</strong>
+是国家用于军事/情报目的的恶意软件,与普通 malware
+的分水岭是<strong>选择性</strong>:网络武器<strong>高选择性、只打预定目标、为战略而非赚钱</strong>;它的四大独特危险是<strong>难追踪、可长期匿名潜伏(零日)、成本不对称偏向攻击方、可被缴获反向使用(WannaCry/NotPetya
+都用了 NSA 的 EternalBlue)</strong>。</li>
+<li><strong>网络反间谍 (CCI)</strong>
+的精髓是"<strong>目的防御、手段进攻</strong>":防御性手段是<strong>渗透测试
+→ 漏洞评估 → 威胁情报(被动)→
+威胁狩猎(主动)</strong>;进攻性手段是<strong>蜜罐(诱捕并研究攻击者)和马甲身份(OSINT+HUMINT,渗透敌方、发展双面间谍)</strong>。它的两大软肋是<strong>成本和合法性</strong>。</li>
+<li><strong>APT(高级持续性威胁)</strong> 是国家级攻击者的集大成者(NIST
+定义:精密能力 + 可观资源 +
+多向量)。四大特征:<strong>目标特定(十大行业)、资源雄厚(国家赞助)、长期持久(潜伏数月数年、失败再试)、隐蔽规避(零日+加密+多态,而非砸开就抢)</strong>。</li>
+<li><strong>APT 的六阶段(必背)</strong>:<strong>侦察 → 投递 → 初始入侵 →
+命令与控制 → 横向移动 → 数据窃取</strong>(Reconnaissance → Delivery →
+Initial intrusion → C2 → Lateral movement → Data exfiltration)。</li>
+<li>三个 APT 案例勾出目标光谱:<strong>Stuxnet(物理破坏)→ Duqu(为攻击
+SCADA 搜集情报)→ Flame(纯情报搜集:录音/截屏/键盘/Skype,20MB,USB
+传播)</strong>。</li>
+</ul>
+<blockquote>
+<p><strong>🎯 备考提示</strong> — 本章是全课程最后一章,概念多但都偏"识记
++
+理解",特别适合出<strong>名词解释</strong>和<strong>列举题</strong>。优先记牢这几组高频考点:①
+两个信息战定义的区别;② cyberweapon vs malware 的选择性区别 + 四大危险;③
+CCI 的防御四步 + 进攻两件工具 + 两大缺点;④ <strong>APT 四特征 +
+六阶段</strong>(最可能考)+ 三个例子的"破坏 vs 情报"定位。下周(Week
+13)讲师会做全课程复习和考试说明,建议结合本章一起过。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>
