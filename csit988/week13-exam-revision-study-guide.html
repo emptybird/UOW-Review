@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CSIT988 / CSIT488 期末总复习 Study Guide</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="csit988--csit488-期末总复习-study-guide">CSIT988 / CSIT488
+期末总复习 Study Guide</h1>
+<h3
+id="week-13--subject-revision-security-ethics-and-professionalismmanagement-of-information-security">Week
+13 · Subject Revision —《Security, Ethics and
+Professionalism》(Management of Information Security)</h3>
+<blockquote>
+<p>本指南融合了 <strong>Week 13
+复习讲义</strong>(<code>CSIT988-2026-L13.pdf</code>)与<strong>课堂录音稿</strong>(<code>CSIT988_Week13-transcript.txt</code>)。
+Week 13 这节课老师做了三件事:(1) 把前 12
+讲的<strong>核心概念</strong>串一遍;(2)
+详细讲解<strong>期末考试</strong>的形式、评分与策略;(3) Q&amp;A。
+这节复习课本质上就是<strong>期末考试的蓝图</strong>——老师明说"哪些会考、哪些不考、学生历年最容易错在哪"。这份指南把这些信息系统化,帮你高效冲刺。</p>
+</blockquote>
+<p><strong>学习目标</strong>——读完这份指南,你应该能够:</p>
+<ul>
+<li>复述这门课的整体脉络:从"什么是信息安全"到"如何管理信息安全"的逻辑主线;</li>
+<li>回忆起 12
+讲中每一讲的<strong>必考概念</strong>,并能区分老师反复警告的<strong>易混淆点</strong>;</li>
+<li>熟练套用<strong>风险管理</strong>的两组计算公式(Risk rating 与
+CBA);</li>
+<li>清楚期末考的<strong>题型结构、MCQ 扣分规则、Technical Fail
+红线</strong>与答题策略。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 课程编号 CSIT988(研究生)与
+CSIT488(本科)共用同一份考卷;Subject Coordinator 为 A/Prof Khoa
+Nguyen。下文中的「老师说」均来自 Week 13 录音稿。</p>
+</blockquote>
+<hr />
+<h2 id="0-课程整体脉络一张图看懂这门课在讲什么">0.
+课程整体脉络:一张图看懂这门课在讲什么</h2>
+<p>这门课的全称是 <strong>Management of Information
+Security(信息安全管理)</strong>——重点在
+<strong>management</strong>(管理),而不是技术细节。它的逻辑主线是:先理解<strong>什么是信息安全</strong>,再把<strong>通用管理学</strong>的框架"嫁接"到信息安全场景里。</p>
+<p>老师用两个总纲性框架贯穿全程:</p>
+<ul>
+<li><strong>三个 communities of
+interest(利益共同体)</strong>——所有理论讨论的出发点:
+<ol type="1">
+<li><strong>InfoSec community</strong>(信息安全团队)</li>
+<li><strong>IT community</strong>(IT 团队)</li>
+<li><strong>General business community</strong>(普通业务团队)</li>
+</ol></li>
+<li><strong>管理的 POLC 四阶段</strong> + <strong>信息安全管理的 Six
+P's</strong>——前 12 讲基本就是在逐个展开这 6 个 P。</li>
+</ul>
+<pre class="mermaid"><code>flowchart TD
+    A[&quot;什么是 Information Security?&lt;br/&gt;(L1 基础: CIA + AAA)&quot;] --&gt; B[&quot;什么是 Management?&lt;br/&gt;(L2: POLC 四阶段)&quot;]
+    B --&gt; C[&quot;Six P&#39;s of InfoSec Management&quot;]
+    C --&gt; P1[&quot;Planning 规划&lt;br/&gt;(L3 安全规划 / L4 应急规划)&quot;]
+    C --&gt; P2[&quot;Policy 策略&lt;br/&gt;(InfoSec Policy)&quot;]
+    C --&gt; P3[&quot;Programs 程序&lt;br/&gt;(L5 开发安全程序 / 管理模型 / 实践)&quot;]
+    C --&gt; P4[&quot;Protection 保护&lt;br/&gt;(L11 防火墙/IDPS/密码学 + 风险管理 L9-L10)&quot;]
+    C --&gt; P5[&quot;People 人员&lt;br/&gt;(L12 人员安全 / 法律与伦理)&quot;]
+    C --&gt; P6[&quot;Projects 项目&lt;br/&gt;(PMBoK / WBS / PERT / Gantt)&quot;]</code></pre>
+<blockquote>
+<p>💡 <strong>记忆锚点</strong>:这门课的所有内容都能挂回 <strong>Six
+P's</strong>。如果考试中遇到不确定的题,先问自己"这属于哪个
+P?",往往能定位到正确的知识区。</p>
+</blockquote>
+<hr />
+<h1 id="第一部分12-讲核心概念回顾">第一部分:12 讲核心概念回顾</h1>
+<hr />
+<h2 id="1-信息安全基础-basics-of-information-security">1. 信息安全基础
+Basics of Information Security</h2>
+<p><strong>What is information security?</strong>
+信息安全是对<strong>信息</strong>及其<strong>赖以存储、处理、传输的系统</strong>的保护。</p>
+<p><strong>三个 communities of
+interest</strong>(见上图)——这是全课的分析框架:InfoSec、IT、general
+business 三方都要参与安全治理,但侧重点不同。</p>
+<p><strong>CNSS security model(CNSS 安全模型)</strong> —— 一个
+<strong>3×3×3 的立方体(cube)</strong>,三个维度共 27
+个单元格。其中一个维度构成了大名鼎鼎的 <strong>C.I.A. triangle(CIA
+三元组)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>C.I.A.</th>
+<th>含义</th>
+<th>一句话</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Confidentiality</strong> 机密性</td>
+<td>信息只对被授权者可见</td>
+<td>防泄露</td>
+</tr>
+<tr class="even">
+<td><strong>Integrity</strong> 完整性</td>
+<td>信息不被未授权篡改、保持准确完整</td>
+<td>防篡改</td>
+</tr>
+<tr class="odd">
+<td><strong>Availability</strong> 可用性</td>
+<td>被授权者需要时能及时访问</td>
+<td>防中断</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>超越 CIA 的安全/隐私属性</strong>——老师强调要记住 CIA
+之外还有 5 个属性:
+<strong>Privacy(隐私)、Identification(标识)、Authentication(认证)、Authorisation(授权)、Accountability(问责)</strong>。</p>
+<blockquote>
+<p>⭐ <strong>高频考点</strong>:后四个(Identification → Authentication →
+Authorisation → Accountability)在全课中<strong>反复出现</strong>,合称
+<strong>AAA / IAAA processing</strong>。在
+L11(保护机制)里它们又作为"access control 的四大 essential
+processes"重新登场——<strong>务必记牢顺序与区别</strong>(见 §7 与 §11
+的陷阱提醒)。</p>
+</blockquote>
+<hr />
+<h2 id="2-信息安全管理-infosec-management">2. 信息安全管理 InfoSec
+Management</h2>
+<p><strong>What is management?</strong>
+管理就是通过<strong>规划、组织、领导、控制</strong>资源来达成目标。本课把通用管理框架适配到信息安全。</p>
+<p><strong>POLC 原则</strong>——通用管理的四个阶段:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>POLC</th>
+<th>中文</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>P</strong>lanning</td>
+<td>规划</td>
+</tr>
+<tr class="even">
+<td><strong>O</strong>rganizing</td>
+<td>组织</td>
+</tr>
+<tr class="odd">
+<td><strong>L</strong>eading</td>
+<td>领导</td>
+</tr>
+<tr class="even">
+<td><strong>C</strong>ontrolling</td>
+<td>控制</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The Six P's of InfoSec Management</strong>(信息安全管理的六个
+P)——本课的总目录: <strong>Planning, Policy, Programs, Protection,
+People, Projects</strong>。</p>
+<p><strong>PMBoK(Project Management Body of
+Knowledge)项目管理知识体系</strong>——9 大知识领域:
+Integration(整合)、Scope(范围)、Time(时间)、Cost(成本)、Quality(质量)、Human
+Resource(人力资源)、Communications(沟通)、Risk(风险)、Procurement(采购)。</p>
+<p><strong>项目管理工具(Project Management tools)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>工具</th>
+<th>全称</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>WBS</strong></td>
+<td>Work Breakdown Structure</td>
+<td>工作分解结构,把项目拆成可管理的小任务</td>
+</tr>
+<tr class="even">
+<td><strong>PERT</strong></td>
+<td>Program Evaluation and Review Technique</td>
+<td>用网络图分析任务依赖与工期</td>
+</tr>
+<tr class="odd">
+<td><strong>Gantt Chart</strong></td>
+<td>甘特图</td>
+<td>时间轴上展示任务进度</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Critical path(关键路径)与 Slack time(松弛时间)</strong>——PERT
+网络中,<strong>关键路径</strong>是耗时最长、决定项目最短完成时间的路径;**slack/lag
+time(松弛/浮动时间)**是某任务在不拖延整个项目的前提下可以延迟的时间。关键路径上的任务
+slack = 0。</p>
+<blockquote>
+<p>⭐ <strong>老师点名</strong>:"在 <strong>Lecture 4 的 quiz</strong>
+里有一道关于 <strong>PERT</strong> 的
+MCQ……这也是期末可能<strong>再次出现</strong>的重要考点。要清楚
+<strong>critical path 是什么、slack/lag time 是什么</strong>。"</p>
+</blockquote>
+<hr />
+<h2 id="3-安全规划-planning-for-security">3. 安全规划 Planning for
+Security</h2>
+<p><strong>What is planning?</strong>
+规划是为达成目标而制定的行动方案。任何组织的规划都建立在三份**基础文件(foundational
+documents)**之上:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>文件</th>
+<th>回答的问题</th>
+<th>记忆</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Values statement</strong> 价值观陈述</td>
+<td>组织<strong>信奉什么</strong>(原则、道德底线)</td>
+<td>我们相信什么</td>
+</tr>
+<tr class="even">
+<td><strong>Vision statement</strong> 愿景陈述</td>
+<td>组织<strong>想成为什么</strong>(未来理想状态)</td>
+<td>想变成什么样</td>
+</tr>
+<tr class="odd">
+<td><strong>Mission statement</strong> 使命陈述</td>
+<td>组织<strong>现在做什么、为谁做</strong></td>
+<td>当下使命</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>⚠️ <strong>易错点(来自 MCQ 示例)</strong>:"The
+<strong>values</strong> statement describes what an organization wants
+to become" —— <strong>错误</strong>!"想成为什么"是
+<strong>vision</strong> statement,不是 values
+statement。别把三份文件搞混。</p>
+</blockquote>
+<p><strong>Strategic planning(战略规划)</strong>——包括制定战略计划、划分
+<strong>planning levels(规划层级:战略 → 战术 → 运营)</strong>,以及
+<strong>CISO 在规划中的角色</strong>。</p>
+<p><strong>IDEAL 治理框架(governance framework)</strong>——五个阶段:</p>
+<pre class="mermaid"><code>flowchart LR
+    I[&quot;Initiating&lt;br/&gt;启动&quot;] --&gt; D[&quot;Diagnosing&lt;br/&gt;诊断&quot;] --&gt; E[&quot;Establishing&lt;br/&gt;建立&quot;] --&gt; A[&quot;Acting&lt;br/&gt;行动&quot;] --&gt; L[&quot;Learning&lt;br/&gt;学习&quot;]</code></pre>
+<p><strong>实施信息安全的两种路径</strong>——务必能<strong>比较</strong>两者:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Bottom-up</strong> 自下而上</th>
+<th><strong>Top-down</strong> 自上而下</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>发起者</td>
+<td>技术人员/管理员</td>
+<td>高层管理(CISO/CEO)</td>
+</tr>
+<tr class="even">
+<td>优势</td>
+<td>一线技术专长</td>
+<td>有资源、有授权、可持续</td>
+</tr>
+<tr class="odd">
+<td>劣势</td>
+<td>缺乏组织支持,容易夭折</td>
+<td>需要高层真正重视</td>
+</tr>
+<tr class="even">
+<td>推荐</td>
+<td>—</td>
+<td>✅ <strong>更可能成功</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>SecSDLC(Security Systems Development Life Cycle)</strong>——以
+<strong>Waterfall(瀑布)方法</strong> 学习,六个阶段:</p>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;Investigation&lt;br/&gt;调查&quot;] --&gt; B[&quot;Analysis&lt;br/&gt;分析&quot;] --&gt; C[&quot;Logical Design&lt;br/&gt;逻辑设计&quot;] --&gt; D[&quot;Physical Design&lt;br/&gt;物理设计&quot;] --&gt; E[&quot;Implementation&lt;br/&gt;实施&quot;] --&gt; F[&quot;Maintenance &amp; Change&lt;br/&gt;维护与变更&quot;]</code></pre>
+<p><strong>威胁、攻击与漏洞(Threats, attacks,
+vulnerabilities)</strong>——本课<strong>首次</strong>在 L3
+引入威胁概念,之后多讲反复回顾。</p>
+<blockquote>
+<p>⭐ <strong>老师点名</strong>:"你应该记住信息安全的 <strong>12
+类威胁(12 categories of threat)</strong> 及其例子。" 还要区分
+<strong>technical attack(技术攻击)</strong> 与 <strong>non-technical
+attack(非技术攻击)</strong>。 ⚠️ <strong>易错点(MCQ 示例)</strong>:"An
+example of <strong>technical</strong> attack is <strong>shoulder
+surfing</strong>" —— <strong>错误</strong>!肩窥(shoulder
+surfing,偷看别人屏幕/键盘)属于<strong>非技术/社会工程</strong>攻击。</p>
+</blockquote>
+<hr />
+<h2 id="4-应急规划-planning-for-contingencies-cp">4. 应急规划 Planning
+for Contingencies (CP)</h2>
+<p><strong>What is Contingency Planning?</strong>
+应急规划是为"出事之后如何应对"而做的准备。<strong>Why
+important?</strong> 没有 CP,一次事故就可能让组织瘫痪甚至倒闭。</p>
+<p><strong>CP
+的四大组成部分</strong>——必须知道<strong>每个是什么、何时触发</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>组件</th>
+<th>全称</th>
+<th>何时用</th>
+<th>关注点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>BIA</strong></td>
+<td>Business Impact Analysis 业务影响分析</td>
+<td><strong>事前</strong>——CP 的起点</td>
+<td>识别关键业务功能及中断影响</td>
+</tr>
+<tr class="even">
+<td><strong>IR plan</strong></td>
+<td>Incident Response Plan 事件响应计划</td>
+<td>事故(incident)发生时</td>
+<td>检测、响应、遏制单次事件</td>
+</tr>
+<tr class="odd">
+<td><strong>DR plan</strong></td>
+<td>Disaster Recovery Plan 灾难恢复计划</td>
+<td>incident 升级为 <strong>disaster</strong> 时</td>
+<td>恢复 IT 系统与数据</td>
+</tr>
+<tr class="even">
+<td><strong>BC plan</strong></td>
+<td>Business Continuity Plan 业务连续性计划</td>
+<td>灾难后果严重时(与 DR <strong>同时</strong>启动)</td>
+<td>在备用场所维持核心业务运转</td>
+</tr>
+</tbody>
+</table></div>
+<pre class="mermaid"><code>flowchart TD
+    S[&quot;事件发生&quot;] --&gt; I{&quot;是 incident&lt;br/&gt;还是 disaster?&quot;}
+    I --&gt;|incident| IR[&quot;启动 IR Plan&lt;br/&gt;遏制 &amp; 恢复&quot;]
+    I --&gt;|escalates → disaster| DR[&quot;启动 DR Plan&lt;br/&gt;恢复 IT/数据&quot;]
+    DR --&gt;|后果严重| BC[&quot;同时启动 BC Plan&lt;br/&gt;在备用地维持业务&quot;]
+    BIA[&quot;BIA(事前完成)&lt;br/&gt;奠定整个 CP 的基础&quot;] -.-&gt; IR
+    BIA -.-&gt; DR
+    BIA -.-&gt; BC</code></pre>
+<blockquote>
+<p>⭐ <strong>老师点名</strong>:"如果某个 incident
+发生了,你该跟哪个计划?如果它升级成 disaster,你可能要<strong>激活 DR
+plan</strong>;如果灾难后果严重,还要<strong>同时考虑 BC
+plan</strong>。"——典型的情景判断题。</p>
+</blockquote>
+<hr />
+<h2 id="5-信息安全策略-infosec-policy">5. 信息安全策略 InfoSec
+Policy</h2>
+<p><strong>Why policy?</strong> 用 <strong>Bull's-eye
+model(靶心模型)</strong> 来理解策略的优先级——从外到内四层,<strong>Policy
+在最外层、最先处理、最重要</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+    P[&quot;① Policies 策略 (最先、最重要)&quot;] --&gt; N[&quot;② Networks 网络&quot;] --&gt; S[&quot;③ Systems 系统&quot;] --&gt; A[&quot;④ Applications 应用&quot;]</code></pre>
+<p><strong>三类信息安全策略</strong>——必须掌握各自的
+<strong>goals(目标)、components(组成)、implementation(实施)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>类型</th>
+<th>全称</th>
+<th>作用范围</th>
+<th>一句话</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>EISP</strong></td>
+<td>Enterprise Information Security Program Policy</td>
+<td>全企业、高层级</td>
+<td>组织安全的"宪法",由高管签发,稳定少变</td>
+</tr>
+<tr class="even">
+<td><strong>ISSP</strong></td>
+<td>Issue-Specific Security Policy</td>
+<td>针对<strong>具体议题</strong></td>
+<td>如邮件使用、上网、移动设备等专项策略</td>
+</tr>
+<tr class="odd">
+<td><strong>SysSP</strong></td>
+<td>Systems-Specific Policy</td>
+<td>针对<strong>具体系统/设备</strong></td>
+<td>如防火墙 ACL、特定服务器配置规则</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>有效策略的准则(Guidelines for effective
+policy)</strong>——一份策略要真正生效,需经历: <strong>Development(制定)→
+Distribution(分发)→ Review/comprehension(审阅/可理解)→
+Compliance/agreement(合规/同意)→ Uniform
+enforcement(统一执行)</strong>。</p>
+<blockquote>
+<p>💡
+关键链条:策略不仅要写出来,还要<strong>让员工读得到、读得懂、愿意遵守、并被一视同仁地执行</strong>——缺一环都会失效。</p>
+</blockquote>
+<hr />
+<h2 id="6-开发安全程序-developing-the-security-program">6. 开发安全程序
+Developing the Security Program</h2>
+<p><strong>Organizing for security(为安全而组织)</strong>——构建 InfoSec
+program 时考虑两个最重要的<strong>变量(variables)</strong>:</p>
+<ul>
+<li><strong>组织文化(culture)</strong>——是否真正支持信息安全(这是所有讨论的前提假设);</li>
+<li><strong>组织规模(size)</strong>——small / medium / large / very large
+组织的安全治理方式不同。</li>
+</ul>
+<p><strong>Charles Wood 的五个定位选项(five options on InfoSec program
+positioning)</strong>——把 InfoSec
+职能放在组织内的哪个位置。重点看**汇报结构(reporting
+structure)**带来的利弊:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>定位</th>
+<th>汇报链</th>
+<th>评价</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Option 1</strong> ⭐</td>
+<td>放在 <strong>IT 之下</strong></td>
+<td>CISO → CIO → CEO(中间只隔一层)</td>
+<td><strong>最流行</strong>;链条短是优点,但安全可能被 IT
+的目标"压制"</td>
+</tr>
+<tr class="even">
+<td>其他选项</td>
+<td>放在更独立/更高的位置</td>
+<td>视情况</td>
+<td>适合"安全本身就是业务"的高敏感组织;无完美方案</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>⭐ <strong>老师强调</strong>:"没有完美的
+option,取决于你的情境。Option 1(放 IT
+下)<strong>最流行</strong>;但若信息安全更敏感、更重要(甚至本身就是其业务),则可能采用不同结构。要能说出每个选项的<strong>优点与局限</strong>。"</p>
+</blockquote>
+<p><strong>InfoSec 角色与头衔</strong>——CISO、security
+managers、security administrators &amp; analysts、security
+technicians、security consultants、security officers &amp; investigators
+等(L12 会更深入讲其职责与认证要求)。</p>
+<p><strong>SETA 程序(Security Education, Training, and
+Awareness)</strong>——现代安全程序的核心。要懂其
+<strong>purpose(目的)、benefits(益处)、effective
+implementation(有效实施)</strong>。</p>
+<blockquote>
+<p>📎 <strong>真实例子(老师举的)</strong>:UOW 自己的 cybersecurity
+awareness program 就是 SETA 的一种变体。</p>
+</blockquote>
+<hr />
+<h2 id="7-安全管理模型-security-management-models">7. 安全管理模型
+Security Management Models</h2>
+<p><strong>Blueprints、Frameworks、Security
+models</strong>——三者密切相关但<strong>要能区分</strong>:framework
+是结构骨架,blueprint 是具体落地蓝图,security model
+是被采纳的参照标准。</p>
+<h3 id="71-access-control-models访问控制模型-高频考区">7.1 Access
+Control Models(访问控制模型)— 高频考区</h3>
+<p><strong>四大 essential
+processes(必经过程)</strong>——必须按此<strong>顺序</strong>:</p>
+<pre class="mermaid"><code>flowchart LR
+    Id[&quot;① Identification&lt;br/&gt;标识(你是谁)&quot;] --&gt; Au[&quot;② Authentication&lt;br/&gt;认证(证明你是你)&quot;] --&gt; Az[&quot;③ Authorization&lt;br/&gt;授权(你能做什么)&quot;] --&gt; Ac[&quot;④ Accountability&lt;br/&gt;问责(记录你做了什么)&quot;]</code></pre>
+<p><strong>三大 key principles(核心原则)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>原则</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Least privilege</strong> 最小权限</td>
+<td>只给完成工作所必需的最小权限</td>
+</tr>
+<tr class="even">
+<td><strong>Need-to-know</strong> 知所必需</td>
+<td>只能访问与职责直接相关的信息</td>
+</tr>
+<tr class="odd">
+<td><strong>Separation of duties</strong> 职责分离</td>
+<td>关键任务拆分给多人,防止一人独揽舞弊</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🚨 <strong>历年最经典陷阱(老师亲口点名)</strong>:问"access control 的
+<strong>三大 key principles</strong> 是什么?",很多学生答
+"identification, authentication,
+authorization"——<strong>大错</strong>!那是<strong>四大 essential
+processes</strong> 里的前三个。 <strong>务必分清</strong>:<strong>4 个
+essential processes = IAAA</strong>;<strong>3 个 key principles = least
+privilege / need-to-know / separation of duties</strong>。 ⚠️ 另一个 MCQ
+陷阱:"<strong>Job rotation</strong>(岗位轮换)is based on the principle
+of <strong>least privilege</strong>" ——
+<strong>错误</strong>!岗位轮换基于 <strong>separation of
+duties</strong>,不是 least privilege。</p>
+</blockquote>
+<p><strong>访问控制的分类(Categories)</strong>——三种分类视角:
+基于<strong>固有特性(inherent
+characteristics)</strong>、基于<strong>运营影响(operational
+impact)</strong>、基于<strong>授权程度(degree of authority)</strong>。
+还包括 <strong>Data classification models(数据分类模型)</strong> 与
+<strong>Security clearances(安全许可级别)</strong>。</p>
+<h3 id="72-security-architecture-models安全架构模型">7.2 Security
+Architecture Models(安全架构模型)</h3>
+<ul>
+<li><strong>Trusted Computing Base (TCB)</strong> 可信计算基</li>
+<li><strong>ITSEC</strong>(Information Technology System Evaluation
+Criteria)</li>
+<li><strong>The Common Criteria</strong> 通用准则</li>
+</ul>
+<h3 id="73-两大经典模型blp-vs-biba--必考易混点-">7.3 两大经典模型:BLP vs
+BiBa —— 必考易混点 🚨</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>模型</th>
+<th>保护目标</th>
+<th>规则</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Bell-LaPadula (BLP)</strong></td>
+<td><strong>Confidentiality 机密性</strong></td>
+<td><strong>No read up, no write down</strong>(不向上读、不向下写)</td>
+</tr>
+<tr class="even">
+<td><strong>BiBa</strong></td>
+<td><strong>Integrity 完整性</strong></td>
+<td><strong>No read down, no write up</strong>(不向下读、不向上写)</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🚨 <strong>MCQ 陷阱(老师亲口示例)</strong>:"The <strong>BiBa</strong>
+integrity model is based on the principle of '<strong>no read up, no
+write down</strong>'" —— <strong>错误</strong>!"no read up, no write
+down" 是 <strong>BLP</strong> 的规则。BiBa 的规则是 <strong>"no read
+down, no write up"</strong>。 💡 <strong>记忆法</strong>:<strong>BLP
+保密</strong>→ 怕机密"漏出去"→ 高密级的人<strong>不能往下写</strong>(no
+write down)、低密级的人<strong>不能往上读</strong>(no read
+up)。<strong>BiBa 保完整</strong>→ 怕脏数据"污染上层"→
+不能从低完整性"往下读"(no read down)、不能"往上写"(no write up)。</p>
+</blockquote>
+<h3 id="74-security-management-modelsiso-vs-nist">7.4 Security
+Management Models:ISO vs NIST</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>ISO 27000 series</strong></th>
+<th><strong>NIST Security Models</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>性质</td>
+<td>国际标准,适合<strong>合规(compliance)</strong></td>
+<td>美国 NIST 发布</td>
+</tr>
+<tr class="even">
+<td>费用</td>
+<td><strong>需付费购买</strong></td>
+<td><strong>免费</strong></td>
+</tr>
+<tr class="odd">
+<td>适用</td>
+<td>需向客户证明合规时</td>
+<td>想要免费参考时</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>老师提示:要知道 27000 系列里 <strong>27001 / 27002</strong>
+等主要文档的区别。</p>
+</blockquote>
+<hr />
+<h2 id="8-安全管理实践-security-management-practices">8. 安全管理实践
+Security Management Practices</h2>
+<p><strong>Benchmarking(基准比较)</strong>——目标是借鉴他人的做法来评估自身水平。<strong>两大类别(categories)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>类别</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>① Standards of due care / due diligence</strong></td>
+<td>法律/行业要求的"应尽的注意与勤勉"——<strong>这两者合起来算一个类别</strong></td>
+</tr>
+<tr class="even">
+<td><strong>② Best practices</strong></td>
+<td>业界公认的最佳实践</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🚨 <strong>经典陷阱(老师亲口点名)</strong>:问"benchmarking
+的类别有哪些?",学生常答"<strong>due care 和 due diligence
+两类</strong>"——<strong>错</strong>!due care 与 due diligence
+<strong>合起来只算一个类别</strong>(standards of due care/due
+diligence),另一个类别是 <strong>best
+practices</strong>。所以正确答案是<strong>两类:① 应尽注意/勤勉标准 ②
+最佳实践</strong>。</p>
+</blockquote>
+<p>还要掌握:如何<strong>选择</strong>推荐实践、以及依赖 benchmarking
+的<strong>局限性(limitations)</strong>。</p>
+<p><strong>Baselining(基线)</strong>——为系统设定安全配置的最低标准;以及对
+baselining 与 recommended practices 的支持机制。</p>
+<p><strong>Performance
+measurement(绩效度量)</strong>——要记住其<strong>定义、类型(types)</strong>,以及
+InfoSec 绩效项目成功的<strong>关键因素(critical factors)</strong>。</p>
+<p><strong>Trends in certification and
+accreditation(认证与认可的趋势)</strong>——主要看美国的发展,但影响全球。</p>
+<hr />
+<h2
+id="9-风险管理一识别与评估-risk-management--identifying--assessing-risks">9.
+风险管理(一):识别与评估 Risk Management — Identifying &amp; Assessing
+Risks</h2>
+<p><strong>What is risk management?</strong>
+识别、评估并降低组织信息资产面临风险的过程。</p>
+<p><strong>Who is responsible? Who leads?</strong></p>
+<blockquote>
+<p>⭐ <strong>老师强调</strong>:<strong>三个 communities of interest
+都要对风险管理负责</strong>,但 <strong>InfoSec 团队应当牵头(take the
+lead)</strong>——你要能<strong>说明理由</strong>(InfoSec
+最懂威胁与漏洞,且站在全局视角)。</p>
+</blockquote>
+<h3 id="91-risk-identification风险识别">9.1 Risk
+Identification(风险识别)</h3>
+<p>主要任务:识别
+<strong>Threats(威胁)、Vulnerabilities(漏洞)、Assets(资产)</strong>,汇总成
+<strong>TVA worksheet</strong>(Threats-Vulnerabilities-Assets 表)。</p>
+<pre class="mermaid"><code>flowchart LR
+    T[&quot;识别 Threats&quot;] --&gt; W[&quot;TVA Worksheet&quot;]
+    V[&quot;识别 Vulnerabilities&quot;] --&gt; W
+    A[&quot;识别 Assets&quot;] --&gt; W
+    W --&gt; RA[&quot;进入 Risk Assessment&quot;]</code></pre>
+<h3 id="92-risk-assessment风险评估-计算公式-">9.2 Risk
+Assessment(风险评估)— 计算公式 ⭐</h3>
+<p>对每个漏洞给出一个 <strong>risk
+rating(风险评分)</strong>。公式涉及四个因子:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>R</mi><mi>C</mi><mo>+</mo><mi>U</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R = (L_v \times I) \times (1 - RC + U)</annotation></semantics></math></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>v</mi></msub><annotation encoding="application/x-tex">L_v</annotation></semantics></math></td>
+<td><strong>Likelihood</strong> 该漏洞被利用的可能性(常用 0.1~1.0
+量表)</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math></td>
+<td><strong>Impact / value</strong> 信息资产的影响值(资产价值)</td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>C</mi></mrow><annotation encoding="application/x-tex">RC</annotation></semantics></math></td>
+<td><strong>% Risk mitigated by Current controls</strong>
+现有控制已缓解的风险比例</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math></td>
+<td><strong>Uncertainty</strong> 当前认知的不确定性</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>讲义原版算例(L09)</strong>:资产 B 的 impact value =
+100。</p>
+<ul>
+<li><strong>V2</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>v</mi></msub><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">L_v=0.5</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mo>=</mo><mn>100</mn></mrow><annotation encoding="application/x-tex">I=100</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>C</mi><mo>=</mo><mn>50</mn><mi>%</mi><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">RC=50\%=0.5</annotation></semantics></math>,数据
+80% 准确 →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>=</mo><mn>1</mn><mo>−</mo><mn>0.8</mn><mo>=</mo><mn>0.2</mn></mrow><annotation encoding="application/x-tex">U=1-0.8=0.2</annotation></semantics></math>。
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>R</mi><mn>2</mn></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.5</mn><mo>×</mo><mn>100</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mn>0.5</mn><mo>+</mo><mn>0.2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>50</mn><mo>×</mo><mn>0.7</mn><mo>=</mo><mn>𝟑𝟓</mn></mrow><annotation encoding="application/x-tex">R_2 = (0.5 \times 100) \times (1 - 0.5 + 0.2) = 50 \times 0.7 = \mathbf{35}</annotation></semantics></math></li>
+<li><strong>V3</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mi>v</mi></msub><mo>=</mo><mn>0.1</mn></mrow><annotation encoding="application/x-tex">L_v=0.1</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mo>=</mo><mn>100</mn></mrow><annotation encoding="application/x-tex">I=100</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>C</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">RC=0</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>=</mo><mn>0.2</mn></mrow><annotation encoding="application/x-tex">U=0.2</annotation></semantics></math>。
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>R</mi><mn>3</mn></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.1</mn><mo>×</mo><mn>100</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mn>0</mn><mo>+</mo><mn>0.2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>10</mn><mo>×</mo><mn>1.2</mn><mo>=</mo><mn>𝟏𝟐</mn></mrow><annotation encoding="application/x-tex">R_3 = (0.1 \times 100) \times (1 - 0 + 0.2) = 10 \times 1.2 = \mathbf{12}</annotation></semantics></math></li>
+</ul>
+</blockquote>
+<p><strong>Residual
+risk(残余风险)</strong>——已尽力施加控制后仍然剩下的风险;它是
+threats、vulnerabilities、assets 减去现有 safeguards 后的综合结果。</p>
+<hr />
+<h2 id="10-风险管理二控制风险-risk-management--controlling-risks">10.
+风险管理(二):控制风险 Risk Management — Controlling Risks</h2>
+<h3 id="101-五大-risk-control-strategies风险控制策略">10.1 五大 Risk
+Control Strategies(风险控制策略)⭐</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>策略</th>
+<th>英文</th>
+<th>做法</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>防御</strong></td>
+<td><strong>Defense</strong></td>
+<td>施加安全措施<strong>消除/降低</strong>漏洞(首选,主动避险)</td>
+<td>打补丁、培训、技术控制</td>
+</tr>
+<tr class="even">
+<td><strong>转移</strong></td>
+<td><strong>Transference</strong></td>
+<td>把风险<strong>转嫁</strong>给外部</td>
+<td>买保险、外包、签服务合同</td>
+</tr>
+<tr class="odd">
+<td><strong>缓解</strong></td>
+<td><strong>Mitigation</strong></td>
+<td>降低被利用后的<strong>损害</strong></td>
+<td>DRP / IRP / BCP 应急计划</td>
+</tr>
+<tr class="even">
+<td><strong>接受</strong></td>
+<td><strong>Acceptance</strong></td>
+<td>经 CBA 后<strong>接受</strong>风险、不作控制</td>
+<td>保护成本 &gt; 资产价值时</td>
+</tr>
+<tr class="odd">
+<td><strong>终止</strong></td>
+<td><strong>Termination</strong></td>
+<td><strong>移除</strong>该资产、退出风险环境</td>
+<td>干脆停用该信息资产</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>⭐
+<strong>典型考法(老师亲口)</strong>:"给你一个<strong>场景</strong>,让你判断<strong>激活了哪种策略</strong>。"——务必能从情景反推策略。</p>
+</blockquote>
+<p><strong>Managing risks(管理风险)的关键概念</strong>:</p>
+<ul>
+<li><strong>Risk appetite /
+tolerance(风险胃口/容忍度)</strong>:组织<strong>愿意接受</strong>的风险量与性质;</li>
+<li><strong>Residual
+risk(残余风险)</strong>:目标<strong>不是把残余风险降到
+0</strong>,而是降到与 risk appetite 一致的水平;</li>
+<li><strong>Guidelines for strategy
+selection</strong>:依情境选择并调整控制策略。</li>
+</ul>
+<h3 id="102-cost-benefit-analysis-cba-成本效益分析--计算公式-">10.2
+Cost-Benefit Analysis (CBA) 成本效益分析 — 计算公式 ⭐</h3>
+<p>核心思想:<strong>收益 &gt; 成本</strong> → 值得上控制;<strong>成本
+&gt; 收益</strong> → 重新考虑。三组公式:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><menclose notation="box"><mrow><mi>S</mi><mi>L</mi><mi>E</mi><mo>=</mo><mi>A</mi><mi>V</mi><mo>×</mo><mi>E</mi><mi>F</mi></mrow></menclose><mspace width="2.0em"></mspace><menclose notation="box"><mrow><mi>A</mi><mi>L</mi><mi>E</mi><mo>=</mo><mi>S</mi><mi>L</mi><mi>E</mi><mo>×</mo><mi>A</mi><mi>R</mi><mi>O</mi></mrow></menclose><mspace width="2.0em"></mspace><menclose notation="box"><mrow><mi>C</mi><mi>B</mi><mi>A</mi><mo>=</mo><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>r</mi><mi>i</mi><mi>o</mi><mi>r</mi></mrow></msub><mo>−</mo><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi><mi>t</mi></mrow></msub><mo>−</mo><mi>A</mi><mi>C</mi><mi>S</mi></mrow></menclose></mrow><annotation encoding="application/x-tex">\boxed{SLE = AV \times EF} \qquad \boxed{ALE = SLE \times ARO} \qquad \boxed{CBA = ALE_{prior} - ALE_{post} - ACS}</annotation></semantics></math></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>符号</th>
+<th>全称</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>AV</strong></td>
+<td>Asset Value</td>
+<td>资产价值</td>
+</tr>
+<tr class="even">
+<td><strong>EF</strong></td>
+<td>Exposure Factor</td>
+<td>单次事件造成的损失百分比</td>
+</tr>
+<tr class="odd">
+<td><strong>SLE</strong></td>
+<td>Single Loss Expectancy</td>
+<td>单次损失期望 = AV × EF</td>
+</tr>
+<tr class="even">
+<td><strong>ARO</strong></td>
+<td>Annualized Rate of Occurrence</td>
+<td>年度发生频率</td>
+</tr>
+<tr class="odd">
+<td><strong>ALE</strong></td>
+<td>Annualized Loss Expectancy</td>
+<td>年度损失期望 = SLE × ARO</td>
+</tr>
+<tr class="even">
+<td><strong>ACS</strong></td>
+<td>Annual Cost of the Safeguard</td>
+<td>控制措施的年成本</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>📎 <strong>讲义原版算例(L10)</strong>:数据资产价值 $50K;病毒预计损害
+30%;发生频率"每 6 个月一次"→ ARO=2;部署杀毒软件成本
+$10K,部署后频率降为"每年一次"→ ARO=1。</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mi>L</mi><mi>E</mi><mo>=</mo><mi>A</mi><mi>V</mi><mo>×</mo><mi>E</mi><mi>F</mi><mo>=</mo><mn>50</mn><mi>K</mi><mo>×</mo><mn>30</mn><mi>%</mi><mo>=</mo><mi>$</mi><mn>15</mn><mi>K</mi></mrow><annotation encoding="application/x-tex">SLE = AV \times EF = 50K \times 30\% = \$15K</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>r</mi><mi>i</mi><mi>o</mi><mi>r</mi></mrow></msub><mo>=</mo><mi>S</mi><mi>L</mi><mi>E</mi><mo>×</mo><mi>A</mi><mi>R</mi><mi>O</mi><mo>=</mo><mn>15</mn><mi>K</mi><mo>×</mo><mn>2</mn><mo>=</mo><mi>$</mi><mn>30</mn><mi>K</mi></mrow><annotation encoding="application/x-tex">ALE_{prior} = SLE \times ARO = 15K \times 2 = \$30K</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi><mi>t</mi></mrow></msub><mo>=</mo><mn>15</mn><mi>K</mi><mo>×</mo><mn>1</mn><mo>=</mo><mi>$</mi><mn>15</mn><mi>K</mi></mrow><annotation encoding="application/x-tex">ALE_{post} = 15K \times 1 = \$15K</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mi>B</mi><mi>A</mi><mo>=</mo><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>r</mi><mi>i</mi><mi>o</mi><mi>r</mi></mrow></msub><mo>−</mo><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi><mi>t</mi></mrow></msub><mo>−</mo><mi>A</mi><mi>C</mi><mi>S</mi><mo>=</mo><mn>30</mn><mi>K</mi><mo>−</mo><mn>15</mn><mi>K</mi><mo>−</mo><mn>10</mn><mi>K</mi><mo>=</mo><mrow><mo mathvariant="bold">+</mo><mi mathvariant="bold">$</mi><mn>𝟓</mn><mi>𝐊</mi></mrow></mrow><annotation encoding="application/x-tex">CBA = ALE_{prior} - ALE_{post} - ACS = 30K - 15K - 10K = \mathbf{+\$5K}</annotation></semantics></math>
+→ <strong>正值,值得部署</strong>(每年净省 $5K)。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>⭐
+<strong>老师提醒</strong>:考试会<strong>给你一个小案例和一些数字</strong>,你要先<strong>识别</strong>:这是
+SLE 还是 ALE?哪个数是 ARO、EF、AV?有时 <strong>不直接给
+EF/AV</strong>(而直接给
+SLE),就不用再算前一步。<strong>先认清术语,再套公式。</strong>
+风险管理是<strong>全卷唯一有计算</strong>的部分;计算很简单,可带
+<strong>UOW 认证计算器</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="11-保护机制-protection-mechanisms">11. 保护机制 Protection
+Mechanisms</h2>
+<h3 id="111-access-control-的四大过程再次出现">11.1 Access Control
+的四大过程(再次出现)</h3>
+<p><strong>Identification → Authentication → Authorization →
+Accountability(IAAA)</strong>,<strong>顺序不可颠倒</strong>:没认证不能授权,没授权难以问责。(详见
+§7.1)</p>
+<h3 id="112-firewalls防火墙-易混">11.2 Firewalls(防火墙)🚨 易混</h3>
+<ul>
+<li><strong>四代防火墙(4 generations)</strong>:从静态包过滤 → 应用层代理
+→ 状态检测 → <strong>第 4 代:动态包过滤(Dynamic packet
+filtering)</strong>。</li>
+<li><strong>四种防火墙架构(4 architectures)</strong>:Packet Filtering
+Routers、Screened Host、Dual-Homed Host、Screened-Subnet(含 DMZ)。</li>
+</ul>
+<blockquote>
+<p>🚨
+<strong>老师亲口的陷阱</strong>:问"四大防火墙**架构(architectures)**是什么?",有学生会答成"第
+1 代防火墙……"——<strong>把 generation 和 architecture
+搞混了</strong>。<strong>代(generation)≠
+架构(architecture)</strong>,务必分清。</p>
+</blockquote>
+<h3 id="113-idpsintrusion-detection--prevention-systems">11.3
+IDPS(Intrusion Detection &amp; Prevention Systems)</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>两种类型</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>按部署位置</strong></td>
+<td><strong>Host-based(基于主机)</strong> vs
+<strong>Network-based(基于网络)</strong></td>
+</tr>
+<tr class="even">
+<td><strong>按检测方法</strong></td>
+<td><strong>Signature-based(基于特征)</strong> vs
+<strong>Anomaly-based(基于异常)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="114-cryptography密码学">11.4 Cryptography(密码学)</h3>
+<p><strong>Cryptology(密码学总称)= 两个组件</strong>:</p>
+<ul>
+<li><strong>Cryptography(密码编码学)</strong>——设计安全系统;</li>
+<li><strong>Cryptanalysis(密码分析学)</strong>——破解系统。二者相互促进、共生演进。</li>
+</ul>
+<p><strong>基础术语</strong>:Encryption(加密)/
+Decryption(解密)、Key(密钥)、Key
+space(密钥空间)、Plaintext(明文)、Ciphertext(密文)。</p>
+<p><strong>对称 vs 非对称加密</strong> —— 必考对比:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Symmetric 对称加密</strong></th>
+<th><strong>Asymmetric 非对称加密</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>密钥</td>
+<td>加解密用<strong>同一把</strong>密钥</td>
+<td><strong>两把</strong>:public key(公钥)+ private key(私钥)</td>
+</tr>
+<tr class="even">
+<td>速度</td>
+<td><strong>快</strong></td>
+<td><strong>慢</strong></td>
+</tr>
+<tr class="odd">
+<td>问题</td>
+<td><strong>密钥管理难</strong>(通信前需安全共享密钥)</td>
+<td>解决了密钥分发问题</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🚨 <strong>MCQ 示例(老师给的"正确"项)</strong>:"Asymmetric encryption
+systems are usually <strong>less efficient than</strong> symmetric
+encryption systems" —— <strong>正确</strong>(非对称更慢)。</p>
+</blockquote>
+<p><strong>Hybrid
+cryptosystem(混合密码系统)</strong>——实务中的聪明做法:用<strong>非对称</strong>加密在通信开始时<strong>协商密钥</strong>,之后切换到<strong>对称</strong>加密传输正文(兼顾安全与效率):</p>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;① 非对称(慢但解决密钥分发)&lt;br/&gt;双方安全协商一把共享密钥&quot;] --&gt; B[&quot;② 对称(快)&lt;br/&gt;用共享密钥加密后续所有数据&quot;]</code></pre>
+<p><strong>PKI(Public Key Infrastructure)与 Digital
+Certificates(数字证书)</strong>——简要了解即可。</p>
+<blockquote>
+<p>📌 <strong>不考(老师明确说)</strong>:<strong>WEP / WPA
+等无线网络保护协议</strong>不在考试范围;具体的 cryptographic
+protocols(如保护网页/VPN/邮件的协议)<strong>不必死记</strong>,但值得了解它们各自保护什么。</p>
+</blockquote>
+<hr />
+<h2 id="12-人员安全法律与伦理-personnel-security-laws--ethics">12.
+人员安全、法律与伦理 Personnel Security, Laws &amp; Ethics</h2>
+<h3 id="121-staffing-the-security-function安全岗位配置">12.1 Staffing
+the Security Function(安全岗位配置)</h3>
+<p>按工作性质把岗位分<strong>三类</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>类别</th>
+<th>角色</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Those who define</strong>(定义者=领导层)</td>
+<td>CISO、security manager</td>
+</tr>
+<tr class="even">
+<td><strong>Those who build</strong>(构建者)</td>
+<td>security analyst、consultant</td>
+</tr>
+<tr class="odd">
+<td><strong>Those who administer</strong>(管理者)</td>
+<td>security administrator、technician</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>专业认证(InfoSec credentials)</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>认证</th>
+<th>定位</th>
+<th>要求</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>CISSP</strong></td>
+<td>该领域<strong>最权威</strong>的认证</td>
+<td><strong>CISO 通常要求</strong>;需数年从业经验;manager
+非必需但"desirable"</td>
+</tr>
+<tr class="even">
+<td><strong>SSCP</strong></td>
+<td>知名度较低、<strong>较易获得</strong></td>
+<td>入门级</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="122-employment-policies--practices雇佣的安全实践">12.2
+Employment Policies &amp; Practices(雇佣的安全实践)</h3>
+<ul>
+<li><strong>Hiring(招聘)安全流程</strong>:interview(面试)→
+orientation(入职引导)→ training(培训)→ background check(背景调查)→
+contract(合同)——全程都要嵌入安全考量。</li>
+<li><strong>Firing(解雇)</strong>:**friendly
+departure(友好离职)**好处理;**hostile
+departure(敌意离职)**要格外小心(立即收回权限、护送离场等)。</li>
+<li><strong>Monitoring &amp; controlling
+employees</strong>:监控与控制员工的方法。</li>
+<li><strong>Non-employees(非雇员)的安全考量</strong>:contractor(承包商)、visitor(访客)、partner(合作伙伴)、casual/temp
+等。</li>
+</ul>
+<blockquote>
+<p>⚠️ <strong>MCQ 示例对错</strong>:</p>
+<ul>
+<li>"It is extremely <strong>uncommon</strong> for a CISO to have a
+CISSP" —— <strong>错误</strong>(恰恰相反,CISO 通常<strong>就</strong>有
+CISSP)。</li>
+<li>"InfoSec consideration should be part of the <strong>hiring
+process</strong>" —— <strong>正确</strong>。</li>
+<li>"A <strong>background check</strong> should be conducted
+<strong>before</strong> the organization extends an offer to any
+security technician" —— <strong>正确</strong>。</li>
+</ul>
+</blockquote>
+<h3 id="123-laws--ethics法律与伦理">12.3 Laws &amp;
+Ethics(法律与伦理)</h3>
+<p><strong>核心:区分 Laws / Policies / Ethics 的异同</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Laws 法律</strong></th>
+<th><strong>Policies 策略</strong></th>
+<th><strong>Ethics 伦理</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>制定者</td>
+<td>政府</td>
+<td>组织</td>
+<td>社会/文化共识</td>
+</tr>
+<tr class="even">
+<td>强制力</td>
+<td>国家强制执行</td>
+<td>组织内执行</td>
+<td>无强制力,靠道德约束</td>
+</tr>
+<tr class="odd">
+<td>违反后果</td>
+<td>法律制裁</td>
+<td>组织处分</td>
+<td>道德谴责</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>🚨 <strong>MCQ 陷阱</strong>:"<strong>Ethics</strong> are rules
+adopted and enforced by <strong>governments</strong>" ——
+<strong>错误</strong>!被政府制定与强制执行的是
+<strong>laws(法律)</strong>,不是 ethics。Ethics 没有政府强制力。</p>
+</blockquote>
+<p><strong>InfoSec 相关法律</strong>——了解
+<strong>US、国际、欧洲、澳大利亚/新西兰</strong> 的代表性法律。</p>
+<hr />
+<h1 id="第二部分期末考试-the-final-exam">第二部分:期末考试 The Final
+Exam</h1>
+<blockquote>
+<p>⭐ 这部分是 Week 13
+录音里<strong>信息量最大</strong>的部分。老师反复强调:期末考是
+<strong>restricted(限制性,非开卷)</strong>,且每年都有学生因
+<strong>Technical Fail</strong> 挂科。请逐条读完。</p>
+</blockquote>
+<h2 id="131-考试基本信息logistics">13.1 考试基本信息(Logistics)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>日期</strong></td>
+<td><strong>2026 年 6 月 17 日(周三)09:00–12:00</strong>(共 3 小时)</td>
+</tr>
+<tr class="even">
+<td><strong>权重</strong></td>
+<td><strong>50%</strong>(其余:Quiz 5% + Report 15% + Group Report
+30%)</td>
+</tr>
+<tr class="odd">
+<td><strong>形式</strong></td>
+<td><strong>Paper-based(纸笔)</strong>,考场见你的 timetable / SOLS</td>
+</tr>
+<tr class="even">
+<td><strong>性质</strong></td>
+<td><strong>RESTRICTED(限制性)</strong>——只允许带指定参考材料,<strong>不是开卷</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>可带材料</strong></td>
+<td>① 最多 <strong>5 张 A4 笔记</strong>(可单/双面 → 共 <strong>10
+面</strong>;手写或打印均可,字体不限);② <strong>UOW
+认证计算器</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>💡 <strong>关于 5 张 A4 笔记(老师特别澄清)</strong>:</p>
+<ul>
+<li>"5 sheets" 指 <strong>5 张纸</strong>,每张可双面 → 最多 <strong>10
+面</strong>;<strong>不是</strong> 10 张纸。带 10 张会被没收后 5
+张。</li>
+<li>字体、大小、是否打印<strong>都不限</strong>——可以用极小字号打印塞满,只要你<strong>自己看得清</strong>。</li>
+<li>建议用 <strong>Word
+排版</strong>,页边距调到最小、字号尽量小,<strong>公式部分字号放大些</strong>以免看错。</li>
+<li>笔记里写无关内容也没关系,但<strong>别浪费空间抄 workshop 的 MCQ
+原题</strong>(考试不会重复原题,见下)。</li>
+</ul>
+</blockquote>
+<h2 id="132-️-technical-fail技术性挂科红线--最重要">13.2 ⚠️ Technical
+Fail(技术性挂科)红线 —— 最重要!</h2>
+<blockquote>
+<p>🚨🚨🚨 <strong>必须在期末考拿到至少 40%(即 50 分里的 20
+分),否则即使三次作业满分,也判 Technical Fail(挂科)。</strong></p>
+</blockquote>
+<ul>
+<li>老师原话:"我教这门课 <strong>5 年</strong>,<strong>每年都有学生
+Technical Fail</strong>。"</li>
+<li>原因:Quiz 和两次作业都是 <strong>open
+book(开卷)</strong>,分数普遍很高、容易让人<strong>过度自信</strong>;而期末是
+restricted,<strong>平均分往往比作业低约 30%</strong>——作业拿 42–45
+的人,期末可能只有 25–30。</li>
+<li>若你平时分很高、期末却接近(但未达)40%,学院/faculty
+委员会<strong>可能</strong>酌情给一次 **supplementary
+exam(补考)**机会;但补考有代价:<strong>最高只能记 50 分(PS,Pass
+Supplementary)</strong>,且会在成绩单上标注。<strong>务必一次过线。</strong></li>
+</ul>
+<blockquote>
+<p>✅ <strong>老师的安抚</strong>:"只要认真复习,拿到 40%
+其实<strong>相当容易</strong>;难的是拿
+HD。我无意挂任何人,但规则就是规则。"</p>
+</blockquote>
+<h2 id="133-题型结构question-structure">13.3 题型结构(Question
+Structure)</h2>
+<p><strong>总分 50 分,共 22 题,分三部分</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>部分</th>
+<th>题量</th>
+<th>每题分</th>
+<th>小计</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>MCQ</strong> 多选题</td>
+<td>10 题</td>
+<td>2 分</td>
+<td><strong>20 分</strong></td>
+</tr>
+<tr class="even">
+<td><strong>Short-answer</strong> 简答题</td>
+<td>10 题</td>
+<td>2 分</td>
+<td><strong>20 分</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Case study</strong> 案例题</td>
+<td>1 题(2 个子问)</td>
+<td>每子问 5 分</td>
+<td><strong>10 分</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>老师:题目难度与 <strong>workshop
+题目相近</strong>,但因考试材料受限,<strong>主观上会觉得更难</strong>。Workshop
+从第一节起其实就在为考试做准备。</p>
+</blockquote>
+<h2 id="134-mcq-评分规则老师花了大篇幅讲">13.4 MCQ
+评分规则(老师花了大篇幅讲)⭐</h2>
+<p><strong>规则</strong>:每题 <strong>5 个选项</strong>,正确选项数为
+<strong>1、2 或 3 个</strong>(永远不会是 4
+个,你<strong>事先不知道</strong>有几个对)。</p>
+<p>设某题有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+个正确选项(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>≤</mo><mi>X</mi><mo>≤</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">1 \le X \le 3</annotation></semantics></math>):</p>
+<ul>
+<li>每选对一个:<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mfrac displaystyle="true"><mn>100</mn><mi>X</mi></mfrac><mi>%</mi></mrow><annotation encoding="application/x-tex">+\dfrac{100}{X}\%</annotation></semantics></math></strong>
+的分;</li>
+<li>每选错一个:<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mfrac displaystyle="true"><mn>100</mn><mrow><mn>5</mn><mo>−</mo><mi>X</mi></mrow></mfrac><mi>%</mi></mrow><annotation encoding="application/x-tex">-\dfrac{100}{5-X}\%</annotation></semantics></math></strong>
+的分;</li>
+<li><strong>每题得分被限定在 [0, 2] 之间——永不为负</strong>。</li>
+</ul>
+<blockquote>
+<p>💡 设计逻辑:正确选项的百分比之和 = 100%,错误选项的百分比之和也 =
+100%。若<strong>全选 5 个</strong>,得 100% − 100% = <strong>0
+分</strong>(全选 = 没展示任何知识)。</p>
+</blockquote>
+<p><strong>算例 1(2 个正确:B、C;3 个错误:A、D、E)</strong> → 每对
++50%,每错 −33.3%。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>你的选择</th>
+<th>计算</th>
+<th>得分</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>B、C</td>
+<td>+50 +50</td>
+<td><strong>100% = 2 分</strong> ✅</td>
+</tr>
+<tr class="even">
+<td>只选 B</td>
+<td>+50</td>
+<td><strong>50% = 1 分</strong></td>
+</tr>
+<tr class="odd">
+<td>A、B、C</td>
+<td>+50 +50 −33.3</td>
+<td><strong>≈66.6% = 1.33 分</strong></td>
+</tr>
+<tr class="even">
+<td>B、D、E</td>
+<td>+50 −33.3 −33.3</td>
+<td>&lt; 0 → <strong>记 0 分</strong></td>
+</tr>
+<tr class="odd">
+<td>A、D、E</td>
+<td>全错</td>
+<td><strong>0 分</strong>(无负分)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>算例 2(只有 1 个正确)</strong> → 选对 +100%;每选错 −25%。选对
+1 个即满分;选对 1 个再多选 2 个错的仍有 50%。</p>
+<blockquote>
+<p>⭐ <strong>老师的策略建议</strong>:</p>
+<ul>
+<li><strong>不要空题!</strong> 最坏也就是 0
+分,<strong>绝不会扣成负分</strong>。</li>
+<li>即使不确定有几个对,<strong>选你确信的那个</strong>也能拿部分分(如 2
+对你只选 1 个 → 拿 1 分)。</li>
+<li>想冲高分(15–20 分),MCQ
+必须<strong>真懂</strong>才行;每年都有少数学霸 MCQ 满分 20。</li>
+</ul>
+</blockquote>
+<h2 id="135-简答题策略short-answer">13.5 简答题策略(Short-Answer)</h2>
+<ul>
+<li>与 workshop 简答题相似。<strong>例题</strong>:"What is access
+control? What are the essential processes of access control? What are
+the key principles on which access control is founded?"</li>
+<li>这类题<strong>常含多个子问</strong>(上例有 3
+个子问)。<strong>逐个子问作答</strong>,每个概念写 <strong>1–2
+句</strong>;整题答案可能 <strong>10–15 行</strong>。</li>
+<li><strong>想拿满分</strong>:答案要<strong>完整</strong>、提供足够信息<strong>支撑论点</strong>。时间够就<strong>多写</strong>(前提是写对)。</li>
+<li><strong>可能含简单计算</strong>(风险管理),要<strong>先认清术语再套公式</strong>。</li>
+</ul>
+<h2 id="136-案例题策略case-study️-失分重灾区">13.6 案例题策略(Case
+Study)⚠️ 失分重灾区</h2>
+<ul>
+<li>给一个 InfoSec 管理<strong>案例</strong>(约 <strong>1
+页</strong>描述,<strong>类似 Assignment 3 的 Hillside
+Hospital</strong>,但规模小得多),回答 <strong>2 个子问</strong>(各 5
+分)。</li>
+<li>每个子问答 <strong>约半页</strong>即可,<strong>不需要</strong>像
+Assignment 3 那样长篇大论。</li>
+<li>🚨
+<strong>老师警告</strong>:"<strong>案例题是学生失分最多的地方</strong>"——原因是<strong>读完案例后用错了方法/方向</strong>。</li>
+<li>✅
+<strong>关键</strong>:<strong>仔细读题</strong>,先<strong>判断这道题到底在问什么</strong>(属于哪个知识区/Six
+P),再用<strong>正确的方法</strong>作答。</li>
+</ul>
+<h2 id="137-备考建议老师的总结">13.7 备考建议(老师的总结)</h2>
+<ol type="1">
+<li><strong>复习材料</strong>:textbook + lecture notes + workshop
+materials。讲义含主要信息,但更详尽的阐述需翻 textbook。</li>
+<li><strong>精心准备 5 张 A4 笔记</strong>:放<strong>概念 + 公式 +
+部分简答题的答题框架/草稿</strong>;按重要性排版,确保考时<strong>能快速定位</strong>(别堆太满找不到)。</li>
+<li><strong>别抄 workshop 原题</strong>:MCQ
+<strong>绝不重复</strong>原题;workshop
+题是用来<strong>练习、巩固知识</strong>的,不是用来背的。</li>
+<li><strong>所有题都要尝试作答</strong>:简答/案例题哪怕只写对一点,也能拿
+<strong>partial/bachelor credit</strong>(约 20%);<strong>空题 = 0
+分,无法挽救</strong>。老师强调:在
+<strong>及格线/等级分界</strong>(TF↔︎Pass、Pass↔︎Credit、Credit↔︎Distinction…)上,<strong>一两分往往就是题目答没答的差别</strong>。</li>
+<li><strong>考试当天</strong>:很早开始(9am),<strong>吃好早餐</strong>;3
+小时要写很多。带齐<strong>笔、计算器、5 张 A4
+笔记</strong>,向监考出示后入场。</li>
+</ol>
+<blockquote>
+<p>📌 <strong>Q&amp;A 要点</strong>:</p>
+<ul>
+<li>计算题<strong>只在风险管理</strong>出现,<strong>crypto
+不会有计算题</strong>。</li>
+<li>最终单项考试分数不单独公布;**7
+月(约第二周)**出最终成绩与等级,可由总分反推期末分。</li>
+<li>关于 AI:用 AI <strong>润色</strong>作业可以;但用 AI
+生成整篇报告并带**虚假/不存在的引用(ghost citation)**会被判 <strong>0
+分</strong>——这是 AI 作弊的典型特征。</li>
+</ul>
+</blockquote>
+<hr />
+<h1 id="附录-a考前公式速记卡可直接抄进-a4-笔记">附录
+A:考前公式速记卡(可直接抄进 A4 笔记)</h1>
+<p><strong>风险评估 Risk Rating</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>R</mi><mi>C</mi><mo>+</mo><mi>U</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R = (L_v \times I)\times(1 - RC + U)</annotation></semantics></math></p>
+<blockquote>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>v</mi></msub><annotation encoding="application/x-tex">L_v</annotation></semantics></math>=可能性,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math>=资产影响值,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>C</mi></mrow><annotation encoding="application/x-tex">RC</annotation></semantics></math>=现有控制缓解比例,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>=不确定性</p>
+</blockquote>
+<p><strong>成本效益分析 CBA(三连公式)</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mi>L</mi><mi>E</mi><mo>=</mo><mi>A</mi><mi>V</mi><mo>×</mo><mi>E</mi><mi>F</mi></mrow><annotation encoding="application/x-tex">SLE = AV \times EF</annotation></semantics></math>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>L</mi><mi>E</mi><mo>=</mo><mi>S</mi><mi>L</mi><mi>E</mi><mo>×</mo><mi>A</mi><mi>R</mi><mi>O</mi></mrow><annotation encoding="application/x-tex">ALE = SLE \times ARO</annotation></semantics></math>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mi>B</mi><mi>A</mi><mo>=</mo><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>r</mi><mi>i</mi><mi>o</mi><mi>r</mi></mrow></msub><mo>−</mo><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi><mi>t</mi></mrow></msub><mo>−</mo><mi>A</mi><mi>C</mi><mi>S</mi></mrow><annotation encoding="application/x-tex">CBA = ALE_{prior} - ALE_{post} - ACS</annotation></semantics></math></p>
+<blockquote>
+<p>CBA <strong>&gt; 0 → 值得上控制</strong>;&lt; 0 →
+重新考虑。计算只出现在风险管理。</p>
+</blockquote>
+<p><strong>MCQ 评分(X 个正确,共 5 选项)</strong>
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">每对</mtext><mo>+</mo><mfrac displaystyle="false"><mn>100</mn><mi>X</mi></mfrac><mi>%</mi><mo>,</mo><mspace width="1.0em"></mspace><mtext mathvariant="normal">每错</mtext><mo>−</mo><mfrac displaystyle="false"><mn>100</mn><mrow><mn>5</mn><mo>−</mo><mi>X</mi></mrow></mfrac><mi>%</mi><mo>,</mo><mspace width="1.0em"></mspace><mtext mathvariant="normal">单题</mtext><mo>∈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>0</mn><mo>,</mo><mn>2</mn><mo stretchy="true" form="postfix">]</mo></mrow><mtext mathvariant="normal">,永不为负</mtext></mrow><annotation encoding="application/x-tex">\text{每对} +\tfrac{100}{X}\%,\quad \text{每错} -\tfrac{100}{5-X}\%,\quad \text{单题} \in [0,2]\text{,永不为负}</annotation></semantics></math></p>
+<hr />
+<h1 id="附录-b-易混淆考点陷阱速查表老师亲口点名的高频错误">附录 B:🚨
+易混淆考点陷阱速查表(老师亲口点名的高频错误)</h1>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>陷阱</th>
+<th>正确答案</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>access control 的 <strong>3 大 key principles</strong>?</td>
+<td><strong>Least privilege / Need-to-know / Separation of
+duties</strong>——<strong>不是</strong> IAAA(那是 4 大 essential
+<strong>processes</strong>)</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><strong>Job rotation</strong> 基于哪个原则?</td>
+<td><strong>Separation of duties</strong>——<strong>不是</strong> least
+privilege</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><strong>BiBa</strong> 的规则?</td>
+<td><strong>No read down, no write up</strong>(保 integrity);"no read
+up, no write down" 是 <strong>BLP</strong>(保 confidentiality)</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>benchmarking 的<strong>类别</strong>?</td>
+<td><strong>两类:① standards of due care/due diligence ② best
+practices</strong>——due care 与 due diligence
+<strong>合为一类</strong></td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>防火墙的 <strong>4 大 architectures</strong>?</td>
+<td>Packet-filtering router / Screened-host / Dual-homed /
+Screened-subnet——<strong>别和"4 generations(代)"混淆</strong></td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td><strong>values</strong> statement 描述"想成为什么"?</td>
+<td><strong>错</strong>——那是 <strong>vision</strong> statement</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td><strong>shoulder surfing</strong> 是 technical attack?</td>
+<td><strong>错</strong>——属<strong>非技术/社会工程</strong>攻击</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td><strong>Ethics</strong> 由政府制定并强制执行?</td>
+<td><strong>错</strong>——那是 <strong>laws</strong>;ethics
+无政府强制力</td>
+</tr>
+<tr class="odd">
+<td>9</td>
+<td>CISO 很少持有 CISSP?</td>
+<td><strong>错</strong>——CISO <strong>通常</strong>持有 CISSP</td>
+</tr>
+<tr class="even">
+<td>10</td>
+<td>对称加密比非对称<strong>更快</strong>?</td>
+<td><strong>对</strong>——非对称更安全于密钥分发但<strong>更慢</strong></td>
+</tr>
+<tr class="odd">
+<td>11</td>
+<td>risk management 由谁牵头?</td>
+<td><strong>三方共同负责,InfoSec 牵头(lead)</strong></td>
+</tr>
+<tr class="even">
+<td>12</td>
+<td>risk control 的 <strong>5 大策略</strong>?</td>
+<td>Defense / Transference / Mitigation / Acceptance /
+Termination(常考"给场景判策略")</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<blockquote>
+<p>📌 <strong>一句话总纲</strong>:这门课考的是
+<strong>management</strong>——记住 <strong>Six P's</strong>
+的脉络、分清那 12 个易混淆点、练熟两组公式、坚守 <strong>40%
+不挂科红线</strong>、<strong>每题必答</strong>。Good luck!🍀</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>

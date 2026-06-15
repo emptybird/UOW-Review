@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Cheat Sheet</title>
+<style>
+  @page {
+    size: A4; margin: 12mm;
+    /* Page number only. In the print dialog, turn OFF "Headers and footers" so the
+       browser's date/title/URL disappear; this draws just the number bottom-right. */
+    @bottom-right { content: counter(page) " / " counter(pages);
+                    font: 8.5pt "Helvetica Neue", Arial, sans-serif; color: #666; }
+  }
+  :root { --fs: 9.5pt; --cols: 2; --accent: #1f4e79; --rule: #b9c2cc; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #e9ebee; }
+  body {
+    margin: 0; color: #111; font-size: var(--fs); line-height: 1.32;
+    font-family: "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  /* On screen, present the sheet as a padded A4 page on a desk — gives it real
+     margins and a paper look, so what you read ≈ what prints. */
+  @media screen {
+    body { max-width: 210mm; margin: 24px auto; padding: 14mm 13mm; background: #fff;
+           box-shadow: 0 8px 28px rgba(0,0,0,.16); }
+  }
+  @media print {
+    html { background: none; }
+    body { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+  }
+  .sheet-title {
+    column-span: all; margin: 0 0 6px; padding-bottom: 4px;
+    border-bottom: 2px solid var(--accent); color: var(--accent);
+    font-size: calc(var(--fs) * 1.7); letter-spacing: .2px;
+  }
+  /* balance (not auto): on screen the page has no fixed height, and column-fill:auto
+     would pour everything into the first column and leave the right side blank.
+     balance spreads content evenly across columns. */
+  .content { column-count: var(--cols); column-gap: 7mm; column-fill: balance; column-rule: 1px solid var(--rule); }
+
+  h1, h2, h3 { break-after: avoid; margin: 8px 0 3px; color: var(--accent); }
+  h1 { font-size: calc(var(--fs) * 1.25); border-left: 3px solid var(--accent); padding-left: 5px; }
+  h2 { font-size: calc(var(--fs) * 1.12); }
+  h3 { font-size: var(--fs); font-style: italic; color: #333; }
+  p { margin: 0 0 4px; }
+  ul, ol { margin: 0 0 5px; padding-left: 1.1em; }
+  li { margin: 0 0 1.5px; break-inside: avoid; }
+  strong { color: #000; }
+  code, .formula { font-family: "SF Mono", Consolas, monospace; font-size: .94em;
+    background: #f1f3f5; padding: 0 2px; border-radius: 2px; }
+  math { font-size: 1.02em; }
+  math[display="block"] { display: block; margin: 4px 0 7px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 6px 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3px 0 6px; break-inside: avoid; font-size: .95em; }
+  th, td { border: 1px solid var(--rule); padding: 2px 5px; text-align: left; vertical-align: top; }
+  th { background: #eef2f6; color: var(--accent); font-weight: 600; }
+
+  blockquote { margin: 3px 0; padding: 2px 7px; border-left: 3px solid #e0a800;
+    background: #fff8e1; break-inside: avoid; }
+  blockquote p { margin: 0; }
+
+  /* tag a section as "must know" with > [!key] in source → rendered as blockquote starting with 🔑 */
+</style>
+</head>
+<body>
+<div class="content">
+<style>
+.r { color:#c00000; font-weight:600; }
+.p { color:#7030a0; }
+.b { color:#0070c0; font-weight:600; }
+</style>
+<p>
+<span class="r">Red = key term / exam answer</span> · <span
+class="p">Purple = quiz question &amp; trap</span> · <span
+class="b">Blue = sequence / model steps</span>
+</p>
+<p><strong>Formula quick-ref</strong> — <span class="r">Risk</span>:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>R</mi><mi>c</mi></msub><mo>+</mo><mi>U</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R=(L_v \times I)\times(1-R_c+U)</annotation></semantics></math>
+(ranked-vulnerability worksheet uses
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">R=L_v \times I</annotation></semantics></math>
+only) · <span class="r">CBA</span>:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mi>L</mi><mi>E</mi><mo>=</mo><mi>A</mi><mi>V</mi><mo>×</mo><mi>E</mi><mi>F</mi></mrow><annotation encoding="application/x-tex">SLE=AV\times EF</annotation></semantics></math>
+·
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>L</mi><mi>E</mi><mo>=</mo><mi>S</mi><mi>L</mi><mi>E</mi><mo>×</mo><mi>A</mi><mi>R</mi><mi>O</mi></mrow><annotation encoding="application/x-tex">ALE=SLE\times ARO</annotation></semantics></math>
+·
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mi>B</mi><mi>A</mi><mo>=</mo><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>b</mi><mi>e</mi><mi>f</mi><mi>o</mi><mi>r</mi><mi>e</mi></mrow></msub><mo>−</mo><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>a</mi><mi>f</mi><mi>t</mi><mi>e</mi><mi>r</mi></mrow></msub><mo>−</mo><mi>A</mi><mi>C</mi><mi>S</mi></mrow><annotation encoding="application/x-tex">CBA=ALE_{before}-ALE_{after}-ACS</annotation></semantics></math>
+(&gt; 0 → worth it) · <span class="r">ARO</span>: weekly = 52 · monthly
+= 12 · quarterly = 4 · every 6 mo = 2 · every 2 yrs = 0.5 · every 20 yrs
+= 0.05 · <span class="r">PERT</span>:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mi>F</mi><mo>=</mo><mi>E</mi><mi>S</mi><mo>+</mo><mi>D</mi></mrow><annotation encoding="application/x-tex">EF=ES+D</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mi>S</mi><mo>=</mo><mi>L</mi><mi>F</mi><mo>−</mo><mi>D</mi></mrow><annotation encoding="application/x-tex">LS=LF-D</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mi>l</mi><mi>o</mi><mi>a</mi><mi>t</mi><mo>=</mo><mi>L</mi><mi>S</mi><mo>−</mo><mi>E</mi><mi>S</mi></mrow><annotation encoding="application/x-tex">Float=LS-ES</annotation></semantics></math>;
+ES = max(EF of predecessors), LF = min(LS of successors); <span
+class="r">critical path = longest sequence of dependent activities →
+determines project duration</span> (zero float).</p>
+<h2 id="weeks-12-infosec-foundations-management-ws-12">1 · Weeks 1–2 —
+InfoSec Foundations &amp; Management (WS 1–2)</h2>
+<p><strong>Security</strong> = <span class="r">the quality or state of
+being secure — free from danger or loss</span>. Layers: physical,
+personal, operations, communications, network, information security.</p>
+<p><strong>InfoSec</strong> protects information in all states — <span
+class="b">storage, processing, transmission</span> — via policy,
+awareness, training, education, technology.</p>
+<p><strong>Communities of interest</strong> (nested, not parallel:
+InfoSec ⊂ IT ⊂ Business):</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Community</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="r">InfoSec</span></td>
+<td>protects assets; leads risk/security effort</td>
+</tr>
+<tr class="even">
+<td><span class="r">IT</span></td>
+<td>builds &amp; runs systems that support the business</td>
+</tr>
+<tr class="odd">
+<td><span class="r">General business</span></td>
+<td><span class="r">articulates organizational policy + allocates
+resources</span>; balances cost vs. efficiency</td>
+</tr>
+</tbody>
+</table>
+<p><span class="p">Q: which community of interest is primarily
+responsible for articulating organizational policy and allocating
+resources for InfoSec? → General business community.</span></p>
+<p><strong>CIA triad</strong>: <span class="r">Confidentiality</span> —
+only sufficiently privileged users access info · <span
+class="r">Integrity</span> — data not altered (data corruption can occur
+as a result of a deliberate attack <strong>or</strong> for other reasons
+→ True) · <span class="r">Availability</span> = <span class="r">the
+characteristic that enables user access to information in a usable
+format without interference or obstruction</span>. <span class="p">Trap:
+availability ≠ “accessible to everyone at all times” (False — authorized
+users only).</span> Extended characteristics: privacy, identification,
+authentication, authorization, <span class="r">accountability</span> =
+<span class="r">exists when a control provides assurance that every
+activity undertaken can be attributed to a named person or automated
+process</span> (detailed audit logs of logins/file access/config changes
+strengthen it).</p>
+<p><strong>Privacy vs confidentiality</strong>: privacy = individual’s
+control over use of own data; confidentiality = only authorized people
+access the info.</p>
+<p><strong>CNSS / McCumber cube</strong> — 3 dimensions × 3 = <span
+class="r">27 cells</span>: <span class="b">Goals (C-I-A) × States
+(storage, processing, transmission) × Controls (policy, education,
+technology)</span>. A valid cell = <span class="r">exactly one item from
+each axis</span> (e.g. Confidentiality + Transmission + Technology →
+TLS). <span class="p">Trap triple with two goals (e.g. Confidentiality,
+Integrity, Transmission) is NOT a cell.</span> Weaknesses: no
+implementation guidance; must cover <strong>all</strong> cells — <span
+class="p">encryption with no training &amp; no policy = focuses on the
+technology control category while neglecting policy and education
+controls</span> (CNSS case-study answer).</p>
+<p><strong>Access control</strong> = <span class="r">regulates the
+admission of users into the org’s <em>trusted areas</em> — both logical
+(systems/data) and physical (facilities); a complete scheme always uses
+all four IAAA processes</span>. <strong>Access control chain
+(IAAA)</strong>: <span class="r">Identification</span> (claim identity —
+<span class="p">providing a username = identification, NOT
+authentication</span>) → <span class="r">Authentication</span> (prove it
+— password, fingerprint, OTP, digital certificate) → <span
+class="r">Authorization</span> (what you may do) → <span
+class="r">Accountability</span> (trace actions — logs, audit,
+non-repudiation). Moodle example: enter student ID → SSO password →
+student views / teacher uploads → Moodle logs all actions.</p>
+<p><strong>Management</strong> = achieving objectives using a given set
+of resources. Leaders <span class="r">influence behavior</span>;
+managers <span class="r">coordinate resources</span>. Manager roles:
+informational, interpersonal, decisional.</p>
+<p><strong>POLC</strong>: <span class="b">Planning → Organizing →
+Leading → Controlling</span>. Controlling = monitor performance
+<strong>against plans</strong>, adjust process or standards (feedback
+loop). <span class="p">Q: relationship planning↔︎controlling →
+controlling evaluates performance against plans and enables
+adjustments.</span></p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Planning level</th>
+<th>Horizon</th>
+<th>Who / example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="r">Strategic</span></td>
+<td>5+ yrs</td>
+<td>senior mgmt; long-term direction</td>
+</tr>
+<tr class="even">
+<td><span class="r">Tactical</span></td>
+<td>1–5 yrs</td>
+<td>managers; budgets, 2-yr upgrade project</td>
+</tr>
+<tr class="odd">
+<td><span class="r">Operational</span></td>
+<td>day-to-day</td>
+<td>staff; backup schedules, firewall config</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Goal vs objective</strong>: goal = final end-point; objective
+= intermediate milestone used to measure progress.</p>
+<p><strong>Problem solving (5 steps)</strong>: <span class="b">1
+recognize/define problem → 2 gather facts &amp; assumptions → 3 develop
+solutions → 4 analyze &amp; compare → 5 select, implement,
+evaluate</span>. (Phishing case: define → check logs/who clicked →
+options: training, spam filter, MFA → compare cost/effect → train +
+filter, then review.)</p>
+<p><strong>Six P’s of InfoSec management</strong>: <span
+class="r">Planning, Policy, Programs, Protection, People,
+Projects</span>. <span class="p">Trap: “Performance” is NOT one of the
+six P’s.</span></p>
+<p><strong>Plan types</strong>: IRP (react to incidents), DRP (recover
+after disaster), BCP (continue business elsewhere) +
+policy/personnel/risk/technology/SETA plans.</p>
+<p><strong>Process vs project</strong>: process = continuous, no defined
+end; project = discrete, defined start/end &amp; deliverables. InfoSec =
+continuous chain of projects ≈ a process. <strong>Project
+management</strong> = applying skills/tools to plan &amp; control work
+so it finishes <span class="r">on time, within budget, meeting
+specifications</span> (= the 3 success criteria). InfoSec work (firewall
+rollout, policy writing, training) is usually run as projects. <span
+class="r">Scope creep</span> = <span class="r">expanding project
+deliverables beyond original plans</span>. <span
+class="r">Projectitis</span> = <span class="r">excessive focus on
+documentation and tracking rather than actual progress</span>.</p>
+<p><strong>PMBoK 9 knowledge areas</strong>: <span
+class="b">integration, scope, time, cost, quality, HR, communications,
+risk, procurement</span> (each “project X management”). Cost mgmt →
+completes project within budget.</p>
+<p><strong>Tools</strong>: <span class="r">WBS</span> = hierarchical
+task breakdown (<span class="p">WBS ≠ PERT network diagram → False
+statement trap</span>) · <span class="r">PERT</span> = network of
+dependencies/durations · <span class="r">Gantt</span> = bar-chart-like
+graphic displaying project tasks &amp; progress · <span
+class="r">Critical path</span> = <span class="r">the longest sequence of
+dependent activities determining project duration</span> = minimum
+completion time · <span class="r">Slack</span> = how long a non-critical
+task can be delayed without affecting completion time.</p>
+<p>Network calc:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mi>F</mi><mo>=</mo><mi>E</mi><mi>S</mi><mo>+</mo><mi>D</mi></mrow><annotation encoding="application/x-tex">EF = ES + D</annotation></semantics></math>;
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mi>S</mi><mo>=</mo><mi>L</mi><mi>F</mi><mo>−</mo><mi>D</mi></mrow><annotation encoding="application/x-tex">LS = LF - D</annotation></semantics></math>;
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mi>l</mi><mi>o</mi><mi>a</mi><mi>t</mi><mo>=</mo><mi>L</mi><mi>S</mi><mo>−</mo><mi>E</mi><mi>S</mi></mrow><annotation encoding="application/x-tex">Float = LS - ES</annotation></semantics></math>;
+ES = max(EF of predecessors); LF = min(LS of successors). Worked answer:
+critical path <span class="r">A→C→D→E→F→H→I</span>; slack B = 5, G = 8
+(can be delayed without affecting finish).</p>
+<h2 id="weeks-34-planning-threats-contingency-planning-ws-23">2 · Weeks
+3–4 — Planning, Threats &amp; Contingency Planning (WS 2–3)</h2>
+<p><strong>Planning</strong> = <span class="r">the process that creates
+&amp; implements strategy to accomplish objectives — the dominant means
+of managing organizational resources</span>. <strong>Why plan</strong>:
+align security with business goals, structure for controls, manage
+resources, proactive risk management.</p>
+<p><strong>Strategic foundations</strong>: <span class="r">Values</span>
+= core beliefs · <span class="r">Vision</span> = what the org
+<strong>wants to become</strong> · <span class="r">Mission</span> = what
+the org <strong>does and for whom</strong>. (Tesla vision / Google
+mission / Microsoft values.) Strategy = how to get there. <span
+class="p">🚩 Trap: “the <em>values</em> statement describes what an org
+wants to become” → False; that is the <em>vision</em>
+statement.</span></p>
+<p><strong>Top-down vs bottom-up</strong>: top-down = senior-mgmt-led,
+has authority, resources, alignment → <span class="r">more likely to
+succeed</span>; bottom-up = technician-initiated, lacks
+coordination/support.</p>
+<p><strong>Governance</strong> = directing &amp; controlling InfoSec
+(CISO-led, bridges security and business). 5 outcomes: <span
+class="b">strategic alignment, risk management, resource management,
+performance measurement, value delivery</span>. Includes a
+risk-management methodology (True). <span class="p">Trap: “reducing
+private data” is NOT a governance benefit.</span> CGTF-recommended
+framework = <span class="r">IDEAL</span>: <span class="b">Initiating,
+Diagnosing, Establishing, Acting, Learning</span>.</p>
+<p><strong>SecSDLC</strong> (waterfall-like): <span class="b">1
+Investigation</span> — objectives, scope, charter → <span class="b">2
+Analysis</span> — existing policies, risk assessment → <span class="b">3
+Logical design</span> — blueprint, IR/BC/DR planning → <span class="b">4
+Physical design</span> — select technologies/solutions → <span
+class="b">5 Implementation</span> — buy/build, test, train → <span
+class="b">6 Maintenance</span> — monitor, patch, improve.</p>
+<p><strong>Definitions</strong>: <span class="r">Threat</span> =
+category of danger to an asset · <span class="r">Vulnerability</span> =
+weakness in a system/control that could be exploited · <span
+class="r">Attack</span> = deliberate act exploiting a vulnerability ·
+Exploit = technique used to compromise. Threat exploits vulnerability →
+attack succeeds.</p>
+<p><strong>12 threat categories</strong> (classify scenarios into
+these!):</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Category</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Compromises to intellectual property</td>
+<td>piracy, unlicensed software install</td>
+</tr>
+<tr class="even">
+<td>Deviations in quality of service</td>
+<td>ISP/power outage</td>
+</tr>
+<tr class="odd">
+<td>Espionage / trespass</td>
+<td>unauthorized access &amp; data copying, shoulder surfing</td>
+</tr>
+<tr class="even">
+<td>Forces of nature</td>
+<td>flood damages data centre</td>
+</tr>
+<tr class="odd">
+<td>Human error / failure</td>
+<td>employee data-entry mistake</td>
+</tr>
+<tr class="even">
+<td>Information extortion</td>
+<td>“pay or we leak your data” (ransom demand)</td>
+</tr>
+<tr class="odd">
+<td>Sabotage / vandalism</td>
+<td>disgruntled employee deletes files</td>
+</tr>
+<tr class="even">
+<td>Software attacks</td>
+<td>malware, DoS on website</td>
+</tr>
+<tr class="odd">
+<td>Technical hardware failure</td>
+<td>disk failure stops server</td>
+</tr>
+<tr class="even">
+<td>Technical software failure</td>
+<td>coding bug → wrong reports</td>
+</tr>
+<tr class="odd">
+<td>Technological obsolescence</td>
+<td>outdated/unsupported software or crypto</td>
+</tr>
+<tr class="even">
+<td>Theft</td>
+<td>laptop stolen from office</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Technical attacks</strong>: backdoor, buffer overflow,
+brute-force/dictionary, DoS/DDoS, mail bombing, spam, sniffer, spoofing,
+man-in-the-middle, replay, phishing / spear phishing, pharming.
+<strong>Non-technical</strong> (people-based): social engineering, <span
+class="r">shoulder surfing</span>, dumpster diving. <span class="p">🚩
+Trap: shoulder surfing / dumpster diving / social engineering are
+NON-technical — a recurring MCQ.</span></p>
+<p><strong>Contingency Planning (CP)</strong> = prepare for, detect,
+react to, recover from events threatening security/operations. Primary
+goal: <span class="r">restore normal operations with minimum disruption
+(&amp; cost)</span>. Components in strict order: <span class="b">BIA →
+IRP → DRP → BCP</span> (<span class="p">first phase of the CP process =
+Business Impact Analysis</span>). Teams: CPMT (develops overall CP),
+<span class="r">IR team — primarily responsible for executing the IR
+plan</span>, DR team (restores at primary site), BC team (operates
+alternate site).</p>
+<p><strong>BIA</strong>: <span class="r">assumes preventive controls may
+have failed</span>; <span class="r">estimates impact on business
+functions</span> (incl. worst-case scenarios; not only hardware).
+Differs from risk mgmt: RM identifies &amp; mitigates threats
+<em>beforehand</em>; BIA asks “what if controls don’t work — what do we
+lose, what must recover first?” Stages: <span class="b">1 threat/attack
+identification &amp; prioritization → 2 business unit analysis → 3
+attack success scenarios → 4 potential damage assessment → 5 subordinate
+plan classification</span>. <span class="p">Trap: “policy plan
+classification” is NOT a BIA stage.</span></p>
+<p><strong>NIST 7-step CP process</strong>: <span class="b">policy → BIA
+→ identify preventive controls → develop recovery strategies → document
+plan → test &amp; train → maintain</span>.</p>
+<p><strong>Incident</strong> = an event that (1) is <span
+class="r">directed at information assets</span>, (2) has a <span
+class="r">realistic chance of success</span>, and (3) <span
+class="r">threatens C / I / A</span> (all three conditions). IRP
+activates when an event causes <span class="r">loss of C / I / A, or
+violation of policy / law</span>, and damage is minimal per pre-set
+criteria. <span class="p">Incident response is preventive → False (it is
+reactive).</span> Becomes a <span class="r">disaster</span> when org
+cannot contain/control the impact, or damage is so severe recovery isn’t
+quick → switch from IRP to DRP/BCP.</p>
+<p><strong>IRP stages</strong> (4 tasks): <span class="b">incident
+planning → incident detection → incident reaction → incident
+recovery</span>. Reaction procedures: detect (monitoring, logs, reports)
+→ contain → eradicate → recover → follow-up; <span
+class="p">Documentation &amp; AAR happen <em>within</em>
+reaction/recovery, not as a separate stage</span>. <span class="p">Trap:
+“plan for disaster recovery” is NOT an IRP stage.</span>
+<strong>Containment strategies</strong>: <span class="r">disconnect
+affected communication circuits; disable compromised accounts</span>;
+isolate affected systems/VLANs; reconfigure firewalls; shut down
+compromised services or systems. <strong>Alert roster</strong> —
+purpose: <span class="r">to notify key personnel during an
+incident</span>. <span class="r">Sequential</span> = one caller phones
+everyone in order; <span class="r">hierarchical</span> = each person
+calls a few others (faster, can garble message). <strong>AAR
+(after-action review)</strong> — post-incident meeting; review
+logs/actions, fix the plan, becomes training case.</p>
+<p><strong>Pipkin’s incident indicators</strong>:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Level</th>
+<th>Meaning</th>
+<th>Standard examples</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="r">Possible</span></td>
+<td>might be an incident</td>
+<td>unfamiliar files; unknown processes; unusual consumption/crashes;
+user reports suspicious email</td>
+</tr>
+<tr class="even">
+<td><span class="r">Probable</span></td>
+<td>likely an incident</td>
+<td>IDS alarms; activity at unexpected times; many similar phishing
+reports</td>
+</tr>
+<tr class="odd">
+<td><span class="r">Definite</span></td>
+<td>confirmed</td>
+<td><span class="r">use of dormant accounts</span>; changes to logs;
+hacker tools present; notification by partner/hacker; extortion demand;
+accounts accessed after phishing click</td>
+</tr>
+</tbody>
+</table>
+<p><strong>DRP</strong> = restore operations <span class="r">at the
+original/primary site</span>. Disaster classes: natural vs human-made;
+<span class="r">rapid vs slow onset</span>. An incident is a disaster
+when damage is too severe to recover quickly (True).
+<strong>BCP</strong> = keep business running <span class="r">at an
+alternate site</span> while primary is unavailable; <span
+class="r">activated <strong>concurrently with the DRP</strong></span>
+when the disaster is severe/long-term; protects revenue, reputation,
+customer service.</p>
+<p><strong>Continuity strategies</strong> — exclusive: <span
+class="r">Hot site</span> = fully configured facility incl. services,
+comm links, physical plant; fastest, dearest · <span class="r">Warm
+site</span> = systems w/o live data · <span class="r">Cold site</span> =
+basic infrastructure only. Shared: <span class="r">timeshare, service
+bureau, mutual aid agreement</span> (= contract where each party assists
+the other in disaster). <span class="p">Trap: warm site is NOT a
+shared-use option (False).</span> <strong>Data backup options</strong>:
+traditional backups (tape/disk), electronic vaulting (bulk batch
+transfer off-site), remote journaling (live transaction transfer),
+database shadowing (live duplicate DB).</p>
+<p><strong>CP testing</strong>: <span class="b">desk check → structured
+walkthrough → simulation → parallel test → full interruption</span>
+(most realistic, most risky).</p>
+<h2 id="weeks-56-security-policy-security-program-ws-34">3 · Weeks 5–6 —
+Security Policy &amp; Security Program (WS 3–4)</h2>
+<p><strong>Policy</strong> — <span class="r">the essential foundation of
+an effective InfoSec program = policy</span> (not
+encryption/firewall/antivirus/IDS); records <strong>management
+intent</strong>; must <span class="r">stand up in court</span> —
+defensible, uniformly enforced. <span class="r">Cheapest control to
+create, hardest to enforce.</span> Hierarchy: <span class="b">Policy
+(what &amp; why, by mgmt) → Standard (mandatory rules that give policy
+teeth) → Procedures / practices / guidelines (how, step-by-step)</span>.
+<span class="p">Trap: “policies explain how employees will comply” is
+FALSE — procedures do that.</span></p>
+<p><strong>Bull’s-eye model</strong> (outermost → innermost): <span
+class="b">Policy → Networks → Systems → Applications</span>. Outer layer
+= <span class="r">Policies</span>; policy drives every inner layer;
+evaluate/fix problems from the outside in. Networks = protect
+communication paths (firewalls, VPN); Systems = servers/OS; Applications
+= user-facing programs.</p>
+<p><strong>Three policy types (NIST SP 800-14)</strong>:</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th><span class="r">EISP</span></th>
+<th><span class="r">ISSP</span></th>
+<th><span class="r">SysSP</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Level</td>
+<td>enterprise, strategic; <span class="r">sets the strategic direction
+and tone for security efforts</span>; supports mission/vision</td>
+<td>one issue / technology</td>
+<td>one system / device</td>
+</tr>
+<tr class="even">
+<td>Example</td>
+<td>corporate InfoSec policy</td>
+<td>email, internet, USB, BYOD use</td>
+<td>firewall config, ACLs</td>
+</tr>
+<tr class="odd">
+<td>Updates</td>
+<td>rare</td>
+<td><span class="r">frequent (tech changes)</span></td>
+<td>per system change</td>
+</tr>
+<tr class="even">
+<td>Note</td>
+<td>drafted by CISO, approved by CEO</td>
+<td>= binding agreement on resource use</td>
+<td>functions as standard/procedure</td>
+</tr>
+</tbody>
+</table>
+<p><span class="r"><strong>ISSP provides detailed, targeted guidance to
+instruct all members in the use of a process, technology, or
+system.</strong></span> (Frequent quiz line — answer is
+<strong>ISSP</strong>, <em>not</em> SysSP.) EISP 5 components: statement
+of purpose, InfoSec elements, need for InfoSec, roles &amp;
+responsibilities, references to standards. ISSP serves 3 functions:
+articulate expected use, document controls, <span class="r">indemnify
+the org against liability for misuse</span>. <strong>ISSP 7
+components</strong>: <span class="b">1 statement of purpose → 2
+authorized uses → 3 prohibited uses → 4 systems management → 5
+violations &amp; penalties → 6 policy review &amp; modification → 7
+limitations of liability</span>. (<span class="p">Authorized +
+prohibited uses = the two component answers.</span>) ISSP implementation
+approaches: independent docs / single comprehensive doc / <span
+class="r">modular — recommended</span> (central control, tailored per
+issue). <strong>SysSP</strong> <span class="r">may function as standards
+or procedures; includes technical specifications</span> — two classes:
+managerial guidance + technical specifications, separate or combined in
+one document (True). Technical SysSPs: <span class="r">ACLs</span> (who,
+what, when, where, how of access) and <span class="r">configuration
+rules</span> (instructional codes that guide system behavior,
+e.g. firewall rule sets).</p>
+<p><strong>Effective policy lifecycle</strong>: <span class="b">develop
+→ disseminate (distribute) → review (read) → comprehend (understand) →
+comply (agree) → enforce (uniformly)</span>. Develop via SecSDLC as a
+formal project; analysis phase gathers risk assessment, current policy
+review, legal/compliance requirements, threat/vulnerability assessments,
+BIA. Distribution: hand-out/onboarding, email w/ receipt, intranet
+portal, login pop-up; confirm via signed acknowledgment or quiz
+(comprehension ≥ ~70%). Policy is <span class="r">dynamic</span> —
+revisit on threat/law/technology change. No uniform enforcement → legal
+risk (discrimination claims, unenforceable dismissals). <span
+class="p">Trap (false statements): “policy must use lots of
+technical/management jargon”; “EISP must not support the vision
+statement”.</span></p>
+<p><strong>InfoSec program</strong> = structure &amp; organization of
+the effort that protects information assets. <strong>14
+functions</strong> a program needs — each performed <em>somewhere</em>
+in the org, not necessarily inside InfoSec: mgmt/compliance side — <span
+class="r">risk mgmt, risk assessment, policy, compliance, legal
+assessment, planning, measurement</span>; technical/ops side — <span
+class="r">systems security admin, network security admin, centralized
+authentication, systems testing, vulnerability assessment, incident
+response, training</span>.</p>
+<p><strong>Four-area allocation</strong> (<span class="p">🚩 each area’s
+owner + nature is a frequent exam point</span>): <span
+class="b">①</span> outside-IT business units → legal, training · <span
+class="b">②</span> IT groups outside InfoSec → systems/network security
+admin, centralized authentication · <span class="b">③</span> within
+InfoSec as <strong>customer service</strong> → risk &amp; vulnerability
+assessment, systems testing, IR, planning, measurement · <span
+class="b">④</span> within InfoSec as <strong>compliance</strong> →
+policy, compliance, risk management.</p>
+<p>Variables shaping the program: <span class="r"><strong>culture (#1,
+most influential)</strong>, size (#2), security personnel budget,
+security capital budget</span>. <span class="p">Quiz answer: most
+influential variable = organizational <strong>culture</strong>, NOT size
+— teacher pre-empts the “size” trap (Wk6).</span> Regardless of size,
+<span class="r">ensuring every function is performed <em>somewhere</em>
+is always the CISO’s responsibility</span>; whether to hire
+<strong>full-time</strong> security staff depends on <span class="r">(1)
+info sensitivity, (2) industry regulation, (3) profitability</span>.
+<span class="r">Per-user security spend declines <em>exponentially</em>
+as orgs grow</span> (economies of scale; Briney &amp; Prince “Does Size
+Matter?” — XL ≈ $300/user vs Small &gt; $5,000/user, ≈ 1/18).</p>
+<p><strong>Security config by org size</strong> (Wk13):</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Size</th>
+<th>PCs</th>
+<th>Per-user $ / budget</th>
+<th>Key trait</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="r">Very large</span></td>
+<td>&gt;10k</td>
+<td><strong>lowest ~$300</strong></td>
+<td>InfoSec <strong>division</strong>; best at policy &amp; resource
+mgmt</td>
+</tr>
+<tr class="even">
+<td><span class="r">Large</span></td>
+<td>1k–10k</td>
+<td>~<strong>5%</strong> of IT budget</td>
+<td>mature; policy in culture; spends conservatively</td>
+</tr>
+<tr class="odd">
+<td><span class="r">Medium</span></td>
+<td>100–1k</td>
+<td>mid</td>
+<td>🚩 <strong>worst</strong> at policy / incidents / resource
+allocation</td>
+</tr>
+<tr class="even">
+<td><span class="r">Small</span></td>
+<td>10–100</td>
+<td><strong>highest &gt;$5k</strong>, ~<strong>20%</strong> budget</td>
+<td>usually <strong>one person</strong> (IT’s add-on); lower target
+risk</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Wood’s 5 placement options for InfoSec</strong> (key
+discriminator = # middle managers between the InfoSec chief and the
+CEO):</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Opt</th>
+<th>Placement</th>
+<th>Layers to CEO</th>
+<th>Verdict / fit</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="b">1</span></td>
+<td>under <strong>IT</strong> (CISO→CIO→CEO)</td>
+<td>1 (the CIO)</td>
+<td>most common/natural (~⅓ of orgs, incl. UOW); security subordinated
+to IT → no longer most <em>recommended</em></td>
+</tr>
+<tr class="even">
+<td><span class="b">2</span></td>
+<td>under a (corporate) <strong>Security</strong> dept</td>
+<td><span class="r"><strong>2 — the most</strong></span></td>
+<td><span class="r">least advised</span>; weakest channel for voicing
+security needs to top mgmt</td>
+</tr>
+<tr class="odd">
+<td><span class="b">3</span></td>
+<td><strong>Administrative Services</strong></td>
+<td>1</td>
+<td>improvement over 1 &amp; 2; InfoSec advisory like HR; fits
+non-info-intensive orgs</td>
+</tr>
+<tr class="even">
+<td><span class="b">4</span></td>
+<td><strong>Insurance &amp; Risk Mgmt</strong></td>
+<td>1</td>
+<td>integrated risk view; fits info-intensive orgs (banks,
+brokerages)</td>
+</tr>
+<tr class="odd">
+<td><span class="b">5</span></td>
+<td><strong>Strategy &amp; Planning</strong></td>
+<td>1</td>
+<td>stresses documented policy/standards; fits orgs critically dependent
+on InfoSec (e-commerce)</td>
+</tr>
+</tbody>
+</table>
+<p><span class="p">Trap: Option <strong>2</strong> has the MOST layers
+(2); options <strong>3/4/5 each have only ONE</strong>; Option
+<strong>1</strong> is most <em>popular</em>, not most
+<em>recommended</em>.</span> <span class="r">Placing InfoSec under IT =
+conflict of interest</span> — CIO priorities (efficiency, uptime, cost)
+compete with security restrictions; independent placement gives security
+its own voice &amp; budget.</p>
+<p><strong>Roles</strong>: <span class="r">CISO</span> (strategy; a.k.a.
+Manager/Director of Security) · security manager (program oversight) ·
+security analyst (threats, logs) · <span class="r">security
+technician</span> (configures firewalls/IDPS, implements software,
+troubleshoots — True) · consultants/investigators. Functional classes:
+<span class="r">definers</span> (policy, architecture, risk) → <span
+class="r">builders</span> (create/install solutions) → <span
+class="r">administrators</span> (operate &amp; monitor). <span
+class="p">“Guards, gates &amp; guns” = physical security, NOT
+consultants (False).</span></p>
+<p><strong>SETA</strong> = Security Education + Training + Awareness
+(CISO’s responsibility). Purpose: people are the weakest link — reduce
+accidents, reinforce policy. <strong>3 benefits (textbook
+trio)</strong>: <span class="r">1 improve employee behaviour; 2 inform
+employees where to report incidents/violations; 3 enable the
+organization to hold employees accountable</span>. (<span class="p">SETA
+does NOT eliminate all security incidents or replace technical
+controls.</span>)</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th>Education</th>
+<th>Training</th>
+<th>Awareness</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Level</td>
+<td>why</td>
+<td>how</td>
+<td>what</td>
+</tr>
+<tr class="even">
+<td>Objective</td>
+<td>understanding</td>
+<td>skill</td>
+<td>exposure/recognition</td>
+</tr>
+<tr class="odd">
+<td>Timeframe</td>
+<td>long</td>
+<td>medium</td>
+<td>short, continuous</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Awareness program priorities (NIST)</strong>: focus on <span
+class="r">people, not technology</span>; plain non-technical language;
+<span class="r">multiple channels</span> (posters, email, sessions);
+short, engaging, clear goals. <span class="p">Awareness is the cheapest
+control and is NOT ineffective (False trap).</span>
+<strong>Training</strong>: group trainees by <span class="r">functional
+role (general/managerial/technical), skill level (novice→advanced), job
+category, technology/system used</span>. Delivery: instructor-led,
+one-on-one, <span class="r">CBT</span> (self-paced, consistent,
+scalable, trackable; but less engaging, no live Q&amp;A, needs
+infrastructure), web-based, on-the-job, simulations.</p>
+<p><strong>NIST vs ISO</strong> (case-study box): <span
+class="r">NIST</span> = US federal agency; mission: promote US
+innovation/competitiveness via measurement science &amp; standards; SP
+800 series is <span class="r">free, public, detailed, risk-based</span>
+— suits orgs wanting cost-free in-depth technical guidance
+(esp. US/government context). <span class="r">ISO</span> = international
+federation of national standards bodies; develops voluntary
+international standards; ISO 27001 is <span class="r">certifiable</span>
+(paid) — suits orgs needing internationally recognized certification to
+assure customers/partners. Both improve posture: NIST tells you
+<em>how</em> in detail; ISO gives a certifiable management-system
+framework (ISMS).</p>
+<h2 id="weeks-78-security-models-management-practices-ws-45">4 · Weeks
+7–8 — Security Models &amp; Management Practices (WS 4–5)</h2>
+<p><strong>Framework vs blueprint vs model</strong>: <span
+class="r">framework</span> = <span class="r">provides a structure that
+guides the design and implementation of controls</span> · <span
+class="r">blueprint</span> = <span class="r">describes existing controls
+and identifies additional required controls</span>, built from a
+framework · <span class="r">security model</span> = a <span
+class="r">generic blueprint offered by a service organization</span> to
+adopt/adapt as a starting template (e.g., ISO 27000 = proprietary/paid ·
+NIST = free). Hierarchy: <span class="b">model → framework →
+blueprint</span>. <span class="p">Trap: a security model is a
+<em>concrete</em>/org-specific blueprint from a service org → False —
+it’s a <strong>generic</strong> template; you still need your own
+framework→blueprint design. BLP/Biba are <em>architecture</em> models,
+not this kind of “model”.</span> <span class="r">Security
+<strong>architecture</strong> models (e.g., BLP, Biba — see table below)
+illustrate how InfoSec is implemented within systems</span> — not only
+physical, not only software, any org size.</p>
+<p><strong>Access control</strong>: 4 PROCESSES = IAAA
+(Identification→Authentication→Authorization→Accountability, see §1) · 3
+PRINCIPLES = <span class="r">least privilege</span> (minimum access for
+minimum time — broad access ≠ efficiency), <span class="r">need to
+know</span> (only info required for current task — even within your
+clearance level), <span class="r">separation of duties</span> (split
+critical tasks → no single person can abuse/commit fraud). <span
+class="p">🚩 #1 classic trap: the 3 key PRINCIPLES are NOT the 4
+PROCESSES — answering “identification, authentication, authorization”
+for the <em>principles</em> is the most common error. Also: <strong>job
+rotation is based on separation of duties, NOT least
+privilege</strong>.</span> Categories — by inherent characteristics:
+<span class="b">preventative, deterrent, detective, corrective,
+recovery, compensating</span> (<span class="p">NOT:
+strategic/tactical/executive/creative</span>); by operational impact:
+management, operational, technical; by degree of authority:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Model</th>
+<th>Who decides</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="r">MAC</span></td>
+<td>the system (central)</td>
+<td>lattice-based; security labels (Confidential/Secret/Top Secret);
+users cannot change permissions; military/gov</td>
+</tr>
+<tr class="even">
+<td>Nondiscretionary</td>
+<td>org via roles/tasks</td>
+<td><span class="r">RBAC</span> = tied to a role; task-based = tied to
+an assignment (True)</td>
+</tr>
+<tr class="odd">
+<td><span class="r">DAC</span></td>
+<td>data owner/user</td>
+<td>owner grants access at own discretion; typical of PC OSes (Windows
+file sharing)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Data classification &amp; clearance</strong>: classification
+= assign sensitivity levels (Public / Sensitive / Classified); <span
+class="r">data owners classify</span>; clearance = level a person may
+see, but <span class="r">clearance ≠ automatic access — need-to-know
+still required</span>. Clean-desk policy; shred to stop dumpster
+diving.</p>
+<p><strong>Evaluation models</strong>: <span class="r">TCSEC “Orange
+Book”</span> (US DoD) — built on the <span class="r">TCB</span> (trusted
+computing base) and the <span class="r">reference monitor</span>
+(mediates <em>every</em> access of subject→object; basis of audits).
+TCSEC covert channels: <span class="r">covert storage channel</span>
+(communicate via shared storage — file flags, status bits) · <span
+class="r">covert timing channel</span> (modulate timing — CPU usage,
+delays). Successors: <span class="r">ITSEC</span> (European; evaluates
+Targets of Evaluation) → <span class="r">Common Criteria, ISO/IEC
+15408</span> (current international standard).</p>
+<p><strong>Architecture models</strong>:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Model</th>
+<th>Protects</th>
+<th>Rules</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="r">Bell-LaPadula</span></td>
+<td>confidentiality</td>
+<td><span class="r">no read up, no write down</span></td>
+</tr>
+<tr class="even">
+<td><span class="r">Biba</span></td>
+<td>integrity</td>
+<td><span class="r">no read down, no write up</span> (mirror of
+BLP)</td>
+</tr>
+<tr class="odd">
+<td><span class="r">Clark-Wilson</span></td>
+<td>integrity (commercial)</td>
+<td>users change data only via well-formed transactions/programs;
+SoD</td>
+</tr>
+<tr class="even">
+<td><span class="r">Brewer-Nash</span></td>
+<td>conflict of interest</td>
+<td>= <span class="r">Chinese Wall</span>; access one client’s data →
+competitor’s data blocked</td>
+</tr>
+</tbody>
+</table>
+<p>Also by name: Graham-Denning; Harrison-Ruzzo-Ullman. <span
+class="p">Traps: “Biba = no read up/no write down” → False; “Biba is a
+confidentiality model” → False; Biba <em>does</em> ensure no info passes
+from a subject to a higher-integrity object → True.</span></p>
+<p><strong>Management/standards</strong>: <span class="r">ISO
+27001</span> = ISMS requirements (certifiable; from BS7799) · <span
+class="r">ISO 27002</span> = code of practice, <span class="r">how to
+implement 27001</span>; successor of ISO 17799 (both True). <span
+class="r">NIST SP 800 series</span> = free, publicly available, broadly
+reviewed US guidance: 800-12 intro/handbook · <span
+class="r">800-14</span> generally accepted principles &amp; practices
+(<span class="r">8 points + 33 principles</span>) · 800-18 system
+security plans (SSP) · <span class="r">800-30</span> risk assessment ·
+<span class="r">800-37</span> RMF · <span class="r">800-53</span>
+controls catalog · <span class="r">800-55</span> performance measurement
+· 800-61 incident handling · 800-100 managers’ handbook. SP 800-14’s 8
+points (gist): security supports the mission; integral to sound
+management; cost-effective; owners have responsibilities outside their
+own org; responsibilities made explicit; requires comprehensive &amp;
+integrated approach; periodically reassessed; constrained by social
+factors. <span class="r">COBIT</span> (ISACA) = governance &amp; audit
+framework · <span class="r">COSO</span> = internal-control
+framework.</p>
+<p><strong>Benchmarking</strong> = compare your practices against peer
+orgs / industry standards → identifies <strong>which</strong> controls
+to consider (not how, no guarantee they transfer). Limitations: <span
+class="r">orgs don’t share attack/defense data; no two orgs are
+identical; practices are a moving target (dated fast)</span>. <span
+class="p">Trap: “biggest barrier = orgs often share results” → False,
+they DON’T share.</span> Two benchmark categories: standard of due
+care/due diligence + best practices (True). <span class="r">Due
+care</span> = adopt the minimum reasonable level of protection (what a
+prudent org would do). <span class="r">Due diligence</span> = ongoing
+maintenance — keep those controls effective over time. Failure of either
+→ <span class="r">legal liability / negligence</span> (True). Example:
+firewall installed (due care) but never patched/monitored (no due
+diligence); constant audits (diligence) but no basic encryption ever
+deployed (no due care). <span class="p">Trap: WS swaps the two
+definitions — care = implement minimum; diligence = maintain over
+time.</span> <span class="r">Best practices</span> = widely accepted
+superior procedures balancing protection &amp; business needs; <span
+class="r">gold standard</span> = the most respected model. Best-practice
+firms are NOT best at everything (False trap). Selecting practices —
+ask: similar org? same industry? similar challenges? comparable
+structure? can we afford the resources? similar threat environment?
+Limits: nothing fits everyone; may be too costly; copying without
+context adds risk; practices age. <span class="r">Baselining</span> =
+<span class="r">compare performance against an established reference
+point</span> — measure your <strong>own</strong> current state for
+future comparison → <span class="r">can support internal
+benchmarking</span> (first risk assessment often = the baseline); does
+NOT eliminate future measurement or guarantee improvement. Related to
+benchmarking (True). Self-assessment areas: people (background checks?
+can staff spot issues?), process (policy reviewed yearly? leaver
+accounts removed?), technology (all internet routes firewalled? laptops
+encrypted?).</p>
+<p><strong>Performance measurement</strong>: 3 types of measurements in
+use: <span class="b">policy execution / implementation, service delivery
+/ effectiveness-efficiency, incident impact</span>. Good measurements:
+<span class="r">quantifiable, repeatable, easy to collect,
+actionable</span>; should support resource-allocation decisions; an
+ongoing (not one-time) activity. <span class="r">Metrics</span> apply
+quantitative analysis to measurements — many orgs use “metrics” and
+“measurements” <span class="r">interchangeably</span>. Macro focus =
+whole program; micro focus = one system/control. Prioritize metrics by
+risk; set targets; use a standard development template; report with
+context, tailored to audience. <strong>4 critical factors for
+performance-program success</strong> (SP 800-55): <span class="r">strong
+upper-level management support, practical security policies &amp;
+procedures, quantifiable performance measures, results-oriented
+analysis</span>. NIST <span class="r">SP 800-55 Rev.1</span> = the
+performance-measurement guide (True). Its <strong>implementation process
+= 6 phases</strong> (True): <span class="b">prepare for data collection
+→ collect data &amp; analyze → identify corrective actions → develop
+business case → apply corrective actions</span> (+ obtain resources).
+<span class="p">Trap: the measurement <em>development</em> process is
+NOT “6 phases” (False).</span> Candidate metrics: % users with shared
+accounts, # failed logins, % policy violations (<span class="p">beware
+typo trap “SP 800-500”</span>).</p>
+<p><strong>Certification vs accreditation</strong>: <span
+class="r">certification</span> = comprehensive technical + non-technical
+evaluation of a system against requirements; <span
+class="r">accreditation</span> = management’s formal authorization to
+operate. Neither is permanent — re-evaluate every <span class="r">3–5
+years</span>. Post-2009 (FISMA-driven) US federal practice replaced
+C&amp;A with the <span class="r">Risk Management Framework — NIST SP
+800-37</span>. <strong>RMF 6 steps (cyclic, continuous)</strong>: <span
+class="b">Categorize → Select → Implement → Assess → Authorize →
+Monitor</span>. Assess ≈ old certification; Authorize ≈ old
+accreditation. Selecting baseline controls is part of RMF (True);
+monitoring is still required after implementation. <span class="p">Trap:
+“Review” and “Authenticate” are NOT RMF steps.</span></p>
+<h2 id="weeks-910-risk-identification-assessment-control-ws-56">5 ·
+Weeks 9–10 — Risk Identification, Assessment &amp; Control (WS 5–6)</h2>
+<p><strong>Risk management</strong> = identify, assess, control, monitor
+risks to information assets. <span class="r">Risk analysis ⊂ risk
+management</span> (assigns likelihood &amp; impact) — <span
+class="p">not the other way round (trap)</span>. “Know yourself” (your
+assets) &amp; “know the enemy” (threats) — Sun Tzu. Responsibility:
+<span class="r">every manager + all employees</span>; <span
+class="r">InfoSec community leads</span>; <span class="r">management
+&amp; users provide resources</span> (and early detection). <span
+class="p">Trap: risk control is NOT the first operational phase —
+identification comes first.</span></p>
+<p><strong>Risk identification</strong>: asset categories: <span
+class="r">people, procedures, data, software, hardware, networks</span>.
+Inventory attributes: name, IP address (can change — DHCP), <span
+class="r">MAC address (NOT always a reliable identifier)</span>, serial
+number, manufacturer, software version, physical &amp; <span
+class="r">logical location</span>, controlling entity. Identify first,
+value later; classification must be <span class="r">comprehensive +
+mutually exclusive</span>; inventory should reflect each asset’s
+security priority. Asset valuation questions: most critical to mission?
+generates most revenue/profit? most expensive to replace? most expensive
+to protect? biggest liability/embarrassment if exposed? <span
+class="r">Weighted factor analysis</span>: criteria weights sum to 100,
+score each asset 0.1–1.0, weighted sum ranks assets. <strong>Threat
+assessment</strong>: not all 12 categories endanger every org; ask:
+which threats are real here? cost of a successful attack? cost to
+recover? cost to prevent? prioritize via weighted tables (likelihood ×
+impact + preparedness). <span class="p">Technological obsolescence IS an
+InfoSec threat (True).</span> <span class="r">Vulnerabilities</span> =
+specific avenues by which threats can exploit assets — may exist in
+procedures and controls too, not just tech. <strong>TVA
+worksheet</strong>: assets across top (by value), threats down the side
+(by danger); cells list vulnerabilities → “TVA triples” (T1V1A1…);
+prioritized starting point for controls; does NOT itself eliminate
+vulnerabilities or replace risk assessment.</p>
+<p><strong>Risk formula</strong>:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>R</mi><mi>c</mi></msub><mo>+</mo><mi>U</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">R = (L_v \times I) \times (1 - R_c + U)</annotation></semantics></math>,
+where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>v</mi></msub><annotation encoding="application/x-tex">L_v</annotation></semantics></math>
+= likelihood threat exploits vulnerability,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math>
+= impact (asset value scale),
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>R</mi><mi>c</mi></msub><annotation encoding="application/x-tex">R_c</annotation></semantics></math>
+= fraction of risk mitigated by current controls,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
+= uncertainty of knowledge (1 − confidence). The ranked-vulnerability
+worksheet uses the simplified
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">R = L_v \times I</annotation></semantics></math>
+only. <span class="p">Exam rule — pick the formula by what the question
+gives: ranked-vulnerability worksheet → use
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mo>=</mo><msub><mi>L</mi><mi>v</mi></msub><mo>×</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">R = L_v \times I</annotation></semantics></math>;
+given a current-control % and data accuracy → use the full
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>R</mi><mi>c</mi></msub><mo>+</mo><mi>U</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(1 - R_c + U)</annotation></semantics></math>
+formula.</span> Worked example (memorize the method):</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Asset / vuln</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mi>v</mi></msub><annotation encoding="application/x-tex">L_v</annotation></semantics></math></th>
+<th>I</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>R</mi><mi>c</mi></msub><annotation encoding="application/x-tex">R_c</annotation></semantics></math></th>
+<th>U</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>A switch — hardware failure</td>
+<td>0.2</td>
+<td>90</td>
+<td>0</td>
+<td>0.25</td>
+<td>(0.2×90)×1.25 = <span class="r">22.5 → first</span></td>
+</tr>
+<tr class="even">
+<td>A switch — SNMP overflow</td>
+<td>0.1</td>
+<td>90</td>
+<td>0</td>
+<td>0.25</td>
+<td>9×1.25 = 11.25</td>
+</tr>
+<tr class="odd">
+<td>B web server — Unicode</td>
+<td>0.1</td>
+<td>100</td>
+<td>0.75</td>
+<td>0.20</td>
+<td>10×0.45 = 4.5</td>
+</tr>
+<tr class="even">
+<td>C console — misuse</td>
+<td>0.1</td>
+<td>5</td>
+<td>0</td>
+<td>0.10</td>
+<td>0.5×1.1 = <span class="r">0.55 → last</span></td>
+</tr>
+</tbody>
+</table>
+<p>Qualitative alternative: <span class="r">AS/NZS 4360</span> —
+likelihood A (almost certain)…E (rare) × consequence 1 (insignificant)…5
+(catastrophic) → Extreme/High/Moderate/Low. <span class="p">It is
+QUALITATIVE, not quantitative (trap).</span> Possible controls come in 3
+flavors: <span class="r">policies, programs (e.g. SETA), technical
+controls</span>. Deliverables: ranked asset list, ranked threat list,
+TVA worksheet, ranked vulnerability risk worksheet. <span
+class="p">Likelihood varies per vulnerability (never “always the same”);
+U is not always smaller than
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>R</mi><mi>c</mi></msub><annotation encoding="application/x-tex">R_c</annotation></semantics></math>.</span></p>
+<p><strong>Five risk control strategies</strong> + scenario mapping:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Strategy</th>
+<th>Meaning</th>
+<th>Scenario</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="r">Defense</span></td>
+<td>apply safeguards to <strong>prevent</strong> exploitation (policy +
+training + technology together)</td>
+<td>password policy + MFA to prevent unauthorized access</td>
+</tr>
+<tr class="even">
+<td><span class="r">Transference</span></td>
+<td>shift risk to others</td>
+<td>cyber insurance; outsourcing (still monitor via SLA!)</td>
+</tr>
+<tr class="odd">
+<td><span class="r">Mitigation</span></td>
+<td>reduce <strong>impact</strong> when attack succeeds — via <span
+class="r">IRP / DRP / BCP</span></td>
+<td>develop DRP to limit damage</td>
+</tr>
+<tr class="even">
+<td><span class="r">Acceptance</span></td>
+<td>consciously live with the risk</td>
+<td>after CBA shows safeguard not worth it</td>
+</tr>
+<tr class="odd">
+<td><span class="r">Termination</span></td>
+<td>remove the asset entirely</td>
+<td>retire obsolete system too costly to secure</td>
+</tr>
+</tbody>
+</table>
+<p><span class="p">Traps: prevention ≠ mitigation (MFA = defense); DRP =
+mitigation, not defense; termination ≠ “accepting without controls”;
+acceptance is INVALID without prior likelihood/loss analysis +
+CBA.</span> Acceptance is proper only when: risk is within <span
+class="r">risk appetite</span>; thorough <span class="r">CBA</span>
+done; decision informed, documented, approved; risk still monitored.
+<span class="r">Risk appetite</span> = amount/nature of risk an org will
+accept (varies w/ industry, regulation, culture, finances, history).
+<span class="r">Residual risk</span> = risk remaining after controls;
+goal = bring it within appetite, <span class="r">never to zero</span>;
+leftover residual risk ≠ program failure. <span class="r">Once
+decision-makers are <em>informed</em> and the <em>proper authority</em>
+knowingly accepts the residual risk, the security program has met its
+primary objective.</span></p>
+<p><strong>Cost-benefit analysis</strong>:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mi>L</mi><mi>E</mi><mo>=</mo><mi>A</mi><mi>V</mi><mo>×</mo><mi>E</mi><mi>F</mi></mrow><annotation encoding="application/x-tex">SLE = AV \times EF</annotation></semantics></math>
+(asset value × exposure factor = % of asset lost per incident) ·
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>L</mi><mi>E</mi><mo>=</mo><mi>S</mi><mi>L</mi><mi>E</mi><mo>×</mo><mi>A</mi><mi>R</mi><mi>O</mi></mrow><annotation encoding="application/x-tex">ALE = SLE \times ARO</annotation></semantics></math>
+·
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mi>B</mi><mi>A</mi><mo>=</mo><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>b</mi><mi>e</mi><mi>f</mi><mi>o</mi><mi>r</mi><mi>e</mi></mrow></msub><mo>−</mo><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>a</mi><mi>f</mi><mi>t</mi><mi>e</mi><mi>r</mi></mrow></msub><mo>−</mo><mi>A</mi><mi>C</mi><mi>S</mi></mrow><annotation encoding="application/x-tex">CBA = ALE_{before} - ALE_{after} - ACS</annotation></semantics></math>;
+positive → safeguard worth it. CBA may be computed <span
+class="r">before or after</span> a control is in place. ARO conversions:
+weekly = 52, monthly = 12, quarterly = 4, every 6 months = 2, every 2
+yrs = 0.5, every 20 yrs = 0.05. <span class="p">ALE is ANNUAL loss; SLE
+is single-loss (trap swaps them). Never spend more protecting an asset
+than it is worth.</span> Example: AV $50k, EF 30% → SLE $15k; ARO 2 →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>b</mi><mi>e</mi><mi>f</mi><mi>o</mi><mi>r</mi><mi>e</mi></mrow></msub></mrow><annotation encoding="application/x-tex">ALE_{before}</annotation></semantics></math>
+$30k; control halves ARO →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>a</mi><mi>f</mi><mi>t</mi><mi>e</mi><mi>r</mi></mrow></msub></mrow><annotation encoding="application/x-tex">ALE_{after}</annotation></semantics></math>
+$15k; ACS $10k → CBA = 30−15−10 = <span class="r">+$5k → worth
+it</span>. Exam pattern: “improved security” tables → recompute
+SLE/ARO/ALE after; if control eliminates the threat,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>L</mi><msub><mi>E</mi><mrow><mi>a</mi><mi>f</mi><mi>t</mi><mi>e</mi><mi>r</mi></mrow></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">ALE_{after}=0</annotation></semantics></math>.
+ACS = cost of control per year. <span class="p">Trap: ARO is NOT “the
+percentage of an asset damaged in a successful attack” — that is
+EF.</span> Include hidden costs: deployment, maintenance, training,
+downtime, liability, reputation.</p>
+<p><strong>Feasibility analysis</strong> (gate before implementing a
+control): <span class="r">economic</span> = affordable? (assessed via
+CBA) · <span class="r">technical</span> = do we have/can we acquire the
+tech &amp; expertise? · <span class="r">organizational</span> = fits
+strategy &amp; operations of the org · <span
+class="r">operational</span> = will users/management accept and use it?
+· <span class="r">political</span> = will internal stakeholders/power
+dynamics support it (<span class="p">not about government laws</span>).
+Alternatives when full CBA/feasibility impossible: benchmarking, best
+practices/gold standard, due care &amp; due diligence, baselining. <span
+class="p">📌 Other RM frameworks (OCTAVE / FAIR / Microsoft RM / ISO
+27005 / ISO 31000 / NIST RMF / ENISA) = NOT examinable (Wk10, teacher’s
+words) — know they exist, no detail needed. NB: ISO 31000 descends from
+AS/NZS 4360, which IS examinable (see above).</span></p>
+<h2 id="weeks-1112-protection-mechanisms-personnel-law-ethics-ws-6">6 ·
+Weeks 11–12 — Protection Mechanisms, Personnel, Law &amp; Ethics (WS
+6)</h2>
+<p><strong>Access controls (technical)</strong>: <span
+class="r">identification</span> requires a <span class="r">unique
+identifier mapping to one entity</span> in the security domain.
+Authentication factors: <span class="r">something you know / have / are
+/ produce</span> (password / smart card, token / biometrics / voice,
+signature). <span class="r">Strong authentication (MFA) = at least TWO
+factors of DIFFERENT types</span>. Authorization granted <span
+class="r">per user, per group, or across systems (SSO)</span> — <span
+class="p">group-based is valid (trap says it must be individual)</span>.
+Accountability via <span class="r">system logs &amp;
+auditing</span>.</p>
+<p><strong>Firewall generations</strong>: <span class="r">1st packet
+filtering</span> (headers: IP, port, protocol) → <span class="r">2nd
+application-level</span> (proxy server — acts on the client’s behalf at
+app layer; needs per-protocol support) → <span class="r">3rd stateful
+inspection</span> (tracks connections in a <span class="r">state
+table</span>) → <span class="r">4th dynamic packet filtering</span>
+(opens/closes ports on demand). <strong>Architectures</strong>:
+packet-filtering router · <span class="r">screened host</span> (router +
+bastion/proxy host) · <span class="r">dual-homed host</span> (two NICs
+between internal/external, often NAT) · <span class="r">screened
+subnet</span> (DMZ between two filtering routers — most secure, but
+<span class="p">more complex &amp; costly, NOT cheaper</span>). <span
+class="p">🚩 Trap: the 4 GENERATIONS (packet-filter → app-level →
+stateful → dynamic) are NOT the 4 ARCHITECTURES (packet-filter router /
+screened-host / dual-homed / screened-subnet) — “dynamic packet
+filtering” is a <em>generation</em>, not an architecture.</span>
+Q&amp;A: firewall = device controlling traffic between trusted &amp;
+untrusted networks; app-layer firewall inspects content (HTTP/SMTP) and
+is called a proxy because it receives &amp; forwards on behalf of
+clients.</p>
+<p><strong>IDPS</strong>:</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Split</th>
+<th>Kinds</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Location</td>
+<td><span class="r">host-based</span> (one system; sees local changes;
+more accurate, lower false positives) vs <span
+class="r">network-based</span> (traffic at choke points; broader view,
+higher false positives)</td>
+</tr>
+<tr class="even">
+<td>Method</td>
+<td><span class="r">signature-based</span> (matches known patterns;
+accurate but <span class="r">needs regular updates</span>, misses novel
+attacks) vs <span class="r">anomaly-based</span> (baseline of normal;
+<span class="r">can catch unknown attacks</span>; slower, more false
+alarms)</td>
+</tr>
+</tbody>
+</table>
+<p>Poor configuration → floods of false alarms or missed attacks (True).
+<span class="p">IDPSs do NOT automatically terminate all attacks
+(trap).</span></p>
+<p><strong>Wireless</strong>: manage the <span
+class="r">footprint</span> — don’t maximize AP power; size coverage to
+the building. Threats: <span class="r">war driving</span> (scanning for
+unsecured APs), <span class="r">rogue AP</span>. <span class="p">📌
+WEP/WPA/WPA2/WPA3 protocol ladder = NOT examinable (Wk13, teacher’s
+words) — omitted.</span></p>
+<p><strong>Cryptography</strong>: cryptology = <span
+class="r">cryptography</span> (making secure messages) + <span
+class="r">cryptanalysis</span> (breaking them). Terms: algorithm/cipher,
+plaintext → (encrypt) → ciphertext → (decrypt) → plaintext; key; <span
+class="r">steganography = hiding the existence of the message</span>.
+<span class="p">Trap: ciphertext results from ENcryption, not
+decryption.</span> Cipher types: <span class="r">substitution</span>
+(Caesar/shift; mono- vs polyalphabetic), <span
+class="r">transposition</span> (rearrange), <span class="r">XOR</span>
+(bitwise, reversible by re-XOR). Caesar worked: ROT13 “GUR SVANY RKNZ…”
+→ <span class="r">THE FINAL EXAM WILL TAKE PLACE IN THE NEXT
+MONTH</span>; that plaintext, left shift 6 → “NBY ZCHUF YRUG…”.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th><span class="r">Symmetric</span></th>
+<th><span class="r">Asymmetric</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Keys</td>
+<td>one shared secret</td>
+<td>public/private pair</td>
+</tr>
+<tr class="even">
+<td>Speed</td>
+<td><span class="r">fast</span></td>
+<td>slower (<span class="p">less efficient — True</span>)</td>
+</tr>
+<tr class="odd">
+<td>Pain point</td>
+<td><span class="r">secure key distribution</span></td>
+<td>cost/complexity; but easier key mgmt</td>
+</tr>
+<tr class="even">
+<td>Examples</td>
+<td>DES, 3DES, <span class="p">AES (symmetric! not
+asymmetric)</span></td>
+<td><span class="r">RSA</span>, ElGamal</td>
+</tr>
+</tbody>
+</table>
+<p><span class="r">Hybrid</span> systems (e.g. <span
+class="r">Diffie-Hellman</span>): asymmetric to exchange a symmetric
+session key, symmetric for bulk traffic. <span class="r">Digital
+signature</span>: sign w/ private key, verify w/ public → provides <span
+class="r">authentication + non-repudiation</span> (<span class="p">NOT
+confidentiality/availability/privacy</span>). Hashing → <span
+class="r">integrity</span>. <span class="r">Digital certificate</span> =
+identity assertion verified by a <span class="r">CA = electronic
+notary</span> (verifies origin &amp; integrity of certs; does NOT make
+symmetric keys for everyone or stop all MITM). <span
+class="r">PKI</span> = infrastructure of keys, certs, CAs. Cert chain:
+root CA → intermediate CA(s) → server certificate; check validity
+period, domain match, trusted issuer. Applications: email = <span
+class="r">S/MIME, PGP</span> (<span class="p">HTTPS is NOT an email
+protocol — trap</span>); web = <span class="r">SSL/TLS, HTTPS</span>;
+network = <span class="r">IPSec, VPN</span>; remote shell = <span
+class="r">SSH</span>; authentication = <span class="r">Kerberos</span>.
+<span class="p">📌 know <em>what each protects</em>, but these specific
+application protocols are NOT exam-essential (Wk13); crypto has
+<strong>no calculation</strong> questions.</span> Key management: don’t
+lose/leak keys; verify who you’re talking to; mind legal restrictions on
+crypto; no cryptosystem is invincible; no security through
+obscurity.</p>
+<p><strong>InfoSec staffing</strong>: <span class="r">CISO</span> =
+senior, <span class="r">business manager first, technologist
+second</span>; usually reports to CIO; <span class="p">CISSP common for
+CISOs — “extremely uncommon” is False</span>. <span class="r">Security
+manager</span> = mid-level; day-to-day ops; needs budgeting, project-
+&amp; people-management; drafts ISSP/SysSP-level policy. <span
+class="r">Security technician</span> = entry-level hands-on (firewalls,
+IDPS, troubleshooting); tool-specific certs valued. Certifications:
+<span class="r">(ISC)²: CISSP</span> (premier, senior, ~5 yrs
+experience; <span class="r"><strong>10 domains</strong></span>: access
+control, telecom &amp; network security, cryptography, security
+architecture &amp; design, operations security, BC &amp; DR,
+legal/compliance, physical security, software dev security, InfoSec
+governance &amp; risk mgmt) and <span class="r">SSCP</span> (<span
+class="p">entry/operational level, <strong>7 domains</strong> — NOT for
+senior executives</span>); <span class="r">ISACA: CISA</span> (audit)
+&amp; <span class="r">CISM</span> (management); also Security+. Certs
+are costly and assume experience.</p>
+<p><strong>Hiring</strong> (InfoSec woven into HR lifecycle): job
+descriptions/ads <span class="r">without revealing access
+privileges</span>; interviews limit info disclosure, <span class="p">no
+tours of secure areas</span>; <span class="r">background check BEFORE
+extending the offer</span> (identity, criminal, credit, driving, drug);
+new-hire orientation includes <span class="r">security briefing &amp;
+training</span>; employment <span class="r">contracts may include
+monitoring consent + NDA</span>. <strong>Termination</strong>: disable
+all access &amp; recover keycards/assets/media, change locks, audit logs
+around departure, <span class="r">exit interview (remind NDA)</span>.
+<span class="r">Hostile</span> departure: <span class="r">disable the
+employee’s logical and keycard access BEFORE the employee is informed of
+the termination</span>; escort off premises; no backup to external
+storage, no unrestricted access, no account extension. <span
+class="r">Friendly</span>: account may persist with an expiration date;
+escort usually unnecessary. <strong>Personnel controls</strong>: <span
+class="r">separation of duties</span> (no single person controls a whole
+critical task → anti-fraud) · <span class="r">two-person control</span>
+(two people review/approve each other’s work) · <span class="r">job/task
+rotation</span> (multiple people can do each critical task; deters &amp;
+detects fraud; <span class="p">NOT based on least privilege —
+trap</span>) · <span class="r">mandatory vacation</span> (others perform
+the absent person’s duties → irregularities surface; <span class="p">not
+a morale measure</span>) · <span class="r">least privilege</span>
+(minimum access, minimum time; permanent broad rights violate it).
+Protect employee/customer/patient personal data — legal obligation
+(privacy laws). <strong>Nonemployees</strong>: temporary workers — <span
+class="r">not bound by the org’s employment policies</span>; least
+privilege; <span class="p">agencies rarely liable for damages they
+cause</span>. Contract workers/service contractors — <span
+class="r">escort &amp; monitor in secure facilities</span>; pre-arranged
+visits. Consultants — have their own agenda; your security is not their
+priority → NDA + minimal access, <span class="p">never “all access by
+default”</span>. Business partners — system integration spreads
+exposure: <span class="r">a vulnerability in one connected system = a
+vulnerability for all</span>; do a security review
+<strong>before</strong> interconnection; agree on exposure levels in
+advance.</p>
+<p><strong>Law vs ethics</strong>: <span class="r">laws</span> = rules
+adopted &amp; enforced by government, carry penalties; <span
+class="r">ethics</span> = socially/professionally accepted moral norms,
+no state enforcement (<span class="p">ethics are NOT government-enforced
+— recurring trap</span>). <span class="r">Laws are typically derived
+from the ethics/cultural mores of a society.</span> <span
+class="r">Ignorance, accident, and intent = the three broad categories
+of unethical behavior</span> → counter with education (SETA), controls,
+policy. <strong>Deterrence — 3 conditions</strong> (all required;
+laws/policies deter only if): <span class="r">1 fear of penalty; 2
+probability of being caught (apprehension); 3 probability of penalty
+actually being administered</span>. Fear alone is insufficient;
+deterrence does work when all three hold. Codes of ethics: <span
+class="r">(ISC)², ISACA, SANS, ACM, ISSA</span> — guide professionals;
+individuals must follow employer policy + professional codes + law. Key
+laws (one-liners): US — CFA Act 1986 (computer fraud &amp; abuse),
+Computer Security Act 1987, Federal Privacy Act 1974, ECPA 1986
+(wiretap/electronic comms), HIPAA 1996 (health data); DMCA; EU Council
+Cybercrime Convention; AUS — <span class="r">Privacy Act 1988</span>,
+cybercrime/high-tech crime laws. <strong>Lawful vs ethical (Australian
+case answers)</strong>: <span class="r">lawful but unethical</span> —
+retailer complies with Privacy Act 1988 but buries consent in unreadable
+T&amp;Cs with maximal default data collection; minimum-compliance org
+that delays patching known vulnerabilities to save cost (legal, but
+breaches due care ethics). <span class="r">Ethical but potentially
+unlawful</span> — researcher accesses a system without authorization to
+verify a flaw, then responsibly discloses (good intent, but unauthorized
+access breaches computer-misuse law). Legal compliance alone ≠
+sufficient: law is the floor; ethics + due care/diligence fill the gaps
+where law lags technology. Professional codes ((ISC)², ACM, ISACA) give
+decision guidance, accountability, and shared standards when law and
+ethics diverge.</p>
+</div>
+</body>
+</html>
