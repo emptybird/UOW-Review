@@ -1,0 +1,2948 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Week 3 · Data Visualization and Hypothesis Test(数据可视化与假设检验)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="week-3--data-visualization-and-hypothesis-test数据可视化与假设检验">Week
+3 · Data Visualization and Hypothesis Test(数据可视化与假设检验)</h1>
+<blockquote>
+<p><strong>CSCI446/946 Big Data Analytics</strong> — University of
+Wollongong, Spring 2026 本讲义融合
+<code>w3-Visualization-Hypothesis-Test-SP-2026.pdf</code>(57 页
+slides)与 Week 3 课堂录音转录。</p>
+</blockquote>
+<hr />
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li><strong>说出</strong> five-number summary
+的五个数字各是什么,并解释为什么"只看描述性统计"会把你带进沟里(用
+Anscombe's quartet 举证);</li>
+<li><strong>用可视化诊断脏数据 (dirty data)</strong>:看懂直方图里的 0
+值堆积、负值、末端截断分别在暗示什么数据质量问题;</li>
+<li><strong>为一个给定变量选对图</strong>:histogram / density + rug /
+dotchart / barplot / boxplot / hexbinplot / scatterplot
+matrix,并说明各自适合什么场景;</li>
+<li><strong>解释什么时候必须做 log
+transformation</strong>,以及不做会看不见什么;</li>
+<li><strong>正确写出</strong>任意场景下的 null hypothesis
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>)
+与 alternative hypothesis
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>),并判断该用单侧还是双侧检验;</li>
+<li><strong>解释</strong>为什么"新均值更大"不等于"更好"——用
+mean、variance、overlap 三者的关系说清楚;</li>
+<li><strong>写出并读懂</strong> Student's t-test
+的统计量,列出它的三条核心假设,说明自由度为什么是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub><mo>−</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">n_1+n_2-2</annotation></semantics></math>;</li>
+<li><strong>用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-value
+三种等价方式做出拒绝/不拒绝的判断</strong>,并解释 95%
+置信区间的含义;</li>
+<li><strong>在 Student's t-test、Welch's t-test、Wilcoxon rank-sum
+test、ANOVA、Tukey's HSD
+之间做出选择</strong>,说出每一步是哪条假设被放松了;</li>
+<li><strong>辨析</strong> Type I error / Type II error /
+power,并说明各自的补救手段;</li>
+<li><strong>解释</strong> ANOVA 的 F
+统计量在衡量什么,以及为什么它优于反复做成对 t 检验。</li>
+</ul>
+</blockquote>
+<hr />
+<h2
+id="开篇这一讲在讲什么以及它为什么被排在第三周">开篇:这一讲在讲什么,以及它为什么被排在第三周</h2>
+<p>Week 2 我们走完了 <strong>Data Analytics
+Lifecycle</strong>(大数据分析生命周期)的六个阶段。那是一张地图:告诉你从
+Discovery 到 Operationalize
+该按什么顺序走。但地图上有两个格子里写着"这里需要一件工具",而我们当时还没有那件工具。</p>
+<p>第一个格子在 <strong>Phase 2 Data
+Preparation</strong>:你要"熟悉数据"、"发现异常值"、"做可视化概览"。可具体怎么看?用什么图?看出什么才算异常?</p>
+<p>第二个格子出现了不止一次:生命周期里反复提到
+<strong>hypothesis</strong>(假设)——Phase 1 要 <em>develop initial
+hypotheses</em>,Phase 2 之后要 <em>test the initial
+hypotheses</em>,Phase 5
+要判断结果是否"充分接受或拒绝了某个假设"。可"检验一个假设"到底是个什么操作?凭什么说"这个差异是真的,不是碰巧"?</p>
+<p>本讲就是把这两件工具补上。讲师在开场时把这个逻辑说得很直白:上周讲的是<strong>怎么执行</strong>一个大数据分析项目,而
+visualization 和 hypothesis testing
+是这个流程里两个反复出现、却还没被展开的动作。所以今天补课。</p>
+<p>这两半看起来风格迥异——前半是画图,几乎没有公式;后半是统计推断,公式一个接一个。但它们其实在回答<strong>同一个问题的两个层次</strong>:</p>
+<pre class="mermaid"><code>graph LR
+  Q[&quot;核心问题:&lt;br/&gt;我看到的这个现象,&lt;br/&gt;是真的吗?&quot;] --&gt; V[&quot;Part I · 可视化&lt;br/&gt;我到底看到了什么?&lt;br/&gt;&lt;i&gt;把数据变成眼睛能读的东西&lt;/i&gt;&quot;]
+  Q --&gt; H[&quot;Part II · 假设检验&lt;br/&gt;我看到的差异是真实的&lt;br/&gt;还是随机波动?&lt;br/&gt;&lt;i&gt;把&#39;看起来不一样&#39;变成可判定的命题&lt;/i&gt;&quot;]
+  V --&gt;|发现模式与异常| H
+  H --&gt;|结论回到数据准备与模型评估| V</code></pre>
+<p>先用眼睛看(Part I),再用统计量判(Part
+II)。前者防止你被数字骗,后者防止你被眼睛骗。讲师在课末特别提醒:<strong>"第二半技术强度比较高,请一定回去复习,里面有多个重要概念,你需要准确地理解它们。"</strong>
+这句话值得当作复习优先级来读。</p>
+<blockquote>
+<p>📎 <strong>本讲的图与代码来源</strong> — slides
+首页注明,除特别说明外,所有图表与代码均出自教材 <em>Data Science and Big
+Data Analytics: Discovering, Analyzing, Visualizing and Presenting
+Data</em>(EMC Education Services)。课上示例代码大部分是
+<strong>R</strong>,少部分是
+<strong>Python</strong>。讲师说明:本课的目标<strong>不是让你从零实现算法</strong>,而是<strong>正确、高效地使用工具</strong>;他反复建议直接把代码贴进
+<strong>Google Colab</strong> 跑一遍(Colab 可以切换 Python / R
+runtime)。</p>
+</blockquote>
+<hr />
+<h1
+id="part-i--看见数据descriptive-statistics-与-exploratory-data-analysis">Part
+I · 看见数据:Descriptive Statistics 与 Exploratory Data Analysis</h1>
+<h2 id="1-起点描述性统计以及它诚实的局限">§1
+起点:描述性统计,以及它诚实的局限</h2>
+<h3 id="11-拿到一份数据第一件事做什么">1.1
+拿到一份数据,第一件事做什么</h3>
+<p>假设有人扔给你一个
+CSV,十万行,几十列。你不可能一行一行读。所以第一个动作永远是<strong>把数据压缩成几个能一眼看完的数字</strong>——这就是<strong>描述性统计
+(descriptive
+statistics)</strong>:用少量统计量概括整份数据的位置、离散程度和形状。</p>
+<p>最经典的一组叫 <strong>five-number
+summary(五数概括)</strong>。讲师在课上逐项点过名,建议连同 mean 与
+standard deviation 一起记:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>统计量</th>
+<th>含义</th>
+<th>直觉</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Min</strong></td>
+<td>最小值</td>
+<td>数据的下界</td>
+</tr>
+<tr class="even">
+<td><strong>Q1</strong>(first quartile,第一四分位数)</td>
+<td>25% 分位点</td>
+<td>有 25% 的数据比它小</td>
+</tr>
+<tr class="odd">
+<td><strong>Q2 / Median</strong>(中位数)</td>
+<td>50% 分位点</td>
+<td>把数据一分为二的那个值</td>
+</tr>
+<tr class="even">
+<td><strong>Q3</strong>(third quartile,第三四分位数)</td>
+<td>75% 分位点</td>
+<td>有 75% 的数据比它小</td>
+</tr>
+<tr class="odd">
+<td><strong>Max</strong></td>
+<td>最大值</td>
+<td>数据的上界</td>
+</tr>
+<tr class="even">
+<td><em>(附)</em> <strong>Mean</strong></td>
+<td>算术平均</td>
+<td>数据的"重心"</td>
+</tr>
+<tr class="odd">
+<td><em>(附)</em> <strong>Std</strong>(standard deviation)</td>
+<td>标准差</td>
+<td>数据围绕重心散得多开</td>
+</tr>
+</tbody>
+</table></div>
+<p>这里有一个学生常混淆的点,讲师专门澄清过:<strong>median(中位数)和
+mean(均值)都在描述"中间在哪儿",但算法完全不同</strong>。Mean
+是把所有值加起来除以个数,因此<strong>一个极端值就能把它拽走</strong>;median
+只关心"排序后正中间那个",所以<strong>对极端值不敏感</strong>。后面 §4.3
+讲收入数据时,你会看到这个区别的实际后果:少数亿万富翁能把 mean income
+拉得很高,而 median income 几乎不动。</p>
+<p>在 Python 里,这一切是一行代码:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.DataFrame(data)     <span class="co"># data 有 age、income(数值)和 city(类别)三列</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>df.describe()</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 输出:count, mean, std, min, 25%, 50%, 75%, max</span></span></code></pre></div>
+<p>课上给的示例数据里有 <code>age</code>、<code>income</code>
+两个数值列和一个 <code>city</code>
+类别列。注意输出里<strong>只有数值列</strong>——讲师解释得很清楚:<strong><code>city</code>
+是 categorical(类别型)变量,谈不上 mean、max 或 standard
+deviation</strong>,所以 <code>describe()</code> 默认把它跳过。这不是
+bug,是变量类型决定的。</p>
+<p>R 里对应的是 <code>summary()</code>:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data)   <span class="co"># 同样给出 Min, 1st Qu., Median, Mean, 3rd Qu., Max</span></span></code></pre></div>
+<p>本课两种语言都会出现,讲师希望你对两边都有基本概念。</p>
+<h3 id="12-这一节真正的重点but-do-not-simply-depend-on-them">1.2
+这一节真正的重点:<strong>"But do not simply depend on
+them!"</strong></h3>
+<p>slides S4 上这句带感叹号的话,是整个 Part I 的转折点。</p>
+<p>描述性统计的本质是<strong>压缩</strong>。压缩必然丢信息。问题是——丢的是哪些信息?答案很要命:<strong>恰好是数据分析最关心的那些</strong>。</p>
+<p>具体来说,五数概括<strong>说不出</strong>两件事:</p>
+<ol type="1">
+<li><strong>分布的形状
+(distribution)</strong>。数据是单峰还是双峰?是对称还是右偏?中间有没有断层?五个数字全看不出来。</li>
+<li><strong>变量之间的关系 (relationship)</strong>。给你
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+的五数概括和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>
+的五数概括,你完全不知道
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>
+是线性相关、非线性相关,还是毫无关系。</li>
+</ol>
+<p>讲师用一个最小示例演示了第二点。他生成 50 个点:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">50</span>)                       <span class="co"># 50 个标准正态随机数</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> x <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="dv">50</span>, <span class="at">mean=</span><span class="dv">0</span>, <span class="at">sd=</span><span class="fl">0.5</span>)   <span class="co"># y 大体等于 x,再叠加一点噪声</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">cbind</span>(x, y))</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data)                        <span class="co"># 只能看到 x 和 y 各自的五数概括</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data, <span class="fu">aes</span>(<span class="at">x=</span>x, <span class="at">y=</span>y)) <span class="sc">+</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size=</span><span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">&quot;Scatterplot of X and Y&quot;</span>) <span class="sc">+</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text  =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">12</span>),</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>, <span class="at">face=</span><span class="st">&quot;bold&quot;</span>))</span></code></pre></div>
+<p>代码本身很简单:先造 <code>x</code>,再让
+<code>y = x + 噪声</code>(<strong>如果不加噪声,画出来就是一条完美直线,看不出真实数据的样子</strong>),把两列合成
+data frame,然后 <code>ggplot</code> 画散点。<code>ggplot()</code>
+的第一个参数是数据、<code>aes()</code> 指定哪列画在 x 轴哪列画在 y
+轴——<strong>这两处是实质内容</strong>;后面 <code>theme(...)</code>
+里那一堆全是字号、标题之类的装饰。</p>
+<p>关键在于结果:<strong>只看 <code>summary(data)</code>,你不知道 X 和 Y
+有关系;一画散点图,"Y 随 X
+递增、大致线性"立刻扑面而来</strong>,而且哪个点离群、离得多远,也一眼可见。</p>
+<p>这就引出了<strong>探索性数据分析 (Exploratory Data Analysis,
+EDA)</strong> 的定位。EDA
+是在正式建模之前,用统计量和图形反复"审视"数据的过程,而<strong>可视化是
+EDA 最主要的手段</strong>。slides 给了它三条职能:</p>
+<ul>
+<li><strong>发现模式与异常 (detect patterns and
+anomalies)</strong>;</li>
+<li><strong>提供简洁而整体的视图 (a succinct, holistic
+view)</strong>;</li>
+<li>它是<strong>初期数据探索阶段的重要一环 (an important facet at the
+initial data exploration)</strong>。</li>
+</ul>
+<p>讲师对"holistic
+view"补了一句很到位的解读:<strong>很多时候我们并不关心某个具体数值,我们要的是整体趋势和浮现出来的模式,因为那才决定"我该怎么建模、怎么刻画这份数据"</strong>。图不是为了好看,是为了给下游的建模决策提供依据。</p>
+<blockquote>
+<p><strong>❓ 课堂留给你的问题(S6)</strong> — <em>In which phases of the
+data analytics lifecycle is "visualization" mentioned?</em> 回去翻 Week
+2 的 slides。提示:它<strong>不止出现在一个阶段</strong>。Phase 2 Data
+Preparation 里明确有"data visualization / overview first, zoom and
+filter, then details on demand";Phase 5 Communicate Results
+里,面向不同受众选择恰当的图表同样是核心动作(这正是 §6 要讲的);而 Phase 1
+Discovery 和 Phase 6 Operationalize
+的监控环节也都用得上。讲师本人的立场是:<strong>可视化在生命周期的每一个阶段都有用</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="2-anscombes-quartet同样的统计量四个完全不同的世界">§2 Anscombe's
+Quartet:同样的统计量,四个完全不同的世界</h2>
+<p>上一节说"描述性统计会漏掉东西",还比较抽象。这一节是那记重拳。</p>
+<p>slides S8–S10 给出四组数据,记作 Dataset 1–4,每组都是一堆
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x, y)</annotation></semantics></math>
+点对。把它们各自丢进 <code>summary()</code> /
+描述性统计,你会得到<strong>几乎完全相同</strong>的结果:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+的均值相同,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+的均值相同;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+的方差相同,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+的方差相同;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+的<strong>相关系数 (correlation)</strong> 相同;</li>
+<li>甚至你对四组分别做<strong>线性回归 (linear
+regression)</strong>,拟合出来的直线也几乎一模一样。</li>
+</ul>
+<p>于是一个很自然的推论冒出来了,讲师把它明确说了出来:<em>"既然它们共享这么多相同的统计结果,那我是不是可以一视同仁地对待这四组数据,用同一个模型去处理?"</em></p>
+<p><strong>答案是:不行。</strong> 因为一旦画出来——slides S10 的标题就叫
+<em>"However, the reality is a different story…"</em>
+——四张图长得毫无相似之处:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>Dataset</th>
+<th>图形长什么样</th>
+<th>意味着什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>1</strong></td>
+<td>一团围绕直线散开的点,行为良好</td>
+<td>线性模型是合适的</td>
+</tr>
+<tr class="even">
+<td><strong>2</strong></td>
+<td>一条明显的<strong>弯曲弧线</strong></td>
+<td>存在<strong>非线性成分</strong>,线性模型系统性地错了</td>
+</tr>
+<tr class="odd">
+<td><strong>3</strong></td>
+<td>点几乎<strong>完美共线</strong>,但有<strong>一个离群点</strong>把回归线拽歪了</td>
+<td>需要处理 <strong>outlier</strong>,而不是接受这条被污染的拟合线</td>
+</tr>
+<tr class="even">
+<td><strong>4</strong></td>
+<td>所有点挤在同一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+上,另有<strong>一个孤立点</strong>独自决定了斜率</td>
+<td>数据设计本身有问题,回归结果毫无意义</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师的总结一针见血:<strong>五数概括是 high-level
+statistics(高层统计量),它们不代表数据的每一个细节。如果你只依赖它们,你会被误导
+(you could be cheated / misguided)。</strong></p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+这组数据有名字:<strong>Anscombe's
+quartet</strong>(安斯库姆四重奏),由统计学家 Francis Anscombe 于 1973
+年构造,专门用来说明"先画图,再统计"的必要性。转录里被语音识别成了 "SCObit
+data set",指的就是它。现代还有个更极端的续作叫 <strong>Datasaurus
+Dozen</strong>——十几组统计量完全一致的数据,其中一组画出来是一只恐龙。名字不必背,<strong>教训要背</strong>。</p>
+</blockquote>
+<pre class="mermaid"><code>graph TD
+  D[&quot;同一批描述性统计量&lt;br/&gt;mean · variance · correlation · 回归系数&quot;]
+  D --&gt; A[&quot;Dataset 1&lt;br/&gt;线性,行为良好&quot;]
+  D --&gt; B[&quot;Dataset 2&lt;br/&gt;非线性弧线&quot;]
+  D --&gt; C[&quot;Dataset 3&lt;br/&gt;共线 + 1 个离群点&quot;]
+  D --&gt; E[&quot;Dataset 4&lt;br/&gt;退化结构 + 1 个杠杆点&quot;]
+  A --&gt; R[&quot;结论:统计量相同&lt;br/&gt;&lt;b&gt;≠&lt;/b&gt; 数据相同&lt;br/&gt;&lt;b&gt;≠&lt;/b&gt; 可以用同一个模型&quot;]
+  B --&gt; R
+  C --&gt; R
+  E --&gt; R</code></pre>
+<p>这条教训直接对应 Week 2 的 <strong>Phase 3 Model
+Planning</strong>:你从图上看出的是线性还是非线性关系,<strong>直接决定你下一步选什么模型</strong>。Anscombe
+四重奏说明,这个判断只能靠图,不能靠统计量。</p>
+<hr />
+<h2 id="3-用可视化抓脏数据-dirty-data">§3 用可视化抓脏数据 (Dirty
+Data)</h2>
+<h3 id="31-什么是脏数据为什么它是-phase-2-的头等大事">3.1
+什么是脏数据,为什么它是 Phase 2 的头等大事</h3>
+<p><strong>脏数据 (dirty data)</strong>
+指的是那些<strong>与常识、领域知识或数据本身的语义不相容</strong>的记录——错值、缺失被填成了某个占位符、单位错乱、被人为截断的值,等等。讲师把它和
+<strong>anomaly / outlier</strong>
+放在一起讲:它们的共同点是"不符合我们对这份数据的启发式认知"。</p>
+<p>slides 给了三步走的处理流程:</p>
+<pre class="mermaid"><code>graph LR
+  A[&quot;① 用可视化发现&lt;br/&gt;Detect dirty data&lt;br/&gt;with visualization&quot;] --&gt; B[&quot;② 用领域知识验证&lt;br/&gt;Look for anomalies,&lt;br/&gt;verify with domain knowledge&quot;]
+  B --&gt; C[&quot;③ 恰当地清洗&lt;br/&gt;Clean the data&lt;br/&gt;appropriately&quot;]
+  C -.-&gt;|发现新问题就回头| A</code></pre>
+<p>注意中间那一步<strong>不能跳过</strong>。图只能告诉你"这儿不对劲",<strong>它不能告诉你为什么不对劲,也不能告诉你该怎么处理</strong>。这就是为什么
+Week 2 的 <strong>Phase 1 Discovery</strong>
+要先建立领域知识、要和干系人对话——讲师在这里明确把两讲串了起来:<em>"这就是为什么在第一步,我们要求数据科学家去获取背景信息。"</em></p>
+<h3 id="32-例一账户持有人的年龄分布">3.2 例一:账户持有人的年龄分布</h3>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(age, <span class="at">breaks=</span><span class="dv">100</span>,</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">main=</span><span class="st">&quot;Age Distribution of Account Holders&quot;</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab=</span><span class="st">&quot;Age&quot;</span>, <span class="at">ylab=</span><span class="st">&quot;Frequency&quot;</span>, <span class="at">col=</span><span class="st">&quot;gray&quot;</span>)</span></code></pre></div>
+<p><strong>直方图 (histogram)</strong>
+是可视化单变量分布最基本的工具:把取值范围切成若干个<strong>箱
+(bin)</strong>,数一数每个箱里落了多少个样本,画成柱子。这里
+<code>breaks=100</code> 表示大致切成 100 个箱。</p>
+<p>图的主体部分很正常:<strong>20 到 60 岁之间是绝大多数</strong>,小于 20
+和大于 80 的数量急剧下降——这符合"银行账户持有人"的常识。</p>
+<p>但有两处不对劲,讲师逐一点破:</p>
+<ol type="1">
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mi>g</mi><mi>e</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">age = 0</annotation></semantics></math>
+处有一根接近 400 的巨大尖峰。</strong> 400 个账户持有人年龄为
+0?显然不可能。<strong>最可能的解释是:这些账户在录入时年龄字段为空,而操作员或系统用
+0 填充了未知值。</strong> 也就是说,这 400 个 0
+实际上是<strong>伪装成数值的缺失值 (missing value)</strong>。</li>
+<li><strong>还有一小撮负值。</strong>
+年龄不可能为负。<strong>最可能的解释是:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">-1</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">-2</annotation></semantics></math>
+之类被用作错误码或特殊状态标记。</strong></li>
+</ol>
+<p>这两个发现的杀伤力在于:如果你不处理就直接算 <code>mean(age)</code>,那
+400 个 0
+和一堆负数会把平均年龄显著拉低——<strong>你的所有下游分析都建立在一个错的中心值上</strong>。而如果你只看
+<code>describe()</code> 的输出,你看到的只是一个"看起来还算合理"的
+mean,<strong>你根本不会知道这件事发生了</strong>。</p>
+<p>讲师还提到图上另有一处约 110
+岁的小凸起值得核查——不一定是错的(确实有超高龄客户),但**"值得双重确认"**。这正是"用领域知识验证"那一步的实际含义。</p>
+<h3 id="33-例二抵押贷款的账龄分布">3.3 例二:抵押贷款的账龄分布</h3>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(mortgage, <span class="at">breaks=</span><span class="dv">10</span>, <span class="at">xlab=</span><span class="st">&quot;Mortgage Age&quot;</span>, <span class="at">col=</span><span class="st">&quot;gray&quot;</span>,</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">main=</span><span class="st">&quot;Portfolio Distribution, Years Since Origination&quot;</span>)</span></code></pre></div>
+<p>这张图画的是投资组合里每笔抵押贷款"已经存在了多少年"。1 到 8
+年的分布还算平缓,但<strong>第 9–10
+年出现了一个异常高的堆积</strong>。</p>
+<p>讲师给的解释:<strong>这份数据很可能根本不追踪超过 10 年的账龄——所有
+10 年以上的贷款都被一律记成 10。</strong> 于是"10
+年"这个箱里装的其实是"10 年及以上"的全部贷款,自然高得离谱。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 这种现象在统计上叫
+<strong>censoring(删失)</strong> 或
+<strong>top-coding(顶端编码)</strong>:超出记录上限的值被统一压到上限值。它和上一例的"0
+值伪装缺失"是同一类问题的两面——<strong>数据里的某个具体数值其实不表示它字面的意思</strong>。识别它们的唯一实用方法就是画图然后问"这个尖峰凭什么这么高?"</p>
+</blockquote>
+<p>如果不处理会怎样?讲师说得很直接:<strong>"it will affect your data
+analytics, give you misleading result."</strong>
+比如你想估计"贷款平均存续多久",这份被截断的数据会给你一个系统性偏低的答案。</p>
+<p><strong>本节的方法论要点</strong>:直方图上任何<strong>孤立的尖峰</strong>、<strong>不该存在的取值区间</strong>(负数、0)、<strong>边界处的堆积</strong>,都是数据质量的警报。看图的时候不要只看主体形状,<strong>要专门去看边界和异常尖峰</strong>。</p>
+<hr />
+<h2 id="4-单变量可视化工具箱">§4 单变量可视化工具箱</h2>
+<p>讲师说:"我们已经见过直方图了,但其实还有更多。"这一节把单变量的常用图一次过完。</p>
+<pre class="mermaid"><code>graph LR
+  R((&quot;单变量&lt;br/&gt;可视化&quot;))
+  R --&gt; A[&quot;&lt;b&gt;分布形状&lt;/b&gt;&quot;]
+  A --&gt; A1[&quot;Histogram 直方图&lt;br/&gt;&lt;i&gt;离散分箱计数&lt;/i&gt;&quot;]
+  A --&gt; A2[&quot;Density plot 密度图&lt;br/&gt;&lt;i&gt;连续平滑估计&lt;/i&gt;&quot;]
+  A --&gt; A3[&quot;Rug 地毯图&lt;br/&gt;&lt;i&gt;叠加真实样本位置&lt;/i&gt;&quot;]
+  R --&gt; B[&quot;&lt;b&gt;逐个体比较&lt;/b&gt;&quot;]
+  B --&gt; B1[&quot;Dotchart 点图&lt;br/&gt;&lt;i&gt;每个个体一点 + 标签&lt;/i&gt;&quot;]
+  R --&gt; C[&quot;&lt;b&gt;类别计数&lt;/b&gt;&quot;]
+  C --&gt; C1[&quot;Barplot 条形图&lt;br/&gt;&lt;i&gt;每个类别一根柱&lt;/i&gt;&quot;]
+  R --&gt; D[&quot;&lt;b&gt;必备预处理&lt;/b&gt;&quot;]
+  D --&gt; D1[&quot;Log transformation&lt;br/&gt;&lt;i&gt;价格 / 收入 / 股价&lt;/i&gt;&quot;]</code></pre>
+<h3 id="41-dotchart-与-barplot两种最朴素的图用途完全不同">4.1 Dotchart
+与 Barplot:两种最朴素的图,用途完全不同</h3>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Dotchart 与 Barplot ##</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">dotchart</span>(mtcars<span class="sc">$</span>mpg, <span class="at">labels=</span><span class="fu">row.names</span>(mtcars), <span class="at">cex=</span>.<span class="dv">7</span>,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">main=</span><span class="st">&quot;Miles Per Gallon (MPG) of Car Models&quot;</span>, <span class="at">xlab=</span><span class="st">&quot;MPG&quot;</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="fu">barplot</span>(<span class="fu">table</span>(mtcars<span class="sc">$</span>cyl),</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>        <span class="at">main=</span><span class="st">&quot;Distribution of Car Cylinder Counts&quot;</span>,</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>        <span class="at">xlab=</span><span class="st">&quot;Number of Cylinders&quot;</span>)</span></code></pre></div>
+<p><code>mtcars</code> 是 R
+自带的经典数据集,每一行是一款车型(Volvo、Ferrari、Ford、Fiat、Mazda……),列里有
+<code>mpg</code>(每加仑英里数,油耗指标)、<code>cyl</code>(气缸数)等。</p>
+<p><strong>Dotchart(点图)</strong>
+把<strong>每一个个体</strong>画成一个点,纵轴是个体名称,横轴是数值,还有虚线牵引视线。讲师强调它的价值:<strong>"你能非常清楚地看出关系"</strong>——比如丰田的车
+MPG 普遍偏高,而 Lincoln Continental 和 Cadillac Fleetwood 的 MPG
+最低。<strong>当你需要"逐个体比较并且要知道每个点是谁"时,dotchart
+比直方图强得多</strong>——直方图会把个体身份完全抹掉。</p>
+<p><strong>Barplot(条形图)</strong>
+画的是<strong>类别的计数</strong>。<code>table(mtcars$cyl)</code>
+先把车按气缸数分成 4、6、8 三类并计数,<code>barplot</code>
+再把三个计数画成三根柱子。</p>
+<p>这两者和直方图的区别值得单独记住,因为容易考:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>图</th>
+<th>横轴是什么</th>
+<th>每根柱/点代表什么</th>
+<th>适用变量类型</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Histogram</strong></td>
+<td>数值区间(bin)</td>
+<td>落在该区间的样本<strong>数量</strong></td>
+<td>连续数值型</td>
+</tr>
+<tr class="even">
+<td><strong>Barplot</strong></td>
+<td>离散类别</td>
+<td>该类别的样本<strong>数量</strong></td>
+<td>类别型 (categorical)</td>
+</tr>
+<tr class="odd">
+<td><strong>Dotchart</strong></td>
+<td>数值</td>
+<td><strong>单个个体</strong>的取值</td>
+<td>数值型 + 有个体标签</td>
+</tr>
+</tbody>
+</table></div>
+<p>一句话:<strong>直方图的柱子之间是连续的(所以通常紧挨着),条形图的柱子之间没有顺序关系(所以通常分开画)。</strong></p>
+<h3 id="42-density-plot-与-rug比直方图更细腻的分布视图">4.2 Density plot
+与 Rug:比直方图更细腻的分布视图</h3>
+<p><strong>密度图 (density plot)</strong>
+可以理解成"直方图的平滑连续版":它不分箱,而是估计出一条平滑曲线来描述"数据在每个取值附近有多密"。好处是不受分箱数量的任意影响,曲线的峰、谷、肩看得更清楚。</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">density</span>(<span class="fu">log10</span>(income), <span class="at">adjust=</span><span class="fl">0.5</span>),</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">main=</span><span class="st">&quot;Distribution of Income (log10 scale)&quot;</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">rug</span>(<span class="fu">log10</span>(income))     <span class="co"># 在 x 轴上加&quot;地毯&quot;</span></span></code></pre></div>
+<p><strong>Rug(地毯图)</strong>
+是讲师特别介绍的一个小技巧:在坐标轴上用一排<strong>细小的竖线</strong>标出<strong>每一个真实样本的位置</strong>。它的价值在于:密度曲线是"估计出来的",而
+rug
+是"真实数据在哪儿"。两者叠加,你就能看出<strong>曲线的某一段是由很多样本支撑的,还是只有稀稀拉拉几个点</strong>——讲师原话:某些区域"数据分散",某些区域"点显著重叠"。</p>
+<p>而且它<strong>几乎不占地方</strong>:"rug
+是一种紧凑的方式,能在不占用大量绘图面积的前提下展示额外信息。"</p>
+<h3 id="43-关键技巧什么时候必须做-log-transformation">4.3
+关键技巧:什么时候必须做 log transformation</h3>
+<p>这是本节最实用、也最容易在实操中吃亏的一点。讲师说得很重:<strong>当你可视化
+income、price、stock price 这类变量时,必须留意。</strong></p>
+<p><strong>问题是什么?</strong>
+以收入为例。绝大多数人的收入集中在中低区间;但有一小撮百万富翁、亿万富翁,他们的收入比普通人高<strong>好几个数量级</strong>。于是数据的<strong>取值范围被极少数样本拉得极长</strong>。</p>
+<p>直接画直方图会发生什么?<strong>横轴必须覆盖到最大值,于是 99%
+的数据被压缩进最左边一条窄缝里,内部结构完全看不见</strong>——你只看得到一根贴着
+0 的高柱和一条长长的空尾巴。</p>
+<p><strong>解法:取对数再画。</strong></p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(income, <span class="at">breaks=</span><span class="dv">500</span>, <span class="at">xlab=</span><span class="st">&quot;Income&quot;</span>, <span class="at">main=</span><span class="st">&quot;Histogram of Income&quot;</span>)     <span class="co"># 挤成一团</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">density</span>(<span class="fu">log10</span>(income), <span class="at">adjust=</span><span class="fl">0.5</span>),</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>     <span class="at">main=</span><span class="st">&quot;Distribution of Income (log10 scale)&quot;</span>)                       <span class="co"># 结构浮现</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rug</span>(<span class="fu">log10</span>(income))</span></code></pre></div>
+<p>为什么有效?因为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mo>log</mo><mn>10</mn></msub><annotation encoding="application/x-tex">\log_{10}</annotation></semantics></math>
+把<strong>乘法关系变成加法关系</strong>:收入从 1 万到 10 万(10 倍)和从
+10 万到 100 万(10 倍),在原始坐标上一个跨度是 9 万、另一个是 90 万,差 10
+倍;取对数后<strong>两段都是 1
+个单位</strong>。于是长尾被压回来,中低区间被拉开,<strong>每一个数量级都获得同样的显示空间</strong>。</p>
+<blockquote>
+<p><strong>🔑 记忆规则</strong> — 变量若满足以下任一条,先考虑 log
+transformation:</p>
+<ul>
+<li>取值跨越<strong>多个数量级</strong>(收入、价格、市值、人口、网站访问量);</li>
+<li>分布<strong>严重右偏</strong>(长尾拖在右边);</li>
+<li>你关心的是<strong>倍数变化</strong>而不是绝对差值。</li>
+</ul>
+</blockquote>
+<h3 id="44-unimodal-还是-multimodal对数变换能救回来的信息">4.4 Unimodal
+还是 Multimodal:对数变换能救回来的信息</h3>
+<p>slides S16 用钻石价格演示了同一件事的另一个后果。</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 原始价格的分组密度图</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(niceDiamonds, <span class="fu">aes</span>(<span class="at">x=</span>price, <span class="at">fill=</span>cut)) <span class="sc">+</span> <span class="fu">geom_density</span>(<span class="at">alpha=</span>.<span class="dv">3</span>, <span class="at">color=</span><span class="cn">NA</span>)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># log10 价格的分组密度图</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(niceDiamonds, <span class="fu">aes</span>(<span class="at">x=</span><span class="fu">log10</span>(price), <span class="at">fill=</span>cut)) <span class="sc">+</span> <span class="fu">geom_density</span>(<span class="at">alpha=</span>.<span class="dv">3</span>, <span class="at">color=</span><span class="cn">NA</span>)</span></code></pre></div>
+<p>这里按
+<code>cut</code>(切工等级)把钻石分组,每组画一条半透明的密度曲线(<code>alpha=.3</code>
+让曲线互相叠加时都能看见)。</p>
+<p>直接用 <code>price</code>
+画:所有曲线都挤在左端,<strong>看上去每组都只有一个峰</strong>。换成
+<code>log10(price)</code>
+再画:讲师描述得很具体——<strong>"我们能看到一个峰、两个峰……1、2、3
+个峰"</strong>,原本被压扁的多峰结构全部浮现出来。</p>
+<p>这引出一对术语:</p>
+<ul>
+<li><strong>Unimodal(单峰)</strong>:分布只有一个峰。通常暗示数据来自<strong>一个同质的群体</strong>。</li>
+<li><strong>Multimodal(多峰)</strong>:分布有两个或更多峰。通常暗示数据里<strong>混合了若干个子群体</strong>——比如不同切工等级、不同市场、不同时期的钻石各自有各自的价格中心。</li>
+</ul>
+<p><strong>为什么这个判断重要?</strong> 因为它直接影响 Phase 3
+的建模决策:如果你的数据是多峰的,却用一个单峰模型(比如单个高斯分布)去拟合,模型会把峰之间的谷底当成"平均水平",得到一个<strong>没有任何真实样本落在附近</strong>的中心。多峰意味着你可能需要<strong>分组建模</strong>或<strong>混合模型
+(mixture model)</strong>。</p>
+<p>而这一切的前提是:<strong>你得先看得见那几个峰</strong>。看不见的原因往往仅仅是——没取对数。</p>
+<hr />
+<h2 id="5-多变量可视化看变量之间的关系">§5
+多变量可视化:看变量之间的关系</h2>
+<p>单变量图告诉你"每个变量长什么样",但数据分析真正关心的通常是<strong>变量之间的关系</strong>。这一节的所有图都在回答同一类问题:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>X</mi><annotation encoding="application/x-tex">X</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>
+是怎么联动的?</p>
+<h3 id="51-散点图--拟合线线性还是非线性">5.1 散点图 +
+拟合线:线性还是非线性?</h3>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">runif</span>(<span class="dv">75</span>, <span class="dv">0</span>, <span class="dv">10</span>)                              <span class="co"># 0~10 之间 75 个均匀分布随机数</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">sort</span>(x)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="dv">200</span> <span class="sc">+</span> x<span class="sc">^</span><span class="dv">3</span> <span class="sc">-</span> <span class="dv">10</span> <span class="sc">*</span> x<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> x <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="dv">75</span>, <span class="dv">0</span>, <span class="dv">20</span>)   <span class="co"># 三次多项式关系 + 噪声</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>lr   <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> x)        <span class="co"># 线性回归 linear regression</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>poly <span class="ot">&lt;-</span> <span class="fu">loess</span>(y <span class="sc">~</span> x)     <span class="co"># LOESS 局部多项式回归</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>fit  <span class="ot">&lt;-</span> <span class="fu">predict</span>(poly)    <span class="co"># 得到非线性拟合值</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(x, y)</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 画线性回归的拟合直线:截距 + 斜率 * x</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(x, lr<span class="sc">$</span>coefficients[<span class="dv">1</span>] <span class="sc">+</span> lr<span class="sc">$</span>coefficients[<span class="dv">2</span>] <span class="sc">*</span> x, <span class="at">type=</span><span class="st">&quot;l&quot;</span>, <span class="at">col=</span><span class="dv">2</span>)</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="co"># 画 LOESS 的拟合曲线</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(x, fit, <span class="at">type=</span><span class="st">&quot;l&quot;</span>, <span class="at">col=</span><span class="dv">4</span>)</span></code></pre></div>
+<p>代码逻辑值得逐句读一遍,因为它把"同一份数据、两种建模视角"摆在了一张图上:</p>
+<ul>
+<li><code>runif(75, 0, 10)</code> 造 75 个 0–10 的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+被<strong>故意</strong>定义成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+的三次多项式再加噪声——<strong>所以真实关系是非线性的</strong>;</li>
+<li><code>lm(y ~ x)</code> 是 <strong>linear
+model(线性回归)</strong>,它只能拟合一条直线
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><mi>a</mi><mo>+</mo><mi>b</mi><mi>x</mi></mrow><annotation encoding="application/x-tex">y = a + bx</annotation></semantics></math>;<code>lr$coefficients[1]</code>
+是截距
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>,<code>[2]</code>
+是斜率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>;</li>
+<li><code>loess(y ~ x)</code> 是 <strong>LOESS(locally estimated
+scatterplot smoothing,局部多项式回归)</strong>。讲师称它为"local
+polynomial
+approximation":它<strong>不假设全局的函数形式</strong>,而是在每个位置只用附近的点拟合一小段多项式,再把这些局部拟合串成一条光滑曲线。</li>
+</ul>
+<p>结果:<strong>红色直线</strong>(线性回归)在中段系统性地偏离数据;<strong>蓝色曲线</strong>(LOESS)贴合了数据真实的弯曲走势。</p>
+<p>这张图的教学意义:<strong>同一份数据,画原始点、画线性拟合、画非线性拟合,是三种不同的"探索视角"</strong>。散点图告诉你有关系,拟合线告诉你这个关系<strong>是什么形状</strong>——而形状决定了你在
+Phase 3 该选线性模型还是非线性模型。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 为什么不直接用 LOESS
+建模就好了?因为 LOESS
+是<strong>探索工具而非预测模型</strong>:它没有全局参数、无法外推到数据范围之外、也不给你可解释的系数。它的正确用法是<strong>在
+EDA
+阶段帮你看清关系的形状</strong>,然后你据此选择一个合适的参数化模型。</p>
+</blockquote>
+<h3 id="52-用颜色和分组增加维度">5.2 用颜色和分组增加维度</h3>
+<p>一张二维图最多画两个变量——除非你用<strong>颜色、形状、分组</strong>当作额外的维度。</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>cars <span class="ot">&lt;-</span> mtcars[<span class="fu">order</span>(mtcars<span class="sc">$</span>mpg),]   <span class="co"># 按 mpg 排序</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>cars<span class="sc">$</span>cyl <span class="ot">&lt;-</span> <span class="fu">factor</span>(cars<span class="sc">$</span>cyl)         <span class="co"># 分组变量必须是 factor(因子/类别型)</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>cars<span class="sc">$</span>color[cars<span class="sc">$</span>cyl<span class="sc">==</span><span class="dv">4</span>] <span class="ot">&lt;-</span> <span class="st">&quot;red&quot;</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>cars<span class="sc">$</span>color[cars<span class="sc">$</span>cyl<span class="sc">==</span><span class="dv">6</span>] <span class="ot">&lt;-</span> <span class="st">&quot;blue&quot;</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>cars<span class="sc">$</span>color[cars<span class="sc">$</span>cyl<span class="sc">==</span><span class="dv">8</span>] <span class="ot">&lt;-</span> <span class="st">&quot;darkgreen&quot;</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="fu">dotchart</span>(cars<span class="sc">$</span>mpg, <span class="at">labels=</span><span class="fu">row.names</span>(cars), <span class="at">cex=</span>.<span class="dv">7</span>, <span class="at">groups=</span>cars<span class="sc">$</span>cyl,</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>         <span class="at">main=</span><span class="st">&quot;Miles Per Gallon (MPG) of Car Models</span><span class="sc">\n</span><span class="st">Grouped by Cylinder&quot;</span>,</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>         <span class="at">xlab=</span><span class="st">&quot;Miles Per Gallon&quot;</span>, <span class="at">color=</span>cars<span class="sc">$</span>color, <span class="at">gcolor=</span><span class="st">&quot;black&quot;</span>)</span></code></pre></div>
+<p>slides 上给这张图的注解是:<strong>"Use color as an additional
+dimension for visualization."</strong></p>
+<p>发生了什么:原本 dotchart
+只画一个变量(mpg),现在<strong>按气缸数分成三个区块</strong>,每个区块内部再按
+mpg
+排序,并且<strong>用颜色重复编码组别</strong>。于是这张图同时呈现了两个变量:<code>mpg</code>(位置)和
+<code>cyl</code>(分组 + 颜色)。你不仅能比较个体,还能一眼看出"4 缸车整体
+MPG 更高"这个<strong>组间规律</strong>。</p>
+<p>有一个 R 的技术点要记:<strong>分组变量必须先转成
+<code>factor</code></strong>(<code>cars$cyl &lt;- factor(cars$cyl)</code>)。因为
+<code>cyl</code> 原本是数字 4/6/8,R 会把它当连续数值处理;转成 factor
+才等于告诉 R"这是三个类别,不是三个数"。</p>
+<h3 id="53-分组条形图两个类别变量的联合分布">5.3
+分组条形图:两个类别变量的联合分布</h3>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>counts <span class="ot">&lt;-</span> <span class="fu">table</span>(mtcars<span class="sc">$</span>gear, mtcars<span class="sc">$</span>cyl)   <span class="co"># 列联表:行=挡位数,列=气缸数</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">barplot</span>(counts, <span class="at">main=</span><span class="st">&quot;Distribution of Car Cylinder Counts and Gears&quot;</span>,</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>        <span class="at">xlab=</span><span class="st">&quot;Number of Cylinders&quot;</span>, <span class="at">ylab=</span><span class="st">&quot;Counts&quot;</span>,</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>        <span class="at">col=</span><span class="fu">c</span>(<span class="st">&quot;#0000FFFF&quot;</span>, <span class="st">&quot;#0080FFFF&quot;</span>, <span class="st">&quot;#00FFFFFF&quot;</span>),</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>        <span class="at">legend =</span> <span class="fu">rownames</span>(counts), <span class="at">beside=</span><span class="cn">TRUE</span>,</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>        <span class="at">args.legend =</span> <span class="fu">list</span>(<span class="at">x=</span><span class="st">&quot;top&quot;</span>, <span class="at">title=</span><span class="st">&quot;Number of Gears&quot;</span>))</span></code></pre></div>
+<p><code>table(mtcars$gear, mtcars$cyl)</code> 生成一张<strong>列联表
+(contingency
+table)</strong>:行是挡位数(3/4/5),列是气缸数(4/6/8),每个格子是同时满足这两个条件的车型数量。</p>
+<p><code>beside=TRUE</code>
+是关键参数:它让同一个气缸数下的三个挡位柱子<strong>并排
+(side-by-side)</strong> 画,而不是堆叠
+(stacked)。并排更适合<strong>组内比较</strong>,堆叠更适合看<strong>组的总量</strong>。</p>
+<p>slides 上写了一行算式 <strong>11 (1+8+2) + 7 (2+4+1) + 14 (12+0+2) =
+32</strong> —— 这是在验算:4 缸车共 11 辆(3 挡 1 辆、4 挡 8 辆、5 挡 2
+辆),6 缸 7 辆,8 缸 14 辆,加起来 32,正好等于 <code>mtcars</code>
+的总行数。<strong>这个小验算本身是个好习惯:分组计数之和必须等于总样本数,否则你的分组逻辑漏了数据。</strong></p>
+<h3 id="54-箱线图-box-and-whisker-plot把五数概括画出来">5.4 箱线图
+(Box-and-Whisker Plot):把五数概括画出来</h3>
+<p>这是讲师称为"非常强大而且很漂亮"的一种可视化,也是<strong>唯一一个把
+§1
+的五数概括直接画成图形</strong>的工具。<strong>期末很可能考它的构造。</strong></p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>DF <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">&quot;c:/data/zipIncome.csv&quot;</span>, <span class="at">header=</span><span class="cn">TRUE</span>, <span class="at">sep=</span><span class="st">&quot;,&quot;</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 先剔除极端值</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>DF <span class="ot">&lt;-</span> <span class="fu">subset</span>(DF, DF<span class="sc">$</span>MeanHouseholdIncome <span class="sc">&gt;</span> <span class="dv">7000</span> <span class="sc">&amp;</span> DF<span class="sc">$</span>MeanHouseholdIncome <span class="sc">&lt;</span> <span class="dv">200000</span>)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(DF)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data=</span>DF, <span class="fu">aes</span>(<span class="at">x=</span><span class="fu">as.factor</span>(Zip1), <span class="at">y=</span><span class="fu">log10</span>(MeanHouseholdIncome))) <span class="sc">+</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">color=</span><span class="fu">factor</span>(Zip1)), <span class="at">alpha=</span><span class="fl">0.2</span>, <span class="at">position=</span><span class="st">&quot;jitter&quot;</span>) <span class="sc">+</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>(<span class="at">outlier.size=</span><span class="dv">0</span>, <span class="at">alpha=</span><span class="fl">0.1</span>) <span class="sc">+</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">guides</span>(<span class="at">colour=</span><span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">&quot;Mean Household Income by Zip Code&quot;</span>)</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 极简版本</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="fu">boxplot</span>(<span class="fu">log10</span>(MeanHouseholdIncome) <span class="sc">~</span> Zip1, <span class="at">data=</span>DF)</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="fu">title</span>(<span class="st">&quot;Mean Household Income by Zip Code&quot;</span>)</span></code></pre></div>
+<p><em>(这个 <code>zipIncome.csv</code> 就放在本课的 slides
+目录里,讲师鼓励你自己跑一遍。)</em></p>
+<p>代码里有三个值得注意的动作:</p>
+<ol type="1">
+<li><strong>又是 log10</strong>——因为纵轴是家庭收入,正是 §4.3
+说的典型长尾变量;</li>
+<li><strong><code>subset(...)</code> 先剔除了收入低于 7000 或高于 200000
+的记录</strong>,这是人为设定的合理区间;</li>
+<li><strong><code>position="jitter"</code></strong>——<strong>抖动</strong>。讲师专门解释了这个参数:每个点的横坐标被加上一个小随机扰动,把原本会完全重合的点摊开。他建议你把它改成
+<code>identity</code>(不抖动)对比一下:<strong>宽度会立刻收缩成一条极窄的线,什么都看不清</strong>。</li>
+</ol>
+<p><strong>箱线图本身怎么读</strong>(这是重点):</p>
+<pre class="mermaid"><code>graph TB
+  subgraph BOX[&quot;箱线图的解剖&quot;]
+    direction TB
+    U[&quot;上须 Upper whisker&lt;br/&gt;最远延伸到 Q3 + 1.5 × IQR&quot;]
+    Q3[&quot;箱体上沿 = &lt;b&gt;Q3&lt;/b&gt;(75% 分位)&quot;]
+    M[&quot;箱内粗线 = &lt;b&gt;Median (Q2)&lt;/b&gt;(50% 分位)&quot;]
+    Q1[&quot;箱体下沿 = &lt;b&gt;Q1&lt;/b&gt;(25% 分位)&quot;]
+    L[&quot;下须 Lower whisker&lt;br/&gt;最远延伸到 Q1 − 1.5 × IQR&quot;]
+    U --- Q3 --- M --- Q1 --- L
+  end
+  O[&quot;须之外的点 = &lt;b&gt;Outlier 离群点&lt;/b&gt;&quot;]
+  U -.-&gt; O
+  L -.-&gt; O</code></pre>
+<ul>
+<li><strong>箱体 (box)</strong> 的上下沿分别是 <strong>Q3</strong> 和
+<strong>Q1</strong>,所以<strong>箱的高度就是 Q3 − Q1</strong>,这个量叫
+<strong>IQR (interquartile range,四分位距)</strong>,它衡量数据中间 50%
+的分散程度;</li>
+<li>箱中间那条<strong>粗线是中位数 (median, Q2)</strong>;</li>
+<li>上下伸出的两条线叫
+<strong>whisker(须)</strong>。讲师给出的规则是:<strong>须的长度典型地取
+1.5 倍的 IQR</strong>(即箱高的 1.5
+倍)。所以<strong>箱越矮,须也越短</strong>——两者是联动的;</li>
+<li><strong>落在须之外的点被视为 outlier(离群点)</strong>。</li>
+</ul>
+<p>讲师顺带解释了为什么这张图上看不到离群点:<strong>因为代码在第一步就用
+<code>subset</code> 把极端收入剔除了</strong>,而且
+<code>outlier.size=0</code> 还额外抑制了 boxplot
+自己画离群点。他建议:<strong>如果你想看到离群点,就把那行剔除代码去掉再跑一次。</strong></p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+精确一点:标准箱线图的须并不是"画到 Q3 + 1.5·IQR
+就停",而是<strong>延伸到"仍在 Q3 + 1.5·IQR
+以内的最远的那个真实数据点"</strong>;超出这个界限的点才单独画成离群点。所以须的末端总是落在某个真实观测上。1.5
+这个系数是 John Tukey 的经验选择——对正态数据而言,大约只有 0.7%
+的点会被标成离群点,既不过于宽松也不过于严苛。**注意:被标为 outlier ≠
+是错误数据。**Week 2 反复强调过:<strong>不要随手删除
+outlier,它可能正是你要找的信息。</strong></p>
+</blockquote>
+<p>箱线图最大的价值是<strong>并排比较多个组</strong>:上面这张图为每个邮编区
+(<code>Zip1</code>)
+画一个箱子,于是不同地区的收入水平、离散程度、偏斜方向可以一次性比完。</p>
+<h3 id="55-hexbin-plot当数据太多散点图会糊掉">5.5 Hexbin
+Plot:当数据太多,散点图会"糊掉"</h3>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">log10</span>(MeanHouseholdIncome) <span class="sc">~</span> MeanEducation, <span class="at">data=</span>DF)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="fu">lm</span>(<span class="fu">log10</span>(MeanHouseholdIncome) <span class="sc">~</span> MeanEducation, <span class="at">data=</span>DF), <span class="at">col=</span><span class="st">&#39;red&#39;</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;hexbin&quot;</span>)</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(hexbin)</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="fu">hexbinplot</span>(<span class="fu">log10</span>(MeanHouseholdIncome) <span class="sc">~</span> MeanEducation, <span class="at">data=</span>DF,</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>           <span class="at">trans =</span> sqrt, <span class="at">inv =</span> <span class="cf">function</span>(x) x<span class="sc">^</span><span class="dv">2</span>, <span class="at">type=</span><span class="fu">c</span>(<span class="st">&quot;g&quot;</span>, <span class="st">&quot;r&quot;</span>))</span></code></pre></div>
+<p><strong>问题是什么?</strong>
+当样本量非常大且高度集中时,普通散点图会发生<strong>过度绘图
+(overplotting)</strong>:点叠点叠点,整片区域<strong>变成一坨纯黑</strong>。讲师说得很直接:<em>"你在这个区域看不到任何信息。"</em>
+因为黑色区域里,一个点和一万个点看起来一模一样。</p>
+<p><strong>Hexbin plot 怎么解决?</strong> 它把平面切成许多<strong>六边形
+(hexagon)
+的小格子</strong>,数一数每个格子里落了多少点,然后<strong>用颜色深浅编码这个计数</strong>。于是:</p>
+<ul>
+<li>深色 = 该区域数据极密(讲师读图时说,最深的对应 7000 以上);</li>
+<li>浅色/绿色 = 该区域只有零星几个点(大约 1 个)。</li>
+</ul>
+<p><strong>密度信息被恢复了</strong>,你能清楚看出"这一块高度集中,往外逐渐稀疏"。</p>
+<p>参数解释:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>参数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>trans = sqrt</code></td>
+<td>对计数做<strong>平方根变换</strong>再映射到颜色。理由和 log
+变换同源:计数从 1 到 7000
+跨度太大,直接线性映射的话,除了最密的核心之外全是同一种浅色。开方<strong>压缩了动态范围</strong>,让中等密度也能被区分出来</td>
+</tr>
+<tr class="even">
+<td><code>inv = function(x) x^2</code></td>
+<td><code>trans</code>
+的<strong>逆函数</strong>,用于把图例上的颜色刻度<strong>换算回真实计数</strong>——否则图例上标的就是开方后的数,读不懂</td>
+</tr>
+<tr class="odd">
+<td><code>type = c("g", "r")</code></td>
+<td><code>"g"</code> 加<strong>网格 (grid)</strong>,<code>"r"</code>
+加<strong>回归线 (regression line)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>什么时候该用它?</strong>
+讲师给了明确的触发条件:<strong>当你有大量数据,并且它们高度集中在某个小区域时,就该用
+hexbin plot。</strong></p>
+<p>那条红色/回归直线在两张图上都有,它拟合的是
+<code>MeanEducation</code>(平均受教育程度)与
+<code>log10(MeanHouseholdIncome)</code>
+的线性关系——<strong>教育水平与收入的正相关</strong>,这是这份数据想讲的故事,而
+hexbin 让你在看清趋势的同时也看清了密度。</p>
+<h3 id="56-scatterplot-matrix四个以上变量怎么办">5.6 Scatterplot
+Matrix:四个以上变量怎么办</h3>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>colors <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;red&quot;</span>, <span class="st">&quot;green&quot;</span>, <span class="st">&quot;blue&quot;</span>)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">pairs</span>(iris[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>], <span class="at">main =</span> <span class="st">&quot;Fisher&#39;s Iris Dataset&quot;</span>,</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">pch =</span> <span class="dv">21</span>, <span class="at">bg =</span> colors[<span class="fu">unclass</span>(iris<span class="sc">$</span>Species)])</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">xpd =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="fl">0.2</span>, <span class="fl">0.02</span>, <span class="at">horiz =</span> <span class="cn">TRUE</span>, <span class="fu">as.vector</span>(<span class="fu">unique</span>(iris<span class="sc">$</span>Species)),</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> colors, <span class="at">bty =</span> <span class="st">&quot;n&quot;</span>)</span></code></pre></div>
+<p><strong>Fisher's Iris dataset(鸢尾花数据集)</strong>
+是统计学与机器学习里最著名的数据集之一,R 自带(直接 <code>iris</code>
+就能用)。它包含三种鸢尾花——<strong>setosa、versicolor、virginica</strong>——每种
+50 个样本,每朵花用 <strong>4 个特征</strong>描述:<strong>sepal
+length(萼片长)、sepal width(萼片宽)、petal length(花瓣长)、petal
+width(花瓣宽)</strong>。</p>
+<p>现在的问题是:<strong>4
+个特征,两两之间的关系怎么一次看完?</strong></p>
+<p><strong>散点图矩阵 (scatterplot matrix)</strong> 的做法是画一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>×</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">4 \times 4</annotation></semantics></math>
+的网格:</p>
+<ul>
+<li><strong>对角线</strong>放特征名称(一个特征和它自己的关系没有意义);</li>
+<li><strong>非对角线的每个格子</strong>是一对特征的散点图;</li>
+<li><strong>点的颜色编码类别</strong>(三种鸢尾花对应红/绿/蓝)。</li>
+</ul>
+<p>于是一张图同时给了你:每一对特征的<strong>相关性</strong>、数据的<strong>分布形状</strong>,以及<strong>三个类别在各个特征平面上是否可分</strong>。最后这一点尤其有价值——你会立刻看出
+setosa 在 petal 相关的图上和另外两类<strong>完全分开</strong>,而
+versicolor 与 virginica
+有重叠。<strong>这直接告诉你分类问题的难度在哪里。</strong></p>
+<p>讲师给出了适用边界:<strong>"当你的特征数量较少时,这是理解特征间关系的好方法。"</strong>
+反过来说,特征一多(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>×</mo><mn>4</mn><mo>=</mo><mn>16</mn></mrow><annotation encoding="application/x-tex">4\times4=16</annotation></semantics></math>
+个格子还能看,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>20</mn><mo>×</mo><mn>20</mn><mo>=</mo><mn>400</mn></mrow><annotation encoding="application/x-tex">20\times20=400</annotation></semantics></math>
+个就没法看了),散点图矩阵就失效了——那时需要降维方法。</p>
+<h3 id="57-多变量可视化方法速查">5.7 多变量可视化方法速查</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th>处理的变量</th>
+<th>最适合的场景</th>
+<th>关键点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Scatterplot + lm/LOESS</strong></td>
+<td>2 个数值</td>
+<td>判断关系是线性还是非线性</td>
+<td>LOESS 不假设全局函数形式</td>
+</tr>
+<tr class="even">
+<td><strong>Grouped dotchart + color</strong></td>
+<td>1 数值 + 1 类别</td>
+<td>逐个体比较,同时看组间差异</td>
+<td>分组变量必须是 <code>factor</code></td>
+</tr>
+<tr class="odd">
+<td><strong>Grouped barplot</strong></td>
+<td>2 个类别</td>
+<td>两个类别变量的联合计数</td>
+<td><code>beside=TRUE</code> 并排,便于组内比较</td>
+</tr>
+<tr class="even">
+<td><strong>Box-and-whisker plot</strong></td>
+<td>1 数值 + 1 类别</td>
+<td>多组之间比较分布与离散度</td>
+<td>箱=Q1/Q2/Q3,须≈1.5×IQR,外为 outlier</td>
+</tr>
+<tr class="odd">
+<td><strong>Hexbin plot</strong></td>
+<td>2 个数值,<strong>大样本</strong></td>
+<td>散点图糊成一团时</td>
+<td>用颜色编码密度;<code>trans</code> 压缩动态范围</td>
+</tr>
+<tr class="even">
+<td><strong>Scatterplot matrix</strong></td>
+<td>3–6 个数值</td>
+<td>一次看完所有两两关系</td>
+<td>特征多了就不适用</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="6-data-exploration-vs-presentation图是给谁看的">§6 Data
+Exploration vs. Presentation:图是给谁看的?</h2>
+<p>slides S23 抛出一个问题:<strong>"Presenting the same data to
+different audience — did we discuss this issue in the data analytics
+lifecycle?"</strong></p>
+<p>答案是:讨论过,在 <strong>Week 2 的 Phase 5 Communicate
+Results</strong>。当时的结论是"<strong>受众层级越高,演示越要简洁</strong>,不要用同一套材料讲给所有人"。这一节把那条原则具体落到图上。</p>
+<p>讲师给的例子是同一份"账户价值分布"数据的两种画法,然后问你:<strong>哪张给你的队友看,哪张给业务方看?</strong></p>
+<p>他给的答案是:</p>
+<ul>
+<li><strong>给技术队友</strong>看信息密度高的那张——他们理解直方图、密度曲线、分位数,能从技术细节里读出东西;</li>
+<li><strong>给业务用户 / CEO</strong>
+看简化的那张——他们<strong>没有深厚的技术背景</strong>,你需要的是"一眼看懂",而不是"信息完整"。</li>
+</ul>
+<p>这背后是一个容易被技术人员忽略的判断:<strong>"信息更多"和"沟通更有效"不是一回事,有时甚至相反。</strong>
+一张塞满了统计细节的图,对不懂统计的受众来说传达的信息量可能是<strong>零</strong>——因为他们不会读,索性不读。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Exploration(探索)</strong></th>
+<th><strong>Presentation(呈现)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>受众</strong></td>
+<td>你自己、数据团队</td>
+<td>干系人、业务方、管理层</td>
+</tr>
+<tr class="even">
+<td><strong>目的</strong></td>
+<td>发现:找模式、找异常、找关系</td>
+<td>说服:传达一个已确定的结论</td>
+</tr>
+<tr class="odd">
+<td><strong>信息密度</strong></td>
+<td>越高越好,宁可杂乱</td>
+<td>越低越好,只留必要</td>
+</tr>
+<tr class="even">
+<td><strong>图的数量</strong></td>
+<td>很多,快速迭代、随手画</td>
+<td>很少,精心打磨</td>
+</tr>
+<tr class="odd">
+<td><strong>可以接受</strong></td>
+<td>默认配色、无标题、代码直出</td>
+<td>必须有清晰标题、标注、单位、结论</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师的收尾:<strong>"visualization is also useful to deliver a better
+presentation."</strong>
+可视化不只是分析工具,也是沟通工具——而这两种用法要求你画<strong>不同的图</strong>。</p>
+<hr />
+<h2 id="part-i-小结讲师自己划的重点">Part I 小结:讲师自己划的重点</h2>
+<p>讲师在中场休息前对前半部分做了总结,以下四条是他亲口点名的:</p>
+<ol type="1">
+<li><strong>不能简单依赖 five-number summary</strong> —— Anscombe
+四重奏就是活证据,统计量相同的四份数据可以完全不同;</li>
+<li><strong>可视化工具箱要熟</strong>:bar chart、dot
+chart、histogram、density、rug、scatterplot、boxplot、hexbin、scatterplot
+matrix;</li>
+<li><strong>可视化 price / income 这类变量时,要考虑用
+logarithm</strong>,否则看不到细节结构;</li>
+<li><strong>数据量大且高度集中时,要考虑 hexbin
+plot</strong>,它能给你局部密度信息;</li>
+<li>以及,<strong>可视化能帮你做出更好的汇报</strong>。</li>
+</ol>
+<hr />
+<h1 id="part-ii--判断差异statistical-methods-for-evaluation">Part II ·
+判断差异:Statistical Methods for Evaluation</h1>
+<h2 id="7-问题的提出新的均值更大到底能不能说明问题">§7
+问题的提出:"新的均值更大"到底能不能说明问题?</h2>
+<h3 id="71-两个场景">7.1 两个场景</h3>
+<p>slides S24 用两个场景开场,它们看起来毫不相干,但骨架完全一样:</p>
+<blockquote>
+<p><strong>场景 1</strong> —
+一家公司收集了客户满意度数据,想知道<strong>改动产品设计</strong>是否提升了客户满意度。公司怎样才能确认这次改动确实产生了预期效果?</p>
+<p><strong>场景 2</strong> —
+一位数据科学家部署了一个机器学习模型并得到一组结果,想知道<strong>改动模型架构</strong>是否会改善结果。数据科学家怎样才能确定修改后的模型确实带来了提升?</p>
+</blockquote>
+<p>抽象一下,两者都是:<strong>我做了一个改动,改动前后各得到一批数据,我想知道这个改动到底有没有效果。</strong></p>
+<p>这是数据分析中最常见的问句之一。你在 Week 2
+学的每一个阶段都会撞上它:Phase 3 选特征时问"加这个变量有用吗",Phase 4
+调模型时问"这个架构更好吗",Phase 6
+部署后问"新系统真的提升了业务指标吗"。</p>
+<h3 id="72-朴素解法以及它为什么不够">7.2 朴素解法,以及它为什么不够</h3>
+<p>最直觉的做法(slides
+S25):<strong>算改动前的均值,算改动后的均值,比一比。</strong></p>
+<pre><code>改动前满意度均值 = 6.8
+改动后满意度均值 = 7.1
+→ 7.1 &gt; 6.8,所以改动有效。</code></pre>
+<p>于是 slides 抛出了本讲后半部分的核心问题:</p>
+<blockquote>
+<p><strong>Would it be correct to state that if the new mean is larger
+than the old mean value then the new product or model is better than the
+old?</strong>
+(如果新均值大于旧均值,就断言新产品/新模型更好——这样说对吗?)</p>
+</blockquote>
+<p><strong>答案是:不对。</strong> 讲师给的理由只有一句话,但这句话是整个
+Part II 的种子:</p>
+<blockquote>
+<p><strong>"Mean is not enough. We also need to consider the variation,
+or the standard deviation of the data."</strong>
+(只看均值不够,我们还必须考虑数据的<strong>变异</strong>,也就是标准差。)</p>
+</blockquote>
+<h3 id="73-为什么方差决定一切两幅图的对比">7.3
+为什么方差决定一切:两幅图的对比</h3>
+<p>slides S27 给出了一个精心构造的反例。设想两个总体,一个均值为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">-3</annotation></semantics></math>,另一个均值为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">+3</annotation></semantics></math>。<strong>均值差固定是
+6。</strong> 现在问:这个差异显著吗?</p>
+<p>讲师的回答是:<strong>取决于方差。</strong> slides
+并排画了两种情况:</p>
+<ul>
+<li><strong>左图:方差很小。</strong>
+两个分布各自紧紧地聚在自己的均值附近,中间几乎不重叠。这时你会很有信心地说:<strong>这两个总体确实不一样。</strong></li>
+<li><strong>右图:方差很大。</strong>
+两个分布都摊得很开,大片区域互相重叠。讲师说他"会有点犹豫"去宣称它们不同——因为<strong>你从左边总体里随便抽一个样本,它落在右边总体的典型范围内是完全正常的事</strong>。</li>
+</ul>
+<p>slides S31 把这个直觉提炼成三句可以直接背的话:</p>
+<blockquote>
+<ul>
+<li><strong>两个总体的重叠 (overlap)
+越大</strong>,当且仅当<strong>均值越接近</strong>(横轴方向)<strong>且方差越大</strong>;</li>
+<li><strong>重叠越大,两个总体之间差异的显著性 (significance)
+越低</strong>;</li>
+<li>因此,<strong>如果重叠很大,我们就接受 null
+hypothesis;否则就拒绝它。这可以用 Student's t-test
+来检验。</strong></li>
+</ul>
+</blockquote>
+<p>讲师把结论说成了一个比值,这句话请务必记住,因为<strong>本讲后面每一个检验统计量都是它的具体形式</strong>:</p>
+<blockquote>
+<p><strong>我们不能只看均值差,我们要看均值差 <em>相对于</em>
+变异有多大——要看它们的比值。</strong></p>
+</blockquote>
+<pre class="mermaid"><code>graph LR
+  M[&quot;均值差 abs(x̄₁ − x̄₂)&lt;br/&gt;信号 Signal&quot;] --&gt; R[&quot;比值 = 信号 / 噪声&quot;]
+  V[&quot;组内变异(方差)&lt;br/&gt;噪声 Noise&quot;] --&gt; R
+  R --&gt;|比值大| REJ[&quot;重叠小 → 差异显著&lt;br/&gt;&lt;b&gt;拒绝 H₀&lt;/b&gt;&quot;]
+  R --&gt;|比值小| ACC[&quot;重叠大 → 差异不显著&lt;br/&gt;&lt;b&gt;不拒绝 H₀&lt;/b&gt;&quot;]</code></pre>
+<p><strong>这张图是 Part II 的总纲。</strong> t 统计量、Welch 统计量、F
+统计量,全都是"信号 / 噪声"这一个模板的不同填法。</p>
+<h3 id="74-统计学为什么贯穿整个生命周期">7.4
+统计学为什么贯穿整个生命周期</h3>
+<p>在展开技术细节前,slides S26
+先回答了"为什么这门课要讲统计":<strong>因为统计方法可能出现在 Data
+Analytics Lifecycle 的每一处。</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>生命周期位置</th>
+<th>统计在做什么</th>
+<th>典型问句</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>初期数据探索与数据准备</strong>(Phase 1–2)</td>
+<td>描述性统计、分布检查、异常检测</td>
+<td>数据长什么样?标准差多大?</td>
+</tr>
+<tr class="even">
+<td><strong>模型规划与构建</strong>(Phase 3–4)</td>
+<td>选择最佳输入变量、评估可预测性</td>
+<td>哪些变量真的有用?</td>
+</tr>
+<tr class="odd">
+<td><strong>最终模型的评估</strong>(Phase 4–5)</td>
+<td>准确率是否显著优于随机猜测或另一个模型</td>
+<td>它真的比 baseline 好吗?</td>
+</tr>
+<tr class="even">
+<td><strong>模型部署后的评估</strong>(Phase 6)</td>
+<td>预测是否可靠?是否产生了预期效果?</td>
+<td>上线之后真的有影响吗?</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师补了一句:<strong>上面每一格里的"是否更好"、"是否有用"、"是否有影响",本质上都是同一个统计问题——假设检验。</strong>
+所以他用假设检验作为这一整套统计方法的代表来讲。</p>
+<hr />
+<h2 id="8-两个必须先说清的词population-与-sample">§8
+两个必须先说清的词:Population 与 Sample</h2>
+<p>这两个词在后面每一页都会出现,而讲师专门停下来解释了它们,说明他知道学生容易混。</p>
+<ul>
+<li><strong>Population(总体)</strong>:<strong>我们真正关心的那个群体</strong>。讲师强调它常常是一个<strong>抽象概念</strong>。例子:"我想知道<strong>所有
+UOW 学生</strong>的身高分布"——这里"所有 UOW 学生"就是总体。</li>
+<li><strong>Sample(样本)</strong>:<strong>我们实际观测到的那部分数据</strong>,通常是从总体中<strong>随机抽取</strong>的。例子:你不可能量遍每个学生,所以你随机找了
+100 或 200 个人量——这 200 人就是样本。</li>
+</ul>
+<p>讲师的总结句:<strong>"Population is an abstract concept. Usually we
+work on samples, and the sample is the observed data we randomly sampled
+from the population."</strong></p>
+<p>这个区分为什么至关重要?因为<strong>假设检验的全部意义,就是从有限的样本出发,对无法完整观测的总体下结论,并且诚实地量化"我可能搞错"的概率。</strong>
+你算出的样本均值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>x</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar{x}</annotation></semantics></math>
+几乎肯定不等于总体真值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>;你要回答的不是"两个样本均值一样吗"(几乎必然不一样),而是"<strong>两个总体均值一样吗</strong>"。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>Population(总体)</th>
+<th>Sample(样本)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>是什么</td>
+<td>我们关心的全体</td>
+<td>实际拿到手的观测</td>
+</tr>
+<tr class="even">
+<td>能否完整观测</td>
+<td>通常不能</td>
+<td>能</td>
+</tr>
+<tr class="odd">
+<td>均值记号</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>(参数,未知定值)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>x</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar{x}</annotation></semantics></math>(统计量,随抽样波动)</td>
+</tr>
+<tr class="even">
+<td>方差记号</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>σ</mi><mn>2</mn></msup><annotation encoding="application/x-tex">\sigma^2</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>s</mi><mn>2</mn></msup><annotation encoding="application/x-tex">s^2</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>在检验中的角色</td>
+<td><strong>假设是关于它的</strong></td>
+<td><strong>证据是来自它的</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>❓ 课堂留给你的问题(S29)</strong> —
+<em>为什么假设检验会出现在 BDA 生命周期的 <strong>Phase 2 Data
+Preparation</strong>?</em> slides 给的提示是:<em>"Hypothesis testing is
+used to assess the plausibility of a hypothesis by using sample data.
+Such data may come from a larger population, or from a data-generating
+process."</em> 思路:Phase 1 Discovery 结束时你已经<strong>形成了初始假设
+(initial hypotheses)</strong>;而 Phase 2
+是你<strong>第一次真正接触到数据</strong>的阶段。所以 Phase 2
+天然是"用样本数据初步检验这些假设是否站得住"的时机——如果初始假设在数据面前立刻崩了,你应该<strong>回到
+Phase 1 重新框定问题</strong>,而不是带着一个错的假设一路做到 Phase
+4。讲师说,生命周期里<strong>至少有两处</strong>提到
+hypothesis,他要你自己去 Week 2 的 slides 里找出来。</p>
+</blockquote>
+<hr />
+<h2 id="9-假设检验的逻辑">§9 假设检验的逻辑</h2>
+<h3 id="91-定义与两个假设">9.1 定义与两个假设</h3>
+<p>slides S28 给出的定义:</p>
+<blockquote>
+<p><strong>Definition (Hypothesis):</strong> a supposition or proposed
+explanation made on the basis of limited evidence as a starting point
+for further investigation.
+(假设:基于有限证据提出的一个猜想或解释,作为进一步研究的<strong>起点</strong>。)</p>
+</blockquote>
+<p>注意"<strong>starting
+point</strong>"这个词。假设不是结论,它是<strong>待检验的出发点</strong>。所以
+slides 强调:<strong>"A hypothesis is formed before validation. It can
+define expectations."</strong> ——
+<strong>假设必须在你看数据之前形成。</strong></p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+为什么"先形成假设"这件事被反复强调?因为如果你先翻数据、看见一个有趣的差异、再回过头把它写成"假设"然后检验它,你<strong>必然</strong>会得到显著的结果——你是从噪声里挑出最像信号的那一块再去问"这是信号吗"。这种做法有个名字叫
+<strong>HARKing</strong> (Hypothesizing After the Results are
+Known),它是科研可重复性危机的主要成因之一。<strong>流程顺序本身就是方法论的一部分。</strong></p>
+</blockquote>
+<p><strong>假设检验 (hypothesis testing)</strong>
+的做法用一句话讲:<strong>form an assertion and test it with
+data</strong>(提出一个论断,然后用数据检验它)。它总是成对出现两个假设:</p>
+<ul>
+<li><strong>Null hypothesis(零假设 / 原假设),记作
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></strong>
+—— <strong>常规假设是"没有差异"</strong>(common assumption: there is no
+difference)。</li>
+<li><strong>Alternative hypothesis(备择假设),记作
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>
+或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>1</mn></msub><annotation encoding="application/x-tex">H_1</annotation></semantics></math></strong>
+——
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+的对立面。</li>
+</ul>
+<h3 id="92-为什么零假设总是没有差异法庭类比">9.2
+为什么零假设总是"没有差异"?法庭类比</h3>
+<p>这是学生最常问的一点,讲师给了两层回答。</p>
+<p><strong>第一层(逻辑上的):</strong>
+科学要求证据。<strong>如果你想主张一个改变确实发生了,举证责任在你。</strong>
+所以最简单、最保守的做法是:先假定"什么都没发生",然后<strong>让数据来挑战它、推翻它</strong>。</p>
+<p><strong>第二层(讲师给的类比,非常好用):</strong></p>
+<blockquote>
+<p>想象一间法庭。有人被指控犯罪。我们会一上来就假定被告有罪吗?<strong>不会。我们从"被告无罪"开始。检方必须提供证据来推翻这个假定。</strong></p>
+</blockquote>
+<p>这个类比可以一路对应下去,建议整张表背下来——它把假设检验里最反直觉的几个点全解释了:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>法庭</th>
+<th>假设检验</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>无罪推定</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>:没有差异</td>
+</tr>
+<tr class="even">
+<td>指控</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>:存在差异</td>
+</tr>
+<tr class="odd">
+<td>检方的证据</td>
+<td>样本数据</td>
+</tr>
+<tr class="even">
+<td>"排除合理怀疑"的门槛</td>
+<td>显著性水平
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td><strong>判决"有罪"</strong></td>
+<td><strong>拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></strong></td>
+</tr>
+<tr class="even">
+<td><strong>判决"无罪"(即"证据不足")</strong></td>
+<td><strong>不拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></strong></td>
+</tr>
+<tr class="odd">
+<td>冤枉了一个无辜的人</td>
+<td><strong>Type I error(一类错误)</strong></td>
+</tr>
+<tr class="even">
+<td>放走了一个真凶</td>
+<td><strong>Type II error(二类错误)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>这个类比顺带解释了一个关键细节:法庭判"无罪"并不等于证明了被告清白,只表示"检方没能拿出足够的证据"。</strong>
+同理——</p>
+<h3 id="93-两种结局而且只有两种">9.3 两种结局(而且只有两种)</h3>
+<p>slides S30 说得很明确,假设检验的产出只有两种:</p>
+<ul>
+<li><strong>拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>,转而支持
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math></strong>
+(reject the null hypothesis in favour of the alternative);</li>
+<li><strong>不拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></strong>
+(not reject the null hypothesis)。</li>
+</ul>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)——一个措辞上的坑,值得知道</strong> 你会在
+slides S36 上看到
+<strong>"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+is accepted"</strong> 这样的表述,讲师口头也说过"accept the null
+hypothesis"。<strong>考试请按 slides
+的说法作答</strong>,但你应该知道统计学上更严谨的说法是 <strong>"fail to
+reject
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>"(未能拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>)</strong>。
+区别在哪?"接受"暗示"我们证明了没有差异";但实际情况可能只是<strong>样本太小、噪声太大,以至于就算真有差异我们也看不出来</strong>。就像法庭的"无罪"判决不等于"证明清白"。<strong>"没有找到证据"和"证明了不存在"是两回事。</strong></p>
+</blockquote>
+<h3 id="94-写出-h_0-和-h_a这是必考的基本功">9.4 写出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>:这是必考的基本功</h3>
+<p>讲师说了一句很实在的话:<strong>"对每个人来说,如果我给你一个问题,你需要能够清楚地陈述出零假设和备择假设。只要你理解了这一点,这其实相当直接。"</strong></p>
+<p>slides 与转录里给出的例子汇总如下:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>场景</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>(没有差异)</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>(有差异)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>药物 A vs 药物 B 对患者的疗效</strong>(S28)</td>
+<td>药物 A 与药物 B 在疗效上<strong>没有差异</strong></td>
+<td>药物 A 与药物 B 在疗效上<strong>有差异</strong></td>
+</tr>
+<tr class="even">
+<td><strong>新模型 X 的预测准确度</strong>(转录)</td>
+<td>模型 X 的预测<strong>不优于</strong>现有模型 /
+两者<strong>没有差异</strong></td>
+<td>模型 X 的预测<strong>优于</strong>现有模型</td>
+</tr>
+<tr class="odd">
+<td><strong>回归中某个变量是否有用</strong>(转录)</td>
+<td>该变量<strong>不影响</strong>结果</td>
+<td>该变量<strong>影响</strong>结果</td>
+</tr>
+<tr class="even">
+<td><strong>产品改版是否提升满意度</strong>(S24)</td>
+<td>改版前后满意度<strong>没有差异</strong></td>
+<td>改版前后满意度<strong>有差异</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>写
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+的机械做法</strong>:找出题目里那个"是否有效果/是否更好/是否有关"的主张,<strong>把它的否定写成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></strong>,把主张本身写成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>。</p>
+<pre class="mermaid"><code>graph TD
+  A[&quot;① 明确要比较的两个(或多个)总体&quot;] --&gt; B[&quot;② 写出 H₀:没有差异&lt;br/&gt;(保守、可被推翻的那个)&quot;]
+  B --&gt; C[&quot;③ 写出 H_A:H₀ 的对立面&lt;br/&gt;(注意:有方向 or 无方向?→ §11.4)&quot;]
+  C --&gt; D[&quot;④ 选定显著性水平 α&lt;br/&gt;(通常 0.05)&quot;]
+  D --&gt; E[&quot;⑤ 用样本数据计算检验统计量&lt;br/&gt;(T / W / F …)&quot;]
+  E --&gt; F[&quot;⑥ 与临界值比较,或直接看 p-value&quot;]
+  F --&gt; G1[&quot;拒绝 H₀&quot;]
+  F --&gt; G2[&quot;不拒绝 H₀&quot;]</code></pre>
+<hr />
+<h2 id="10-students-t-test把信号--噪声写成公式">§10 Student's
+t-test:把"信号 / 噪声"写成公式</h2>
+<h3 id="101-一段值得知道的历史">10.1 一段值得知道的历史</h3>
+<p>讲师讲了个小故事,考试大概不会考,但它能帮你记住这个名字。</p>
+<p><strong>Student's t-test 提出于 1908
+年</strong>,距今一百多年。提出者叫 <strong>William Sealy
+Gosset</strong>,他是<strong>爱尔兰都柏林 Guinness
+酿酒厂的一名雇员</strong>——他需要用<strong>小样本</strong>来判断不同批次啤酒原料的质量差异,现有的大样本方法不够用,于是他自己推导了一套。</p>
+<p>那为什么叫 "Student"?因为<strong>Guinness
+有严格的商业机密政策,禁止员工以真名发表</strong>,所以 Gosset 用了笔名
+<strong>"Student"</strong>。于是这个检验就永远叫 Student's t-test
+了。</p>
+<p><em>(转录里语音识别把年份错成了 "2008",正确年份是
+<strong>1908</strong>。)</em></p>
+<h3 id="102-统计量长什么样">10.2 统计量长什么样</h3>
+<p>回到 §7.3 的总纲:<strong>信号 / 噪声</strong>。t
+统计量就是它最直接的实现:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><mfrac><mrow><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>1</mn></msub><mo>−</mo><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>2</mn></msub></mrow><msqrt><mrow><msubsup><mi>S</mi><mi>p</mi><mn>2</mn></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac displaystyle="true"><mn>1</mn><msub><mi>n</mi><mn>1</mn></msub></mfrac><mo>+</mo><mfrac displaystyle="true"><mn>1</mn><msub><mi>n</mi><mn>2</mn></msub></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msqrt></mfrac></mrow><annotation encoding="application/x-tex">
+T \;=\; \frac{\bar{X}_1 - \bar{X}_2}{\sqrt{S_p^2\left(\dfrac{1}{n_1} + \dfrac{1}{n_2}\right)}}
+</annotation></semantics></math></p>
+<p>其中 <strong>pooled variance(合并方差)</strong> 为:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>S</mi><mi>p</mi><mn>2</mn></msubsup><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><mfrac><mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>n</mi><mn>1</mn></msub><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><msubsup><mi>S</mi><mn>1</mn><mn>2</mn></msubsup><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>n</mi><mn>2</mn></msub><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><msubsup><mi>S</mi><mn>2</mn><mn>2</mn></msubsup></mrow><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub><mo>−</mo><mn>2</mn></mrow></mfrac></mrow><annotation encoding="application/x-tex">
+S_p^2 \;=\; \frac{(n_1 - 1)S_1^2 + (n_2 - 1)S_2^2}{n_1 + n_2 - 2}
+</annotation></semantics></math></p>
+<p><strong>逐个符号读一遍</strong>(讲师强调过要能读懂公式在说什么):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>符号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>1</mn></msub><mo>,</mo><mspace width="0.222em"></mspace><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\bar{X}_1,\ \bar{X}_2</annotation></semantics></math></td>
+<td>两个样本各自的<strong>样本均值</strong></td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>S</mi><mn>1</mn><mn>2</mn></msubsup><mo>,</mo><mspace width="0.222em"></mspace><msubsup><mi>S</mi><mn>2</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">S_1^2,\ S_2^2</annotation></semantics></math></td>
+<td>两个样本各自的<strong>样本方差</strong></td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>n</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">n_1,\ n_2</annotation></semantics></math></td>
+<td>两个样本各自的<strong>样本量</strong></td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>S</mi><mi>p</mi><mn>2</mn></msubsup><annotation encoding="application/x-tex">S_p^2</annotation></semantics></math></td>
+<td><strong>合并方差</strong>——把两组的方差按各自自由度加权平均,得到对"共同方差"的一个估计</td>
+</tr>
+<tr class="odd">
+<td><strong>分子</strong></td>
+<td><strong>信号</strong>:两个样本均值的差</td>
+</tr>
+<tr class="even">
+<td><strong>分母</strong></td>
+<td><strong>噪声</strong>:这个差异本身的标准误差(standard error)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>这个公式在说什么话?</strong> 用讲师的原话复述:<em>"T
+统计量被构造成一个比值——样本均值之差,除以方差信息。这正是我们讨论的:不能只看均值,要看均值差<strong>相对于</strong>方差的大小。这个比值能更准确地告诉我们两个总体的重叠程度。"</em></p>
+<p><strong>为什么可以把两组方差"合并"?</strong> 因为 Student's t-test
+<strong>假设两个总体的方差相等(但未知)</strong>。既然它们相等,那么用两组数据一起去估计这个共同的方差,显然比只用其中一组更准。这就是
+pooled variance
+的来历——<strong>它是"等方差假设"的直接产物</strong>。记住这一点,你就能自然推出
+§12 的 Welch's t-test 为什么必须换掉这一项。</p>
+<p><strong>操作流程</strong>很直白:</p>
+<pre class="mermaid"><code>graph LR
+  A[&quot;样本 1&lt;br/&gt;(如模型 A 的表现)&quot;] --&gt; M1[&quot;算 x̄₁, S₁²&quot;]
+  B[&quot;样本 2&lt;br/&gt;(如模型 B 的表现)&quot;] --&gt; M2[&quot;算 x̄₂, S₂²&quot;]
+  M1 --&gt; D[&quot;分子:x̄₁ − x̄₂&quot;]
+  M2 --&gt; D
+  M1 --&gt; P[&quot;合并方差 S_p²&quot;]
+  M2 --&gt; P
+  P --&gt; N[&quot;分母:标准误差&quot;]
+  D --&gt; T[&quot;T 统计量&quot;]
+  N --&gt; T</code></pre>
+<h3 id="103-三条核心假设讲师特别点名必考">10.3
+三条核心假设(讲师特别点名,必考)</h3>
+<p>讲师在讲完公式后停下来,明确列出 <strong>"three core
+assumptions"</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>假设</th>
+<th>含义</th>
+<th>违反时怎么办</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>1</strong></td>
+<td><strong>Normality(正态性)</strong></td>
+<td>每个总体都必须服从<strong>正态分布</strong></td>
+<td>改用 <strong>Wilcoxon rank-sum test</strong>(§13)</td>
+</tr>
+<tr class="even">
+<td><strong>2</strong></td>
+<td><strong>Equal variance(等方差)</strong></td>
+<td>两个总体的方差<strong>相等但未知</strong></td>
+<td>改用 <strong>Welch's t-test</strong>(§12)</td>
+</tr>
+<tr class="odd">
+<td><strong>3</strong></td>
+<td><strong>Independence(独立性)</strong></td>
+<td>数据是
+<strong>i.i.d.</strong>(独立同分布);组内与组间的观测必须彼此完全独立</td>
+<td>需要配对检验或混合模型等其他方法</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师对第一条补了一句:<strong>确实存在更高级的方法来检验一份数据是否服从正态分布,但本课没有时间展开</strong>,所以我们假定你已经知道它是正态的。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 常用的正态性检验有
+<strong>Shapiro–Wilk test</strong> 和 <strong>Kolmogorov–Smirnov
+test</strong>,图形化的做法是画 <strong>Q-Q
+plot</strong>(把样本分位数对理论正态分位数作图,若近似正态则点应大致落在一条直线上)。<strong>Q-Q
+plot 其实就是 Part I 那套"先画图"哲学在这里的延续。</strong></p>
+</blockquote>
+<p>而
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+在这个框架下的精确表述是:两个总体的均值相同</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>1</mn></msub><mo>=</mo><msub><mi>μ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\mu_1 = \mu_2</annotation></semantics></math>)。</p>
+<h3 id="104-t-服从什么分布以及自由度为什么是-n_1--n_2---2">10.4 T
+服从什么分布,以及自由度为什么是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub><mo>−</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">n_1 + n_2 - 2</annotation></semantics></math></h3>
+<p>这是整个 Part II 逻辑上最关键的一环,讲师讲得很细,值得慢读。</p>
+<p><strong>问题:</strong> 我算出了一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+值,比如
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1.78</mn></mrow><annotation encoding="application/x-tex">-1.78</annotation></semantics></math>。这算大还是小?我凭什么判断?</p>
+<p><strong>答案:</strong> 因为可以从数学上证明,<strong>在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+成立的前提下</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+这个随机变量服从一个已知的分布——<strong>t-distribution(t
+分布)</strong>,其<strong>自由度 (degrees of freedom) 为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub><mo>−</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">n_1 + n_2 - 2</annotation></semantics></math></strong>。</p>
+<p>一旦知道了分布,"这个值算不算罕见"就变成了一个可以精确计算的概率问题。讲师把这条推理链讲得非常清楚:</p>
+<blockquote>
+<p><strong>如果你做了一个假设,却得到了一个荒谬的、极其罕见的结果,那这本身就是信息——它提示你先前做的那个假设可能是错的。于是你就可以带着一定的信心去拒绝零假设。</strong></p>
+</blockquote>
+<p>这是<strong>反证法的概率版本</strong>。注意它的方向:我们<strong>不能证明</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+为真,我们只能说"如果
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+为真,我观测到的这件事罕见到什么程度"。</p>
+<p><strong>t 分布长什么样?</strong>
+讲师描述:<strong>它看起来像正态分布</strong>——钟形、对称、中心在
+0——<strong>但在某些情况下更尖(尾部更厚)</strong>。自由度越小,尾部越厚(小样本时极端值更容易出现);自由度越大,它越接近标准正态分布。</p>
+<p><strong>自由度为什么是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub><mo>−</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">n_1 + n_2 - 2</annotation></semantics></math>?</strong>
+讲师给了解释:总共有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">n_1 + n_2</annotation></semantics></math>
+个数据点,但<strong>我们为了算这个统计量,已经先从数据里估计了两个均值(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>1</mn></msub><annotation encoding="application/x-tex">\bar{X}_1</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>2</mn></msub><annotation encoding="application/x-tex">\bar{X}_2</annotation></semantics></math>),每估计一个就"用掉"一个自由度</strong>,所以要减
+2。</p>
+<blockquote>
+<p><strong>🔑 例(课上给的具体数字)</strong> — 两组各 15
+个样本,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub><mo>=</mo><mn>30</mn></mrow><annotation encoding="application/x-tex">n_1 + n_2 = 30</annotation></semantics></math>,所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mi>f</mi><mo>=</mo><mn>30</mn><mo>−</mo><mn>2</mn><mo>=</mo><mn>28</mn></mrow><annotation encoding="application/x-tex">df = 30 - 2 = 28</annotation></semantics></math>。这个
+28 会在 §11.2 里用来查临界值。</p>
+</blockquote>
+<h3 id="105-决策规则t-越大越可疑">10.5
+决策规则:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>T</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|T|</annotation></semantics></math>
+越大越可疑</h3>
+<p>slides S33 给出规则:</p>
+<blockquote>
+<p><strong>The further
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+is from zero, the more significant the difference between the
+populations. If
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>T</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|T|</annotation></semantics></math>
+is large then one would reject the null hypothesis.</strong></p>
+</blockquote>
+<p><strong>为什么是 0?</strong> 因为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+说"两个总体均值相同",那么样本均值之差应该在 0
+附近波动,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+也就应该在 0 附近。<strong>0 是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+下最典型、最容易观测到的值。</strong></p>
+<p>反过来,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+离 0
+越远,说明"要么这两个总体真的不同,要么我运气极差抽到了一个罕见样本"。当远到某个程度,我们宁可相信前者。</p>
+<p>注意<strong>要取绝对值</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+可以是正的(样本 1 均值更大)也可以是负的(样本 2
+均值更大)。讲师说得直白:<em>"我取绝对值,因为它可能偏高也可能偏低,我不在乎方向,我只关心有没有差异。"</em>(——这句话的前提是我们在做<strong>双侧检验</strong>,见
+§11.4。)</p>
+<hr />
+<h2 id="11-做判断显著性水平-alpha临界值-tp-value">§11 做判断:显著性水平
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>、临界值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-value</h2>
+<h3 id="111-显著性水平-alpha-与一类错误">11.1 显著性水平
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+与一类错误</h3>
+<p>讲师用一个非常人性化的提问引出这个概念:</p>
+<blockquote>
+<p><em>"如果我拒绝了零假设,我有多大可能是错的?我想保守一点——这可是药物,会影响几百万人,我不想做出错误的宣称。我想把犯错的机会降到最低。"</em></p>
+</blockquote>
+<p>这个"犯错的机会"就是 <strong>significance level(显著性水平),记作
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></strong>。slides
+的正式定义:</p>
+<blockquote>
+<p><strong>the probability of rejecting the null hypothesis, when the
+null hypothesis is actually TRUE.</strong>
+(在零假设<strong>实际为真</strong>时却拒绝它的概率。)</p>
+</blockquote>
+<p>slides 紧跟一句:<strong>(This incurs "Type I Error")</strong> ——
+这就是<strong>一类错误</strong>。</p>
+<p>用药物例子把它讲活:<strong>真相是药物 A 和药物 B
+没有差异,但你错误地宣称它们有差异。</strong>
+你"发现"了一个不存在的效果。</p>
+<p><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">\alpha = 0.05</annotation></semantics></math>
+到底是什么意思?</strong>(这正是 slides 提出的问题)——
+它意味着:<strong>你愿意接受"最多有 5% 的概率,我这次拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+是一次冤案"。</strong></p>
+<p>讲师给出的常用取值:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></th>
+<th>场合</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>0.05</strong></td>
+<td>最常见的默认值,statistics 里非常通用</td>
+</tr>
+<tr class="even">
+<td><strong>0.01</strong></td>
+<td>想更保守、更安全时(如高风险的医学决策)</td>
+</tr>
+<tr class="odd">
+<td>0.1</td>
+<td>较宽松的探索性场合</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="112-从-alpha-找到临界值-t然后比较">11.2 从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+找到临界值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>,然后比较</h3>
+<p>slides S34 给出完整的操作规则:</p>
+<blockquote>
+<ul>
+<li>Find
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>
+such that
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mo stretchy="true" form="prefix">|</mo><mi>T</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>≥</mo><msup><mi>T</mi><mo>*</mo></msup><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>α</mi></mrow><annotation encoding="application/x-tex">P(|T| \ge T^*) = \alpha</annotation></semantics></math></li>
+<li><strong>Reject
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+if
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>T</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>≥</mo><msup><mi>T</mi><mo>*</mo></msup></mrow><annotation encoding="application/x-tex">|T| \ge T^*</annotation></semantics></math></strong></li>
+</ul>
+</blockquote>
+<p><strong>这在几何上是什么意思?</strong> 讲师用 t
+分布的图讲解:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+是分布<strong>两端阴影区域的面积之和</strong>。如果你把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+设得更小,就必须把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msup><mi>T</mi><mo>*</mo></msup></mrow><annotation encoding="application/x-tex">-T^*</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><msup><mi>T</mi><mo>*</mo></msup></mrow><annotation encoding="application/x-tex">+T^*</annotation></semantics></math>
+这两条竖线<strong>往两边推得更远</strong>,才能让两块阴影的总面积缩小。</p>
+<p>所以
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>
+是一一对应的</strong>:给定
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>(以及自由度),就能用
+t 分布的分位数函数唯一地算出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>。</p>
+<p><strong>完整逻辑链</strong>,讲师原话是"这就是整个逻辑":</p>
+<pre class="mermaid"><code>graph LR
+  A[&quot;选定 α&lt;br/&gt;(如 0.05)&quot;] --&gt; B[&quot;查 t 分布&lt;br/&gt;(df = n₁+n₂−2)&quot;]
+  B --&gt; C[&quot;得到临界值 T*&quot;]
+  D[&quot;用样本数据&lt;br/&gt;算出 T&quot;] --&gt; E[&quot;取绝对值 abs(T)&quot;]
+  C --&gt; F{&quot;abs(T) ≥ T* ?&quot;}
+  E --&gt; F
+  F --&gt;|是| G[&quot;&lt;b&gt;拒绝 H₀&lt;/b&gt;&lt;br/&gt;并且犯错概率 ≤ α&quot;]
+  F --&gt;|否| H[&quot;&lt;b&gt;不拒绝 H₀&lt;/b&gt;&lt;br/&gt;证据不足&quot;]</code></pre>
+<h3 id="113-完整的-r-实例逐步走一遍">11.3 完整的 R 实例(逐步走一遍)</h3>
+<p>课上跑了一个完整的例子,slides S35–S37 展示了它。</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">15</span>, <span class="at">mean=</span><span class="dv">100</span>, <span class="at">sd=</span><span class="dv">10</span>)    <span class="co"># 总体 1:中心在 100</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">15</span>, <span class="at">mean=</span><span class="dv">105</span>, <span class="at">sd=</span><span class="dv">10</span>)    <span class="co"># 总体 2:中心在 105,标准差相同</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="fu">t.test</span>(x, y, <span class="at">var.equal=</span><span class="cn">TRUE</span>)       <span class="co"># 注意:必须显式声明等方差</span></span></code></pre></div>
+<p>讲师专门强调:<strong><code>var.equal=TRUE</code>
+是必须的,因为等方差是 Student's t-test 的核心假设。</strong>
+如果不写这个参数,R 默认执行的是 Welch's t-test(见 §12)。</p>
+<p>输出的关键数字:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>输出项</th>
+<th>值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math></td>
+<td><strong>−1.7828</strong></td>
+<td>检验统计量</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mi>f</mi></mrow><annotation encoding="application/x-tex">df</annotation></semantics></math></td>
+<td><strong>28</strong></td>
+<td>自由度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mn>15</mn><mo>+</mo><mn>15</mn><mo>−</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">= 15 + 15 - 2</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-value</td>
+<td><strong>0.08547</strong></td>
+<td>见 §11.5</td>
+</tr>
+<tr class="even">
+<td>95% CI</td>
+<td>一个包含 0 的区间</td>
+<td>见 §11.6</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>第一步:找
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>。</strong>
+讲师带着算了一遍:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">\alpha = 0.05</annotation></semantics></math>;</li>
+<li>这是<strong>双侧检验</strong>,所以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+要<strong>平分到两个尾巴</strong>,每边
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mi>/</mi><mn>2</mn><mo>=</mo><mn>0.025</mn></mrow><annotation encoding="application/x-tex">\alpha/2 = 0.025</annotation></semantics></math>;</li>
+<li>自由度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mi>f</mi><mo>=</mo><mn>28</mn></mrow><annotation encoding="application/x-tex">df = 28</annotation></semantics></math>;</li>
+<li>查 t 分布(R 里是 <code>qt(0.975, 28)</code>),得到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>T</mi><mo>*</mo></msup><mo>=</mo><mn>2.048407</mn></mrow><annotation encoding="application/x-tex">T^* = 2.048407</annotation></semantics></math>。</li>
+</ul>
+<p><strong>第二步:比较。</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>T</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">|</mo><mo>−</mo><mn>1.7828</mn><mo stretchy="true" form="postfix">|</mo></mrow><mo>=</mo><mn>1.7828</mn><mspace width="1.0em"></mspace><mtext mathvariant="normal">vs</mtext><mspace width="1.0em"></mspace><msup><mi>T</mi><mo>*</mo></msup><mo>=</mo><mn>2.048407</mn></mrow><annotation encoding="application/x-tex">
+|T| = |-1.7828| = 1.7828 \quad\text{vs}\quad T^* = 2.048407
+</annotation></semantics></math></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1.7828</mn><mspace width="0.278em"></mspace><mo>≥</mo><mspace width="0.278em"></mspace><mn>2.048407</mn><mspace width="0.222em"></mspace><mi>?</mi><mspace width="1.0em"></mspace><mtext mathvariant="bold">𝐍𝐨.</mtext></mrow><annotation encoding="application/x-tex">
+1.7828 \;\ge\; 2.048407\ ? \quad \textbf{No.}
+</annotation></semantics></math></p>
+<p><strong>第三步:下结论。</strong> slides S36 的原话:</p>
+<blockquote>
+<p><strong>Insufficient evidence to reject.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+is accepted.</strong> (证据不足以拒绝。接受
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>。)</p>
+</blockquote>
+<p><strong>注意这个结果的教育意义</strong>:两个总体的真实均值明明是 100
+和 105,<strong>确实不同</strong>——但样本量只有 15、标准差有
+10,噪声盖过了信号,检验没能检出这个差异。<strong>这正是 Type II
+error(§14)的现场演示。</strong> 它也再次印证了 §7.3:均值差 5
+到底显不显著,取决于它相对于方差有多大。</p>
+<h3 id="114-双侧检验-vs-单侧检验">11.4 双侧检验 vs 单侧检验</h3>
+<p>slides S36 问:<strong>"What does the 'two-sided test' mean?"</strong>
+并给出答案:</p>
+<blockquote>
+<p>The "two-sided" means that we are testing for differences in
+<strong>both directions</strong> — whether the true mean difference is
+<strong>less than 0 or greater than 0</strong>.</p>
+</blockquote>
+<p>区别在于
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>
+有没有方向性 (directional)</strong>。slides 用两个例子做对照:</p>
+<blockquote>
+<p><strong>单侧 (One-sided) 例子(S38)</strong> —
+一家制药公司开发了新药,<strong>声称它比现行标准药更能降低血压</strong>。他们做实验比较两种药平均降压幅度。</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>:新药<strong>不比</strong>标准药更能降压,即
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mrow><mi>n</mi><mi>e</mi><mi>w</mi></mrow></msub><mo>≤</mo><msub><mi>μ</mi><mrow><mi>s</mi><mi>t</mi><mi>a</mi><mi>n</mi><mi>d</mi><mi>a</mi><mi>r</mi><mi>d</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\mu_{new} \le \mu_{standard}</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>1</mn></msub><annotation encoding="application/x-tex">H_1</annotation></semantics></math>:新药<strong>比</strong>标准药更能降压,即
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mrow><mi>n</mi><mi>e</mi><mi>w</mi></mrow></msub><mo>&gt;</mo><msub><mi>μ</mi><mrow><mi>s</mi><mi>t</mi><mi>a</mi><mi>n</mi><mi>d</mi><mi>a</mi><mi>r</mi><mi>d</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\mu_{new} &gt; \mu_{standard}</annotation></semantics></math></li>
+<li><strong>这是单侧检验,因为备择假设是有方向的
+(directional)</strong>,只关心"新药是否更好"。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p><strong>双侧 (Two-sided) 例子(S39)</strong> —
+一家公司想知道新包装设计是否<strong>导致平均销量出现差异</strong>。他们<strong>不确定</strong>新设计会让销量上升还是下降,只是觉得可能有影响。</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>:新旧包装的平均销量<strong>没有差异</strong>,即
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mrow><mi>n</mi><mi>e</mi><mi>w</mi></mrow></msub><mo>=</mo><msub><mi>μ</mi><mrow><mi>s</mi><mi>t</mi><mi>a</mi><mi>n</mi><mi>d</mi><mi>a</mi><mi>r</mi><mi>d</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\mu_{new} = \mu_{standard}</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>1</mn></msub><annotation encoding="application/x-tex">H_1</annotation></semantics></math>:新旧包装的平均销量<strong>存在差异</strong>,即
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mrow><mi>n</mi><mi>e</mi><mi>w</mi></mrow></msub><mo>≠</mo><msub><mi>μ</mi><mrow><mi>s</mi><mi>t</mi><mi>a</mi><mi>n</mi><mi>d</mi><mi>a</mi><mi>r</mi><mi>d</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\mu_{new} \ne \mu_{standard}</annotation></semantics></math></li>
+<li><strong>这是双侧检验,因为备择假设是无方向的
+(non-directional)</strong>,考虑两个方向上的差异可能。</li>
+</ul>
+</blockquote>
+<p>对照记忆:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>双侧检验 (two-sided)</strong></th>
+<th><strong>单侧检验 (one-sided)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+的形式</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>1</mn></msub><mo>=</mo><msub><mi>μ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\mu_1 = \mu_2</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>1</mn></msub><mo>≤</mo><msub><mi>μ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\mu_1 \le \mu_2</annotation></semantics></math>(或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>)</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>
+的形式</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>1</mn></msub><mo>≠</mo><msub><mi>μ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\mu_1 \ne \mu_2</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>1</mn></msub><mo>&gt;</mo><msub><mi>μ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\mu_1 &gt; \mu_2</annotation></semantics></math>(或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>&lt;</mo><annotation encoding="application/x-tex">&lt;</annotation></semantics></math>)</td>
+</tr>
+<tr class="odd">
+<td>方向性</td>
+<td><strong>non-directional</strong></td>
+<td><strong>directional</strong></td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+怎么分配</td>
+<td>两个尾巴各
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">\alpha/2</annotation></semantics></math></td>
+<td>全部
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+放在<strong>一个</strong>尾巴</td>
+</tr>
+<tr class="odd">
+<td>关键词</td>
+<td>"是否有差异"、"是否不同"</td>
+<td>"是否<strong>更好</strong>"、"是否<strong>更高/更低</strong>"</td>
+</tr>
+<tr class="even">
+<td>何时用</td>
+<td>你不知道方向,或两个方向都要防</td>
+<td>你只关心一个特定方向</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>判断诀窍:读题目里的动词。</strong> 出现 "different / a
+difference / 是否不同" → 双侧;出现 "more than / better / lowers … more /
+是否更优" → 单侧。</p>
+<h3 id="115-p-value更方便的等价判据">11.5
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-value:更方便的等价判据</h3>
+<p>slides S37 引出这个概念。定义:</p>
+<blockquote>
+<p><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-value
+offers the probability of observing
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>T</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>≥</mo><mi>t</mi></mrow><annotation encoding="application/x-tex">|T| \ge t</annotation></semantics></math>
+given the null hypothesis is TRUE.</strong>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值是"在零假设为真的前提下,观测到统计量绝对值大于等于当前值"的概率。)</p>
+</blockquote>
+<p>对<strong>双侧检验</strong>,slides 说明:显著性水平
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+对应的是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>T</mi><mo>≤</mo><mo>−</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(T \le -t)</annotation></semantics></math>
+与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>T</mi><mo>≥</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P(T \ge t)</annotation></semantics></math>
+<strong>两个尾巴之和</strong>,所以<strong>每个尾巴各占
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">\alpha/2</annotation></semantics></math></strong>。</p>
+<p><strong>决策规则简单到不需要查表:</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mspace width="0.278em"></mspace><mo>&lt;</mo><mspace width="0.278em"></mspace><mi>α</mi><mspace width="0.278em"></mspace><mo>⇒</mo><mspace width="0.278em"></mspace><mrow><mtext mathvariant="bold">拒绝 </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>H</mi><mn>0</mn></msub><mspace width="2.0em"></mspace><mspace width="2.0em"></mspace><mi>p</mi><mspace width="0.278em"></mspace><mo>≥</mo><mspace width="0.278em"></mspace><mi>α</mi><mspace width="0.278em"></mspace><mo>⇒</mo><mspace width="0.278em"></mspace><mrow><mtext mathvariant="bold">不拒绝 </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>H</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">
+p \;&lt;\; \alpha \;\Longrightarrow\; \textbf{拒绝 } H_0 \qquad\qquad p \;\ge\; \alpha \;\Longrightarrow\; \textbf{不拒绝 } H_0
+</annotation></semantics></math></p>
+<p>回到上面的例子:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>0.08547</mn></mrow><annotation encoding="application/x-tex">p = 0.08547</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">\alpha = 0.05</annotation></semantics></math>。讲师的解读非常直观,建议照这个说法记:</p>
+<blockquote>
+<p><strong>如果你拒绝零假设,你犯错的概率可能高达
+0.08(8%);但你事先说过,你最多只能容忍 0.05(5%)。0.08
+高于你的容忍上限,所以你说"不行,我不能接受这个,我不拒绝"。</strong></p>
+</blockquote>
+<p>于是<strong>两条路殊途同归</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>路线</th>
+<th>做法</th>
+<th>本例结果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>临界值法</strong></td>
+<td>比较
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">|</mo><mi>T</mi><mo stretchy="false" form="postfix">|</mo><mo>=</mo><mn>1.7828</mn></mrow><annotation encoding="application/x-tex">\lvert T\rvert = 1.7828</annotation></semantics></math>
+与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>T</mi><mo>*</mo></msup><mo>=</mo><mn>2.048407</mn></mrow><annotation encoding="application/x-tex">T^* = 2.048407</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1.78</mn><mo>&lt;</mo><mn>2.05</mn></mrow><annotation encoding="application/x-tex">1.78 &lt; 2.05</annotation></semantics></math>
+→ 不拒绝</td>
+</tr>
+<tr class="even">
+<td><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值法</strong></td>
+<td>比较
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>0.08547</mn></mrow><annotation encoding="application/x-tex">p = 0.08547</annotation></semantics></math>
+与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">\alpha = 0.05</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.085</mn><mo>&gt;</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">0.085 &gt; 0.05</annotation></semantics></math>
+→ 不拒绝</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师明确说了:<strong>这两种方式等价,你用哪一种都行</strong>——而
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值法更省事,因为软件直接把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+打给你,不需要自己查分布表。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出
+slides)——<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值最常被误解的一点</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值<strong>不是</strong>"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+为真的概率",也<strong>不是</strong>"结果由偶然造成的概率"。它是一个<strong>条件概率</strong>:<strong>假定
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+为真</strong>,观测到当前这么极端(或更极端)结果的概率。方向不能反过来读。
+另外,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值<strong>不衡量效应有多大</strong>。样本量足够大时,一个微不足道的差异也能得到极小的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值。所以实践中除了报
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值,还应报<strong>效应量 (effect size)</strong>
+和<strong>置信区间</strong>。</p>
+</blockquote>
+<h3 id="116-95-置信区间怎么读">11.6 95% 置信区间怎么读</h3>
+<p>slides S35 给了定义:</p>
+<blockquote>
+<p>In a two-sample t-test, the <strong>95% confidence interval
+(CI)</strong> is a range of values that we believe, with 95% confidence,
+contains the <strong>true difference between the two population
+means</strong>(即 mean of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+与 mean of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+之差)。</p>
+</blockquote>
+<p><strong>它和检验结论的关系是一条捷径,值得记住:</strong></p>
+<blockquote>
+<p><strong>双侧检验中,若 95% CI 包含 0,则等价于在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">\alpha = 0.05</annotation></semantics></math>
+下不拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>;若不包含
+0,则等价于拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>。</strong></p>
+</blockquote>
+<p>为什么?因为"CI 包含 0"意味着"真实差值为
+0"是一个与数据相容的可能性——也就是说,你没有证据排除"两个总体均值相同"。上例中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>0.085</mn><mo>&gt;</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">p = 0.085 &gt; 0.05</annotation></semantics></math>,所以它的
+95% CI <strong>必然跨过 0</strong>。</p>
+<p>置信区间比
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值多给了一样东西:<strong>它告诉你差异可能有多大</strong>。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值只说"显不显著",CI
+说"差异大概在什么范围"——后者往往是业务方真正关心的。</p>
+<hr />
+<h2 id="12-放松第一条假设welchs-t-test">§12 放松第一条假设:Welch's
+t-test</h2>
+<h3 id="121-什么时候需要它">12.1 什么时候需要它</h3>
+<p>slides S40 提了个问题:<strong>"Why is
+<code>var.equal = TRUE</code>?"</strong> 答案:<strong>Student's t-test
+要求两个总体方差相等!</strong></p>
+<p>那如果这个假设不合适呢?讲师给的场景是:<strong>"基于我的领域知识/前期探索,我不能假定它们方差相等——它们的方差明显不同。"</strong>
+这种情况下<strong>不能用 Student's t-test</strong>,要换成
+<strong>Welch's t-test</strong>。</p>
+<p>slides S41 的三句概括:</p>
+<ul>
+<li><strong>当"等方差"假设不成立时使用</strong>;</li>
+<li><strong>它用每个总体各自的样本方差,而不是合并样本方差 (pooled sample
+variance)</strong>;</li>
+<li><strong>仍然假设两个总体是正态的</strong>(在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+下均值相同)。</li>
+</ul>
+<h3 id="122-公式上究竟改了什么">12.2 公式上究竟改了什么</h3>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>T</mi><mtext mathvariant="normal">Welch</mtext></msub><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><mfrac><mrow><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>1</mn></msub><mo>−</mo><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>2</mn></msub></mrow><msqrt><mrow><mfrac displaystyle="true"><msubsup><mi>S</mi><mn>1</mn><mn>2</mn></msubsup><msub><mi>n</mi><mn>1</mn></msub></mfrac><mo>+</mo><mfrac displaystyle="true"><msubsup><mi>S</mi><mn>2</mn><mn>2</mn></msubsup><msub><mi>n</mi><mn>2</mn></msub></mfrac></mrow></msqrt></mfrac></mrow><annotation encoding="application/x-tex">
+T_{\text{Welch}} \;=\; \frac{\bar{X}_1 - \bar{X}_2}{\sqrt{\dfrac{S_1^2}{n_1} + \dfrac{S_2^2}{n_2}}}
+</annotation></semantics></math></p>
+<p><strong>把它和 Student
+版对照着看</strong>——分子完全一样,<strong>只有分母变了</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>Student's t-test</th>
+<th>Welch's t-test</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>分子</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>1</mn></msub><mo>−</mo><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\bar{X}_1 - \bar{X}_2</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>1</mn></msub><mo>−</mo><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\bar{X}_1 - \bar{X}_2</annotation></semantics></math>(<strong>相同</strong>)</td>
+</tr>
+<tr class="even">
+<td>分母的方差项</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>S</mi><mi>p</mi><mn>2</mn></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mn>1</mn><msub><mi>n</mi><mn>1</mn></msub></mfrac><mo>+</mo><mfrac><mn>1</mn><msub><mi>n</mi><mn>2</mn></msub></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">S_p^2\left(\frac{1}{n_1}+\frac{1}{n_2}\right)</annotation></semantics></math>,<strong>合并</strong>成一个</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><msubsup><mi>S</mi><mn>1</mn><mn>2</mn></msubsup><msub><mi>n</mi><mn>1</mn></msub></mfrac><mo>+</mo><mfrac><msubsup><mi>S</mi><mn>2</mn><mn>2</mn></msubsup><msub><mi>n</mi><mn>2</mn></msub></mfrac></mrow><annotation encoding="application/x-tex">\frac{S_1^2}{n_1} + \frac{S_2^2}{n_2}</annotation></semantics></math>,<strong>两组各用各的</strong></td>
+</tr>
+<tr class="odd">
+<td>等方差假设</td>
+<td><strong>需要</strong></td>
+<td><strong>不需要</strong></td>
+</tr>
+<tr class="even">
+<td>正态性假设</td>
+<td>需要</td>
+<td><strong>仍然需要</strong></td>
+</tr>
+<tr class="odd">
+<td>独立性假设</td>
+<td>需要</td>
+<td><strong>仍然需要</strong></td>
+</tr>
+<tr class="even">
+<td>自由度</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub><mo>−</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">n_1 + n_2 - 2</annotation></semantics></math></td>
+<td>由 <strong>Welch–Satterthwaite 公式</strong>近似,通常不是整数</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师把这个对比讲得很清楚:<em>"在 Student's t-test
+里我们用合并方差,因为我们假设它们方差相同,所以把它们放在一起算。但在这里,你清楚地看到分母里是<strong>两项</strong>而不是一项。"</em></p>
+<p><strong>核心洞察:</strong>
+合并方差本身就是等方差假设的产物。<strong>放弃这个假设,合并的理由就消失了</strong>,于是每组只能用自己的方差。这不是随意的公式改动,而是假设改变的必然结果。</p>
+<h3 id="123-r-里怎么做">12.3 R 里怎么做</h3>
+<p><strong>只改一个字</strong>:</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">t.test</span>(x, y, <span class="at">var.equal =</span> <span class="cn">FALSE</span>)    <span class="co"># Welch&#39;s t-test</span></span></code></pre></div>
+<p>讲师说:<strong>"唯一的改动就是把 <code>var.equal</code> 从 TRUE 改成
+FALSE,你就切换到了 Welch's test。"</strong> 输出格式和 Student
+版一样——给你
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+值、自由度、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值——判断规则也完全一样。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 这也是为什么 R 的
+<code>t.test()</code> <strong>默认就是
+<code>var.equal = FALSE</code></strong>(即默认跑
+Welch)。现代统计实践的共识是:Welch's t-test
+在方差相等时几乎不损失效能,在方差不等时则明显更可靠,所以<strong>默认用
+Welch 是更安全的选择</strong>。这正是讲师强调"用 Student's t-test
+时必须显式写 <code>var.equal=TRUE</code>"的原因——不写就不是 Student
+了。</p>
+</blockquote>
+<hr />
+<h2 id="13-放松第二条假设wilcoxon-rank-sum-test">§13
+放松第二条假设:Wilcoxon Rank-Sum Test</h2>
+<h3 id="131-parametric-vs-nonparametric">13.1 Parametric vs
+Nonparametric</h3>
+<p>Welch
+帮我们摆脱了等方差假设,但<strong>正态性假设还在</strong>。slides S43
+接着问:<strong>"What if the two populations are not
+normal?"</strong></p>
+<p>这引出一对重要的分类:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Parametric test(参数检验)</strong></th>
+<th><strong>Nonparametric test(非参数检验)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>代表</td>
+<td><strong>Student's t-test</strong>、Welch's t-test、ANOVA</td>
+<td><strong>Wilcoxon rank-sum test</strong></td>
+</tr>
+<tr class="even">
+<td>定义(slides 原文)</td>
+<td><strong>Makes assumptions about the population distributions from
+which the samples are
+drawn</strong>(对样本所来自的总体分布做出假设)</td>
+<td><strong>Shall be used if the populations cannot be assumed (or
+transformed) to be
+normal</strong>(当总体无法被假定或变换为正态时使用)</td>
+</tr>
+<tr class="odd">
+<td>用什么信息</td>
+<td>数值本身</td>
+<td><strong>秩 (ranks)</strong></td>
+</tr>
+<tr class="even">
+<td>效能</td>
+<td>假设成立时更高</td>
+<td>稍低,但更稳健</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师的解释很直白:<strong>"Student's t-test
+是参数检验,因为它假设分布具有参数化的形式——正态分布。如果我们不能假定这一点,就用非参数检验。"</strong></p>
+<p>注意 slides 措辞里那个括号:<strong>"cannot be assumed (<strong>or
+transformed</strong>) to be normal"</strong> ——
+这提醒你还有一条中间路线:<strong>先做变换(比如 §4.3 的 log
+transformation)把数据变得接近正态,再用参数检验</strong>。只有当变换也救不回来时,才转向非参数方法。</p>
+<h3 id="132-它在检验什么以及用秩代替数值的妙处">13.2
+它在检验什么,以及"用秩代替数值"的妙处</h3>
+<p>slides S44:</p>
+<blockquote>
+<ul>
+<li><strong>A nonparametric test to check whether two populations are
+identically
+distributed</strong>(检验两个总体是否<strong>同分布</strong>);</li>
+<li><strong>It uses "ranks" instead of numerical outcomes to avoid
+specific assumption about the
+distribution</strong>(用<strong>秩</strong>代替数值,以避免对分布做特定假设)。</li>
+</ul>
+</blockquote>
+<p><strong>注意
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+变了。</strong> t 检验的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+是"两个总体<strong>均值</strong>相同";Wilcoxon 的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+是"两个总体<strong>同分布</strong>"。这是个更强、也更笼统的命题——它不只关心中心位置。</p>
+<p><strong>为什么用秩就能摆脱分布假设?</strong>
+因为秩只保留了"谁比谁大"的<strong>顺序信息</strong>,丢掉了"大多少"的<strong>数值信息</strong>。而顺序信息的分布行为,在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>(两组来自同一个分布)下是可以<strong>纯组合地</strong>算出来的——你不需要知道那个分布长什么样,只需要知道"如果两组本来就没区别,那么把它们混在一起排序后,标签的排列方式应该是随机的"。<strong>这就是非参数方法的核心思想。</strong></p>
+<p>讲师给的直觉解释同样好用:</p>
+<blockquote>
+<p><strong>想象两个总体彼此分离得很开。那么其中一组会压倒性地排在另一组前面,于是这一组的秩和会远小于另一组的秩和。但如果两组高度重叠,那么两组的秩和会非常接近。</strong></p>
+</blockquote>
+<p>所以<strong>秩和本身就是"分离程度"的度量</strong>——又一次是"信号"的某种编码。</p>
+<h3 id="133-三步流程">13.3 三步流程</h3>
+<p>slides S44 的 "How to conduct the test":</p>
+<pre class="mermaid"><code>graph LR
+  A[&quot;① 混合排秩&lt;br/&gt;Rank two samples&lt;br/&gt;as if they are from one group&quot;] --&gt; B[&quot;② 求秩和&lt;br/&gt;Sum assigned ranks&lt;br/&gt;for one population&#39;s sample&quot;]
+  B --&gt; C[&quot;③ 判显著性&lt;br/&gt;Determine the significance&lt;br/&gt;of the rank-sums&quot;]</code></pre>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-value
+的含义(S45)也随之改写:<strong>"the probability of the rank-sums of this
+magnitude being observed assuming that the population distributions are
+identical."</strong>(在两总体同分布的假定下,观测到如此量级秩和的概率。)——
+结构和 t 检验的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值完全一致,只是把"统计量"换成了"秩和"。</p>
+<h3 id="134-手算例s46建议自己动手复算一遍">13.4
+手算例(S46,建议自己动手复算一遍)</h3>
+<blockquote>
+<p><strong>🔑 Worked example</strong></p>
+<p><strong>数据:</strong></p>
+<ul>
+<li>Group A: <code>[85, 80, 78, 90, 95]</code></li>
+<li>Group B: <code>[88, 82, 85, 87, 92]</code></li>
+</ul>
+<p><strong>Step 1 — 合并并排秩。</strong>
+合并后:<code>[85, 80, 78, 90, 95, 88, 82, 85, 87, 92]</code>(共
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>=</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">n = 10</annotation></semantics></math>
+个)</p>
+<p>从小到大排序并赋秩:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>值</th>
+<th>78</th>
+<th>80</th>
+<th>82</th>
+<th>85</th>
+<th>85</th>
+<th>87</th>
+<th>88</th>
+<th>90</th>
+<th>92</th>
+<th>95</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>名次</td>
+<td>1</td>
+<td>2</td>
+<td>3</td>
+<td>4</td>
+<td>5</td>
+<td>6</td>
+<td>7</td>
+<td>8</td>
+<td>9</td>
+<td>10</td>
+</tr>
+<tr class="even">
+<td><strong>秩</strong></td>
+<td>1</td>
+<td>2</td>
+<td>3</td>
+<td><strong>4.5</strong></td>
+<td><strong>4.5</strong></td>
+<td>6</td>
+<td>7</td>
+<td>8</td>
+<td>9</td>
+<td>10</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>注意两个 85 的处理</strong>:它们并列,占据第 4、5
+名,所以<strong>各取平均秩
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>4</mn><mo>+</mo><mn>5</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn><mo>=</mo><mn>4.5</mn></mrow><annotation encoding="application/x-tex">(4+5)/2 = 4.5</annotation></semantics></math></strong>。这是处理
+<strong>ties(并列)</strong> 的标准做法。</p>
+<p>按原顺序写回:<code>[4.5, 2, 1, 8, 10, 7, 3, 4.5, 6, 9]</code></p>
+<p><strong>Step 2 — 分别求秩和。</strong></p>
+<ul>
+<li>Group A 的秩:<code>[4.5, 2, 1, 8, 10]</code> →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mn>1</mn></msub><mo>=</mo><mn>4.5</mn><mo>+</mo><mn>2</mn><mo>+</mo><mn>1</mn><mo>+</mo><mn>8</mn><mo>+</mo><mn>10</mn><mo>=</mo><mn mathvariant="bold">25.5</mn></mrow><annotation encoding="application/x-tex">W_1 = 4.5 + 2 + 1 + 8 + 10 = \mathbf{25.5}</annotation></semantics></math></li>
+<li>Group B 的秩:<code>[7, 3, 4.5, 6, 9]</code> →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mn>2</mn></msub><mo>=</mo><mn>7</mn><mo>+</mo><mn>3</mn><mo>+</mo><mn>4.5</mn><mo>+</mo><mn>6</mn><mo>+</mo><mn>9</mn><mo>=</mo><mn mathvariant="bold">29.5</mn></mrow><annotation encoding="application/x-tex">W_2 = 7 + 3 + 4.5 + 6 + 9 = \mathbf{29.5}</annotation></semantics></math></li>
+</ul>
+<p><strong>自检:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mn>1</mn></msub><mo>+</mo><msub><mi>W</mi><mn>2</mn></msub><mo>=</mo><mn>25.5</mn><mo>+</mo><mn>29.5</mn><mo>=</mo><mn>55</mn></mrow><annotation encoding="application/x-tex">W_1 + W_2 = 25.5 + 29.5 = 55</annotation></semantics></math>,而
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>+</mo><mn>2</mn><mo>+</mo><mi>⋯</mi><mo>+</mo><mn>10</mn><mo>=</mo><mfrac><mrow><mn>10</mn><mo>×</mo><mn>11</mn></mrow><mn>2</mn></mfrac><mo>=</mo><mn>55</mn></mrow><annotation encoding="application/x-tex">1+2+\cdots+10 = \frac{10 \times 11}{2} = 55</annotation></semantics></math>
+✅。<strong>秩和相加必须等于
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac><mrow><mi>n</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mn>2</mn></mfrac><annotation encoding="application/x-tex">\frac{n(n+1)}{2}</annotation></semantics></math>——这是一个免费的验算,考试时务必用。</strong></p>
+<p><strong>Step 3 — 选择检验统计量。</strong>
+slides:<em>"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+can be either 25.5 or 29.5 depending on the test design, but usually,
+<strong>the smaller sum is used</strong> if conducting a one-sided
+test."</em></p>
+<p><strong>Step 4 — 判断显著性。</strong> 把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+与 <strong>Wilcoxon rank-sum
+分布</strong>的临界值比较,或直接用统计软件给出的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-value。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)——slides 上的一处笔误</strong> S46 把
+Group B 的秩和写成
+<strong>"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mn>2</mn></msub><mo>=</mo><mn>6</mn><mo>+</mo><mn>3</mn><mo>+</mo><mn>4.5</mn><mo>+</mo><mn>5</mn><mo>+</mo><mn>9</mn><mo>=</mo><mn>29.5</mn></mrow><annotation encoding="application/x-tex">W_2 = 6+3+4.5+5+9 = 29.5</annotation></semantics></math>"</strong>。这几个加数其实算出来是
+27.5,与写出的 29.5 对不上。<strong>正确的加数应该是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>7</mn><mo>+</mo><mn>3</mn><mo>+</mo><mn>4.5</mn><mo>+</mo><mn>6</mn><mo>+</mo><mn>9</mn><mo>=</mo><mn>29.5</mn></mrow><annotation encoding="application/x-tex">7+3+4.5+6+9 = 29.5</annotation></semantics></math></strong>(结果
+29.5
+是对的,是中间的加数抄错了)。核对方法就是上面的自检:两个秩和必须加起来等于
+55。</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)——直觉核对</strong> 本例中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mn>1</mn></msub><mo>=</mo><mn>25.5</mn></mrow><annotation encoding="application/x-tex">W_1 = 25.5</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mn>2</mn></msub><mo>=</mo><mn>29.5</mn></mrow><annotation encoding="application/x-tex">W_2 = 29.5</annotation></semantics></math>,两者非常接近(如果两组完全无差异,期望各为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>55</mn><mi>/</mi><mn>2</mn><mo>=</mo><mn>27.5</mn></mrow><annotation encoding="application/x-tex">55/2 = 27.5</annotation></semantics></math>)。所以<strong>从数值上就能预判:这两组不会显著不同</strong>。回想
+§13.2 的直觉——秩和接近 ⟺ 两组高度重叠 ⟺ 差异不显著。</p>
+</blockquote>
+<p>R 里的调用同样是一行:</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">wilcox.test</span>(x, y)</span></code></pre></div>
+<p>讲师说明输出里给的<strong>不是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+统计量而是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math></strong>,同样附带
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-value,判断规则不变(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>&lt;</mo><mi>α</mi></mrow><annotation encoding="application/x-tex">p &lt; \alpha</annotation></semantics></math>
+则拒绝)。</p>
+<h3 id="135-三个检验的假设放松阶梯">13.5 三个检验的假设放松阶梯</h3>
+<p>到这里,三个两样本检验的关系可以串成一条线了。<strong>这张图很可能是本讲最值得记住的一张:</strong></p>
+<pre class="mermaid"><code>graph TD
+  S[&quot;&lt;b&gt;Student&#39;s t-test&lt;/b&gt;&lt;br/&gt;假设:正态 + 等方差 + 独立&quot;]
+  S --&gt;|&quot;放松&lt;b&gt;等方差&lt;/b&gt;&quot;| W[&quot;&lt;b&gt;Welch&#39;s t-test&lt;/b&gt;&lt;br/&gt;假设:正态 + 独立&lt;br/&gt;(用各自方差,不合并)&quot;]
+  W --&gt;|&quot;放松&lt;b&gt;正态性&lt;/b&gt;&quot;| WX[&quot;&lt;b&gt;Wilcoxon rank-sum test&lt;/b&gt;&lt;br/&gt;假设:独立&lt;br/&gt;(用秩,非参数)&quot;]
+  S -.-&gt;|&quot;扩展到&lt;b&gt;多于两组&lt;/b&gt;&quot;| A[&quot;&lt;b&gt;ANOVA&lt;/b&gt;&lt;br/&gt;假设:正态 + 等方差 + 独立&lt;br/&gt;(§15)&quot;]</code></pre>
+<p><strong>每往下走一步,你放弃一条假设,换取一分稳健性,代价是损失一点统计效能。</strong>
+独立性是唯一一条谁都没放松的——它是最难绕过的假设。</p>
+<hr />
+<h2 id="14-type-i--type-ii-错误与统计功效">§14 Type I / Type II
+错误与统计功效</h2>
+<p>我们在 §11.1 已经见过一类错误(它就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+的定义)。slides S47 把两类错误放在一起讲完。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Type I error(一类错误)</strong></th>
+<th><strong>Type II error(二类错误)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>slides 定义</strong></td>
+<td>the <strong>rejection</strong> of the null hypothesis when the null
+hypothesis is <strong>TRUE</strong></td>
+<td>the <strong>acceptance</strong> of the null hypothesis when the null
+hypothesis is <strong>FALSE</strong></td>
+</tr>
+<tr class="even">
+<td><strong>通俗说法</strong></td>
+<td><strong>False positive(假阳性)</strong></td>
+<td><strong>False negative(假阴性)</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>中文</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+为真却拒绝了它</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+为假却没拒绝它</td>
+</tr>
+<tr class="even">
+<td><strong>概率记号</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td><strong>犯错的性格</strong></td>
+<td>太激进——发现了不存在的效果</td>
+<td>太保守——错过了真实存在的效果</td>
+</tr>
+<tr class="even">
+<td><strong>怎么修</strong>(slides)</td>
+<td><strong>选择恰当的显著性水平</strong></td>
+<td><strong>增大样本量 (increase sample size)</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>法庭类比</strong></td>
+<td>冤枉无辜的人</td>
+<td>放走真凶</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>用药物例子把两者说活:</strong></p>
+<ul>
+<li><strong>一类错误</strong>:药物其实无效,但你宣布它有效 →
+无效药上市。</li>
+<li><strong>二类错误</strong>:药物其实有效,但你宣布证据不足 →
+有效药被埋没。</li>
+</ul>
+<p><strong>为什么二类错误靠增大样本量来修?</strong>
+讲师给了理由:<strong>更多样本能给出对总体更好的估计。</strong>
+从公式上也看得出来——回看 §10.2 的 t 统计量分母
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><mrow><msubsup><mi>S</mi><mi>p</mi><mn>2</mn></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mi>/</mi><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><mn>1</mn><mi>/</mi><msub><mi>n</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msqrt><annotation encoding="application/x-tex">\sqrt{S_p^2(1/n_1 + 1/n_2)}</annotation></semantics></math>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+越大,分母越小,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>T</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|T|</annotation></semantics></math>
+越大,<strong>同样的真实差异就越容易被检出</strong>。这也解释了 §11.3
+那个例子:100 vs 105 的真实差异之所以没被检出,很大程度上是因为每组只有 15
+个样本。</p>
+<h3 id="统计功效-statistical-power">统计功效 (Statistical Power)</h3>
+<p>slides 给了两条:</p>
+<ul>
+<li><strong>Power
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mn>1</mn><mo>−</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">= 1 - \beta</annotation></semantics></math></strong>,即
+<strong>"the probability of correctly rejecting the null
+hypothesis"</strong>(在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+确实为假时,正确拒绝它的概率);</li>
+<li>它的实际用途:<strong>determine necessary sample
+size</strong>(确定所需的样本量)。</li>
+</ul>
+<p><strong>第二条是它在工程上最有价值的地方。</strong>
+在做实验之前,你可以反过来问:<em>"如果真实效应是这么大,我需要多少样本,才能有
+80% 的把握把它检出来?"</em> 这个计算叫 <strong>power
+analysis(功效分析)</strong>,它把"样本量"从一个拍脑袋的决定变成一个可推导的量。</p>
+<p>四者的关系可以画成一张
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mo>×</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">2\times2</annotation></semantics></math>
+表(这是理解它们最快的方式):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+实际为真</strong></th>
+<th><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+实际为假</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></strong></td>
+<td>❌ <strong>Type I error</strong>,概率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></td>
+<td>✅ 正确,概率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">1-\beta</annotation></semantics></math>
+= <strong>Power</strong></td>
+</tr>
+<tr class="even">
+<td><strong>不拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></strong></td>
+<td>✅ 正确,概率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mi>α</mi></mrow><annotation encoding="application/x-tex">1-\alpha</annotation></semantics></math></td>
+<td>❌ <strong>Type II error</strong>,概率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>一个必须理解的权衡:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
+此消彼长。你把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+调得更小(更不容易冤枉好人),临界值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>
+就被推得更远,于是<strong>真实效应也更难被检出</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
+上升、power
+下降。<strong>在样本量固定的前提下,你不能同时减少两类错误。</strong>
+唯一能同时改善两者的手段——就是 slides
+说的那条:<strong>增大样本量。</strong></p>
+<hr />
+<h2 id="15-anova超过两组怎么办">§15 ANOVA:超过两组怎么办</h2>
+<h3 id="151-为什么不能反复做-t-检验讲师留了作业题">15.1 为什么不能反复做
+t 检验(讲师留了作业题)</h3>
+<p>slides S48 提出问题:<strong>"What if there are more than two
+populations?"</strong> 比如你有 3 种药、5 种药、10 种药要比。</p>
+<p>最自然的想法是:<strong>做两两配对的 t 检验</strong>——A vs B、A vs
+C、B vs C……但 slides 明确警告:<strong>"Multiple t-test may not perform
+well now."</strong></p>
+<p><strong>为什么?</strong> 讲师给了理由,这是本节最重要的一句话:</p>
+<blockquote>
+<p><strong>回想一下,每做一次检验,你就有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+的概率犯一次错误。你做的 t
+检验越多,"至少有一次犯错"的概率就越高。</strong></p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)——把这个道理量化</strong>
+这叫<strong>多重比较问题 (multiple comparisons
+problem)</strong>,犯错概率叫 <strong>family-wise error
+rate(族错误率)</strong>。 假设各次检验独立、每次
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">\alpha = 0.05</annotation></semantics></math>,则<strong>至少犯一次一类错误</strong>的概率是:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><mtext mathvariant="normal">至少一次错</mtext><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>1</mn><mo>−</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>m</mi></msup></mrow><annotation encoding="application/x-tex">P(\text{至少一次错}) = 1 - (1-\alpha)^m</annotation></semantics></math>
+其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+是检验次数。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+组要做
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mfrac linethickness="0"><mi>k</mi><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">m = \binom{k}{2}</annotation></semantics></math>
+次两两比较:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>组数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math></th>
+<th>两两比较次数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math></th>
+<th>至少犯一次一类错误的概率</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>2</td>
+<td>1</td>
+<td>5%</td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>3</td>
+<td>14.3%</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>10</td>
+<td><strong>40.1%</strong></td>
+</tr>
+<tr class="even">
+<td>10</td>
+<td>45</td>
+<td><strong>90.1%</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>10
+组的时候,你几乎<strong>必然</strong>会"发现"至少一个根本不存在的差异。这就是为什么必须换方法。</p>
+</blockquote>
+<blockquote>
+<p><strong>❓ 讲师留的作业题(课末明确说下周会检查)</strong> — <em>For a
+given problem including multiple groups, <strong>what is the advantage
+of the ANOVA test over simply doing direct multiple pairwise
+t-tests?</strong></em> 参考答案的骨架:<strong>ANOVA
+用一次检验回答"是否存在任何差异",把整体的一类错误率控制在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+之内</strong>,而
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+次成对 t 检验的族错误率会随组数急剧膨胀(见上表);此外 ANOVA
+<strong>用全部数据估计组内方差</strong>(自由度更大,方差估计更稳),因此<strong>功效也更高</strong>。</p>
+</blockquote>
+<h3 id="152-anova-是什么">15.2 ANOVA 是什么</h3>
+<p>slides S48:</p>
+<ul>
+<li><strong>A generalization of the hypothesis
+testing</strong>(假设检验的一种推广);</li>
+<li><strong>ANOVA tests if <em>any</em> of the population means differ
+from the other population
+means</strong>(检验是否<strong>存在任何一个</strong>总体均值与其他不同);</li>
+<li><strong>Each population is assumed to be normal and have the same
+variance</strong>(每个总体假设为正态且同方差)。</li>
+</ul>
+<p><strong>假设的写法</strong>(讲师口述):</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>:<strong>所有组的均值都相同</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>1</mn></msub><mo>=</mo><msub><mi>μ</mi><mn>2</mn></msub><mo>=</mo><mi>⋯</mi><mo>=</mo><msub><mi>μ</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">\mu_1 = \mu_2 = \cdots = \mu_k</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>:<strong>至少有一对不同</strong>(注意不是"全都不同")</li>
+</ul>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>
+的措辞是个常见失分点:<strong>ANOVA 拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+只意味着"至少有一对组不同",它不告诉你是哪一对,更不意味着所有组两两都不同。</strong>
+这个局限直接引出 §16 的 Tukey's HSD。</p>
+<p><strong>ANOVA 的名字</strong>是 <strong>Analysis of
+Variance(方差分析)</strong>。有点反直觉:我们明明在比较<strong>均值</strong>,为什么叫"方差分析"?因为——回到
+§7.3
+的总纲——<strong>判断均值是否不同的方式,是比较两种方差</strong>。</p>
+<h3 id="153-f-统计量又一个信号--噪声">15.3 F 统计量:又一个"信号 /
+噪声"</h3>
+<p>slides S49:<strong>Compute F-test
+statistic</strong>,由两部分构成:</p>
+<ul>
+<li><strong>Between-groups mean sum of squares(组间均方)</strong></li>
+<li><strong>Within-groups mean sum of squares(组内均方)</strong></li>
+</ul>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><mfrac><mtext mathvariant="normal">MSB</mtext><mtext mathvariant="normal">MSW</mtext></mfrac><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><mfrac><mrow><mfrac displaystyle="true"><mn>1</mn><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>k</mi></munderover><msub><mi>n</mi><mi>i</mi></msub><msup><mrow><mo stretchy="true" form="prefix">(</mo><msub><mover><mi>x</mi><mo accent="true">‾</mo></mover><mi>i</mi></msub><mo>−</mo><mover><mi>x</mi><mo accent="true">‾</mo></mover><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><mrow><mfrac displaystyle="true"><mn>1</mn><mrow><mi>N</mi><mo>−</mo><mi>k</mi></mrow></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>k</mi></munderover><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><msub><mi>n</mi><mi>i</mi></msub></munderover><msup><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>−</mo><msub><mover><mi>x</mi><mo accent="true">‾</mo></mover><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">
+F \;=\; \frac{\text{MSB}}{\text{MSW}} \;=\; \frac{\dfrac{1}{k-1}\displaystyle\sum_{i=1}^{k} n_i (\bar{x}_i - \bar{x})^2}{\dfrac{1}{N-k}\displaystyle\sum_{i=1}^{k}\sum_{j=1}^{n_i} (x_{ij} - \bar{x}_i)^2}
+</annotation></semantics></math></p>
+<p><strong>符号说明</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+=
+组数,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+=
+总样本量,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>i</mi></msub><annotation encoding="application/x-tex">n_i</annotation></semantics></math>
+= 第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+组样本量):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>部分</th>
+<th>公式在算什么</th>
+<th>讲师的说法</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>分子 MSB</strong></td>
+<td>每个<strong>组均值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>x</mi><mo accent="true">‾</mo></mover><mi>i</mi></msub><annotation encoding="application/x-tex">\bar{x}_i</annotation></semantics></math></strong>
+离<strong>总均值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>x</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar{x}</annotation></semantics></math></strong>
+有多远</td>
+<td>"<strong>各个组均值的散布程度</strong>"</td>
+</tr>
+<tr class="even">
+<td><strong>分母 MSW</strong></td>
+<td>每个<strong>样本
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">x_{ij}</annotation></semantics></math></strong>
+离<strong>它自己组的均值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>x</mi><mo accent="true">‾</mo></mover><mi>i</mi></msub><annotation encoding="application/x-tex">\bar{x}_i</annotation></semantics></math></strong>
+有多远</td>
+<td>"<strong>每个组内部的方差</strong>"</td>
+</tr>
+</tbody>
+</table></div>
+<p>再一次:<strong>分子是信号(组与组之间的差异),分母是噪声(组内部本来就有的波动)。</strong>
+讲师明确点了这层类比:<em>"同样是一个比值——均值之间的差异,除以方差。基本概念是一样的,F
+统计量的构造和 t 统计量是类似的。"</em></p>
+<p><strong>讲师用三组数据的图解释了这个比值:</strong></p>
+<ul>
+<li><strong>情况一:三个组彼此分离得很开。</strong>
+组均值之间散布很大(MSB 大),而每组内部的散布不变(MSW 不变)→
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+大</strong> → 你有信心说它们不同。</li>
+<li><strong>情况二:三个组高度重叠。</strong> 组均值挤在一起(MSB
+小),组内散布依旧(MSW 不变)→
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+小</strong> → 没有证据说它们不同。</li>
+</ul>
+<p>slides S51 把结论写成三句:</p>
+<ul>
+<li><strong>Measures how different the means are relative to the
+variability within each
+group</strong>(衡量组均值的差异<strong>相对于</strong>组内变异有多大);</li>
+<li><strong>The larger the F-test statistic, the greater the likelihood
+that the difference of means are due to something other than chance
+alone</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+越大,均值差异<strong>不是</strong>单纯偶然造成的可能性越大);</li>
+<li><strong>The F-test statistic follows an
+F-distribution</strong>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+统计量服从 <strong>F 分布</strong>)。</li>
+</ul>
+<p>最后一句和 t 检验完全同构:<strong>知道了分布,就能定临界值、算
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值。</strong> 讲师原话:<em>"和 t
+检验一样。我们同样利用分布信息来找阈值,然后比较。"</em></p>
+<pre class="mermaid"><code>graph LR
+  subgraph SIG[&quot;分子 MSB · 信号&quot;]
+    G1[&quot;组均值 x̄₁&quot;] --- GM[&quot;总均值 x̄&quot;]
+    G2[&quot;组均值 x̄₂&quot;] --- GM
+    G3[&quot;组均值 x̄₃&quot;] --- GM
+  end
+  subgraph NOI[&quot;分母 MSW · 噪声&quot;]
+    P1[&quot;组 1 内各样本&lt;br/&gt;离 x̄₁ 的散布&quot;]
+    P2[&quot;组 2 内各样本&lt;br/&gt;离 x̄₂ 的散布&quot;]
+    P3[&quot;组 3 内各样本&lt;br/&gt;离 x̄₃ 的散布&quot;]
+  end
+  SIG --&gt; F[&quot;F = MSB / MSW&quot;]
+  NOI --&gt; F
+  F --&gt;|F 大| R1[&quot;组间差异 &gt;&gt; 组内噪声&lt;br/&gt;&lt;b&gt;拒绝 H₀&lt;/b&gt;&quot;]
+  F --&gt;|F 小| R2[&quot;组间差异淹没在噪声里&lt;br/&gt;&lt;b&gt;不拒绝 H₀&lt;/b&gt;&quot;]</code></pre>
+<h3 id="154-r-里的例子">15.4 R 里的例子</h3>
+<p>课上的例子有三组:<strong>offer1(优惠方案 1)、offer2(优惠方案 2)、no
+promotion(无促销)</strong>,比较它们的销售表现。</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="fu">aov</span>(sales <span class="sc">~</span> group, <span class="at">data =</span> df)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(model)</span></code></pre></div>
+<p>输出会给你
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+值</strong>以及 <strong><code>Pr(&gt;F)</code></strong>(即
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-value)。讲师读图时说:这个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+<strong>远小于 0.05</strong>,所以<strong>拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></strong>——<strong>这三组里至少有一对的均值存在显著差异。</strong></p>
+<p>但紧接着的问题是:<strong>是哪一对?</strong> ANOVA 不回答。</p>
+<h3 id="155-anova-的假设与局限s53整页都是考点">15.5 ANOVA
+的假设与局限(S53,整页都是考点)</h3>
+<p><strong>Assumptions(假设):</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>假设</th>
+<th>slides 原文</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Normality</strong></td>
+<td>Data should be approximately normally distributed</td>
+<td>与 t 检验相同</td>
+</tr>
+<tr class="even">
+<td><strong>Homogeneity of Variances</strong></td>
+<td>Variances within each group should be equal (<strong>tested using
+Levene's test</strong>)</td>
+<td>与 t 检验的等方差假设相同;<strong>Levene's test
+是检验它的标准工具</strong>,这个名字 slides 明确点了</td>
+</tr>
+<tr class="odd">
+<td><strong>Independence</strong></td>
+<td>Observations should be independent of each other</td>
+<td>与 t 检验相同</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>注意:这正是 Student's t-test
+的三条核心假设</strong>(§10.3)。讲师明确说了:<em>"这三条假设和 Student's
+t-test 是一样的。"</em> ANOVA 就是它在多组情形下的推广。</p>
+<p><strong>Limitations(局限):</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>局限</th>
+<th>为什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Sensitivity to Outliers</strong>(对离群点敏感)</td>
+<td>讲师解释:一个离群点会<strong>同时显著改变某组的方差和均值</strong>,从而扭曲
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+值。<strong>这正好呼应 Part I
+——离群点的识别与处理很重要</strong>,而识别它们要靠可视化</td>
+</tr>
+<tr class="even">
+<td><strong>Assumes Equal Variances</strong>(假定等方差)</td>
+<td>组数一多,"所有组方差都相等"越来越难成立;违反会影响结果的有效性</td>
+</tr>
+<tr class="odd">
+<td><strong>Identifies Differences but Not
+Specifics</strong>(只说有差异,不说是哪一组)</td>
+<td>需要进一步的 <strong>post-hoc(事后)检验</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>slides 末尾还有一行注脚:<strong>当 ANOVA
+的正态性和/或等方差假设不满足时,存在非参数的替代方法。</strong>(对应 §13
+的思路在多组情形下的延伸。)</p>
+<hr />
+<h2 id="16-tukeys-hsd找出到底是哪几对不同">§16 Tukey's
+HSD:找出到底是哪几对不同</h2>
+<h3 id="161-它解决什么问题">16.1 它解决什么问题</h3>
+<p>ANOVA 告诉你"至少有一对不同",Tukey's <strong>HSD (Honest Significant
+Difference,诚实显著差异)</strong>
+告诉你<strong>具体是哪几对</strong>。它属于 <strong>post-hoc
+test(事后检验)</strong>——<strong>必须在 ANOVA 拒绝了
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+之后才做。</strong></p>
+<p>slides S55 给出完整流程:</p>
+<pre class="mermaid"><code>graph TD
+  A[&quot;① 检查假设&lt;br/&gt;正态 + 等方差 + &lt;b&gt;各组样本量近似相等&lt;/b&gt;&lt;br/&gt;&lt;i&gt;(样本量不等时仍可用)&lt;/i&gt;&quot;] --&gt; B[&quot;② 先做 ANOVA&lt;br/&gt;确认组均值之间存在显著差异&quot;]
+  B --&gt; C{&quot;H₀ 被拒绝了吗?&quot;}
+  C --&gt;|否| STOP[&quot;停止&lt;br/&gt;没有差异可供追查&quot;]
+  C --&gt;|是| D[&quot;③ 计算 HSD 临界值&lt;br/&gt;需要三样东西:&lt;br/&gt;· studentized range 分布的临界值 q&lt;br/&gt;· MSW(来自 ANOVA)&lt;br/&gt;· 组数 k&quot;]
+  D --&gt; E[&quot;④ 对每一对均值&lt;br/&gt;计算绝对差 abs(x̄ᵢ − x̄ⱼ)&quot;]
+  E --&gt; F{&quot;abs(x̄ᵢ − x̄ⱼ) &gt; HSD ?&quot;}
+  F --&gt;|是| G[&quot;&lt;b&gt;这一对显著不同&lt;/b&gt;&quot;]
+  F --&gt;|否| H[&quot;这一对没有显著差异&quot;]</code></pre>
+<p><strong>HSD 临界值的构成</strong>(slides 明确列出的三个输入):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">HSD</mtext><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><msub><mi>q</mi><mrow><mi>α</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>k</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>N</mi><mo>−</mo><mi>k</mi></mrow></msub><msqrt><mfrac><mtext mathvariant="normal">MSW</mtext><mi>n</mi></mfrac></msqrt></mrow><annotation encoding="application/x-tex">
+\text{HSD} \;=\; q_{\alpha,\, k,\, N-k} \sqrt{\frac{\text{MSW}}{n}}
+</annotation></semantics></math></p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>:来自
+<strong>studentized range distribution(学生化极差分布)</strong>
+的临界值;</li>
+<li><strong>MSW</strong>:<strong>组内均方,直接取自 ANOVA
+的输出</strong>——注意这一点,<strong>Tukey 复用了 ANOVA
+已经算好的噪声估计</strong>;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>:组数;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>:每组样本量。</li>
+</ul>
+<p><strong>决策规则</strong>(slides 原文三条):</p>
+<blockquote>
+<ul>
+<li>For each pair of means, calculate the <strong>absolute
+difference</strong>.</li>
+<li>Compare the absolute difference to the <strong>HSD
+value</strong>.</li>
+<li><strong>If the absolute difference is greater than the HSD, the pair
+of means is considered significantly different.</strong></li>
+</ul>
+</blockquote>
+<p><strong>假设</strong>(S55):<strong>normality + equal variance +
+各组样本量近似相等</strong>(slides 补了一句:<em>though it can still be
+used if they are not</em>——样本量不等时仍可使用)。</p>
+<h3 id="162-课堂例子读懂输出">16.2 课堂例子:读懂输出</h3>
+<p>R 里同样只要一行,而且<strong>直接喂 ANOVA 的结果</strong>:</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">TukeyHSD</span>(model)     <span class="co"># model 就是上一节 aov() 的输出</span></span></code></pre></div>
+<p>讲师带着读了输出的三行(三组两两比较共
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mfrac linethickness="0"><mn>3</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">\binom{3}{2} = 3</annotation></semantics></math>
+对):</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>比较的一对</th>
+<th>均值差 (diff)</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+adj</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>offer1 vs no promotion</strong></td>
+<td>超过 40</td>
+<td>非常小</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>&lt;</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">p &lt; 0.05</annotation></semantics></math>
+→ <strong>显著不同</strong></td>
+</tr>
+<tr class="even">
+<td><strong>offer2 vs no promotion</strong></td>
+<td>超过 40</td>
+<td>非常小</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>&lt;</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">p &lt; 0.05</annotation></semantics></math>
+→ <strong>显著不同</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>offer1 vs offer2</strong></td>
+<td>约 7</td>
+<td><strong>0.06</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>&gt;</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">p &gt; 0.05</annotation></semantics></math>
+→ <strong>没有显著差异</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师的解读:<strong>两种优惠方案都明显优于"不做促销",但两种优惠方案彼此之间没有显著差异。</strong>
+从均值差本身也看得出来:前两对差了 40 多,最后一对只差
+7,<strong>"明显小得多"</strong>。</p>
+<p><strong>这个结论的业务含义很实在</strong>:既然 offer1 和 offer2
+效果没有统计上的区别,那就选<strong>成本更低</strong>的那个。这正是 ANOVA
++ post-hoc 组合拳的价值——<strong>ANOVA 说"促销有用",Tukey
+说"但两种促销一样好"。</strong></p>
+<p><strong>注意
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>0.06</mn></mrow><annotation encoding="application/x-tex">p = 0.06</annotation></semantics></math>
+这个数字。</strong> 它离 0.05
+很近,但规则就是规则:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.06</mn><mo>&gt;</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">0.06 &gt; 0.05</annotation></semantics></math>,<strong>不拒绝</strong>。这也提醒你
+§11.5
+的拓展:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+值是个连续量,而 0.05 是个人为设定的门槛,<strong>不要把 0.049 和 0.051
+当成两个世界</strong>——报告时最好同时给出均值差和置信区间。</p>
+<hr />
+<h2 id="17-决策地图面对一个问题该用哪个检验">§17
+决策地图:面对一个问题,该用哪个检验?</h2>
+<p>把 Part II
+的所有方法收进一张图。<strong>这张图是复习时最该先看的东西。</strong></p>
+<pre class="mermaid"><code>graph TD
+  Q0[&quot;我要比较几组?&quot;]
+  Q0 --&gt;|&quot;2 组&quot;| Q1[&quot;两个总体都近似正态吗?&quot;]
+  Q0 --&gt;|&quot;3 组及以上&quot;| A0[&quot;正态 + 等方差 + 独立?&quot;]
+
+  Q1 --&gt;|&quot;否&lt;br/&gt;(且变换也救不回来)&quot;| WX[&quot;&lt;b&gt;Wilcoxon rank-sum test&lt;/b&gt;&lt;br/&gt;非参数,用秩&lt;br/&gt;H₀:两总体同分布&quot;]
+  Q1 --&gt;|&quot;是&quot;| Q2[&quot;两个总体方差相等吗?&quot;]
+
+  Q2 --&gt;|&quot;是&quot;| ST[&quot;&lt;b&gt;Student&#39;s t-test&lt;/b&gt;&lt;br/&gt;用 pooled variance&lt;br/&gt;R: t.test(x, y, var.equal=TRUE)&quot;]
+  Q2 --&gt;|&quot;否&quot;| WE[&quot;&lt;b&gt;Welch&#39;s t-test&lt;/b&gt;&lt;br/&gt;用各自方差&lt;br/&gt;R: t.test(x, y, var.equal=FALSE)&quot;]
+
+  A0 --&gt;|&quot;是&quot;| AN[&quot;&lt;b&gt;ANOVA&lt;/b&gt;&lt;br/&gt;F = MSB / MSW&lt;br/&gt;H₀:所有均值相同&quot;]
+  A0 --&gt;|&quot;否&quot;| NP[&quot;非参数替代方法&lt;br/&gt;&lt;i&gt;(slides 提及,未展开)&lt;/i&gt;&quot;]
+
+  AN --&gt; AQ{&quot;H₀ 被拒绝了吗?&quot;}
+  AQ --&gt;|&quot;是&quot;| TK[&quot;&lt;b&gt;Tukey&#39;s HSD&lt;/b&gt;&lt;br/&gt;post-hoc,找出具体是哪几对&quot;]
+  AQ --&gt;|&quot;否&quot;| END[&quot;结束:没有证据表明&lt;br/&gt;任何一对均值不同&quot;]</code></pre>
+<p>配套的对照表:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>检验</th>
+<th>组数</th>
+<th>正态性</th>
+<th>等方差</th>
+<th>统计量</th>
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></th>
+<th>R 调用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Student's t-test</strong></td>
+<td>2</td>
+<td>需要</td>
+<td><strong>需要</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>1</mn></msub><mo>=</mo><msub><mi>μ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\mu_1 = \mu_2</annotation></semantics></math></td>
+<td><code>t.test(x,y,var.equal=TRUE)</code></td>
+</tr>
+<tr class="even">
+<td><strong>Welch's t-test</strong></td>
+<td>2</td>
+<td>需要</td>
+<td><strong>不需要</strong></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>1</mn></msub><mo>=</mo><msub><mi>μ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\mu_1 = \mu_2</annotation></semantics></math></td>
+<td><code>t.test(x,y,var.equal=FALSE)</code></td>
+</tr>
+<tr class="odd">
+<td><strong>Wilcoxon rank-sum</strong></td>
+<td>2</td>
+<td><strong>不需要</strong></td>
+<td>不需要</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>(秩和)</td>
+<td>两总体<strong>同分布</strong></td>
+<td><code>wilcox.test(x,y)</code></td>
+</tr>
+<tr class="even">
+<td><strong>ANOVA</strong></td>
+<td>≥3</td>
+<td>需要</td>
+<td>需要</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>1</mn></msub><mo>=</mo><mi>⋯</mi><mo>=</mo><msub><mi>μ</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">\mu_1=\cdots=\mu_k</annotation></semantics></math></td>
+<td><code>aov(y ~ group)</code></td>
+</tr>
+<tr class="odd">
+<td><strong>Tukey's HSD</strong></td>
+<td>≥3(事后)</td>
+<td>需要</td>
+<td>需要</td>
+<td>各对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">|</mo><msub><mover><mi>x</mi><mo accent="true">‾</mo></mover><mi>i</mi></msub><mo>−</mo><msub><mover><mi>x</mi><mo accent="true">‾</mo></mover><mi>j</mi></msub><mo stretchy="false" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">\lvert\bar{x}_i - \bar{x}_j\rvert</annotation></semantics></math>
+vs HSD</td>
+<td>该对均值相同</td>
+<td><code>TukeyHSD(model)</code></td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h2>
+<p><strong>Part I · 可视化</strong></p>
+<ol type="1">
+<li><strong>描述性统计是压缩,压缩必然丢信息。</strong> Five-number
+summary(Min、Q1、Median、Q3、Max)加上 mean 与 std
+能给你数据的位置和离散程度,但<strong>说不出分布的形状,也说不出变量之间的关系</strong>——而这两样恰恰是建模最需要的。</li>
+<li><strong>Anscombe's quartet 是本讲第一记警钟:</strong>
+四组数据的均值、方差、相关系数、回归直线几乎完全相同,画出来却是四个完全不同的世界(线性、非线性、离群点、退化结构)。<strong>统计量相同不等于数据相同,更不等于可以用同一个模型。</strong></li>
+<li><strong>可视化是发现脏数据的主要手段。</strong> 直方图上的 0
+值尖峰通常是<strong>伪装成数值的缺失值</strong>,负值通常是<strong>错误码</strong>,末端的堆积通常是<strong>数据被截断/封顶</strong>。发现之后必须<strong>用领域知识验证</strong>,再决定怎么清洗——这三步缺一不可。</li>
+<li><strong>可视化 income、price、stock price
+这类跨多个数量级的变量时,必须考虑 log transformation。</strong>
+不取对数,99%
+的数据会被压进一条窄缝,你会看不到多峰结构、看不到内部形状。<strong>Unimodal
+还是 multimodal 的判断直接影响你该不该分组建模。</strong></li>
+<li><strong>选图取决于你要回答什么问题:</strong> 单变量分布用 histogram
+/ density + rug;逐个体比较用 dotchart;类别计数用 barplot;多组分布比较用
+box-and-whisker(箱=Q1/Q2/Q3,须≈1.5×IQR,须外为
+outlier);<strong>大数据量且高度集中时用 hexbin
+plot</strong>(用颜色编码密度,解决过度绘图);3–6 个变量的两两关系用
+scatterplot matrix。</li>
+<li><strong>探索用的图和汇报用的图不是同一张图。</strong>
+探索求信息密度,汇报求一眼看懂;<strong>受众技术背景越弱,图就要越简洁</strong>——这直接对应
+Week 2 的 Phase 5 Communicate Results。</li>
+</ol>
+<p><strong>Part II · 假设检验</strong></p>
+<ol start="7" type="1">
+<li><strong>"新均值更大"绝不等于"更好"。</strong> 这是 Part II
+的出发点:两个总体的重叠程度取决于<strong>均值差</strong>和<strong>方差</strong>两者。<strong>均值越近、方差越大,重叠越大,差异越不显著。</strong>
+因此所有检验统计量都是同一个模板:<strong>信号(均值差) /
+噪声(变异)</strong>。</li>
+<li><strong>假设检验的逻辑是"无罪推定"。</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+永远是保守的"没有差异",举证责任在数据。结论只有两种:<strong>拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></strong>
+或 <strong>不拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math></strong>;<strong>"没有找到证据"不等于"证明了不存在"</strong>(slides
+写作
+"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+is accepted",但更严谨的说法是 "fail to
+reject")。<strong>假设必须在看数据之前形成。</strong></li>
+<li><strong>Student's t-test</strong> 的统计量是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mfrac displaystyle="true"><mrow><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>1</mn></msub><mo>−</mo><msub><mover><mi>X</mi><mo accent="true">‾</mo></mover><mn>2</mn></msub></mrow><msqrt><mrow><msubsup><mi>S</mi><mi>p</mi><mn>2</mn></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mi>/</mi><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><mn>1</mn><mi>/</mi><msub><mi>n</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msqrt></mfrac></mrow><annotation encoding="application/x-tex">T = \dfrac{\bar{X}_1 - \bar{X}_2}{\sqrt{S_p^2(1/n_1 + 1/n_2)}}</annotation></semantics></math>,在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+下服从自由度为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub><mo>−</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">n_1 + n_2 - 2</annotation></semantics></math>
+的 <strong>t 分布</strong>(减 2
+是因为估计了两个均值)。它有<strong>三条核心假设:normality、equal
+variance、independence</strong>。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>T</mi><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|T|</annotation></semantics></math>
+离 0 越远,越应当拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>。</li>
+<li><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-value
+是同一件事的三种说法。</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+是你能容忍的<strong>一类错误概率</strong>(通常 0.05);由
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+和自由度可唯一确定临界值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>;规则是
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>T</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>≥</mo><msup><mi>T</mi><mo>*</mo></msup></mrow><annotation encoding="application/x-tex">|T| \ge T^*</annotation></semantics></math>
+则拒绝</strong>,等价于
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>&lt;</mo><mi>α</mi></mrow><annotation encoding="application/x-tex">p &lt; \alpha</annotation></semantics></math>
+则拒绝</strong>。双侧检验中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+平分到两个尾巴,每边
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">\alpha/2</annotation></semantics></math>。<strong>95%
+CI 包含 0 ⟺ 在 0.05 水平上不拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>。</strong></li>
+<li><strong>单侧还是双侧,取决于
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>
+有没有方向。</strong> "是否<strong>不同</strong>" →
+双侧(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>0</mn></msub><mo>:</mo><msub><mi>μ</mi><mn>1</mn></msub><mo>=</mo><msub><mi>μ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">H_0: \mu_1 = \mu_2</annotation></semantics></math>);"是否<strong>更好/更低</strong>"
+→
+单侧(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>0</mn></msub><mo>:</mo><msub><mi>μ</mi><mn>1</mn></msub><mo>≤</mo><msub><mi>μ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">H_0: \mu_1 \le \mu_2</annotation></semantics></math>)。</li>
+<li><strong>三个两样本检验构成一条"假设放松阶梯":</strong> Student's
+t-test(正态+等方差+独立)→ 放松等方差 → <strong>Welch's
+t-test</strong>(改用各自的样本方差,不再 pool)→ 放松正态性 →
+<strong>Wilcoxon rank-sum
+test</strong>(非参数,用<strong>秩</strong>代替数值,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+变成"两总体同分布")。<strong>每放松一条假设,换来稳健性,损失一点效能。</strong></li>
+<li><strong>两类错误此消彼长。</strong> Type I(假阳性,概率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>)=
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+真却拒绝,靠<strong>选择恰当的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></strong>
+控制;Type II(假阴性,概率
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>)=
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+假却不拒绝,靠<strong>增大样本量</strong>改善。<strong>Power
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo><mn>1</mn><mo>−</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">= 1 - \beta</annotation></semantics></math></strong>,是正确拒绝假
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+的概率,主要用途是<strong>反推所需样本量</strong>。样本量固定时,你不能同时压低两类错误。</li>
+<li><strong>多于两组时不要反复做成对 t
+检验</strong>——做的检验越多,"至少犯一次一类错误"的概率越高(5 组做 10
+次比较时已达 40%)。改用
+<strong>ANOVA</strong>:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mo>=</mo><mtext mathvariant="normal">MSB</mtext><mi>/</mi><mtext mathvariant="normal">MSW</mtext></mrow><annotation encoding="application/x-tex">F = \text{MSB}/\text{MSW}</annotation></semantics></math>,即<strong>组间均值散布
+/
+组内变异</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
+越大越可能不是偶然;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+是"所有均值相同",<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>
+是"<strong>至少有一对</strong>不同"。假设与 t 检验相同(正态、等方差用
+<strong>Levene's test</strong> 检验、独立)。</li>
+<li><strong>ANOVA 的三大局限</strong>:对 outlier
+敏感(离群点同时扭曲均值和方差)、依赖等方差假设、<strong>只说存在差异不说是哪一对</strong>。最后一条要靠
+<strong>post-hoc 检验</strong>补上:<strong>Tukey's HSD</strong> 在 ANOVA
+拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+之后运行,用 studentized range 临界值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>、ANOVA
+的 MSW 和组数算出 HSD,<strong>逐对比较
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><msub><mover><mi>x</mi><mo accent="true">‾</mo></mover><mi>i</mi></msub><mo>−</mo><msub><mover><mi>x</mi><mo accent="true">‾</mo></mover><mi>j</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|\bar{x}_i - \bar{x}_j|</annotation></semantics></math>
+是否超过 HSD</strong>。</li>
+</ol>
+<hr />
+<h2 id="-考试与实操提醒">📌 考试与实操提醒</h2>
+<ol type="1">
+<li><p><strong>讲师亲口划的重点:</strong>
+<em>"第二半技术强度比较高。我请每一位同学一定回去复习第二部分,理解它是怎么运作的,因为我们引入了多个重要概念,你需要准确、正确地理解它们。"</em>
+—— <strong>Part II 的优先级高于 Part I。</strong></p></li>
+<li><p><strong>课上留了三道待答的问题</strong>,按讲师一贯的做法(见 Week
+2),<strong>它们很可能变成考题</strong>:</p>
+<ul>
+<li><strong>(S6)</strong>
+数据分析生命周期的<strong>哪些阶段</strong>提到了 visualization?</li>
+<li><strong>(S29)</strong> 为什么假设检验会出现在 <strong>Phase 2 Data
+Preparation</strong>?</li>
+<li><strong>(课末,讲师明说下周检查)</strong>
+对于包含多个组的问题,<strong>ANOVA 相对于直接做多次成对 t
+检验的优势是什么?</strong>(答案骨架见 §15.1)</li>
+</ul></li>
+<li><p><strong>最可能的计算/推导题型:</strong></p>
+<ul>
+<li>给一个场景,<strong>写出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math></strong>,并说明是<strong>单侧还是双侧</strong>(§9.4、§11.4);</li>
+<li>给出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mi>f</mi></mrow><annotation encoding="application/x-tex">df</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mo>*</mo></msup><annotation encoding="application/x-tex">T^*</annotation></semantics></math>
+或
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>,<strong>做出并说明拒绝/不拒绝的判断</strong>(§11.3);</li>
+<li>给两组数据,<strong>手算 Wilcoxon
+的秩(含并列取平均秩)和秩和</strong>(§13.4);</li>
+<li>给一个假设被违反的情境,<strong>说明该换哪个检验、为什么</strong>(§17
+决策地图);</li>
+<li><strong>辨析 Type I / Type II error 与 power</strong>(§14)。</li>
+</ul></li>
+<li><p><strong>最容易失分的细节,逐条核对:</strong></p>
+<ul>
+<li>自由度是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub><mo>−</mo><mn>𝟐</mn></mrow><annotation encoding="application/x-tex">n_1 + n_2 - \mathbf{2}</annotation></semantics></math>,<strong>不是</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>+</mo><msub><mi>n</mi><mn>2</mn></msub><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">n_1 + n_2 - 1</annotation></semantics></math>;</li>
+<li>双侧检验查临界值时用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mi>/</mi><mn>2</mn><mo>=</mo><mn>0.025</mn></mrow><annotation encoding="application/x-tex">\alpha/2 = 0.025</annotation></semantics></math>,<strong>不是</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.05</mn></mrow><annotation encoding="application/x-tex">\alpha = 0.05</annotation></semantics></math>;</li>
+<li>ANOVA 的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mi>A</mi></msub><annotation encoding="application/x-tex">H_A</annotation></semantics></math>
+是"<strong>至少有一对</strong>不同",<strong>不是</strong>"所有组都不同";</li>
+<li>Welch's t-test
+放松的是<strong>等方差</strong>,<strong>仍然要求正态和独立</strong>;</li>
+<li>Wilcoxon 的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+是"两总体<strong>同分布</strong>",不是"均值相同";</li>
+<li>Wilcoxon 并列值取<strong>平均秩</strong>;算完用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∑</mo><mi>W</mi><mo>=</mo><mfrac><mrow><mi>n</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mn>2</mn></mfrac></mrow><annotation encoding="application/x-tex">\sum W = \frac{n(n+1)}{2}</annotation></semantics></math>
+验算;</li>
+<li>Tukey's HSD <strong>必须在 ANOVA 拒绝
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>H</mi><mn>0</mn></msub><annotation encoding="application/x-tex">H_0</annotation></semantics></math>
+之后</strong>才做。</li>
+</ul></li>
+<li><p><strong>实操建议:</strong>
+讲师多次说本课<strong>不要求你从零实现算法</strong>,而是要<strong>正确、高效地使用工具</strong>。他反复建议把
+slides 上的 R 代码<strong>复制到 Google Colab 里跑一遍</strong>(Colab 的
+Runtime → Change runtime type 可以切到 R)。<code>zipIncome.csv</code> 随
+slides 一起提供,<code>mtcars</code> 和 <code>iris</code> 是 R
+自带的。<strong>跑一遍比读十遍管用</strong>,尤其是 boxplot 的 jitter
+参数和 hexbin 的 trans 参数,改一改立刻能看出区别。</p></li>
+<li><p><strong>课务信息(讲师课末提到):</strong> 本学期<strong>有
+quiz</strong>,会<strong>提前发布</strong>,需要<strong>在线完成</strong>;<strong>quiz
+覆盖 quiz 之前的所有周次内容</strong>。<strong>Assignment 1
+即将发布。</strong></p></li>
+</ol>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>
