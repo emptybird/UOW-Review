@@ -1,0 +1,3328 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CSCI944 Week 4 · 视觉感知与特征提取 (Perception with Vision & Feature Extraction)</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  .mermaid { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1
+id="csci944-week-4--视觉感知与特征提取-perception-with-vision--feature-extraction">CSCI944
+Week 4 · 视觉感知与特征提取 (Perception with Vision &amp; Feature
+Extraction)</h1>
+<blockquote>
+<p><strong>学习目标 (Learning objectives)</strong> —
+读完本章你应该能够:</p>
+<ul>
+<li>说明为什么视觉在机器人感知里地位特殊——它同时提供<strong>语义信息
+(semantic information,"这是什么")</strong> 和<strong>度量信息 (metric
+information,"在哪、多远")</strong>,而测距类传感器只给后者;</li>
+<li>把一幅图像当作<strong>二维信号 (2D signal)</strong>
+来分析,用<strong>低频 / 高频 / 带通 (low- / high-frequency,
+band-pass)</strong> 的语言解释每一种滤波器到底做了什么;</li>
+<li>说清"视觉为什么难":同一条 <strong>edge</strong>
+可以由材质边界、深度不连续、镜面高光、光照变化、表面朝向变化五种完全不同的物理原因产生,因此<strong>感知本质上是推断
+(perception is inference)</strong>;</li>
+<li>熟练使用低层图像操作的三大家族——<strong>阈值化
+(thresholding)</strong>、<strong>卷积
+(convolution)</strong>、<strong>形态学
+(morphology)</strong>——并针对给定机器人任务组装出合理的预处理流水线,包括说明为什么颜色分割要用
+<strong>HSV</strong> 而不是 RGB;</li>
+<li>手算一次 3×3 卷积,写出 <strong>Sobel</strong>
+核并由此求梯度幅值与方向,解释 <strong>DoG (Difference of
+Gaussians)</strong> 在什么参数比下变成边缘检测器、在什么比下逼近
+<strong>LoG</strong>;</li>
+<li>写出相机的<strong>投影模型 (projection
+model)</strong>,区分<strong>内参 (intrinsic)</strong> 与<strong>外参
+(extrinsic)</strong>,并解释为什么单张图像无法恢复三维、需要<strong>三角测量
+(triangulation)</strong>;</li>
+<li>定义<strong>对极平面 (epipolar plane)</strong> 与<strong>对极线
+(epipolar
+line)</strong>,说明它如何把二维搜索降为一维搜索,并解释<strong>视差
+(disparity)</strong> 与深度的反比关系及其带来的量程上限;</li>
+<li>解释<strong>特征 (feature)</strong>
+是什么、好特征的四条标准(repeatable / robust / invariant /
+discriminative),并说明特征提取本质上是一次<strong>信息压缩</strong>;</li>
+<li>用极坐标表示直线,并对同一组点云分别应用<strong>最小二乘 (least
+squares)</strong>、<strong>split-and-merge</strong>、<strong>RANSAC</strong>
+三种拟合策略,说清各自的强项、弱项与典型组合方式;</li>
+<li>解释 <strong>Hough transform</strong>
+的投票原理,写出其参数空间与算法流程,并把它推广到圆和多边形;</li>
+<li>完整复述 <strong>SIFT</strong> 的四步流水线(尺度空间 → DoG
+极值与筛除 → 主方向 → 128
+维描述子),并说明每一步分别买到了哪一种不变性;</li>
+<li>说明经典视觉方法在深度学习时代为什么仍然必须学。</li>
+</ul>
+</blockquote>
+<hr />
+<p>上周我们把机器人身上能装的传感器过了一遍,最后停在一个未完成的判断上:<strong>测距传感器很准,但它们不理解世界。</strong></p>
+<p>一个超声传感器告诉你"前方 1.2
+米有东西";一台激光雷达告诉你"以我为中心的这一圈,每 0.25°
+有一个距离读数"。这些数字精确、可靠、便宜。但它们回答不了机器人真正想问的那个问题——<strong>那个东西是什么?</strong>
+是一堵墙,还是一个正要横穿马路的行人?是一把可以推开的椅子,还是一台不能碰的仪器?讲师这周开场就把这一点摆在最前面:</p>
+<blockquote>
+<p>超声、LiDAR、radar、UWB
+这些传感器"大多数时候测的是距离。它们不告诉你场景里有什么,不告诉你那是不是一个人、是不是一把椅子……它们可能检测到障碍物、可能避免碰撞,但它们不知道自己将要撞上的是什么东西。<strong>本质上那是测量,不是理解
+(measurement rather than understanding)。</strong>"</p>
+</blockquote>
+<p>视觉是唯一一类既能测量、又能理解的传感器。它给你<strong>语义
+(semantics)</strong>:这是门、这是人、这是我上周来过的那个角落。它同时也能给你<strong>度量
+(metric)</strong>:那扇门离我 2.3
+米。代价是——把像素变成这两样东西,需要的处理量远远超过读一个超声回波。这就是为什么整个课程要为视觉单独留一周,也是为什么这一周的内容密度明显高于上一周。</p>
+<p>讲师还给了一个非常直观的动机:<strong>人类大约 80%
+的信息来自视觉</strong>,远超听觉、触觉、嗅觉、味觉的总和。如果我们希望机器人在人类设计的环境里工作——人类的门、人类的标识、人类的走廊——那么复制人类最依赖的那条感知通道,几乎是必然的选择。</p>
+<p>但这里有一个残酷的落差,它构成了本章真正的主线:</p>
+<blockquote>
+<p>"对计算机来说,你的算法看到的<strong>只是一个数字数组 (array of
+numbers)</strong>。它们不像人那样看。人类视觉有非凡的能力,我们的大脑能处理这些像素刺激,能把它们组合起来,认出'这是一个人、这是一台笔记本'。但对计算机来说,同样的任务极其困难,因为<strong>你的程序看到的,就只是一个数字数组</strong>。"</p>
+</blockquote>
+<p>整章要做的事情,就是一步一步地填平这个落差:从数字数组出发,经过滤波、几何、特征,最终走到"这是什么、在哪里"。</p>
+<p>本章的路线图正是这条路径:</p>
+<pre class="mermaid"><code>flowchart LR
+  A[&quot;① 图像信号&lt;br/&gt;Image signal&lt;br/&gt;pixels, RGB, frequency&quot;] --&gt; B[&quot;② 低层滤波&lt;br/&gt;Low-level filters&lt;br/&gt;threshold, convolution,&lt;br/&gt;morphology&quot;]
+  B --&gt; C[&quot;③ 特征&lt;br/&gt;Features&lt;br/&gt;lines, corners, SIFT&quot;]
+  C --&gt; D[&quot;④ 几何&lt;br/&gt;Geometry&lt;br/&gt;stereo, epipolar,&lt;br/&gt;triangulation&quot;]
+  D --&gt; E[&quot;⑤ 识别&lt;br/&gt;Recognition&lt;br/&gt;matching, voting, BoW&quot;]</code></pre>
+<p>注意这五个阶段和上周那张 <strong>see–think–act</strong>
+大图的关系:整章仍然全部发生在 <strong>see</strong>
+里面,但我们第一次深入到了 <strong>Information
+Extraction(信息提取)</strong>
+这个盒子的内部——上周我们只说了"原始数据必须经过信息提取才能变成环境模型",这周我们要看这个提取具体是怎么做的。</p>
+<p>最后提醒一句本章的定位。讲师明确说了:这一周和 <em>Computer
+Vision</em>
+那门课<strong>有意重叠但刻意浅</strong>——这里只讲"和机器人感知直接相关、在机器人里最常用"的那部分,不做完整的计算机视觉课程,也<strong>完全不涉及深度学习模型</strong>(理由见
+§42)。所以你在本章看到的每一个算法,都应该问一句:<strong>机器人为什么需要它?</strong></p>
+<hr />
+<h1 id="part-0--从像素到决策先看清整条流水线">Part 0 ·
+从像素到决策:先看清整条流水线</h1>
+<h2 id="1-一个视觉机器人从开机到决策数据经历了什么">1.
+一个视觉机器人从开机到决策,数据经历了什么</h2>
+<p>在钻进任何一个算法之前,先建立整条流水线的心智地图。讲师在开场就把它完整地口述了一遍,顺序如下:</p>
+<pre class="mermaid"><code>flowchart TD
+  W[&quot;真实世界&lt;br/&gt;3D scene&quot;] --&gt;|光子 photons| S[&quot;图像传感器&lt;br/&gt;CCD / CMOS&quot;]
+  S --&gt;|&quot;RGB 数组 (+ depth map)&quot;| P[&quot;预处理 Pre-processing&lt;br/&gt;降噪、抑制干扰、畸变校正&quot;]
+  P --&gt; F[&quot;特征提取 Feature extraction&lt;br/&gt;line / corner / blob / descriptor&quot;]
+  F --&gt; G[&quot;几何测量 Geometry&lt;br/&gt;stereo / epipolar / triangulation&quot;]
+  F --&gt; R[&quot;场景理解 Recognition&lt;br/&gt;matching / voting / BoW&quot;]
+  G --&gt; T[&quot;任务推理&lt;br/&gt;localization, mapping, control&quot;]
+  R --&gt; T</code></pre>
+<p>逐段解释这条链上每一步在干什么,以及<strong>为什么必须有它</strong>:</p>
+<p><strong>① 成像。</strong>
+现在的机器人几乎全用数字图像传感器(<strong>CMOS</strong> 为主,少数用
+<strong>CCD</strong>)。传感器输出的东西非常朴素:一个像素数组。彩色相机每个像素给三个通道(<strong>RGB</strong>),灰度相机每个像素给一个强度值。如果是
+RGB-D 相机,你还会额外得到一张<strong>深度图 (depth
+map)</strong>。请把这句话刻进脑子——<strong>传感器给你的不是图片,是数组</strong>。</p>
+<p><strong>② 预处理。</strong>
+为什么不能直接拿原始图像去做任务?两个原因,讲师都提到了。第一是<strong>质量</strong>:如果传感器档次不高,图里会有噪声和各种失真,你得先压掉。第二是<strong>测量</strong>:机器人经常要用视觉做<strong>几何测量</strong>,而镜头<strong>畸变
+(distortion)</strong>
+会严重污染测量结果,所以预处理里必须包含<strong>畸变校正</strong>。这一步用的正是本章
+Part III 的三大家族。</p>
+<p><strong>③ 特征提取。</strong>
+把海量像素压成少量"对任务有用的结构"。机器人里最常用的两类:<strong>直线
+(line)</strong> 和<strong>兴趣点 (interest point /
+keypoint)</strong>。直线的用途讲师举得很具体——自动驾驶的<strong>车道线
+(lane marking)</strong>
+检测,车要保持在车道内;室内机器人则用走廊墙面、门框的直线。兴趣点(以及它的进阶版
+<strong>SIFT</strong>)则用来判断"这个地方我以前来过没有",这对<strong>定位与建图
+(localization and mapping)</strong> 至关重要。</p>
+<p><strong>④ 几何测量。</strong> 如果任务需要距离,就走<strong>立体视觉
+(stereo vision)</strong> 这条支路,其中的关键概念是<strong>对极线
+(epipolar
+line)</strong>——它把"在另一张图里找对应像素"这个二维搜索问题压成一维搜索,并且让匹配好的像素对可以直接换算成距离。</p>
+<p><strong>⑤ 场景理解。</strong> 如果任务需要语义,就走特征<strong>匹配
+(matching)</strong>、<strong>投票
+(voting)</strong>、场景分类这条支路,经典代表是 <strong>BoW (Bag of
+Words,词袋模型)</strong>。</p>
+<p>值得注意的是 ④ 和 ⑤
+是<strong>并列的两条出口</strong>,共享同一批特征。这解释了为什么"特征"这个概念在本章中间的位置如此关键:它是几何和语义的公共货币。</p>
+<h2 id="2-为什么还要学过时的经典算法">2.
+为什么还要学"过时"的经典算法</h2>
+<p>现在的机器人如果算力够,这五步很多可以被一个深度模型端到端吃掉。那为什么这门课还要花一周讲卷积核、Hough
+投票、SIFT?讲师给了三条理由,值得原样记住,因为这类"为什么"经常出现在概念题里:</p>
+<ol type="1">
+<li><p><strong>算力和功耗约束是真实存在的。</strong>
+讲师原话:"有些平台你没有足够的计算处理能力,尤其是当你电池供应有限的时候——你<strong>负担不起
+GPU 这一类计算资源</strong>。基于 CPU 的方案,现在仍然是有效的。"
+移动机器人是靠电池活着的,这一条比在服务器上做视觉的人想象得重要得多。</p></li>
+<li><p><strong>经典方法解释了深度模型在做什么。</strong>
+"这些基础知识让你能够解释,为什么深度学习模型比经典模型表现更好、或者深度学习模型是怎么工作的。"
+这不是空话:CNN 前几层学出来的卷积核,和你在 §14–§16 手写的高斯核、Sobel
+核、DoG
+核<strong>惊人地相似</strong>。你先手写过一遍,才看得懂网络自己学到了什么。</p></li>
+<li><p><strong>可解释、可调试、不吃数据。</strong>
+一条阈值加一次形态学开运算,你能画出中间结果、能指着某一帧说"就是这里错了"。端到端模型给你一个错误答案时,你连从哪问起都不知道。</p></li>
+</ol>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+这三条理由合起来是机器人视觉领域一个长期的现实:<strong>工业界的机器人视觉系统极少是纯端到端的。</strong>
+讲师在 slide 48 用了 "practical reality"
+这个说法——真实系统通常是"学到的感知 + 几何 + 标定 +
+经典前后处理"的混合体。深度模型负责"这是什么",几何负责"在哪里、多远",而经典滤波负责把两者之间的数据清干净。</p>
+</blockquote>
+<hr />
+<h1 id="part-i--图像是二维信号">Part I · 图像是二维信号</h1>
+<h2 id="3-你拿到的到底是什么从光子到数组">3.
+你拿到的到底是什么:从光子到数组</h2>
+<p>先把术语钉死。<strong>图像传感器 (image
+sensor)</strong>——<strong>CCD</strong> 或 <strong>CMOS</strong>
+阵列——的物理工作是把<strong>光子转换成电信号,再转换成数字像素值 (photons
+→ electrical signals → digital pixel
+values)</strong>。它是一个采样器:把连续的光场,在空间上切成网格,在强度上量化成整数。</p>
+<p>于是你得到的东西可以精确地描述为:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">image</mtext><mo>=</mo><mi>f</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\text{image} = f[x, y]</annotation></semantics></math></p>
+<p>一个把<strong>离散坐标</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x, y)</annotation></semantics></math>
+映射到<strong>像素值</strong>的函数。注意方括号——这是离散信号的记法,提醒你
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>,</mo><mi>y</mi></mrow><annotation encoding="application/x-tex">x, y</annotation></semantics></math>
+只能取整数。规则简单到近乎无聊,但一定要记牢方向:</p>
+<ul>
+<li><strong>亮的像素 → 大的值 (bright pixel → large value)</strong></li>
+<li><strong>暗的像素 → 小的值 (dark pixel → small value)</strong></li>
+</ul>
+<p>一幅 640×480 的 RGB 图像,每个像素有<strong>三个值</strong>(red /
+green / blue),所以整幅图是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>640</mn><mo>×</mo><mn>480</mn><mo>×</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">640 \times 480 \times 3</annotation></semantics></math>
+个数。灰度相机(讲师说的"black and white
+sensor")每个像素只有<strong>一个</strong>强度值。</p>
+<p>这里有一条对机器人特别重要、但在摄影语境下反直觉的经验,讲师专门强调了:</p>
+<blockquote>
+<p>"很多情况下,机器人用的视觉传感器<strong>分辨率并不高</strong>,因为我们常常没有能力处理大量像素;而且事实上很多情况下<strong>我们并不需要那么高的分辨率</strong>去理解场景。这和用于可视化、用于视觉呈现的图像很不一样——那种场合分辨率越高越好。<strong>对于处理和理解,通常我们不需要高分辨率图像。</strong>"</p>
+</blockquote>
+<p>换句话说:<strong>分辨率是给人眼看的指标,不是给算法看的指标。</strong>
+一台 4K
+相机接在一块跑不动它的嵌入式板子上,对机器人是负担而不是优势。这条经验会在
+§14 高斯平滑那里再次出现——降采样之前必须先低通滤波。</p>
+<h2 id="4-把图像当成信号来读">4. 把图像当成信号来读</h2>
+<p>现在做本章第一个关键的思维切换。既然图像就是一个二维数组,那么:</p>
+<p><strong>每一行是一个一维信号。每一列也是一个一维信号。</strong></p>
+<p>沿着某一行从左往右走,像素值高高低低地变化,这条曲线和你在信号处理里画的时间序列没有本质区别——只不过横轴不是时间,而是空间位置。讲师甚至提到,有些算法干脆把整幅图<strong>从上到下、从左到右扫描成一个长序列</strong>,当成一段"类似时间序列的数据"来处理。</p>
+<p>这个切换之所以值钱,是因为它一下子把整套信号处理的工具搬了过来:<strong>梯度
+(gradients)</strong>、<strong>频率
+(frequencies)</strong>、<strong>滤波器 (filters)</strong>
+全都可以直接用。本章后面几乎每一个低层操作,追根溯源都是"把某个一维信号处理的想法搬到二维"。</p>
+<p>用一个具体的小数组感受一下"像素值就是信号":</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>col 0</th>
+<th>col 1</th>
+<th>col 2</th>
+<th>col 3</th>
+<th>col 4</th>
+<th>col 5</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>row 0</strong></td>
+<td>30</td>
+<td>34</td>
+<td>38</td>
+<td><strong>170</strong></td>
+<td>176</td>
+<td>180</td>
+</tr>
+<tr class="even">
+<td><strong>row 1</strong></td>
+<td>29</td>
+<td>33</td>
+<td>41</td>
+<td><strong>168</strong></td>
+<td>173</td>
+<td>181</td>
+</tr>
+<tr class="odd">
+<td><strong>row 2</strong></td>
+<td>31</td>
+<td>36</td>
+<td>42</td>
+<td><strong>171</strong></td>
+<td>177</td>
+<td>185</td>
+</tr>
+<tr class="even">
+<td><strong>row 3</strong></td>
+<td>32</td>
+<td>38</td>
+<td>45</td>
+<td><strong>175</strong></td>
+<td>182</td>
+<td>190</td>
+</tr>
+</tbody>
+</table></div>
+<p>读一下 row 0:30 → 34 → 38,变化很慢;然后 38 → 170,<strong>一步跳了
+132</strong>;之后 170 → 176 →
+180,又变慢了。这个"跳"就是一条<strong>竖直的边 (vertical
+edge)</strong>,它正好落在 col 2 和 col 3
+之间。整幅图的左半是一片暗区域,右半是一片亮区域。</p>
+<p>请注意你刚才做的事情:你<strong>没有"看"这张图</strong>,你只是读了几个数,就推断出了"这里有一条竖边"。这正是所有边缘检测算法在做的事。而"变化慢
+/ 变化快"的这个区别,就是下一节的频率。</p>
+<h2 id="5-频率语言低频高频与带通">5. 频率语言:低频、高频与带通</h2>
+<p><strong>图像里的"频率
+(frequency)"指的是像素值变化的快慢</strong>——不是时间上的快慢,是<strong>空间上</strong>的快慢。讲师的定义原话:"图像里,频率指的是像素值的变化。像素值在水平方向、垂直方向、或同时在两个方向上<strong>变化得有多快</strong>。变化得越快,它含有的频率成分就越高。"</p>
+<p>三种成分,以及它们各自对应图像里的什么东西:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>成分</th>
+<th>定义</th>
+<th>图像里对应什么</th>
+<th>对机器人意味着</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>低频 (low-frequency)</strong></td>
+<td>相邻像素之间变化<strong>慢</strong></td>
+<td>平滑表面、渐变光照、模糊区域</td>
+<td>大尺度结构、整体明暗;通常是"背景"</td>
+</tr>
+<tr class="even">
+<td><strong>高频 (high-frequency)</strong></td>
+<td>相邻像素之间变化<strong>快</strong></td>
+<td>边缘 (edges)、纹理 (texture)、锐利细节、<strong>噪声
+(noise)</strong></td>
+<td>既是你要的边,<strong>也是你不要的噪声</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>带通 (band-pass)</strong></td>
+<td>只保留某一段频率</td>
+<td>特定尺度的边缘状结构</td>
+<td>检测边缘而<strong>不过度放大噪声</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>第三行是整章反复出现的一个工程动机,值得单独说清。这里有一个恼人的事实:</p>
+<blockquote>
+<p><strong>边缘和噪声都是高频的。</strong></p>
+</blockquote>
+<p>所以你无法用"删掉高频"这一招同时得到"干净"和"锐利"——删高频会同时删掉噪声<strong>和</strong>边缘,这就是
+§14
+高斯平滑的核心权衡。<strong>带通</strong>是对这个两难的回应:与其粗暴地砍掉一整段高频,不如<strong>只保留一个中间频段</strong>——足够高,还留得住边缘;足够低,已经甩掉了大部分逐像素的随机噪声。§16
+的 <strong>DoG</strong> 就是这个想法的具体实现。</p>
+<p>一个统一的图景,讲师用了一个漂亮的类比:</p>
+<blockquote>
+<p>"任何信号都是不同频率成分的混合。就像光一样——我们有不同波长的混合。图像也是同一回事:它是不同频率成分的混合,<strong>其中有些成分和噪声有关,有些成分和边缘有关</strong>。"</p>
+</blockquote>
+<p>所以"滤波"这件事的本质就一句话:<strong>你在决定保留哪些频率成分、丢掉哪些。</strong>
+后面每见到一个滤波器,都可以问它一句"你是低通、高通,还是带通?"</p>
+<pre class="mermaid"><code>flowchart LR
+  I[&quot;原始图像&lt;br/&gt;全频段混合&quot;] --&gt; LP[&quot;低通 Low-pass&lt;br/&gt;(Gaussian)&quot;]
+  I --&gt; HP[&quot;高通 High-pass&lt;br/&gt;(Sobel / 梯度)&quot;]
+  I --&gt; BP[&quot;带通 Band-pass&lt;br/&gt;(DoG)&quot;]
+  LP --&gt; LR2[&quot;平滑、去噪&lt;br/&gt;代价: 边缘变糊&quot;]
+  HP --&gt; HR[&quot;边缘、细节&lt;br/&gt;代价: 噪声被放大&quot;]
+  BP --&gt; BR[&quot;特定尺度的边缘/斑点&lt;br/&gt;兼顾两者 → SIFT 的基础&quot;]</code></pre>
+<hr />
+<h1 id="part-ii--为什么视觉是难的感知即推断">Part II ·
+为什么视觉是难的:感知即推断</h1>
+<p>上一节我们把图像变成了信号,好像一切都可以用滤波器解决了。这一部分要泼一盆冷水,而且这盆冷水是本章最重要的<strong>概念性</strong>内容——期末的概念题极大概率考这里(讲师课上问的两道随堂题都出自这一部分,见
+§44)。</p>
+<h2 id="6-同一条-edge五种物理成因">6. 同一条 edge,五种物理成因</h2>
+<p>先把 <strong>edge(边缘)</strong>
+定义清楚。讲师给的定义很朴素但很准:</p>
+<blockquote>
+<p>"<strong>Edge
+意味着不连续,或者像素值的变化</strong>——不管是强度值还是颜色值。"</p>
+</blockquote>
+<p>也就是说,edge
+是一个<strong>图像空间</strong>里的现象:某处像素值突然跳变。检测它很容易(§15
+的 Sobel 就够了)。<strong>难的是解释它。</strong></p>
+<p>问题的根源在于投影。讲师说得很直接:</p>
+<blockquote>
+<p>"图像是二维的,是一个投影(3D world projecting to the
+2D)。所以能产生所谓 edge
+的原因有很多……如果你想反推回去,弄清楚这条边的成因是深度不连续、还是物体边界,有时候是很难的。因为这<strong>通常是一个病态问题
+(ill-posed
+problem)</strong>——<strong>你没法从二维图像恢复三维信息。</strong>"</p>
+</blockquote>
+<p>Slides 上把这五种成因编了号(对应 slide 7
+那张国际空间站内部的图),你应该能背下来:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>成因</th>
+<th>英文</th>
+<th>具体例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><strong>表面属性变化</strong></td>
+<td>change in surface properties</td>
+<td>一面墙上贴了不同颜色的漆;讲师的例子:<strong>红上衣配黑裤子,两者之间有一条清晰的边,但那不是物体边界</strong></td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><strong>深度不连续</strong></td>
+<td>depth discontinuities</td>
+<td>前景物体的轮廓压在远处背景上</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><strong>镜面高光</strong></td>
+<td>specular highlights</td>
+<td>光滑金属或玻璃上的反光斑,边界很锐但物理上什么都没有</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><strong>光照条件变化</strong></td>
+<td>changing lighting conditions, 尤其是阴影</td>
+<td>阴影的边界,它随太阳移动,物体本身没动</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td><strong>表面朝向变化</strong></td>
+<td>surface orientation changes</td>
+<td>一个方盒子的棱:同一块材料、同一个物体,只是转了个面,亮度就变了</td>
+</tr>
+</tbody>
+</table></div>
+<p>请特别注意 1 和
+5:<strong>它们发生在同一个物体上</strong>。也就是说,一个物体内部完全可以充满强边缘,而物体的真实轮廓反而可能因为和背景颜色接近而<strong>几乎没有边缘</strong>。这正是"从边缘直接得到物体"这条朴素思路失败的原因。</p>
+<p>由此得到本章最重要的一条判断,也是 slide 7 的 Key idea:</p>
+<blockquote>
+<p><strong>感知即推断 (perception is
+inference)。机器人必须用光照模型、几何模型和物体模型来"解释"图像证据。</strong></p>
+</blockquote>
+<p>以及一条你必须能脱口而出的推论:</p>
+<blockquote>
+<p><strong>低层信号处理是必要的,但不充分 (necessary but not
+sufficient)。</strong></p>
+</blockquote>
+<p>讲师随堂就考了这一点:"机器人在图像里检测到一条强边缘,能不能得出结论说这是物体边界?"——<strong>不能</strong>,因为
+edge 有多种成因。</p>
+<p>那怎么办?答案是<strong>上下文 (context)</strong>:</p>
+<blockquote>
+<p>"但我们怎么克服这个问题?我们用<strong>上下文信息</strong>来帮我们弄清成因。比如说,哪里是物体边界、哪里是因为深度不连续——我们需要一定的上下文信息来解决这些问题。"</p>
+</blockquote>
+<p>Slide 7 把机器人需要的东西列全了:<strong>上下文 (context)、空间关系
+(spatial relationships)、任务知识 (task knowledge)</strong>。</p>
+<h2 id="7-陨石坑还是山丘先验知识如何改写像素">7.
+陨石坑还是山丘:先验知识如何改写像素</h2>
+<p>要理解"上下文"到底有多强,slide 8
+给了一个漂亮到有点吓人的例子:<strong>Apollo 15
+着陆点的两张照片。</strong></p>
+<p>同一片月球地貌,在一天中的不同时刻拍摄。左边那张,你清清楚楚看到一片<strong>陨石坑
+(craters)</strong>;右边那张,你同样清清楚楚看到一片<strong>山丘
+(hills)</strong>。地形完全没有改变,改变的只有<strong>太阳照射的方向</strong>——一张从左边照,一张从右边照。</p>
+<p>发生了什么?你的视觉系统默认了一个先验:<strong>光从上方来</strong>(这在地球上待了几百万年是个极好的假设)。在这个假设下,"上亮下暗"必须解释成凸起,"上暗下亮"必须解释成凹陷。当实际光照方向违反这个假设时,你的大脑不会怀疑先验,它会<strong>改写你看到的形状</strong>。</p>
+<p>这个例子把本章的核心命题推到了极致:</p>
+<blockquote>
+<p><strong>同一份数据,在不同假设下会得到不同的解释 (The same data can be
+interpreted differently under different assumptions)。</strong></p>
+</blockquote>
+<p>Slide 8 把它翻译成两条工程结论,考试友好,建议直接记:</p>
+<ul>
+<li><strong>Robot
+implication(对机器人的含义)</strong>:视觉算法<strong>不应该只依赖局部像素对比度
+(should not rely on local pixel contrast alone)</strong>。</li>
+<li><strong>Design
+implication(对设计的含义)</strong>:必须把低层线索与<strong>几何
+(geometry)</strong>、<strong>时间一致性 (temporal
+consistency)</strong>、<strong>语义 (semantics)</strong> 结合起来。</li>
+</ul>
+<p>第二条里的"时间一致性"值得多说一句:机器人相对于静止场景是<strong>运动</strong>的。同一个物体在连续多帧里应该保持形状与位置的连续变化,而一道阴影的边界会随着机器人移动表现出<strong>和真实几何不同的运动规律</strong>。所以"多看几帧"本身就是一种消歧手段——这一点和
+§21 的 structure from motion 是同一个物理事实的两种用法。</p>
+<h2 id="8-人类视觉的作弊gestalt-分组与那只斑点狗">8.
+人类视觉的"作弊":Gestalt 分组与那只斑点狗</h2>
+<p>Slide 9
+是视觉课的经典图:一张由黑白斑块构成的照片,大多数人第一眼就能看出<strong>一只斑点狗
+(Dalmatian)</strong> 在地上嗅东西。</p>
+<p>关键在于:<strong>这张图里几乎没有完整的边缘。</strong> Slide
+的说明写得很明白——低层线索"只在耳朵、下巴和部分腿部存在"。狗的轮廓在像素层面<strong>大部分是不存在的</strong>,是你的视觉系统凭空补出来的。</p>
+<p>讲师课上现场做了这个演示,并且提出了一个很尖锐的追问:</p>
+<blockquote>
+<p>"你能不能画出狗的腿?如果我说'画出狗的腿',大概是可以的,你差不多能画出来。但如果你要求一个视觉算法去画出狗的腿、去勾出狗的轮廓——那会<strong>极其困难</strong>。"</p>
+</blockquote>
+<p>人做到这件事靠的是<strong>格式塔分组 (Gestalt grouping)</strong>:</p>
+<blockquote>
+<p>"人有一种额外的能力,我们的视觉系统叫做 Gestalt
+grouping。人能<strong>自动把相关的信息分组到一起,形成物体</strong>。"</p>
+</blockquote>
+<p>讲师还提到了另一个同类现象:<strong>随机点立体图 (random-dot
+stereogram)</strong>——就是那种曾经出过很多书的"盯着一堆随机点看一会儿,就会浮出一个三维物体"的图。对人来说这是自然发生的;对算法来说,输入就是一堆随机点,没有任何可依附的边缘。</p>
+<p>从这两个例子里要提炼的,不是"人很厉害",而是一条工程结论:</p>
+<blockquote>
+<p><strong>识别依赖物体先验 (object
+priors)——预期的形状、姿态和纹理。</strong></p>
+</blockquote>
+<p>也就是说,人之所以能补出不存在的轮廓,是因为<strong>已经知道狗长什么样</strong>。算法要做同样的事,就必须以某种方式<strong>注入先验信息</strong>。讲师的说法是:"对于缺失的部分,我们需要<strong>注入一些先验信息
+(inject some prior information)</strong> 才能做到。"这正是后来 CNN
+从数据里"学先验"这条路线的动机所在。</p>
+<h2 id="9-局部-vs-全局经典算法的视野天花板">9. 局部 vs
+全局:经典算法的视野天花板</h2>
+<p>Slide 9 的最后一点还引出了一个和后文关系很深的区分,讲师展开讲了:</p>
+<blockquote>
+<p>"你需要在不同层级、不同尺度上做整体性的观察——<strong>多尺度特征
+(multiscale
+features)</strong>。经典算法<strong>往往只在局部看</strong>。在局部周围看,你看不到其他部分。……但卷积神经网络有能力考虑很远的信息。你可以这样设计<strong>感受野
+(receptive
+field)</strong>——当我们分析这个像素时,我们同时也考虑很远处的信息。"</p>
+</blockquote>
+<p>把这个区分记牢,它解释了本章后半段所有算法的性格:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>经典方法</th>
+<th>CNN</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>看多大范围</strong></td>
+<td>一个固定的小邻域(3×3、5×5、16×16)</td>
+<td>逐层堆叠,<strong>感受野 (receptive field)</strong>
+不断扩大,深层能看到全图</td>
+</tr>
+<tr class="even">
+<td><strong>多尺度怎么处理</strong></td>
+<td><strong>人工构造</strong>尺度空间(SIFT 的 octaves,§38)</td>
+<td>网络在不同深度<strong>自动</strong>得到不同尺度的表征</td>
+</tr>
+<tr class="odd">
+<td><strong>先验从哪来</strong></td>
+<td>研究者手工设计("handcrafted")</td>
+<td>从数据里学</td>
+</tr>
+<tr class="even">
+<td><strong>代价</strong></td>
+<td>便宜、可解释、不吃数据</td>
+<td>需要 GPU、需要大量标注数据</td>
+</tr>
+</tbody>
+</table></div>
+<p>这张表也顺便解答了一个常见困惑:<strong>SIFT
+为什么要费那么大劲搞尺度空间?</strong>
+因为经典方法没有"深层网络自动获得大感受野"这个便利,想要多尺度就只能<strong>自己一层一层造出来</strong>。§38
+你会看到这个过程有多手工。</p>
+<blockquote>
+<p><strong>🔑 小结这一部分</strong> —
+视觉难在哪里,一句话:<strong>图像是三维世界的二维投影,投影丢掉的信息无法凭一张图恢复,所以任何从像素到含义的推断都是欠定的,必须靠先验、上下文、几何或多视角来补。</strong>
+本章剩下的内容,可以全部理解为"补信息"的不同办法:Part III
+靠滤波抑制干扰,Part IV 靠<strong>第二个视角</strong>补几何,Part V–VIII
+靠<strong>特征</strong>提供可跨视角比对的稳定锚点。</p>
+</blockquote>
+<hr />
+<h1 id="part-iii--低层图像操作的三大家族">Part III ·
+低层图像操作的三大家族</h1>
+<p>现在开始动手。Slide 10
+把机器人里最常用的低层操作分成三个家族,这个分类法很值得记,因为<strong>它们的"邻域规则"完全不同</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+  OP[&quot;低层图像操作&quot;] --&gt; T[&quot;① 阈值化 Thresholding&lt;br/&gt;逐像素判断&lt;br/&gt;I &gt; T ?&quot;]
+  OP --&gt; C[&quot;② 卷积滤波 Convolution&lt;br/&gt;邻域加权求和&lt;br/&gt;Gaussian / Sobel / DoG&quot;]
+  OP --&gt; M[&quot;③ 形态学 Morphology&lt;br/&gt;邻域取极值&lt;br/&gt;min / max&quot;]
+  T --&gt; TR[&quot;输出: 二值掩膜 binary mask&quot;]
+  C --&gt; CR[&quot;输出: 平滑图 / 梯度图 / 带通图&quot;]
+  M --&gt; MR[&quot;输出: 清理后的二值掩膜&quot;]</code></pre>
+<p>三者的区别用一句话就能钉死:</p>
+<ul>
+<li><strong>阈值化</strong>看的是<strong>单个像素自己</strong>的值;</li>
+<li><strong>卷积</strong>看邻域,做的是<strong>加权求和 (weighted
+sum)</strong>——线性操作;</li>
+<li><strong>形态学</strong>也看邻域,但做的是<strong>取最小 / 取最大
+(minimum or maximum)</strong>——非线性操作。</li>
+</ul>
+<p>讲师特别提醒,这三者在机器人里的地位并不因为深度学习而下降。Slide 10
+的落脚句值得记:</p>
+<blockquote>
+<p><strong>这些方法即使在使用基于学习的视觉时依然重要,因为它们解释了 CNN
+早期层通常会自动学到什么。</strong></p>
+</blockquote>
+<h2 id="10-阈值化-thresholding">10. 阈值化 Thresholding</h2>
+<h3 id="101-规则本身">10.1 规则本身</h3>
+<p>最简单的操作:<strong>把灰度图或彩色图变成一张二值掩膜 (binary
+mask)。</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mn>1</mn></mtd><mtd columnalign="left" style="text-align: left"><mrow><mtext mathvariant="normal">if </mtext><mspace width="0.333em"></mspace></mrow><mi>I</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>&gt;</mo><mi>T</mi></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mn>0</mn></mtd><mtd columnalign="left" style="text-align: left"><mtext mathvariant="normal">otherwise</mtext></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">M[x,y] = \begin{cases} 1 &amp; \text{if } I[x,y] &gt; T \\ 0 &amp; \text{otherwise} \end{cases}</annotation></semantics></math></p>
+<p>读作:像素值超过阈值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+的位置标 1,其余标 0。还有一种更常用的<strong>区间形式 (range
+mask)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>=</mo><mn>1</mn><mspace width="1.0em"></mspace><mrow><mtext mathvariant="normal">if </mtext><mspace width="0.333em"></mspace></mrow><msub><mi>T</mi><mtext mathvariant="normal">low</mtext></msub><mo>≤</mo><mi>I</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>≤</mo><msub><mi>T</mi><mtext mathvariant="normal">high</mtext></msub></mrow><annotation encoding="application/x-tex">M[x,y] = 1 \quad \text{if } T_{\text{low}} \le I[x,y] \le T_{\text{high}}</annotation></semantics></math></p>
+<p>区间形式在颜色分割里几乎是默认选择——你要找的往往不是"比某值亮",而是"落在某个颜色区间内"。</p>
+<blockquote>
+<p><strong>🔑 例 (Worked example)</strong> — 取 slide 11
+那一行像素:<code>40 75 110 145 180 215 250</code>,阈值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>120</mn></mrow><annotation encoding="application/x-tex">T = 120</annotation></semantics></math>。</p>
+<p>逐个比较:40 ≤ 120 → 0;75 ≤ 120 → 0;110 ≤ 120 → 0;145 &gt; 120 → 1;180
+&gt; 120 → 1;215 &gt; 120 → 1;250 &gt; 120 → 1。</p>
+<p>得到掩膜 <code>0 0 0 1 1 1 1</code>。注意:<strong>边界正好落在 110 和
+145 之间</strong>。如果场景整体变暗 30
+个灰度级(比如云飘过来了),这一行变成
+<code>10 45 80 115 150 185 220</code>,同一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>120</mn></mrow><annotation encoding="application/x-tex">T=120</annotation></semantics></math>
+给出的掩膜是
+<code>0 0 0 0 1 1 1</code>——<strong>边界移动了一个像素</strong>。这就是下面要说的最大弱点。</p>
+</blockquote>
+<h3 id="102-优点与致命弱点">10.2 优点与致命弱点</h3>
+<p><strong>优点:简单、快。</strong> Slide 11 直接点明用途:"useful in
+real-time robot controllers"。一个机器人控制回路可能要求 30 Hz
+以上,而阈值化是逐像素的一次比较,快到可以忽略不计。讲师举的场景是<strong>产线上的机械臂</strong>:在受控光照下,台面上的产品可以用一次简单阈值就切出来。</p>
+<p><strong>弱点:阈值在光照变化下极难稳健。</strong>
+这是它的阿喀琉斯之踵。上面那个例子已经演示了:光一变,同一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+就错了。而机器人恰恰是<strong>在移动的</strong>——它会从窗边走到走廊深处,会被自己的影子盖住目标。</p>
+<p>两个应对手段:</p>
+<p><strong>(a) 自适应阈值 (adaptive thresholding)。</strong> 让
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
+<strong>随位置局部变化</strong>,以补偿阴影和光照梯度。直觉很简单:与其问"这个像素比
+120
+亮吗",不如问"这个像素比<strong>它周围一小片区域的平均</strong>亮吗"。这样即使整幅图左边亮右边暗,判断依然成立。</p>
+<p><strong>(b) 自动选阈值。</strong>
+讲师提到了这条路,但明确说不展开:</p>
+<blockquote>
+<p>"有一些算法可以帮我们设计阈值。你去看图像的<strong>直方图
+(histogram)</strong>,就能设计出阈值。我们不打算深入这类算法的细节,但要记住<strong>存在这样的算法可以自动选取阈值</strong>。"</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — 讲师说的这类方法里最经典的是
+<strong>Otsu's
+method(大津法)</strong>:它把直方图看成两个分布(前景和背景),遍历所有可能的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>,选出让两类<strong>类间方差最大</strong>(等价于类内方差最小)的那个。你在
+OpenCV 里写
+<code>cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)</code>
+用的就是它。考试不会考推导,但知道名字有好处。</p>
+</blockquote>
+<h3 id="103-关键颜色分割要用-hsv不是-rgb">10.3 关键:颜色分割要用
+HSV,不是 RGB</h3>
+<p>这一小节请重点看——它是讲师讲得最细、并且<strong>直接关系到 lab 和
+assignment</strong> 的一点,slide 11 上只有一行字("For color
+segmentation, thresholds are often applied in HSV rather than raw
+RGB"),但课上展开了很多。</p>
+<p>问题:你要在场景里找一个<strong>红球</strong>。最朴素的做法是直接在
+RGB 上设三个区间:R 高、G 低、B 低。讲师说,这样做"可能相当困难 (quite
+challenging)"。为什么?</p>
+<p>因为 <strong>RGB
+的三个通道每一个都同时混合了颜色信息和亮度信息</strong>。讲师原话:</p>
+<blockquote>
+<p>"RGB 里同时包含了<strong>色度 (chrominance,颜色信息)</strong>
+和<strong>强度 (intensity)</strong>
+信息。如果你感兴趣的物体是<strong>纯粹由颜色定义</strong>的,那么单靠 hue
+会比用 RGB 可靠得多。"</p>
+</blockquote>
+<p>具体想一下就明白:一个红球,被阳光直射的那一面 RGB 可能是 (250, 60,
+55),阴影里那一面可能是 (90, 20,
+18)。<strong>它们是同一个红色</strong>,但三个通道的数值全都差了两三倍。你设的任何
+RGB 区间要么框不住阴影面,要么宽到把别的东西也框进来。</p>
+<p><strong>HSV</strong> 把这两种信息<strong>分开</strong>了:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>通道</th>
+<th>全称</th>
+<th>含义</th>
+<th>讲师的说法</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>H</strong></td>
+<td><strong>Hue(色相)</strong></td>
+<td>颜色本身,对应<strong>主波长 (dominant wavelength)</strong></td>
+<td>"hue 和色度成分特别相关……hue 关系到我们看到的颜色的主波长"</td>
+</tr>
+<tr class="even">
+<td><strong>S</strong></td>
+<td><strong>Saturation(饱和度)</strong></td>
+<td>颜色的纯度</td>
+<td>"颜色被光冲淡了多少 (how much the color has been dyed by the
+lights)"</td>
+</tr>
+<tr class="odd">
+<td><strong>V</strong></td>
+<td><strong>Value(明度)</strong></td>
+<td>亮度</td>
+<td>也写作 <strong>B (Brightness, HSB)</strong> 或 <strong>L (Luminance,
+HSL)</strong>——讲师说这些"是同一件事,只是用了不同的术语"</td>
+</tr>
+</tbody>
+</table></div>
+<p>关键在于:<strong>红球被照亮或落在阴影里,变的主要是 V,而 H
+基本不变。</strong> 所以只要在 <strong>H
+通道</strong>上设一个区间,一次阈值就能同时框住亮面和暗面。</p>
+<blockquote>
+<p><strong>🔑 讲师给的实操建议(直接对应 lab)</strong> — "在 lab exercise
+里,我们用 <strong>RGB 阈值</strong>来定义那个红球。但如果你<strong>转成
+hue、在 hue 上做阈值,会比用 RGB 可靠得多</strong>。这是你可以在 lab
+exercise 里试一试的地方。"</p>
+<p>也就是说:lab 给的骨架代码用的是 RGB,但讲师明确暗示你<strong>把它改成
+HSV 会更好</strong>。做 assignment 时值得动手试一次并对比效果。</p>
+</blockquote>
+<h2 id="11-卷积-convolution整章的核心操作">11. 卷积
+Convolution:整章的核心操作</h2>
+<h3 id="111-为什么需要它">11.1 为什么需要它</h3>
+<p>阈值化只看单个像素,所以它对噪声毫无抵抗力——一个被噪声打歪的像素,就会在掩膜上留下一个错误的点。要抗噪,你必须<strong>利用邻域</strong>:一个像素的"真实"值,应该和它的邻居们有关系。</p>
+<p><strong>卷积 (convolution)</strong>
+就是把这个想法形式化:<strong>用一个小窗口(叫做核)在图像上滑动,每到一个位置,把窗口下的像素和核的权重相乘再相加。</strong></p>
+<h3 id="112-形式定义">11.2 形式定义</h3>
+<p>连续形式(slide 12 给的,作为一般表示):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>f</mi><mo>⋆</mo><mi>g</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msubsup><mo>∫</mo><mrow><mo>−</mo><mi>∞</mi></mrow><mi>∞</mi></msubsup><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>τ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>g</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>−</mo><mi>τ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>d</mi><mi>τ</mi></mrow><annotation encoding="application/x-tex">(f \star g)(x) = \int_{-\infty}^{\infty} f(\tau)\, g(x - \tau)\, d\tau</annotation></semantics></math></p>
+<p>离散二维形式(这才是图像实际用的,因为<strong>像素是离散的</strong>):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>f</mi><mo>⋆</mo><mi>g</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo stretchy="true" form="prefix">[</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">]</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>i</mi></munder><munder><mo>∑</mo><mi>j</mi></munder><mi>f</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>x</mi><mo>−</mo><mi>i</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>y</mi><mo>−</mo><mi>j</mi><mo stretchy="true" form="postfix">]</mo></mrow><mspace width="0.278em"></mspace><mi>g</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">(f \star g)[x, y] = \sum_i \sum_j f[x - i,\, y - j]\; g[i, j]</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+是图像,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math>
+是<strong>核 (kernel)</strong>。</p>
+<p>翻译成人话——slide 12 的 "Computational view":</p>
+<blockquote>
+<p><strong>对每一个输出像素,取一个邻域,乘以核的权重,然后求和。</strong></p>
+</blockquote>
+<p>讲师描述得更具操作性:</p>
+<blockquote>
+<p>"对每一个像素做卷积。不管你要处理哪个像素,你<strong>把核的中心对齐到那个像素</strong>,然后做<strong>逐元素相乘
+(element-wise
+multiplication)</strong>,再把它们<strong>加起来</strong>。……然后你对图像里的每一个像素都应用这个操作。"</p>
+</blockquote>
+<p>于是整套滤波理论浓缩成一句话,slide 12 的落脚句:</p>
+<blockquote>
+<p><strong>大多数图像滤波器都可以描述为"选一个有用的核" (Most image
+filters can be described as choosing a useful kernel)。</strong></p>
+</blockquote>
+<p>这句话是接下来 §12–§16 的组织原则:高斯核、Sobel 核、DoG
+核——<strong>操作永远是同一个卷积,变的只有核里的那几个数</strong>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+严格来说,上面那个带负号的定义是<strong>卷积
+(convolution)</strong>;如果不翻转、直接写成
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>i</mi></msub><msub><mo>∑</mo><mi>j</mi></msub><mi>f</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>x</mi><mo>+</mo><mi>i</mi><mo>,</mo><mi>y</mi><mo>+</mo><mi>j</mi><mo stretchy="true" form="postfix">]</mo></mrow><mspace width="0.167em"></mspace><mi>g</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\sum_i\sum_j f[x+i, y+j]\,g[i,j]</annotation></semantics></math>,那叫<strong>相关
+(correlation)</strong>。深度学习里说的"卷积层"其实做的是相关。对<strong>对称核</strong>(高斯核就是对称的)两者结果完全一样,所以在本课范围内可以不区分。讲师说的"这里的卷积和卷积神经网络里的卷积是一回事",指的正是这个层面上的等同。</p>
+</blockquote>
+<h3 id="113-手算一次-33-卷积">11.3 手算一次 3×3 卷积</h3>
+<p>Slide 13 给了一个必须会手算的例子(这类题很适合出成计算题,虽然讲师说
+quiz 偏概念)。</p>
+<p><strong>核</strong>(一个类高斯的平滑核,注意前面的归一化系数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mn>10</mn></mrow><annotation encoding="application/x-tex">1/10</annotation></semantics></math>):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo>=</mo><mfrac><mn>1</mn><mn>10</mn></mfrac><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>2</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">g = \frac{1}{10}\begin{bmatrix} 1 &amp; 1 &amp; 1 \\ 1 &amp; 2 &amp; 1 \\ 1 &amp; 1 &amp; 1 \end{bmatrix}</annotation></semantics></math></p>
+<p><strong>图像块</strong>(要处理的是<strong>中心那个像素
+80</strong>):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mn>10</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>10</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>20</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>10</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>𝟖𝟎</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>20</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>10</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>20</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>20</mn></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">f = \begin{bmatrix} 10 &amp; 10 &amp; 20 \\ 10 &amp; \mathbf{80} &amp; 20 \\ 10 &amp; 20 &amp; 20 \end{bmatrix}</annotation></semantics></math></p>
+<p><strong>计算</strong>:把核心对齐到 80,逐元素相乘再求和:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><mtext mathvariant="normal">output</mtext></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mfrac><mn>1</mn><mn>10</mn></mfrac><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mn>1</mn><mo>⋅</mo><mn>10</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>10</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>20</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>10</mn><mo>+</mo><mrow><mn>𝟐</mn><mo mathvariant="bold">⋅</mo><mn>𝟖𝟎</mn></mrow><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>20</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>10</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>20</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>20</mn><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mfrac><mrow><mn>10</mn><mo>+</mo><mn>10</mn><mo>+</mo><mn>20</mn><mo>+</mo><mn>10</mn><mo>+</mo><mn>160</mn><mo>+</mo><mn>20</mn><mo>+</mo><mn>10</mn><mo>+</mo><mn>20</mn><mo>+</mo><mn>20</mn></mrow><mn>10</mn></mfrac></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mfrac><mn>280</mn><mn>10</mn></mfrac><mo>=</mo><mn>𝟐𝟖</mn></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{aligned}
+\text{output} &amp;= \frac{1}{10}\big(1{\cdot}10 + 1{\cdot}10 + 1{\cdot}20 + 1{\cdot}10 + \mathbf{2{\cdot}80} + 1{\cdot}20 + 1{\cdot}10 + 1{\cdot}20 + 1{\cdot}20\big) \\
+&amp;= \frac{10+10+20+10+160+20+10+20+20}{10} \\
+&amp;= \frac{280}{10} = \mathbf{28}
+\end{aligned}</annotation></semantics></math></p>
+<p><strong>读懂这个结果</strong>,slide 13 列了三条,每条都重要:</p>
+<ol type="1">
+<li><p><strong>那个噪声中心像素 80 被拉向了它的邻居们</strong> —— 从 80
+变成 28。周围一圈都是 10–20,80
+明显是个<strong>被噪声污染的孤立点</strong>;卷积把它压回了合理范围。讲师原话:"很明显你能看出这个
+80 像素是被噪声破坏的。卷积之后变成
+28,<strong>它抑制了这个噪声</strong>。"</p></li>
+<li><p><strong>边缘也被软化了</strong>,因为两侧的邻居被一起平均了。这是代价,不是
+bug。</p></li>
+<li><p><strong>更大的核平滑得更强,但可能抹掉有用的细节。</strong></p></li>
+</ol>
+<p>注意核里那个
+<strong>2</strong>:中心权重比周围大。这不是随意的——<strong>中心像素本来就该最有发言权</strong>。权重从中心向外递减的形状,正是下一节的高斯。讲师现场就是这么描述的:"中间是大的峰值,然后逐渐向外衰减……这就是一个
+Gaussian。"</p>
+<h3 id="114-核的大小">11.4 核的大小</h3>
+<p>核不限于 3×3,可以是 5×5、7×7
+或更大。规律很简单,但请把两个方向都记住:</p>
+<blockquote>
+<p><strong>核越大 → 平滑越强 → 去掉越多高频成分 →
+同时也去掉越多细节。</strong></p>
+</blockquote>
+<p>讲师给了一个判断标准:"在某些情况下,你只对<strong>较大尺度的物体</strong>感兴趣,而不是细节和纹理,那么你就可以用大一点的高斯核。"也就是说,<strong>核的大小应该匹配你关心的物体尺度</strong>——找一个直径
+100 像素的球,用 7×7 核平滑掉纹理是好事;找一条 3 像素宽的细线,7×7
+核会直接把它抹掉。</p>
+<h2 id="12-高斯平滑-gaussian-smoothing">12. 高斯平滑 Gaussian
+smoothing</h2>
+<p>上一节那个带中心权重 2 的核,已经是高斯的雏形。现在把它正式化。</p>
+<p><strong>高斯滤波器是一个低通滤波器 (low-pass
+filter)</strong>:它压制噪声和细小细节。核的权重服从二维高斯分布,由一个参数控制——<strong>标准差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+(standard deviation)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><mi>σ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mrow><mn>2</mn><mi>π</mi><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac><mspace width="0.167em"></mspace><msup><mi>e</mi><mrow><mo>−</mo><mfrac><mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><msup><mi>y</mi><mn>2</mn></msup></mrow><mrow><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac></mrow></msup></mrow><annotation encoding="application/x-tex">G_\sigma(x, y) = \frac{1}{2\pi\sigma^2}\, e^{-\frac{x^2 + y^2}{2\sigma^2}}</annotation></semantics></math></p>
+<p>不用背这个公式,但要能读懂它说了什么:<strong>权重随着离中心的距离呈指数衰减,衰减的快慢由
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+决定。</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+小 → 权重迅速掉到零 → 有效核小 →
+平滑弱;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+大 → 权重铺得远 → 有效核大 → 平滑强。所以
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+和核大小是同一件事的两种说法</strong>。</p>
+<p><strong>效果
+(Effect)</strong>:每个像素变成它自己和邻居的<strong>加权平均 (weighted
+average)</strong>,高频噪声被削弱。</p>
+<p><strong>权衡 (Trade-off)</strong>——这是必须记住的一句:</p>
+<blockquote>
+<p><strong>噪声减少了,但锐利的边界变模糊了,边缘的定位精度也变差了 (Noise
+decreases, but sharp boundaries become blurred and localization of edges
+becomes less precise)。</strong></p>
+</blockquote>
+<p>讲师随堂考的第三题就是这个:"如果把高斯平滑核<strong>加大</strong>(从
+3×3 到 5×5 到 7×7),最可能的效果是什么?" 答案是 <strong>"more smoothing,
+but poorer edge
+localization"</strong>——平滑更强,但边缘定位变差。注意这道题的四个选项里有一个陷阱选项"less
+smoothing",要看清方向。</p>
+<p><strong>在机器人里的用途 (Robot use)</strong>,slide 14
+列了:边缘检测、直线检测、特征匹配、颜色分割<strong>之前</strong>的预处理。这个"之前"很关键——讲师的说法是:</p>
+<blockquote>
+<p>"通常我们这样做:如果你的机器人上装的是一台<strong>低质量的相机</strong>,我们就先做一次平滑,<strong>然后再做边缘检测</strong>。"</p>
+</blockquote>
+<p>道理在 §5
+已经埋好了:边缘和噪声都是高频的。如果你不先压噪声就去求梯度,噪声点会产生<strong>巨大的假梯度</strong>,边缘图上会布满假边。先高斯、再
+Sobel,是几乎所有边缘检测器(包括 Canny)的标准开头。</p>
+<blockquote>
+<p><strong>🔑 第二个用途:降采样之前必须先低通</strong> —
+讲师专门提了这个,很实用:</p>
+<p>"高斯平滑还有一个用处:当相机分辨率很高、你想<strong>缩小传给视觉算法的图像尺寸</strong>时,你也需要<strong>先用一个低通滤波器(比如高斯低通)去掉细节,然后再缩小尺寸。否则你会引入伪影
+(artifacts)。</strong>"</p>
+<p>为什么?因为降采样就是<strong>隔行隔列丢像素</strong>。如果图里还有比新采样间隔更细的高频结构,这些结构会被错误地"折叠"成低频的假纹路。这个现象叫
+<strong>aliasing(混叠)</strong>,视觉上表现为莫尔条纹、锯齿。<strong>先模糊、再缩小</strong>——这是所有图像金字塔的标准做法,也正是
+§38 SIFT 构造 octave 时会用到的。</p>
+</blockquote>
+<h2 id="13-用-sobel-核做边缘检测">13. 用 Sobel 核做边缘检测</h2>
+<h3 id="131-边缘--梯度">13.1 边缘 = 梯度</h3>
+<p>高斯是低通,现在换个方向:我们<strong>想要</strong>高频,因为边缘就在那里。</p>
+<p>数学上,"像素值变化快"这件事的度量就是<strong>梯度
+(gradient)</strong>,也就是<strong>一阶导数 (first-order
+derivative)</strong>。讲师说得很直白:"边缘基本上可以用梯度或一阶导数来量化。"</p>
+<p>图像是二维的,所以梯度有两个分量:沿
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+方向的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>x</mi></msub><annotation encoding="application/x-tex">G_x</annotation></semantics></math>
+和沿
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+方向的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>y</mi></msub><annotation encoding="application/x-tex">G_y</annotation></semantics></math>。而计算它们的方式——不出意外——又是<strong>卷积</strong>。</p>
+<h3 id="132-两个-sobel-核">13.2 两个 Sobel 核</h3>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>x</mi></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>2</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>2</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow><mspace width="2.0em"></mspace><msub><mi>S</mi><mi>y</mi></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>2</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>2</mn></mtd><mtd columnalign="center" style="text-align: center"><mo>−</mo><mn>1</mn></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">S_x = \begin{bmatrix} -1 &amp; 0 &amp; 1 \\ -2 &amp; 0 &amp; 2 \\ -1 &amp; 0 &amp; 1 \end{bmatrix} \qquad S_y = \begin{bmatrix} 1 &amp; 2 &amp; 1 \\ 0 &amp; 0 &amp; 0 \\ -1 &amp; -2 &amp; -1 \end{bmatrix}</annotation></semantics></math></p>
+<p>用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mi>x</mi></msub><annotation encoding="application/x-tex">S_x</annotation></semantics></math>
+卷积图像,得到的每个像素值就是该处的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>x</mi></msub><annotation encoding="application/x-tex">G_x</annotation></semantics></math>;用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mi>y</mi></msub><annotation encoding="application/x-tex">S_y</annotation></semantics></math>
+卷积,得到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>y</mi></msub><annotation encoding="application/x-tex">G_y</annotation></semantics></math>。</p>
+<p><strong>为什么这两个核长这样?</strong>
+值得花一分钟看懂,因为看懂了就不用背。看
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mi>x</mi></msub><annotation encoding="application/x-tex">S_x</annotation></semantics></math>:左列全负、右列全正、中列为零。它在做的事情本质上是**"右边的像素之和减去左边的像素之和"<strong>——这正是"沿
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>
+方向的变化量"的离散近似。如果左右两边一样亮,结果是
+0(没有竖直边);如果右边明显更亮,结果是一个大正数(有一条竖直边)。中间那行的权重是
+2 而不是
+1,是因为</strong>离中心更近的行更可信**——这里又藏了一次高斯式的加权。</p>
+<p>同理
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mi>y</mi></msub><annotation encoding="application/x-tex">S_y</annotation></semantics></math>
+是"上面减下面",检测<strong>水平边</strong>。</p>
+<p>注意 slide 15
+的措辞很容易读反:<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mi>x</mi></msub><annotation encoding="application/x-tex">S_x</annotation></semantics></math>
+标的是 "Vertical-edge
+response"</strong>——它响应的是<strong>竖直的边</strong>,因为竖直边意味着<strong>水平方向上</strong>有跳变。做题时按"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mi>x</mi></msub><annotation encoding="application/x-tex">S_x</annotation></semantics></math>
+检测竖边"来记。</p>
+<h3 id="133-从两个分量到边缘强度和方向">13.3
+从两个分量到边缘强度和方向</h3>
+<p>有了
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><mi>x</mi></msub><mo>,</mo><msub><mi>G</mi><mi>y</mi></msub></mrow><annotation encoding="application/x-tex">G_x, G_y</annotation></semantics></math>,就能算两个非常有用的量:</p>
+<p><strong>梯度幅值 (gradient magnitude)</strong> ——
+边缘的<strong>强度</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mo>=</mo><msqrt><mrow><msubsup><mi>G</mi><mi>x</mi><mn>2</mn></msubsup><mo>+</mo><msubsup><mi>G</mi><mi>y</mi><mn>2</mn></msubsup></mrow></msqrt></mrow><annotation encoding="application/x-tex">G = \sqrt{G_x^2 + G_y^2}</annotation></semantics></math></p>
+<p><strong>梯度方向 (gradient orientation)</strong> ——
+边缘的<strong>方向</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>φ</mi><mo>=</mo><mo>atan2</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>G</mi><mi>y</mi></msub><mo>,</mo><msub><mi>G</mi><mi>x</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\varphi = \operatorname{atan2}(G_y, G_x)</annotation></semantics></math></p>
+<p>怎么用?讲师说:</p>
+<blockquote>
+<p>"梯度的强度可以表示某个像素在边缘上的可能性有多大。<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+值越大,那个像素越可能在边缘上。</strong>……如果这个像素在边缘上,梯度的这个朝向也指示了边缘的朝向。"</p>
+</blockquote>
+<p>请把这条记牢,因为它是 Part VI 和 Part VII
+的<strong>入口条件</strong>:后面所有的直线拟合(最小二乘、split-and-merge、RANSAC、Hough)都不是作用在原图上的,而是作用在**"梯度超过某阈值的那些候选边缘像素"<strong>上。讲师在讲
+RANSAC
+时反复强调:"记住,直线上的都是边缘像素,你是从</strong>边缘像素**里去找直线的。"</p>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>φ</mi><annotation encoding="application/x-tex">\varphi</annotation></semantics></math>
+的用处则更精细:一条直线上的所有边缘像素,梯度方向应该<strong>大致一致</strong>(都垂直于这条线)。这既可以用来过滤假边,也可以用来给
+Hough 投票加速。</p>
+<h3 id="134-canny把这个想法做完整">13.4 Canny:把这个想法做完整</h3>
+<p>Slide 15 的落脚句:</p>
+<blockquote>
+<p><strong>Canny 边缘检测在此基础上扩展,加入了平滑 (smoothing)、梯度估计
+(gradient estimation)、非极大值抑制 (non-maximum suppression) 和滞后阈值
+(hysteresis thresholding)。</strong></p>
+</blockquote>
+<p>四步各自解决什么,简单理解一下(讲师说不深入,但这四个词要认识):</p>
+<ol type="1">
+<li><strong>平滑</strong> —— 就是 §12,先压噪声,免得噪声制造假边。</li>
+<li><strong>梯度估计</strong> —— 就是 §13.2 的 Sobel。</li>
+<li><strong>非极大值抑制 (NMS)</strong> ——
+解决"边太粗"的问题。直接对梯度幅值做阈值,一条边会变成好几个像素宽的带子。NMS
+的做法是:沿着梯度方向看,只<strong>保留局部最大的那个像素</strong>,把它两侧的压成
+0。这样得到<strong>单像素宽的边</strong>。讲师提到了这个目标:"检测出<strong>一个像素宽</strong>的边缘。"</li>
+<li><strong>滞后阈值 (hysteresis)</strong> ——
+解决"单一阈值两头不讨好"的问题。用<strong>两个</strong>阈值:超过高阈值的一定是边(<strong>强边</strong>);低于低阈值的一定不是;介于两者之间的,<strong>只有当它连接到某条强边时</strong>才算边。这样既不会因为阈值定高而把一条边打断成虚线,也不会因为阈值定低而满图假边。</li>
+</ol>
+<p>讲师说 Canny <strong>已经在主流视觉库里实现好了</strong>:"在 OpenCV
+这类主要视觉包里都已经实现了,你可以直接调用,我们把它叫做 Canny edge
+detector。" 所以工程上你不会自己写,但你要知道它内部是这四步。</p>
+<h2 id="14-高斯差分-dog-difference-of-gaussians">14. 高斯差分 DoG
+(Difference of Gaussians)</h2>
+<h3 id="141-想法">14.1 想法</h3>
+<p>§5
+说过带通滤波的动机:既不想要平坦区域的低频,也不想要逐像素的噪声,只想要<strong>中间那一段</strong>——边缘和斑点所在的尺度。</p>
+<p>DoG 用一个极其省事的办法实现了带通:<strong>把同一幅图用两个不同
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+的高斯核分别模糊,然后相减。</strong></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">DoG</mtext><mo>=</mo><msub><mi>G</mi><msub><mi>σ</mi><mn>1</mn></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mi>G</mi><msub><mi>σ</mi><mn>2</mn></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>σ</mi><mn>1</mn></msub><mo>&lt;</mo><msub><mi>σ</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">\text{DoG} = G_{\sigma_1}(I) - G_{\sigma_2}(I), \qquad \sigma_1 &lt; \sigma_2</annotation></semantics></math></p>
+<p><strong>为什么相减就能得到带通?</strong>
+想一想两次模糊各保留了什么:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><msub><mi>σ</mi><mn>1</mn></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G_{\sigma_1}(I)</annotation></semantics></math>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+小)——去掉了最细的噪声,<strong>保留了中等细节</strong>;</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><msub><mi>σ</mi><mn>2</mn></msub></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G_{\sigma_2}(I)</annotation></semantics></math>(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+大)——去掉了更多细节,<strong>只剩下粗大的结构</strong>。</li>
+</ul>
+<p>相减之后,两者<strong>共有的</strong>粗大结构(低频)被抵消掉了,而
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\sigma_1</annotation></semantics></math>
+保留、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mn>2</mn></msub><annotation encoding="application/x-tex">\sigma_2</annotation></semantics></math>
+丢弃的那一段——<strong>恰好是介于两个尺度之间的中频结构</strong>——被留了下来。至于比
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\sigma_1</annotation></semantics></math>
+还细的噪声,两张图里都已经没有了,自然也不会出现在差里。</p>
+<p>Slide 16 用一行标出了这个效果链:</p>
+<blockquote>
+<p><strong>suppresses noise → removes smooth background → highlights
+edges/blobs → supports SIFT keypoints</strong></p>
+</blockquote>
+<h3 id="142-两个必须记住的比例">14.2 两个必须记住的比例</h3>
+<p>Slide 16 给了两个具体的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>σ</mi><mn>2</mn></msub><mi>/</mi><msub><mi>σ</mi><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">\sigma_2/\sigma_1</annotation></semantics></math>
+比值,<strong>这是很典型的考点</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>σ</mi><mn>2</mn></msub><mo>:</mo><msub><mi>σ</mi><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">\sigma_2 : \sigma_1</annotation></semantics></math></th>
+<th>行为</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>约 4–5 : 1</strong></td>
+<td>DoG 表现为一个<strong>边缘检测器 (edge detector)</strong></td>
+<td>突出边缘</td>
+</tr>
+<tr class="even">
+<td><strong>约 1.6 : 1</strong></td>
+<td>DoG <strong>逼近 LoG (Laplacian-of-Gaussian)</strong></td>
+<td>用于<strong>尺度空间特征检测</strong>,即 SIFT</td>
+</tr>
+</tbody>
+</table></div>
+<p>第二行是 SIFT 的技术基础,§38 会用到。这里先解释一下
+<strong>LoG</strong> 是什么,以及为什么要拿 DoG 去逼近它。</p>
+<h3 id="143-log-与二阶导数零交叉">14.3 LoG 与二阶导数零交叉</h3>
+<p>讲师提到了边缘检测的<strong>另一条路线</strong>:</p>
+<blockquote>
+<p>"另一种检测边缘的方法叫做<strong>二阶导数的零交叉 (second-order
+derivative zero crossing)</strong>,它基于 <strong>Laplacian of
+Gaussian</strong>。而 Difference of Gaussians
+可以<strong>近似</strong>这个 Laplacian,也就是图像的二阶导数。"</p>
+</blockquote>
+<p>直觉是这样的:在一条边上,<strong>一阶导数(梯度)有一个峰值</strong>;那么<strong>二阶导数</strong>在同一位置会<strong>穿过零点</strong>——从正变负或从负变正。所以"找边"这件事可以换个说法:<strong>找二阶导数的零交叉点。</strong></p>
+<p><strong>Laplacian(拉普拉斯算子)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>∇</mi><mn>2</mn></msup><mo>=</mo><msup><mi>∂</mi><mn>2</mn></msup><mi>/</mi><mi>∂</mi><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><msup><mi>∂</mi><mn>2</mn></msup><mi>/</mi><mi>∂</mi><msup><mi>y</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\nabla^2 = \partial^2/\partial x^2 + \partial^2/\partial y^2</annotation></semantics></math>
+就是二维的二阶导数。但二阶导数对噪声极其敏感(求一次导放大一次噪声,求两次放大两次),所以实际用的是<strong>先高斯平滑、再求拉普拉斯</strong>,合起来叫
+<strong>LoG</strong>。</p>
+<p>而 LoG 的计算比较贵。<strong>DoG
+是它的一个廉价近似</strong>——两次高斯模糊加一次减法,就得到了几乎一样的结果。这就是为什么
+SIFT 用 DoG 而不用
+LoG:<strong>在需要构造一整个尺度金字塔、反复计算的场合,省下来的计算量非常可观。</strong></p>
+<p>讲师明确说这块不展开("we won't go to detail"),slide
+上也标注这只是"一些术语的列举"。所以你需要掌握的是:<strong>DoG
+是什么、怎么算、两个比例分别对应什么、以及它是 SIFT 的基石</strong>;LoG
+和零交叉知道名字和直觉即可。</p>
+<pre class="mermaid"><code>flowchart LR
+  I[&quot;原图 I&quot;] --&gt; G1[&quot;G_σ1(I)&lt;br/&gt;轻度模糊&quot;]
+  I --&gt; G2[&quot;G_σ2(I)&lt;br/&gt;重度模糊&quot;]
+  G1 --&gt; D{&quot;减法&lt;br/&gt;−&quot;}
+  G2 --&gt; D
+  D --&gt; R[&quot;DoG&lt;br/&gt;带通响应&quot;]
+  R --&gt; E[&quot;σ2/σ1 ≈ 4–5&lt;br/&gt;→ 边缘检测器&quot;]
+  R --&gt; S[&quot;σ2/σ1 ≈ 1.6&lt;br/&gt;→ 逼近 LoG&lt;br/&gt;→ SIFT 关键点&quot;]</code></pre>
+<h2 id="15-形态学操作-morphological-operations">15. 形态学操作
+Morphological operations</h2>
+<h3 id="151-为什么需要它">15.1 为什么需要它</h3>
+<p>阈值化(§10)给了你一张二值掩膜,但那张掩膜<strong>几乎从来不干净</strong>。讲师描述得很具体:</p>
+<blockquote>
+<p>"特别是当你把图像阈值化成黑白之后,你会看到<strong>很多噪声</strong>。有些被误检了——本该属于物体的没检出来,于是物体里出现了一个洞;或者有一堆不属于物体的噪声点。<strong>你需要清理这些点。</strong>"</p>
+</blockquote>
+<p>两种典型脏东西:</p>
+<ul>
+<li><strong>物体里面有洞</strong> ——
+球体表面某个像素被噪声打成了背景;</li>
+<li><strong>物体外面有孤立噪点</strong> ——
+背景里有几个像素被误判成了前景;或者两个本该分开的物体,<strong>被一串噪声像素连在了一起</strong>。</li>
+</ul>
+<p>形态学操作就是用来修这两类问题的。它和卷积一样在邻域上工作,但规则不是加权求和,而是<strong>取极值</strong>。邻域的形状由一个<strong>结构元
+(structuring element)</strong>
+定义——讲师说:"邻域由你定义的核决定,你可以定义 3×3、5×5 或 7×7
+的邻域作为邻居,这取决于你。"</p>
+<h3 id="152-两个基本操作">15.2 两个基本操作</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>操作</th>
+<th>规则</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>腐蚀 Erosion</strong></td>
+<td>赋予邻域内的<strong>最小值 (minimum)</strong></td>
+<td><strong>收缩亮区域 (shrinks bright regions)</strong></td>
+</tr>
+<tr class="even">
+<td><strong>膨胀 Dilation</strong></td>
+<td>赋予邻域内的<strong>最大值 (maximum)</strong></td>
+<td><strong>扩张亮区域 (expands bright regions)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>在二值图上想一下就很清楚:<strong>腐蚀</strong>——只要邻域里有一个
+0,中心就变成
+0,所以前景往内缩,孤立的小白点会被<strong>整个抹掉</strong>。<strong>膨胀</strong>——只要邻域里有一个
+1,中心就变成 1,所以前景往外长,小黑洞会被<strong>填上</strong>。</p>
+<h3 id="153-两个组合操作开与闭">15.3 两个组合操作:开与闭</h3>
+<p>单独用腐蚀或膨胀有个明显副作用:<strong>物体的尺寸变了</strong>。腐蚀掉噪点的同时,你的球也缩小了一圈。解决办法是<strong>把两者按不同顺序组合</strong>,让尺寸变回来:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>组合</th>
+<th>顺序</th>
+<th>效果</th>
+<th>什么时候用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>开运算 Opening</strong></td>
+<td><strong>先腐蚀,后膨胀</strong> (Erosion then dilation)</td>
+<td><strong>去掉小的亮噪声</strong>,同时基本保持物体原尺寸</td>
+<td>掩膜外面有孤立噪点;两个物体被噪声连在一起要<strong>断开</strong></td>
+</tr>
+<tr class="even">
+<td><strong>闭运算 Closing</strong></td>
+<td><strong>先膨胀,后腐蚀</strong> (Dilation then erosion)</td>
+<td><strong>填小洞、补断口</strong> (fills small holes and gaps)</td>
+<td>物体内部有洞;一条线<strong>断成了几段</strong>要接上</td>
+</tr>
+</tbody>
+</table></div>
+<p>记忆窍门:<strong>"开"是把东西打开、分离</strong>(去掉多余的连接和噪点);<strong>"闭"是把东西闭合</strong>(填上洞和缺口)。顺序也好记——<strong>要去掉东西就先腐蚀,要补上东西就先膨胀</strong>,第二步都是把尺寸还原。</p>
+<p>还有第三个组合,slide 17 提到:</p>
+<ul>
+<li><strong>形态学梯度 (Morphological gradient)</strong> = <strong>膨胀
+−
+腐蚀</strong>,结果是<strong>突出物体边界</strong>。直觉:膨胀后的图比腐蚀后的图正好"胖"出一圈,那一圈就是边界。</li>
+</ul>
+<h3 id="154-讲师的三个具体场景">15.4 讲师的三个具体场景</h3>
+<p>这三个例子直接对应 slide 18 的任务表,也直接对应
+lab,建议连答案一起记:</p>
+<blockquote>
+<p><strong>🔑 例 1:球里有个洞</strong> —
+"假设你做了阈值化,检出了球的区域,但突然因为噪声,球内部某个像素被破坏了,出现了一个洞——它看起来不像一个实心的盘,里面有几个像素掉到了背景去了。你需要<strong>填上这些像素,用
+closing</strong>。"</p>
+<p><strong>🔑 例 2:两个球被噪声连起来了</strong> —
+"如果两个球碰巧被噪声像素连在了一起,那你必须切断这个连接,这时用
+<strong>opening</strong>。"</p>
+<p><strong>🔑 例 3:跟随一条线,线断了</strong> — "如果我们做<strong>循线
+(follow a
+line)</strong>,阈值化之后你可能发现<strong>线是断的</strong>。所以你要做
+<strong>closing</strong>,让它变成一条连续的线。"</p>
+</blockquote>
+<p>讲师随堂考的第四题正是例
+1:"一个分割出来的物体内部有一个小洞,你会先试哪个操作?"选项有 opening /
+closing / Sobel / erosion,答案是
+<strong>closing</strong>。讲师还顺带解释了机制:"closing 基本上是你先做
+dilation 把洞填上,然后 erosion——因为按照定义,dilation
+会<strong>放大</strong>物体尺寸,所以你要用后面这一步<strong>把它缩回去</strong>。"</p>
+<h2 id="16-为机器人任务组装流水线">16. 为机器人任务组装流水线</h2>
+<p>现在把三大家族拼起来。Slide 18 给了一张任务 →
+流水线的对照表,<strong>这张表是本 Part
+的总结,极其适合作为考点</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>任务 (Task)</th>
+<th>典型流水线 (Typical pipeline)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>找一个红球</strong> (Find a red ball)</td>
+<td><strong>HSV 区间阈值 → 形态学 → 求斑点中心</strong> (HSV range
+threshold → morphology → blob centre)</td>
+</tr>
+<tr class="even">
+<td><strong>循线</strong> (Follow a line)</td>
+<td><strong>对暗/亮像素阈值 → 闭运算 → 求轮廓中心</strong> (Threshold
+dark/bright pixels → closing → contour centre)</td>
+</tr>
+<tr class="odd">
+<td><strong>检测障碍物</strong> (Detect obstacles)</td>
+<td><strong>立体/深度预处理 → 边缘/平面/角点特征</strong> (Stereo/depth
+preprocessing → edge/plane/corner features)</td>
+</tr>
+<tr class="even">
+<td><strong>识别物体</strong> (Recognize objects)</td>
+<td><strong>关键点或学习得到的 CNN 特征 → 匹配/分类器</strong>
+(Keypoints or learned CNN features → matching/classifier)</td>
+</tr>
+</tbody>
+</table></div>
+<p>对着这张表把前面的内容串一遍:第一行用到了 §10.3 的 HSV(不是 RGB!)和
+§15 的形态学;第二行的 closing 正是讲师的例 3;第三行指向 Part IV
+的几何;第四行指向 Part V–VIII 的特征。<strong>整个 Part III 到 Part VIII
+的结构,就藏在这张表里。</strong></p>
+<p>Slide 18 最上面还有一句必须内化的话:</p>
+<blockquote>
+<p><strong>不存在放之四海而皆准的最佳预处理流水线 (There is no universal
+best pre-processing pipeline)。</strong></p>
+</blockquote>
+<p>以及四条工程习惯,写得很实在:</p>
+<ol type="1">
+<li><strong>从简单滤波器开始</strong> (start with simple filters);</li>
+<li><strong>可视化中间输出</strong> (visualize intermediate
+outputs)——不要写一个黑盒然后猜哪一步错了,把每一步的图都存下来看;</li>
+<li><strong>在不同光照和视角下测试</strong> (test under different
+lighting and viewpoints)——呼应 §10.2 阈值的脆弱性;</li>
+<li><strong>测量失败案例</strong> (measure failure
+cases)——这和上周"理解失效模式"是同一条方法论。</li>
+</ol>
+<hr />
+<h1 id="part-iv--从图像恢复几何视觉如何变成尺子">Part IV ·
+从图像恢复几何:视觉如何变成尺子</h1>
+<p>到这里,我们能把图像洗干净、能标出边缘和感兴趣的区域。但所有这些都还停留在<strong>图像坐标</strong>里——"红球在图像的第
+320 行第 210 列"。机器人真正需要的是**"红球在我前方 1.4 米、左偏
+12°"<strong>。这一部分讲的就是这个转换,以及它为什么需要</strong>两个视角**。</p>
+<h2 id="17-相机投影模型世界坐标如何变成像素坐标">17.
+相机投影模型:世界坐标如何变成像素坐标</h2>
+<blockquote>
+<p>📎 <strong>说明</strong> — 这一节的内容在 slides
+上只以图片形式出现(slide 21、22
+是纯图无文字),但讲师在课上<strong>完整口述了整个模型</strong>。下面是根据讲堂讲解整理的,它是理解
+§18–§20 的必要前提。</p>
+</blockquote>
+<p>设想空间中有一个点,它在世界坐标系里的坐标是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo>,</mo><mi>Y</mi><mo>,</mo><mi>Z</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(X, Y, Z)</annotation></semantics></math>。相机拍下这一幕,这个点落在图像的某个像素上,像素坐标记作
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>u</mi><mo>,</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(u, v)</annotation></semantics></math>。<strong>投影模型</strong>就是描述
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mo>,</mo><mi>Y</mi><mo>,</mo><mi>Z</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>→</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>u</mi><mo>,</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">(X,Y,Z) \to (u,v)</annotation></semantics></math>
+这个映射的东西。</p>
+<p>讲师说,这个映射由<strong>两组参数</strong>决定,分两步走:</p>
+<pre class="mermaid"><code>flowchart LR
+  W[&quot;世界点&lt;br/&gt;(X, Y, Z)&lt;br/&gt;world frame&quot;] --&gt;|&quot;外参 Extrinsic&lt;br/&gt;旋转 R + 平移 t&quot;| C[&quot;相机坐标&lt;br/&gt;(Xc, Yc, Zc)&lt;br/&gt;camera frame&quot;]
+  C --&gt;|&quot;内参 Intrinsic&lt;br/&gt;焦距、主点、缩放&quot;| P[&quot;像素坐标&lt;br/&gt;(u, v)&lt;br/&gt;image plane&quot;]</code></pre>
+<h3 id="171-外参-extrinsic-parameters">17.1 外参 Extrinsic
+parameters</h3>
+<p><strong>外参描述的是"相机站在世界的哪里、朝向哪边"。</strong></p>
+<p>讲师直接把它接回了上周的内容:</p>
+<blockquote>
+<p>"真实世界坐标和你相机上那个坐标系(叫做 <strong>camera
+frame</strong>)之间存在一个关系。记得我们用过 frame——有 <strong>world
+frame</strong>,有 <strong>camera frame</strong>。你的 world frame 和
+camera frame
+之间的关系,用<strong>旋转矩阵和平移矩阵</strong>来表示。记住这叫做
+<strong>extrinsic transformation(外参变换)</strong>。"</p>
+</blockquote>
+<p>所以外参就是上周学的那个<strong>齐次变换</strong>,没有任何新东西:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>X</mi><mi>c</mi></msub></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>Y</mi><mi>c</mi></msub></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>Z</mi><mi>c</mi></msub></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow><mo>=</mo><mi>𝐑</mi><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mi>X</mi></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mi>Y</mi></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mi>Z</mi></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow><mo>+</mo><mi>𝐭</mi></mrow><annotation encoding="application/x-tex">\begin{bmatrix} X_c \\ Y_c \\ Z_c \end{bmatrix} = \mathbf{R} \begin{bmatrix} X \\ Y \\ Z \end{bmatrix} + \mathbf{t}</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐑</mi><annotation encoding="application/x-tex">\mathbf{R}</annotation></semantics></math>
+是 3×3
+旋转矩阵,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐭</mi><annotation encoding="application/x-tex">\mathbf{t}</annotation></semantics></math>
+是 3×1 平移向量。这一步<strong>把世界坐标转成相机坐标</strong>。</p>
+<p>注意外参<strong>不是相机的属性</strong>——同一台相机装在机器人身上,机器人一动,外参就变了。外参描述的是<strong>相机与世界的相对位姿</strong>。</p>
+<h3 id="172-内参-intrinsic-parameters">17.2 内参 Intrinsic
+parameters</h3>
+<p><strong>内参描述的是"这台相机内部长什么样"</strong>,它由硬件决定,机器人怎么动都不变。讲师列出的三样:</p>
+<ol type="1">
+<li><strong>焦距 (focal length)</strong> ——
+"你镜头的焦距,因为相机通常有一个光学镜头"。焦距决定了视场角和放大率:焦距长
+→ 视野窄、物体在图上大。</li>
+<li><strong>主点 (principal point)</strong> ——
+讲师的说法是"镜头的中心是否 100%
+和传感器对齐"。理想情况下光轴正好穿过传感器的正中心,实际装配总有偏差,所以要用两个参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>c</mi><mi>x</mi></msub><mo>,</mo><msub><mi>c</mi><mi>y</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(c_x, c_y)</annotation></semantics></math>
+记录光轴实际落在哪个像素上。</li>
+<li><strong>缩放 / 放大率 (scale, magnification)</strong> ——
+把物理尺寸(毫米)换算成像素数的比例。</li>
+</ol>
+<p>这三样打包成一个 3×3 的<strong>内参矩阵 (intrinsic
+matrix)</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝐊</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">[</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><msub><mi>f</mi><mi>x</mi></msub></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><msub><mi>c</mi><mi>x</mi></msub></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><msub><mi>f</mi><mi>y</mi></msub></mtd><mtd columnalign="center" style="text-align: center"><msub><mi>c</mi><mi>y</mi></msub></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr></mtable><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">\mathbf{K} = \begin{bmatrix} f_x &amp; 0 &amp; c_x \\ 0 &amp; f_y &amp; c_y \\ 0 &amp; 0 &amp; 1 \end{bmatrix}</annotation></semantics></math></p>
+<p>配上投影本身(除以深度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>c</mi></msub><annotation encoding="application/x-tex">Z_c</annotation></semantics></math>,这就是"近大远小"):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi><mo>=</mo><msub><mi>f</mi><mi>x</mi></msub><mfrac><msub><mi>X</mi><mi>c</mi></msub><msub><mi>Z</mi><mi>c</mi></msub></mfrac><mo>+</mo><msub><mi>c</mi><mi>x</mi></msub><mo>,</mo><mspace width="2.0em"></mspace><mi>v</mi><mo>=</mo><msub><mi>f</mi><mi>y</mi></msub><mfrac><msub><mi>Y</mi><mi>c</mi></msub><msub><mi>Z</mi><mi>c</mi></msub></mfrac><mo>+</mo><msub><mi>c</mi><mi>y</mi></msub></mrow><annotation encoding="application/x-tex">u = f_x \frac{X_c}{Z_c} + c_x, \qquad v = f_y \frac{Y_c}{Z_c} + c_y</annotation></semantics></math></p>
+<p><strong>读一下这两个式子在说什么</strong>:一个点在图像上偏离中心多少,等于它在相机坐标系里的横向偏移<strong>除以它的深度</strong>,再乘一个焦距。除以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>c</mi></msub><annotation encoding="application/x-tex">Z_c</annotation></semantics></math>
+是整件事的关键——<strong>同一个物体,离得越远(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>c</mi></msub><annotation encoding="application/x-tex">Z_c</annotation></semantics></math>
+越大),在图上就越小</strong>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+上周讲相机标定时提过的<strong>镜头畸变 (lens distortion)</strong>
+是内参的一部分(通常写成额外的畸变系数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>k</mi><mn>1</mn></msub><mo>,</mo><msub><mi>k</mi><mn>2</mn></msub><mo>,</mo><msub><mi>p</mi><mn>1</mn></msub><mo>,</mo><msub><mi>p</mi><mn>2</mn></msub><mo>,</mo><mi>…</mi></mrow><annotation encoding="application/x-tex">k_1, k_2, p_1, p_2, \dots</annotation></semantics></math>)。讲师在本周开头讲预处理时也点了这一笔:"特别是在机器人里,我们还用视觉做<strong>几何测量</strong>,这种情况下<strong>畸变会严重影响测量</strong>,所以预处理也包括这些校正。"
+换句话说:§11–§16
+那些滤波是为了"看清楚",而畸变校正是为了"量得准"——两个不同的目的,都归在预处理里。</p>
+</blockquote>
+<h2 id="18-为什么一张图不够投影不可逆">18.
+为什么一张图不够:投影不可逆</h2>
+<p>现在到了这一部分的转折点。讲师说得非常清楚:</p>
+<blockquote>
+<p>"基本上,在相机投影几何模型里,当你拍一张照片时,<strong>你只有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>u</mi><annotation encoding="application/x-tex">u</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>。你没有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>,</mo><mi>Y</mi><mo>,</mo><mi>Z</mi></mrow><annotation encoding="application/x-tex">X, Y, Z</annotation></semantics></math></strong>,你不知道是哪个真实世界坐标映射到了图像里这个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>u</mi><mo>,</mo><mi>v</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(u,v)</annotation></semantics></math>
+位置。所以如果我们想做测量、想测出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>,</mo><mi>Y</mi><mo>,</mo><mi>Z</mi></mrow><annotation encoding="application/x-tex">X, Y, Z</annotation></semantics></math>,你就得反过来做——<strong>逆映射
+(inverse
+mapping)</strong>。但是,<strong>三维映射到二维之后,你没法做逆运算。</strong>"</p>
+</blockquote>
+<p>为什么不能?看 §17.2
+那两个式子就明白了:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>u</mi><annotation encoding="application/x-tex">u</annotation></semantics></math>
+只告诉你比值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>X</mi><mi>c</mi></msub><mi>/</mi><msub><mi>Z</mi><mi>c</mi></msub></mrow><annotation encoding="application/x-tex">X_c/Z_c</annotation></semantics></math>,不告诉你
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>X</mi><mi>c</mi></msub><annotation encoding="application/x-tex">X_c</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>c</mi></msub><annotation encoding="application/x-tex">Z_c</annotation></semantics></math>
+各自是多少。</p>
+<p><strong>一个像素对应的不是空间中的一个点,而是一整条射线。</strong>
+沿着这条射线,近处的小物体和远处的大物体会投影到<strong>完全相同的像素</strong>上。这就是电影里"手托太阳"那类照片能成立的原因,也是
+§6 说的"病态问题"在几何上的确切形式。</p>
+<p>于是结论:</p>
+<blockquote>
+<p><strong>要恢复
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>,</mo><mi>Y</mi><mo>,</mo><mi>Z</mi></mrow><annotation encoding="application/x-tex">X, Y, Z</annotation></semantics></math>,你需要两台相机。</strong>
+讲师原话:"通常,如果你想测
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>,</mo><mi>Y</mi></mrow><annotation encoding="application/x-tex">X, Y</annotation></semantics></math>
+坐标,你需要两台相机,两台相机一起。<strong>这就是三角测量 (triangulation)
+的由来。</strong>"</p>
+</blockquote>
+<h2 id="19-三角测量立体视觉与运动恢复结构">19.
+三角测量、立体视觉与运动恢复结构</h2>
+<h3 id="191-三角测量的原理">19.1 三角测量的原理</h3>
+<p>假设空间中有一个真实点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>P</mi><annotation encoding="application/x-tex">P</annotation></semantics></math>。它在<strong>左相机</strong>的图像上落在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>L</mi></msub><annotation encoding="application/x-tex">P_L</annotation></semantics></math>,在<strong>右相机</strong>的图像上落在
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>R</mi></msub><annotation encoding="application/x-tex">P_R</annotation></semantics></math>。</p>
+<p>现在:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>L</mi></msub><annotation encoding="application/x-tex">P_L</annotation></semantics></math>
+定义了一条从左相机中心出发的射线,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>R</mi></msub><annotation encoding="application/x-tex">P_R</annotation></semantics></math>
+定义了一条从右相机中心出发的射线。这两条射线<strong>在空间中相交,交点就是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>P</mi><annotation encoding="application/x-tex">P</annotation></semantics></math></strong>。只要你知道两台相机的相对位姿(它们之间的旋转和平移),这个交点就可以解出来。</p>
+<p>这就是<strong>三角测量 (triangulation)</strong>——slide 19 的定义:</p>
+<blockquote>
+<p><strong>三维点由它在两幅图像中对应的二维投影估计得到 (A 3D point is
+estimated from corresponding 2D projections in the two
+images)。</strong></p>
+</blockquote>
+<h3 id="192-三种拿到两个视角的方式">19.2 三种拿到"两个视角"的方式</h3>
+<p>Slide 19
+和讲师一共给了三种,区别只在于"两个视角之间的变换是怎么来的":</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>方式</th>
+<th>英文</th>
+<th>两视角之间的变换是什么</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>立体视觉</strong></td>
+<td><strong>Stereo vision</strong></td>
+<td>两台相机<strong>刚性固连</strong>,变换<strong>固定且经过标定</strong>
+(fixed and calibrated)</td>
+<td>变换已知且恒定,最可靠;需要两台相机</td>
+</tr>
+<tr class="even">
+<td><strong>运动恢复结构</strong></td>
+<td><strong>Structure from motion (SfM)</strong></td>
+<td><strong>一台</strong>相机在时间上移动,变换就是<strong>相机的运动</strong></td>
+<td>只需一台相机;但变换本身需要估计,且场景必须静止</td>
+</tr>
+<tr class="odd">
+<td><strong>(讲师补充)物体运动</strong></td>
+<td>—</td>
+<td>相机不动,<strong>点在动</strong></td>
+<td>也能恢复三维</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师对 SfM 的描述很直观:</p>
+<blockquote>
+<p>"这两幅图像也可以来自<strong>单台相机从一个位置移动到另一个位置</strong>。你可以在这里拍一张,在另一个时刻拍另一张,然后<strong>把这两张图当作它们是被一台立体相机拍下的</strong>——你依然能恢复出这个位置,这种情况叫做
+structure from motion,因为你的相机从一个位置移到了另一个位置。"</p>
+</blockquote>
+<p>请注意<strong>立体视觉和 SfM
+在数学上是同一件事</strong>,差别只在于:立体相机的基线是出厂标定好的常数,而
+SfM 的基线是运动带来的、需要从图像本身估计出来的未知量。这也是为什么 SfM
+更难。</p>
+<h3 id="193-核心难点对应问题">19.3 核心难点:对应问题</h3>
+<p>无论走哪条路,slide 19 的落脚句都是同一个要求:</p>
+<blockquote>
+<p><strong>核心要求:在两幅图像中识别出同一个物理点 (Core requirement:
+identify the same physical point in both images)。</strong></p>
+</blockquote>
+<p>讲师叫它 <strong>matching(匹配)</strong>:</p>
+<blockquote>
+<p>"关键想法是:<strong>你要在两幅图像里找到对应的点</strong>,你必须找到两幅图像里对应于三维世界中<strong>同一个物理点</strong>的像素。这个寻找的过程叫做
+matching。匹配之后,基于几何关系,我们就能做三角测量。"</p>
+</blockquote>
+<p>这个"对应问题 (correspondence
+problem)"是立体视觉的全部难度所在。想想它有多难:右图有 640×480 ≈ 30
+万个像素,对左图的<strong>每一个</strong>像素,你都要在这 30
+万个里找出正确的那一个。而且很多像素长得一模一样——<strong>一面白墙上的所有像素彼此无法区分</strong>。</p>
+<p>这就引出了下一节:一个把搜索量砍掉几个数量级的几何约束。</p>
+<h2 id="20-对极几何把二维搜索压成一维">20.
+对极几何:把二维搜索压成一维</h2>
+<h3 id="201-对极平面的定义">20.1 对极平面的定义</h3>
+<p><strong>这是 slide 20
+唯一的内容,而且讲师随堂考了它,几乎必考,请逐字记住。</strong></p>
+<blockquote>
+<p><strong>对极平面 (epipolar plane)</strong>
+是一个平面,它包含以下三样东西:</p>
+<ol type="1">
+<li><strong>被观察的三维点</strong> (the 3D point being observed);</li>
+<li><strong>第一台相机的光心</strong> (the optical center / camera
+center of the first camera);</li>
+<li><strong>第二台相机的光心</strong> (the optical center of the second
+camera)。</li>
+</ol>
+</blockquote>
+<p>三个点确定一个平面——这就是全部。讲师课上被问到时的回答同样干脆:"<strong>两个相机中心加上空间中的那个三维点。</strong>"</p>
+<h3 id="202-对极线以及它为什么有用">20.2 对极线,以及它为什么有用</h3>
+<p>现在把这个平面和两个成像平面相交。<strong>平面与平面相交得到一条直线</strong>——这条交线就是<strong>对极线
+(epipolar line)</strong>。</p>
+<p>讲师的描述:</p>
+<blockquote>
+<p>"左相机的中心、右相机的中心,加上三维空间中的那个点,构成一个平面。这个平面叫做
+<strong>epipolar plane</strong>,而这个 epipolar plane 和<strong>成像平面
+(image plane)</strong> 的交线,就构成了 <strong>epipolar
+line</strong>。"</p>
+</blockquote>
+<p><strong>它的价值在于一条约束</strong>:</p>
+<blockquote>
+<p>"所以 epipolar 约束了到哪里去找那个与
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>L</mi></msub><annotation encoding="application/x-tex">P_L</annotation></semantics></math>
+对应的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>R</mi></msub><annotation encoding="application/x-tex">P_R</annotation></semantics></math>。这<strong>简化了我们的算法,只需沿着这条线搜索</strong>。"</p>
+</blockquote>
+<p>把这件事的收益量化一下,你就明白为什么它是立体视觉的基石:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>没有对极约束</th>
+<th>有对极约束</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>搜索空间</td>
+<td>整幅右图,约
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>640</mn><mo>×</mo><mn>480</mn><mo>=</mo><mn>307</mn><mo>,</mo><mn>200</mn></mrow><annotation encoding="application/x-tex">640 \times 480 = 307{,}200</annotation></semantics></math>
+个像素</td>
+<td>一条对极线,约
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>640</mn><annotation encoding="application/x-tex">640</annotation></semantics></math>
+个像素</td>
+</tr>
+<tr class="even">
+<td>复杂度</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>N</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(N^2)</annotation></semantics></math>
+二维搜索</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>N</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(N)</annotation></semantics></math>
+一维搜索</td>
+</tr>
+<tr class="odd">
+<td>附带好处</td>
+<td>—</td>
+<td>不在线上的候选<strong>直接排除</strong>,大幅减少误匹配</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>从二维搜索降为一维搜索</strong>——这就是对极几何买到的东西。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> —
+实际的立体相机系统会先做一步<strong>校正
+(rectification)</strong>:把两幅图像做一次变换,让所有对极线都变成<strong>水平的、且行号相同</strong>。这样"沿对极线搜索"就退化成"在同一行里从左往右扫",可以做得极快,也是硬件立体相机(比如课上那位同学公司做的产品)能实时输出深度图的原因。</p>
+</blockquote>
+<h3 id="203-用什么判断两个像素匹配">20.3 用什么判断两个像素匹配</h3>
+<p>对极线告诉你<strong>在哪里找</strong>,但没告诉你<strong>怎么判断找到了</strong>。讲师给的答案很朴素:</p>
+<blockquote>
+<p>"我们用什么标准来做匹配?我们用<strong>局部的强度或颜色 (local
+intensity or colour)</strong>,我们跑匹配算法。"</p>
+</blockquote>
+<p>也就是:取
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>L</mi></msub><annotation encoding="application/x-tex">P_L</annotation></semantics></math>
+周围的一小块像素,沿着右图的对极线滑动,找和它<strong>最像</strong>的那一块。这里"最像"通常用像素差的平方和(SSD)或归一化互相关(NCC)来衡量。</p>
+<p>这个朴素方案的失效场景也就一目了然了——<strong>无纹理表面</strong>。一面白墙上,对极线上每一块看起来都一样,匹配算法无从选择。这正是下一节结构光要解决的问题。</p>
+<h2 id="21-视差-disparity从匹配到距离">21. 视差
+Disparity:从匹配到距离</h2>
+<p>匹配成功后,你得到了一对像素坐标
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>u</mi><mi>L</mi></msub><mo>,</mo><msub><mi>v</mi><mi>L</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(u_L, v_L)</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>u</mi><mi>R</mi></msub><mo>,</mo><msub><mi>v</mi><mi>R</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(u_R, v_R)</annotation></semantics></math>。现在算距离。</p>
+<p><strong>视差 (disparity)</strong>
+定义为同一个点在左右图像中的<strong>水平位置之差</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><msub><mi>u</mi><mi>L</mi></msub><mo>−</mo><msub><mi>u</mi><mi>R</mi></msub></mrow><annotation encoding="application/x-tex">d = u_L - u_R</annotation></semantics></math></p>
+<p>讲师的说法:"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>R</mi></msub><annotation encoding="application/x-tex">u_R</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>L</mi></msub><annotation encoding="application/x-tex">u_L</annotation></semantics></math>
+沿对极线的差,我们叫做 <strong>disparity</strong>。"</p>
+<p>深度与视差的关系是:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mfrac><mrow><mi>f</mi><mo>⋅</mo><mi>B</mi></mrow><mi>d</mi></mfrac></mrow><annotation encoding="application/x-tex">Z = \frac{f \cdot B}{d}</annotation></semantics></math></p>
+<p>其中
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+是焦距,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>
+是两台相机之间的<strong>基线 (baseline)</strong> 距离。</p>
+<p><strong>这个式子最重要的性质是反比</strong>。讲师反复强调了它:</p>
+<blockquote>
+<p>"你可以看到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>
+——<strong>视差越小,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
+值越大</strong>。换句话说,当那个点很远的时候,视差会小于 1
+个像素,那就<strong>很难测量</strong>了。"</p>
+</blockquote>
+<p>用一个直观的自测:伸出手指放在鼻子前,左右眼交替眨——手指跳得很厉害(视差大)。把手伸直再试——跳得少了。看远处的山?<strong>完全不跳</strong>(视差为零)。你的眼睛就是一套基线约
+6.5 cm 的立体视觉系统,而山超出了它的量程。</p>
+<p>由此得到立体视觉的两条根本限制,<strong>这是考点</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>结论</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>立体相机有一个最大可测距离</strong></td>
+<td>太远 → 视差 &lt; 1 像素 → 无法分辨</td>
+</tr>
+<tr class="even">
+<td><strong>近处物体测得比远处准</strong></td>
+<td>近 →
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>
+大 → 同样的 1 像素匹配误差,换算成深度误差就小</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师原话:"通常对于立体相机,<strong>离相机近的物体,你能更好地测出它们的距离</strong>,因为这种情况下
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>
+变大了,精度会提高。如果
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>
+非常非常小,小到不足 1
+个像素,你就没法测量了,因为它们几乎落在同一个像素位置上。"</p>
+<blockquote>
+<p>⚠️ <strong>一个容易忽略但会考的细节</strong> — 讲师提醒:"这个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>,</mo><mi>Y</mi><mo>,</mo><mi>Z</mi></mrow><annotation encoding="application/x-tex">X, Y, Z</annotation></semantics></math>
+值是<strong>相对于相机坐标系 (camera frame)</strong>
+的,<strong>不是</strong>真实世界坐标系。要把它变成世界坐标系里的值,你必须建立
+camera frame 和 world frame 之间的变换。"</p>
+<p>这正是上周那条铁律的又一次现身:<strong>任何传感器读数都在传感器自己的坐标系里</strong>。立体视觉给你的是相机坐标系下的三维点,要用它导航,还得乘上外参。</p>
+</blockquote>
+<p>如果想提高量程,从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mi>f</mi><mi>B</mi><mi>/</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">Z = fB/d</annotation></semantics></math>
+就能读出办法:<strong>加大基线
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math></strong>
+或<strong>加大焦距
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math></strong>。代价分别是——基线大了,两台相机的<strong>共同视野变小</strong>,近处的东西反而看不到;焦距长了,<strong>视场角变窄</strong>。这是一个没有免费午餐的权衡。</p>
+<h2 id="22-结构光用主动照明制造纹理">22. 结构光:用主动照明制造纹理</h2>
+<p>§20.3
+留下的问题是:<strong>无纹理表面无法匹配</strong>。一面白墙、一只手的皮肤——对极线上处处相同,匹配算法彻底失效。</p>
+<p><strong>结构光 (structured light)</strong>
+的解法非常聪明:<strong>既然场景没有纹理,那我们就自己投一个上去。</strong></p>
+<p>Slide 23 的定义:</p>
+<blockquote>
+<p><strong>结构光把一个已知的图案投射到表面上 (Structured light projects
+a known pattern onto surfaces)。观察到的图案形变揭示了三维形状 (The
+observed deformation of the pattern reveals 3D shape)。</strong></p>
+</blockquote>
+<p>讲师用了一只手做例子:</p>
+<blockquote>
+<p>"我们把一组竖直的线投射到场景上……比如说这里有一只手,你把竖直的线投上去。因为这些位置<strong>相对于相机处于不同的深度</strong>,当我们拍照时,它们<strong>以不同的方式发生形变</strong>——不再是竖直的直线了,因为表面不是平面。而<strong>形变的程度就指示了表面的深度值</strong>。"</p>
+</blockquote>
+<p>关键在于:投射的图案是<strong>已知的</strong>。你知道原本投出去的是一条笔直的竖线,所以图像里那条线弯了多少,就直接编码了表面起伏了多少。</p>
+<p><strong>几种图案</strong>,讲师和 slide 各提了一部分:</p>
+<ul>
+<li><strong>竖直线条或彩色条纹</strong> —— slide 23 的图(Zhang et al.
+2002)用的就是彩色直线;</li>
+<li><strong>网格 (grid)</strong>;</li>
+<li><strong>散斑图案 (speckle patterns)</strong> —— slide 23
+特别提到:"红外深度相机使用<strong>散斑图案</strong>:许多小点,每个点都有<strong>独特的局部排布
+(distinctive local layouts)</strong>。"</li>
+</ul>
+<p>第三种最值得琢磨。为什么要用<strong>随机散斑</strong>而不是规则网格?slide
+给了答案:</p>
+<blockquote>
+<p><strong>匹配变得更容易,因为每个点都有了局部图案上下文 (Matching
+becomes easier because points have local pattern context)。</strong></p>
+</blockquote>
+<p>规则网格有一个致命问题——<strong>所有格点长得一样</strong>,你还是分不清左图的第
+5 条线对应右图的第 5 条还是第 6
+条(这叫<strong>周期性歧义</strong>)。而随机散斑里,每一小片区域的点分布都是<strong>独一无二</strong>的,相当于给场景贴上了一层"指纹",匹配立刻变得可靠。</p>
+<p><strong>红外的用途</strong>——讲师提到一个实用细节:</p>
+<blockquote>
+<p>"很多时候,这些线是<strong>红外的
+(infrared)</strong>,人眼看不见。所以当你在测距离时,你看不到这些图案。"</p>
+</blockquote>
+<p>这解释了为什么 Kinect
+这类设备工作时你看不到任何投影——它投的是近红外散斑,只有它自己的红外相机看得见。这对人机共处的机器人很重要:你不会希望机器人在房间里投一片刺眼的光栅。</p>
+<p><strong>最后一句要记住的定性判断</strong>,slide 23 的落脚句:</p>
+<blockquote>
+<p><strong>结构光是一种主动视觉 (active vision)
+方法:它改变场景照明来简化感知。</strong></p>
+</blockquote>
+<p>回忆上周的<strong>主动 (active) vs 被动 (passive)</strong>
+分类法——结构光深度相机是<strong>主动</strong>传感器,因此继承了主动传感器的所有通病:<strong>耗电</strong>、<strong>会和其他同类设备互相干扰</strong>、<strong>在强阳光下失效</strong>(投出去的图案被日光淹没)。</p>
+<h2 id="23-part-iv-小结视觉如何变成尺子">23. Part IV
+小结:视觉如何变成尺子</h2>
+<pre class="mermaid"><code>flowchart TD
+  A[&quot;单张图像&lt;br/&gt;只有 (u,v)&quot;] --&gt; B{&quot;能恢复 (X,Y,Z) 吗?&quot;}
+  B --&gt;|&quot;不能&lt;br/&gt;投影不可逆&lt;br/&gt;一个像素 = 一条射线&quot;| C[&quot;需要第二个视角&quot;]
+  C --&gt; D1[&quot;立体视觉&lt;br/&gt;两台相机, 变换固定已标定&quot;]
+  C --&gt; D2[&quot;运动恢复结构 SfM&lt;br/&gt;一台相机移动&quot;]
+  D1 --&gt; E[&quot;核心难点: 对应问题&lt;br/&gt;correspondence&quot;]
+  D2 --&gt; E
+  E --&gt; F[&quot;对极几何约束&lt;br/&gt;2D 搜索 → 1D 搜索&quot;]
+  F --&gt; G[&quot;匹配&lt;br/&gt;局部强度/颜色&quot;]
+  G --&gt; H[&quot;视差 d = uL − uR&quot;]
+  H --&gt; I[&quot;Z = fB/d&lt;br/&gt;(相机坐标系!)&quot;]
+  E -.-&gt;|&quot;无纹理表面失效&quot;| J[&quot;结构光&lt;br/&gt;主动投射已知图案&quot;]
+  J --&gt; I</code></pre>
+<p>最后,讲师提到现代方法把这些阶段<strong>合并</strong>了:</p>
+<blockquote>
+<p>"如今,我们用机器学习——特别是神经网络——把所有这些阶段结合在一起。你给我一张图像,我可以直接估计每个像素的深度。不是绝对深度,而是<strong>尺度不变版本的深度
+(scale-invariant depth)</strong> 或者<strong>相对深度 (relative
+depth)</strong>……已经有模型,给定一张图像,模型就给你每个像素的深度估计。"</p>
+</blockquote>
+<p>注意讲师加的那个限定词非常重要:<strong>单目深度估计给出的通常是相对深度,不是绝对深度</strong>。原因正是
+§18
+说的——<strong>单张图像在数学上就无法确定绝对尺度</strong>。神经网络学到的是"根据先验,这个场景大概长这样",它猜出了形状,但猜不出真实尺寸。一台相机拍一个玩具房间和一个真房间,图像可以完全一样。这也再次印证了
+§7
+的主题:<strong>没有先验,视觉是欠定的;有先验,你得到的是先验允许的答案。</strong></p>
+<hr />
+<h1 id="part-v--特征提取把数据压成决策">Part V ·
+特征提取:把数据压成决策</h1>
+<h2 id="24-为什么必须做特征提取276-mbs-的问题">24.
+为什么必须做特征提取:27.6 MB/s 的问题</h2>
+<p>Part IV 解决了几何,但还有一个更基础的资源问题没解决。Slide 26
+用一个数字把它砸出来:</p>
+<blockquote>
+<p>一路 <strong>640×480×3 字节 × 30 fps ≈ 27.6
+MB/s</strong>,而且这是<strong>压缩之前</strong>的数据量。</p>
+</blockquote>
+<p>讲师现场也算了这笔账,并给出了机器人的真实处境:</p>
+<blockquote>
+<p>"每秒钟都是大量的数据。所以大多数时候,<strong>我们并不需要每一个像素</strong>。我们需要一些特征。"</p>
+</blockquote>
+<p>对比一下三种数据形态的信息量,这是 slide 26 的核心对照:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th>原始相机流</th>
+<th>原始激光扫描</th>
+<th><strong>任务真正需要的答案</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>内容</td>
+<td>640×480×3 × 30 fps ≈ <strong>27.6 MB/s</strong></td>
+<td>每帧数百个距离测量,常以点云形式</td>
+<td>"<strong>这是一扇门</strong>"、"<strong>墙在 1.2 m
+处</strong>"、"<strong>marker ID
+17</strong>"、"<strong>检测到一个角</strong>"</td>
+</tr>
+<tr class="even">
+<td>量级</td>
+<td>兆字节每秒</td>
+<td>千字节每帧</td>
+<td><strong>几个字节</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>看最右边那一列——机器人做决策真正需要的信息,可能只有<strong>几个字节</strong>。中间隔着七八个数量级。<strong>特征提取就是跨越这个鸿沟的操作。</strong></p>
+<p>Slide 26 给出了它的定义,措辞很精确,值得记:</p>
+<blockquote>
+<p><strong>特征提取的目标是:保留对决策有用的信息,同时丢弃无关的细节、噪声和冗余
+(preserve information useful for decision-making while discarding
+irrelevant detail, noise and redundancy)。</strong></p>
+</blockquote>
+<p>注意这句话里的紧张关系:<strong>丢掉东西是目的,不是副作用。</strong>
+但丢错了就完了。所以下一节要问:什么样的东西可以丢,什么样的必须留?</p>
+<h2 id="25-什么是特征以及好特征的四条标准">25.
+什么是特征,以及好特征的四条标准</h2>
+<p>Slide 27 的定义:</p>
+<blockquote>
+<p><strong>特征 (feature)
+是从传感器数据中提取出来的、稳定的、有信息量的模式 (a stable,
+informative pattern extracted from sensor data)。</strong></p>
+</blockquote>
+<p><strong>四种常见特征类型</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>类型</th>
+<th>英文</th>
+<th>定义</th>
+<th>机器人里的例子</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>直线</strong></td>
+<td><strong>Line</strong></td>
+<td>—</td>
+<td>墙的边界、地面标线、货架边缘、车道线</td>
+</tr>
+<tr class="even">
+<td><strong>角点</strong></td>
+<td><strong>Corner</strong></td>
+<td><strong>两条边的交点</strong></td>
+<td>用于定位和匹配</td>
+</tr>
+<tr class="odd">
+<td><strong>斑点</strong></td>
+<td><strong>Blob</strong></td>
+<td>具有独特局部强度结构的区域或关键点</td>
+<td>讲师的说法:"一组像素,代表了机器人感兴趣的东西,比如<strong>彩色球</strong>——只包含那个颜色的一组像素"</td>
+</tr>
+<tr class="even">
+<td><strong>描述子</strong></td>
+<td><strong>Descriptor</strong></td>
+<td>表示<strong>局部外观</strong>的<strong>数值向量 (numerical
+vector)</strong></td>
+<td>SIFT 的 128 维向量</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>注意最后一行和前三行性质不同</strong>:前三个回答"<strong>在哪里</strong>",描述子回答"<strong>长什么样</strong>"。这个区分在
+§37 讲 SIFT 时会变成一条明确的设计原则。</p>
+<p><strong>好特征的四条标准 (Desirable feature properties)</strong> ——
+slide 27 列了四条,请连同"为什么"一起理解,因为讲师的随堂题就考这个:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>标准</th>
+<th>英文</th>
+<th>含义</th>
+<th>为什么机器人需要它</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>可重复</strong></td>
+<td><strong>Repeatable</strong></td>
+<td><strong>从不同视角都能检测到</strong></td>
+<td>机器人第二次经过同一个地方时,视角必然不同。检测不到 =
+认不出这地方</td>
+</tr>
+<tr class="even">
+<td><strong>稳健</strong></td>
+<td><strong>Robust</strong></td>
+<td>在噪声和小幅光照变化下稳定</td>
+<td>早上和傍晚经过同一条走廊,光完全不同</td>
+</tr>
+<tr class="odd">
+<td><strong>不变或容忍</strong></td>
+<td><strong>Invariant or tolerant</strong></td>
+<td>对<strong>旋转和尺度</strong>不变</td>
+<td>机器人可能从 2 m 外看,也可能从 5 m
+外看;可能正着看,也可能歪着头看</td>
+</tr>
+<tr class="even">
+<td><strong>可区分</strong></td>
+<td><strong>Discriminative</strong></td>
+<td>能把一个地方/物体和另一个区分开</td>
+<td>如果所有的墙角看起来都一样,特征就没用了</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师把前三条概括成一个更简洁的版本,并强调了"低维"这个额外要求:</p>
+<blockquote>
+<p>"我们希望选出的特征必须是<strong>低维的 (low
+dimension)</strong>,意思是用尽可能少的数字来表示;特征要能被<strong>重复检测</strong>——所以如果机器人再次来到同一个地方,看着同一面墙,它能提取出相同的、相似的特征,这样你就能用它做定位;还要足够<strong>稳健</strong>。这就是三条标准。"</p>
+</blockquote>
+<blockquote>
+<p><strong>🔑 讲师的随堂题(直接考这个)</strong> —
+"对机器人定位来说,下面哪一个是<strong>最不可取</strong>的视觉特征属性?"
+选项:可重复性 / 对噪声稳健 / <strong>对小视角变化敏感</strong> /
+可区分性。</p>
+<p>答案是<strong>对小视角变化敏感 (sensitivity to small viewpoint
+change)</strong>。讲师的解释:"定位需要什么?如果机器人来到一个它以前访问过的地方,它要能认出这个地方。……如果这个特征<strong>对小视角非常敏感</strong>,那它就是最不可取的——因为机器人每次看那个地方,角度都会略有不同,位置或朝向可能都不一样。所以我希望特征对视角变化足够稳健,这叫做<strong>视角不变性
+(view invariance)</strong>。"</p>
+<p>这道题的陷阱在于问的是"<strong>least
+desirable</strong>",四个选项里三个是好性质,一个是坏性质。读题要小心。</p>
+</blockquote>
+<h2 id="26-直线为什么在移动机器人里如此重要">26.
+直线为什么在移动机器人里如此重要</h2>
+<p>四种特征里,本课重点讲两个:<strong>直线</strong>(Part
+VI–VII)和<strong>兴趣点/SIFT</strong>(Part VIII)。先说直线。</p>
+<p>讲师给的理由很直接:</p>
+<blockquote>
+<p>"直线对场景、对机器人导航是非常重要的特征。对自动驾驶车辆来说是<strong>车道线检测</strong>;对室内机器人来说,是<strong>墙角、墙的边缘、走廊的墙</strong>。"</p>
+</blockquote>
+<p>Slide 28 把用途列全了:</p>
+<ol type="1">
+<li><strong>墙在二维激光扫描中形成直线模式</strong> ——
+注意这一条:<strong>直线特征不只用于图像,也用于激光点云</strong>。事实上
+§28–§32 讲的所有拟合算法,slides
+上举的例子几乎全是激光扫描的点云。这是本章一个容易被忽略的点:<strong>特征提取是一套跨传感器的方法论</strong>。</li>
+<li><strong>地面标线和门框在图像中形成直线</strong>;</li>
+<li><strong>直线的朝向有助于在机器人转弯时修正里程计误差 (odometry
+errors)</strong> ——
+这条很妙:走廊的墙提供了一个<strong>绝对的方向参考</strong>。上周说过里程计的朝向会漂移,而"我看到的这面墙应该是和上一帧同一面墙"就构成了一个纠正约束。</li>
+<li><strong>直线的距离和角度可以成为定位与建图的路标
+(landmarks)</strong>。</li>
+</ol>
+<p>一句话总结 slide 28 的标题:<strong>直线把原始测量连接到几何结构
+(Lines connect raw measurements to geometric structure)。</strong>
+一堆离散的距离点是没有结构的;一旦拟合成"距我 1.2 m、法向 37°
+的一面墙",它就变成了可以放进地图、可以参与定位计算的东西。</p>
+<hr />
+<h1 id="part-vi--直线拟合的三种策略">Part VI · 直线拟合的三种策略</h1>
+<h2 id="27-直线的极坐标表示">27. 直线的极坐标表示</h2>
+<p>在拟合之前,先解决一个表示问题。</p>
+<p>最熟悉的直线方程是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><mi>m</mi><mi>x</mi><mo>+</mo><mi>c</mi></mrow><annotation encoding="application/x-tex">y = mx + c</annotation></semantics></math>。它有一个致命缺陷:<strong>竖直的线斜率是无穷大</strong>。而机器人面前的墙,完全可能正好是竖直的——一个在物理上毫无特殊之处的方向,在数学表示上却会让程序崩掉。这种表示是不能用的。</p>
+<p><strong>解决办法:用极坐标 (polar form) 表示直线。</strong> Slide 29
+的标题就是:"距离
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+和角度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+避免了无穷斜率问题"。</p>
+<p><strong>两个参数</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>参数</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math></td>
+<td>从机器人/原点到这条直线的<strong>垂直距离</strong> (perpendicular
+distance)</td>
+</tr>
+<tr class="even">
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></td>
+<td>这条直线的<strong>法向朝向</strong> (line normal orientation)</td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师的描述:"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+是这条线离图像空间原点的<strong>最短距离</strong>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+是那个角度。"</p>
+<p><strong>这个表示对任何方向的直线都成立</strong>,包括竖直和水平——slide
+29 明确写了 "This form works for vertical and horizontal
+lines"。而且这两个参数<strong>天然就是机器人想要的东西</strong>:"墙离我多远"(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>)和"墙朝哪个方向"(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>),直接可以拿去做定位。</p>
+<p><strong>点到直线的距离公式</strong>(这是后面三种算法共同的基础):</p>
+<p>对于极坐标下的第
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
+个点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ρ</mi><mi>i</mi></msub><mo>,</mo><msub><mi>θ</mi><mi>i</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\rho_i, \theta_i)</annotation></semantics></math>,它到候选直线
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(r, \alpha)</annotation></semantics></math>
+的<strong>有符号距离 (signed distance)</strong> 是:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mi>i</mi></msub><mo>=</mo><msub><mi>ρ</mi><mi>i</mi></msub><mo>cos</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>θ</mi><mi>i</mi></msub><mo>−</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>r</mi></mrow><annotation encoding="application/x-tex">d_i = \rho_i \cos(\theta_i - \alpha) - r</annotation></semantics></math></p>
+<p><strong>读懂这个式子。</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mi>i</mi></msub><mo>cos</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>θ</mi><mi>i</mi></msub><mo>−</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\rho_i \cos(\theta_i - \alpha)</annotation></semantics></math>
+是把点的位置向量<strong>投影到直线的法方向上</strong>——也就是"这个点沿着法向走了多远"。而
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+是直线本身沿法向的位置。两者相减,就是这个点偏离直线多远。</p>
+<p>所以:</p>
+<blockquote>
+<p><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>i</mi></msub><annotation encoding="application/x-tex">d_i</annotation></semantics></math>
+越小,这个点越可能在这条线上;<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>i</mi></msub><annotation encoding="application/x-tex">d_i</annotation></semantics></math>
+越大,越不可能。</strong></p>
+</blockquote>
+<p>讲师说得很朴素:"你可以看到,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>i</mi></msub><annotation encoding="application/x-tex">d_i</annotation></semantics></math>
+越小,这个像素越可能在这条线附近。如果
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>i</mi></msub><annotation encoding="application/x-tex">d_i</annotation></semantics></math>
+变大了,这个边缘像素就越不可能属于这条线。"</p>
+<p><strong>注意"有符号"</strong>:线一侧的点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mi>i</mi></msub><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">d_i &gt; 0</annotation></semantics></math>,另一侧
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mi>i</mi></msub><mo>&lt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">d_i &lt; 0</annotation></semantics></math>。这个符号在下一节会立刻造成麻烦。</p>
+<pre class="mermaid"><code>flowchart LR
+  P[&quot;候选边缘点集&lt;br/&gt;(梯度 &gt; 阈值)&quot;] --&gt; Q{&quot;用什么策略拟合?&quot;}
+  Q --&gt; LS[&quot;最小二乘&lt;br/&gt;Least squares&lt;br/&gt;§28&quot;]
+  Q --&gt; SM[&quot;分裂合并&lt;br/&gt;Split-and-merge&lt;br/&gt;§29&quot;]
+  Q --&gt; RS[&quot;随机采样一致&lt;br/&gt;RANSAC&lt;br/&gt;§30&quot;]
+  Q --&gt; HT[&quot;霍夫变换&lt;br/&gt;Hough transform&lt;br/&gt;§33&quot;]
+  LS --&gt; R1[&quot;一条线, 精确&lt;br/&gt;但怕离群点&quot;]
+  SM --&gt; R2[&quot;多条线段&lt;br/&gt;适合有序点云&quot;]
+  RS --&gt; R3[&quot;一条线, 抗离群&lt;br/&gt;需要迭代&quot;]
+  HT --&gt; R4[&quot;一次找出多条线&lt;br/&gt;还能找圆和多边形&quot;]</code></pre>
+<h2 id="28-最小二乘拟合-least-squares-line-fitting">28. 最小二乘拟合
+Least-squares line fitting</h2>
+<h3 id="281-目标函数">28.1 目标函数</h3>
+<p>有了
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>i</mi></msub><annotation encoding="application/x-tex">d_i</annotation></semantics></math>,拟合的目标就自然了:<strong>找一组
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(r, \alpha)</annotation></semantics></math>,让所有点到这条线的距离总体上最小。</strong></p>
+<p>Slide 30 的目标函数:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munder><mo>∑</mo><mi>i</mi></munder><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><msub><mi>ρ</mi><mi>i</mi></msub><mo>cos</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>θ</mi><mi>i</mi></msub><mo>−</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>r</mi><msup><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">S(r, \alpha) = \sum_i \big(\rho_i \cos(\theta_i - \alpha) - r\big)^2</annotation></semantics></math></p>
+<p>也就是<strong>所有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>i</mi></msub><annotation encoding="application/x-tex">d_i</annotation></semantics></math>
+的平方和</strong>。</p>
+<p><strong>为什么要平方?</strong> Slide 30 给了两条理由,都要记:</p>
+<ol type="1">
+<li><strong>正负误差不应该互相抵消</strong> (Positive and negative
+errors should not cancel)。还记得
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>i</mi></msub><annotation encoding="application/x-tex">d_i</annotation></semantics></math>
+是<strong>有符号</strong>的吗?如果直接把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>i</mi></msub><annotation encoding="application/x-tex">d_i</annotation></semantics></math>
+相加,一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">+5</annotation></semantics></math>
+和一个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">-5</annotation></semantics></math>
+会加成
+0,给出"完美拟合"的假象——而实际上这两个点离线都很远。平方让所有误差都变成正的。</li>
+<li><strong>偏差大的点被重罚</strong> (larger deviations are penalized
+strongly)。平方是超线性的:误差从 1 变成 10,惩罚从 1 变成
+100。这<strong>看起来</strong>是个优点(逼着算法照顾偏得远的点),但 §28.3
+会看到它其实是最小二乘最大的软肋。</li>
+</ol>
+<h3 id="282-怎么解">28.2 怎么解</h3>
+<p>Slide 30 的 "Optimality condition":</p>
+<blockquote>
+<p><strong>令
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∂</mi><mi>S</mi><mi>/</mi><mi>∂</mi><mi>r</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\partial S / \partial r = 0</annotation></semantics></math>
+且
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∂</mi><mi>S</mi><mi>/</mi><mi>∂</mi><mi>α</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\partial S / \partial \alpha = 0</annotation></semantics></math>,然后解出最优参数。</strong></p>
+</blockquote>
+<p>这是标准的多元函数求极值:在最小值处,函数对每个参数的偏导都为零。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
+对
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(r, \alpha)</annotation></semantics></math>
+是两个未知数、两个方程,可以解出闭式解。本课不要求推导过程,但要能说出这个思路。</p>
+<p>Slide 30 还给了一个更一般的观察,值得记住,因为它超出直线:</p>
+<blockquote>
+<p><strong>General idea:最小二乘可以通过最小化残差平方和 (a sum of
+squared residuals) 来拟合任何参数化模型。</strong></p>
+</blockquote>
+<p>也就是说,直线只是一个例子。同样的框架可以拟合圆、平面、多项式——只要你能写出"点到模型的距离"。</p>
+<h3 id="283-致命弱点离群点">28.3 致命弱点:离群点</h3>
+<p>Slide 30 的落脚句,加粗记住:</p>
+<blockquote>
+<p><strong>弱点:最小二乘对离群点 (outliers)
+极其敏感,因为离群点会贡献非常大的平方误差。</strong></p>
+</blockquote>
+<p>这正是 §28.1 那第二条"优点"的反面。假设 20 个点整齐地落在一面墙上,第
+21 个点是一个从玻璃门透射造成的错误测量,离墙 3
+米远。最小二乘看到这个点贡献了
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>3</mn><mn>2</mn></msup><mo>=</mo><mn>9</mn></mrow><annotation encoding="application/x-tex">3^2 = 9</annotation></semantics></math>
+的误差,会<strong>把整条线朝它拽过去</strong>,以求减少这个巨大的项——结果是:为了迁就一个错误的点,<strong>牺牲了
+20 个正确的点</strong>。</p>
+<p>这是一个必须理解的直觉:<strong>最小二乘假设所有数据点都是"基本正确、只是带点高斯噪声"的。</strong>
+一旦有点是"根本错误"的,这个假设崩塌,结果可以任意糟糕。</p>
+<p>而机器人的传感器数据<strong>充满</strong>了这种根本错误的点:激光穿透玻璃、超声的多次反射、图像里被阴影骗出来的假边缘。所以纯最小二乘几乎从不单独使用。§30
+的 RANSAC 就是为此而生的。</p>
+<h3 id="284-直觉版的三步">28.4 直觉版的三步</h3>
+<p>Slide 31 把这个过程画成了三步,作为无公式版的理解:</p>
+<blockquote>
+<p><strong>Step 1</strong> —— 假设一条由
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+定义的候选直线。 <strong>Step 2</strong> —— 测量所有点到这条线的垂直误差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>i</mi></msub><annotation encoding="application/x-tex">d_i</annotation></semantics></math>。
+<strong>Step 3</strong> —— 选出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∑</mo><msubsup><mi>d</mi><mi>i</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\sum d_i^2</annotation></semantics></math>
+最小的那条线。</p>
+</blockquote>
+<p>讲师的描述和这个一致:"我们做第一步,假设一条由
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+定义的候选线,测量所有像素的误差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>i</mi></msub><annotation encoding="application/x-tex">d_i</annotation></semantics></math>,然后挑出
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∑</mo><msubsup><mi>d</mi><mi>i</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\sum d_i^2</annotation></semantics></math>
+最小的那条线。"他还补充了两种等价的看法——一种是"枚举候选线、选误差最小的"(概念上),另一种是"直接求导数为零解出来"(实际上)。<strong>两种说法描述的是同一件事。</strong></p>
+<h2 id="29-split-and-merge当直线不止一条">29.
+Split-and-merge:当直线不止一条</h2>
+<h3 id="291-问题">29.1 问题</h3>
+<p>最小二乘有一个隐含前提:<strong>你已经知道这些点属于同一条直线</strong>。但机器人拿到一帧激光扫描时,并不知道面前是一面墙、还是一个墙角(两面墙)、还是一条走廊(两面平行的墙)。</p>
+<p>讲师提出这个问题:"通常不止一条线。我们不知道这些像素构成的是一条线,还是可能是多条线。"</p>
+<p>Slide 32
+的标题正是:<strong>当直线数量未知时,检测多条线段。</strong></p>
+<h3 id="292-四个步骤">29.2 四个步骤</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>步骤</th>
+<th>英文</th>
+<th>做什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>1 · 拟合</strong></td>
+<td><strong>Fit</strong></td>
+<td>用最小二乘对当前点集拟合<strong>一条</strong>直线</td>
+</tr>
+<tr class="even">
+<td><strong>2 · 分裂</strong></td>
+<td><strong>Split</strong></td>
+<td>找到<strong>离这条拟合线最远</strong>的那个点</td>
+</tr>
+<tr class="odd">
+<td><strong>3 · 递归</strong></td>
+<td><strong>Recurse</strong></td>
+<td>如果那个距离<strong>超过阈值</strong>,就在该点处把点集<strong>切成两半</strong>,对每一半重复整个过程</td>
+</tr>
+<tr class="even">
+<td><strong>4 · 合并</strong></td>
+<td><strong>Merge</strong></td>
+<td>(可选)如果相邻的两段能被一条线很好地解释,就把它们<strong>合并</strong>回去</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>为什么在"最远的那个点"处分裂?</strong>
+因为那个点是"一条线解释不了这些数据"的最强证据,它最可能就是<strong>转折点</strong>——也就是两条线的交界。Slide
+33 把这个洞察写成了一句很漂亮的话:</p>
+<blockquote>
+<p><strong>一个角点可以表示为两条线段。Split-and-merge
+通过"先用一条线解释全部点而失败"来发现这个角点。</strong></p>
+</blockquote>
+<p>也就是说:<strong>失败本身携带了信息。</strong>
+拟合失败得最厉害的地方,恰恰就是结构发生变化的地方。</p>
+<p>讲师的描述完全一致:"如果我们拟合一条线,因为误差太大,现在我们必须把它分成两条,在<strong>误差最大的那个点</strong>处分裂……然后得到两组像素,每一组各自再拟合一条线。如果两条线的误差还是很大,我们可以继续分裂。"</p>
+<h3 id="293-伪代码">29.3 伪代码</h3>
+<p>Slide 33 给的实现:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>function splitMerge(points, threshold):</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    line <span class="op">=</span> leastSquaresFit(points)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    p_max, d_max <span class="op">=</span> largestError(points, line)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> d_max <span class="op">&lt;=</span> threshold:</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [line]</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    left, right <span class="op">=</span> splitAt(points, p_max)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> splitMerge(left, threshold) <span class="op">+</span> splitMerge(right, threshold)</span></code></pre></div>
+<p>这是一个标准的<strong>递归
+(recursion)</strong>:终止条件是"最大误差已经在阈值以内"(说明一条线够用了),否则一分为二、各自递归。</p>
+<h3 id="294-三条性质">29.4 三条性质</h3>
+<p>Slide 33 列了三条,每一条都对应一个实践中的坑:</p>
+<ol type="1">
+<li><p><strong>适用于有序点云 (ordered point
+clouds),比如激光扫描序列。</strong></p>
+<p>这一条很关键,也是它和 RANSAC
+最大的区别。"有序"是什么意思?激光扫描仪是<strong>按角度依次</strong>输出测量的,所以点自然按顺序排成一串。<code>splitAt(points, p_max)</code>
+这个操作<strong>只有在点有顺序时才有意义</strong>——你才知道哪些点在分裂点"左边"、哪些在"右边"。如果给它一堆无序的图像边缘像素,这一步就无从下手。</p></li>
+<li><p><strong>需要一个距离阈值:太小会得到太多线,太大会漏掉结构。</strong></p>
+<p>这是所有阈值型算法的通病。阈值太小 →
+一面稍微有点起伏的墙被切成十几段;太大 →
+一个真实的墙角被当成噪声,两面墙被硬拟合成一条。</p></li>
+<li><p><strong>对离群点敏感,因为每一个离群点都可能强制一次分裂。</strong></p>
+<p>这一条继承自最小二乘。想想看:一个离群点的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mrow><mi>m</mi><mi>a</mi><mi>x</mi></mrow></msub><annotation encoding="application/x-tex">d_{max}</annotation></semantics></math>
+必然很大,超过阈值 → 触发分裂 →
+在它那里把一段好好的墙切成两半。<strong>离群点不仅污染拟合,还污染分段。</strong></p></li>
+</ol>
+<p>Slide 33 最后补了一句实践建议:"通常后面跟着合并或模型验证 (Usually
+followed by merging or model validation)。"这就是名字里 "merge"
+的来源——讲师说:"当然,分裂之后你可能有 5 段或 10
+段小线段,那些靠得近的线段,你仍然可以把它们合并成一条线。"</p>
+<h2 id="30-ransac随机采样一致">30. RANSAC:随机采样一致</h2>
+<h3 id="301-想法">30.1 想法</h3>
+<p>前两节都栽在同一个地方:<strong>离群点</strong>。RANSAC
+的思路是一次彻底的转向。</p>
+<p>最小二乘的逻辑是:"我要找一条线,让<strong>所有点</strong>的误差最小。"这个逻辑的问题在于——<strong>它必须迁就每一个点</strong>,包括错的。</p>
+<p>RANSAC
+的逻辑是:"我要找一条线,让<strong>尽可能多的点认同它</strong>。至于那些不认同的点,<strong>我根本不管它们</strong>。"</p>
+<p>这个转变是关键的:从"最小化总误差"变成"<strong>最大化支持者数量</strong>"。离群点不再能拖动模型——它们只是不投票而已。</p>
+<p><strong>RANSAC</strong> 全称 <strong>RANdom SAmple And
+Consensus(随机采样与一致性)</strong>,slide 34
+的副标题是:"当存在很多离群点时的稳健模型拟合"。</p>
+<h3 id="302-四个步骤">30.2 四个步骤</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>步骤</th>
+<th>英文</th>
+<th>做什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>1 · 随机采样</strong></td>
+<td><strong>Random sample</strong></td>
+<td>选出<strong>构建模型所需的最少点数</strong>;对于二维直线,就是<strong>选
+2 个点</strong></td>
+</tr>
+<tr class="even">
+<td><strong>2 · 一致集</strong></td>
+<td><strong>Consensus set</strong></td>
+<td>数一数有多少个数据点落在候选模型的距离
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>
+之内</td>
+</tr>
+<tr class="odd">
+<td><strong>3 · 保留最优</strong></td>
+<td><strong>Keep best model</strong></td>
+<td>重复很多次,保留<strong>内点 (inlier)
+数量最多</strong>的那个模型</td>
+</tr>
+<tr class="even">
+<td><strong>4 · 精修</strong></td>
+<td><strong>Refine</strong></td>
+<td>对最终的内点集<strong>跑一次最小二乘</strong>,改进参数估计</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>第 1 步的"最少点数"值得说一句。</strong> 为什么是 2 个而不是
+10
+个?因为<strong>采样点越多,采到离群点的概率越高</strong>。两点确定一条直线,这是构建模型的最低要求;如果每次采
+10 个点,只要其中一个是离群点,这次采样就废了。<strong>最小采样是 RANSAC
+稳健性的一半来源。</strong></p>
+<p><strong>第 4 步很容易被忽略但很重要。</strong> RANSAC 本身只用 2
+个点定线,这条线的精度受限于那 2
+个点的噪声。但一旦确定了内点集合,就可以对<strong>所有内点</strong>做最小二乘——此时离群点已经被排除,最小二乘的假设终于成立了。所以:</p>
+<blockquote>
+<p><strong>RANSAC
+负责"找出谁是内点",最小二乘负责"用内点算出精确参数"。两者是互补的,不是竞争的。</strong></p>
+</blockquote>
+<h3 id="303-伪代码与三个参数">30.3 伪代码与三个参数</h3>
+<p>Slide 35 的实现:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>best <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> k <span class="kw">in</span> <span class="fl">1.</span>.N_iterations:</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    p1, p2 <span class="op">=</span> randomTwoPoints(points)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> lineThrough(p1, p2)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    inliers <span class="op">=</span> {p : distance(p, model) <span class="op">&lt;</span> ε}</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> count(inliers) <span class="op">&gt;</span> best.count:</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>        best <span class="op">=</span> model, inliers</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> leastSquaresFit(best.inliers)</span></code></pre></div>
+<p>注意最后一行——<strong>返回的是对内点做最小二乘的结果</strong>,不是随机选的那两个点定的线。这就是第
+4 步。</p>
+<p><strong>三个必须调的参数</strong>,slide 35 单独列出:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>参数</th>
+<th>含义</th>
+<th>调错了会怎样</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math></strong></td>
+<td>一个点被算作内点的<strong>最大距离</strong></td>
+<td>太小 → 真正的内点被排除,支持数不足;太大 →
+离群点也被算成内点,失去稳健性</td>
+</tr>
+<tr class="even">
+<td><strong>最小内点数</strong></td>
+<td>接受一条线所需的<strong>最少支持</strong></td>
+<td>太低 → 噪声里的巧合被当成线;太高 → 真实但较短的线段被漏掉</td>
+</tr>
+<tr class="odd">
+<td><strong>迭代次数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math></strong></td>
+<td>重复多少轮</td>
+<td><strong>更多迭代提高成功概率,但代价是更多时间</strong></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="304-找多条线">30.4 找多条线</h3>
+<p>RANSAC 一轮只找一条线。讲师说明了怎么找多条:</p>
+<blockquote>
+<p>"内点数量最多的那条线会被保留下来,然后你找到了一条线,<strong>剩下的像素再走同样的流程</strong>,你就找到了第二条线。"</p>
+</blockquote>
+<p>这个模式叫做<strong>顺序 RANSAC (sequential RANSAC)</strong>:找一条 →
+移除它的内点 → 在剩下的点里再找一条 → 重复。</p>
+<h3 id="305-讲师的实践建议">30.5 讲师的实践建议</h3>
+<p>关于"最小二乘还是 RANSAC",讲师给了一个明确的答案:</p>
+<blockquote>
+<p>"用哪个,最小二乘还是 RANSAC?**大多数时候我们用
+RANSAC,因为它更稳健。**最小二乘对离群点或噪声非常敏感,而 RANSAC
+稳健得多。"</p>
+</blockquote>
+<p>以及完整的机器人场景描述,这段话把 Part III 和 Part VI 串了起来:</p>
+<blockquote>
+<p>"在典型的机器人场景里:你要找一条线,<strong>给定一组候选像素——那些通过边缘检测、梯度值超过某个阈值的像素</strong>——从这些候选像素出发,用
+RANSAC 算法找出直线。"</p>
+</blockquote>
+<p><strong>请把这条流水线记牢</strong>:原图 → 高斯平滑 → Sobel 求梯度 →
+阈值得到候选边缘点 → RANSAC 找直线 → 最小二乘精修。这是本章前六个 Part
+的完整闭环。</p>
+<h2 id="31-三种方法对比">31. 三种方法对比</h2>
+<p>Slide 36 给了一张对比表,<strong>这是 Part VI
+最适合做考点的一张表</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th>强项 (Strength)</th>
+<th>弱项 (Weakness)</th>
+<th>典型用途 (Typical use)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>最小二乘 Least squares</strong></td>
+<td>在<strong>类高斯噪声</strong>下很精确</td>
+<td><strong>对离群点极其敏感</strong></td>
+<td><strong>选出内点之后的精修</strong></td>
+</tr>
+<tr class="even">
+<td><strong>分裂合并 Split-and-merge</strong></td>
+<td>把<strong>有序扫描</strong>分成多条线段</td>
+<td>对<strong>阈值和离群点</strong>敏感</td>
+<td><strong>激光扫描的直线分割</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>RANSAC</strong></td>
+<td><strong>对大量离群点稳健</strong></td>
+<td><strong>随机的,可能需要很多次迭代</strong></td>
+<td><strong>初始的稳健模型估计</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Slide 36 下方那句<strong>常用实践流水线</strong>,建议直接背下来:</p>
+<blockquote>
+<p><strong>RANSAC 找出内点 → 最小二乘精修参数 →
+时间滤波器跨帧跟踪特征</strong> (RANSAC identifies inliers → least
+squares refines parameters → temporal filter tracks features over
+time)</p>
+</blockquote>
+<p>第三步"时间滤波"是前面没细讲的一环,但逻辑很清楚:机器人是连续观测的,同一面墙会在几十帧里反复出现。与其每帧独立拟合,不如用一个滤波器(比如卡尔曼滤波)把跨帧的估计融合起来——这既能压噪声,又能在某一帧检测失败时保持连续。这正好呼应了
+§7 说的<strong>时间一致性 (temporal consistency)</strong>。</p>
+<hr />
+<h1 id="part-vii--hough-变换让每个点去投票">Part VII · Hough
+变换:让每个点去投票</h1>
+<h2 id="32-换一个思路从拟合到投票">32. 换一个思路:从"拟合"到"投票"</h2>
+<p>前面三种方法有一个共同的形状:<strong>先猜一个模型,再检验有多少点支持它。</strong>
+无论是枚举候选线、递归分裂,还是随机采样,本质上都是在<strong>模型空间里搜索</strong>。</p>
+<p>Hough 变换把这件事<strong>彻底反过来</strong>:</p>
+<blockquote>
+<p><strong>不再是"每条候选线去找支持它的点",而是"每个点去投票支持所有可能经过它的线"。</strong></p>
+</blockquote>
+<p>Slide 37 的四条要点:</p>
+<ol type="1">
+<li><strong>每一个图像空间中的点,为所有可能经过它的直线投票</strong>
+(Each image-space point votes for all lines that could pass through
+it);</li>
+<li><strong>一条真实存在的直线,会在某一个参数位置收到大量选票</strong>
+(A true line receives many votes at one parameter location);</li>
+<li><strong>Hough 空间中的亮峰对应检测到的直线参数</strong> (Bright
+peaks in Hough space correspond to detected line parameters);</li>
+<li><strong>同样的想法可以检测圆和其他参数化形状</strong>。</li>
+</ol>
+<p><strong>为什么这个反转有用?</strong> 因为它一次性解决了
+split-and-merge 和 RANSAC
+都需要额外处理的问题:<strong>图里有几条线?</strong>
+拟合类方法必须一条一条来(顺序 RANSAC、递归分裂),而 Hough
+<strong>一次投票就能同时暴露出所有的线</strong>——每条线在参数空间里是一个独立的峰。讲师强调了这一点:"我们想在所有候选边缘像素里找出直线,<strong>一次找出有多少条线</strong>。"</p>
+<h2 id="33-参数空间与算法">33. 参数空间与算法</h2>
+<h3 id="331-参数空间是什么">33.1 参数空间是什么</h3>
+<p>沿用 §27 的极坐标表示,一条直线由
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>ρ</mi><mo>,</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\rho, \theta)</annotation></semantics></math>
+唯一确定。所以:</p>
+<blockquote>
+<p><strong>参数空间 (parameter space) 里的每一个点
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>ρ</mi><mo>,</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\rho, \theta)</annotation></semantics></math>,对应图像空间里的一条完整的直线。</strong></p>
+</blockquote>
+<p>讲师说:"每一个特定的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+的取值,对应图像里的一条线。"</p>
+<p>这是一个需要停下来消化的对偶关系:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>图像空间 (image space)</th>
+<th>参数空间 / Hough 空间</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>一个<strong>点</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x, y)</annotation></semantics></math></td>
+<td>一条<strong>曲线</strong>(所有经过该点的线的参数)</td>
+</tr>
+<tr class="even">
+<td>一条<strong>直线</strong></td>
+<td>一个<strong>点</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>ρ</mi><mo>,</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\rho, \theta)</annotation></semantics></math></td>
+</tr>
+<tr class="odd">
+<td>多个点<strong>共线</strong></td>
+<td>它们的曲线<strong>交于同一点</strong> → 该点票数高</td>
+</tr>
+</tbody>
+</table></div>
+<p>最后一行就是整个算法的原理:<strong>共线的点,在参数空间里的曲线会交于一处。</strong></p>
+<h3 id="332-参数范围与离散化">33.2 参数范围与离散化</h3>
+<p>这里有一个实现细节,讲师讲得比 slides 详细,值得记:</p>
+<p><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+的范围。</strong> 直觉上角度应该是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>
+到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>360</mn><mi>°</mi></mrow><annotation encoding="application/x-tex">360°</annotation></semantics></math>,但实际用的是
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>
+到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>180</mn><mi>°</mi></mrow><annotation encoding="application/x-tex">180°</annotation></semantics></math></strong>(即
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>
+到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>π</mi><annotation encoding="application/x-tex">\pi</annotation></semantics></math>)。讲师解释了原因:</p>
+<blockquote>
+<p>"<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+本来可以从 0 到
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>π</mi></mrow><annotation encoding="application/x-tex">2\pi</annotation></semantics></math>,也就是
+360 度,但因为每个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+都必须是正值……我们<strong>引入负值 (minus value)</strong>
+来配合,这样我们就能把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+的范围限制在 0 到 180 度。"</p>
+</blockquote>
+<p>也就是说:<strong>允许
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+取负值,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+的范围就可以砍掉一半。</strong>
+这直接把累加器的大小减半。讲师说这个推导"在计算机视觉那门课里会讲",本课<strong>知道结论即可</strong>。</p>
+<p><strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+的范围。</strong> 由图像尺寸决定——对一幅
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>640</mn><mo>×</mo><mn>480</mn></mrow><annotation encoding="application/x-tex">640 \times 480</annotation></semantics></math>
+的图,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+的最大值就是对角线长度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msqrt><mrow><msup><mn>640</mn><mn>2</mn></msup><mo>+</mo><msup><mn>480</mn><mn>2</mn></msup></mrow></msqrt><mo>=</mo><mn>800</mn></mrow><annotation encoding="application/x-tex">\sqrt{640^2 + 480^2} = 800</annotation></semantics></math>
+像素。</p>
+<p><strong>离散化。</strong>
+参数空间是连续的,但计算机需要离散的格子。讲师:"我们把
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+空间<strong>离散化 (discretize)</strong>
+到某个分辨率,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+可能每 1
+度一格,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+每一个单位一格。于是我们有一个矩阵,是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+和
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+的离散化版本。"</p>
+<p>这个矩阵叫做<strong>累加器 (accumulator)</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>ρ</mi><mo>,</mo><mi>θ</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">A[\rho, \theta]</annotation></semantics></math>,<strong>它的每一个格子代表一条候选直线</strong>。</p>
+<h3 id="333-算法">33.3 算法</h3>
+<p>Slide 39 的伪代码:</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>Input: binary edge image E</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>Create accumulator A[ρ, θ] <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> each edge pixel (x, y) <span class="kw">in</span> E:</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> each θ <span class="kw">in</span> allowed angles:</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>        ρ <span class="op">=</span> x·cos θ <span class="op">+</span> y·sin θ</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>        A[ρ, θ] <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>Find peaks <span class="kw">in</span> A</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>Return line parameters (ρ, θ)</span></code></pre></div>
+<p><strong>逐行读懂:</strong></p>
+<ul>
+<li>外层循环遍历<strong>每一个边缘像素</strong>——注意输入是<strong>二值边缘图</strong>,不是原图(下面
+§33.5 会强调这一点);</li>
+<li>内层循环遍历<strong>所有允许的角度</strong>——对每个
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>,用
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ρ</mi><mo>=</mo><mi>x</mi><mo>cos</mo><mi>θ</mi><mo>+</mo><mi>y</mi><mo>sin</mo><mi>θ</mi></mrow><annotation encoding="application/x-tex">\rho = x\cos\theta + y\sin\theta</annotation></semantics></math>
+算出"经过这个点、法向为
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+的那条线的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+是多少";</li>
+<li><code>A[ρ, θ] += 1</code> 就是<strong>投票</strong>;</li>
+<li>全部投完后,<strong>找峰值</strong>——票数高的格子就是检测到的直线。</li>
+</ul>
+<p>讲师的描述完全对应:</p>
+<blockquote>
+<p>"对图像里的每一个像素,你开始投票——判断那个像素是否落在这条线上。如果落在这条线上,你就投票,把这个格子的票数加一。而<strong>每一个像素可以落在多条线上</strong>,所以它可能投给参数空间里的多个格子。……但最终,如果确实存在一条直线,你会发现<strong>某一个特定的格子被非常多的像素投过票</strong>。最高票就给出了直线的指示。"</p>
+</blockquote>
+<h3 id="334-三个matters">33.4 三个"matters"</h3>
+<p>Slide 39 右侧列了三条实现要点:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>要点</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>分辨率很重要</strong> (Resolution matters)</td>
+<td>累加器格子<strong>越细,参数检测越精确,但计算量越大</strong>。格子太粗
+→ 相近的两条线被并成一个峰;太细 →
+同一条线的票分散到相邻几个格子,峰不明显</td>
+</tr>
+<tr class="even">
+<td><strong>阈值很重要</strong> (Threshold matters)</td>
+<td>峰值阈值控制<strong>误检 (false positives) 和漏检 (missed
+detections)</strong> 的平衡</td>
+</tr>
+<tr class="odd">
+<td><strong>预处理很重要</strong> (Preprocessing matters)</td>
+<td><strong>好的边缘图和去噪能提高投票的可靠性</strong></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="335-必须先做边缘检测">33.5 必须先做边缘检测</h3>
+<p>Slide 37 的落脚句,单独强调:</p>
+<blockquote>
+<p><strong>在边缘检测或阈值化之后使用
+Hough:只有可能属于直线的像素才应该投票 (only likely line pixels should
+vote)。</strong></p>
+</blockquote>
+<p>为什么?两个原因。<strong>计算量</strong>:一幅 640×480 的图有 30
+万个像素,如果每个都投 180 票,就是 5500
+万次累加,每帧。而边缘检测后可能只剩几千个像素。<strong>准确性</strong>:平坦区域的像素不属于任何边,让它们投票只会给累加器铺一层均匀的噪声底,淹没真正的峰。</p>
+<p>讲师也是这么说的:"记住,直线上的都是边缘像素,你要<strong>从边缘像素里</strong>去找直线……那些像素通常是梯度超过某个阈值的。"</p>
+<h3 id="336-计算代价">33.6 计算代价</h3>
+<p>讲师给了一个平衡的评价:</p>
+<blockquote>
+<p>"用 Hough
+变换<strong>计算量稍微有点大</strong>……但它<strong>非常灵活而且好用</strong>,而且如今大多数微处理器都能应付这种计算需求。"</p>
+</blockquote>
+<p>这和 RANSAC 形成了有意思的对比:RANSAC
+的代价是<strong>随机的</strong>(可能很快找到,也可能很多次迭代都没找到);Hough
+的代价是<strong>确定的</strong>(边缘像素数 ×
+角度数,不多不少)。对需要保证实时性的机器人控制回路,<strong>可预测的代价有时比平均更快的代价更有价值</strong>。</p>
+<h2 id="34-推广圆多边形与角度关系">34. 推广:圆、多边形与角度关系</h2>
+<h3 id="341-检测圆">34.1 检测圆</h3>
+<p>Hough 的投票思想不限于直线。讲师:</p>
+<blockquote>
+<p>"Hough
+变换的想法可以扩展,不只是直线,<strong>也可以用同样的方式检测圆</strong>。"</p>
+</blockquote>
+<p>圆由<strong>三个</strong>参数确定:圆心
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(a, b)</annotation></semantics></math>
+和半径
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>。所以参数空间从二维变成<strong>三维</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mrow><mo stretchy="true" form="prefix">[</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>,</mo><mi>r</mi><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">A[a, b, r]</annotation></semantics></math>,投票规则也相应改变——每个边缘像素为所有"可能经过它的圆"投票。找到的峰值
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>,</mo><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(a, b, r)</annotation></semantics></math>
+就是"图像里存在一个以
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(a,b)</annotation></semantics></math>
+为心、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+为半径的圆"。</p>
+<p>代价是明显的:参数空间从二维涨到三维,内存和计算量都大幅上升。这是
+Hough
+推广到复杂形状时的普遍代价——<strong>参数越多,累加器维度越高,越吃不消</strong>。这也解释了为什么
+Hough 在实践中主要用于直线和圆,而不用于任意形状。</p>
+<h3 id="342-多边形与角度关系">34.2 多边形与角度关系</h3>
+<p>讲师提到一个很实用的技巧:</p>
+<blockquote>
+<p>"有意思的是参数空间。当你有多条这样的线,比如一个三角形、一个矩形……因为三角形里一条线和另一条线之间,它们的角度总是有固定的差。你会发现这两条线的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+相差 90 度,那意味着这两条线是<strong>互相垂直的</strong>。所以 Hough
+的直线表示和投票方案<strong>可以一次性检测出多条直线</strong>。"</p>
+</blockquote>
+<p>也就是说:<strong>参数空间里峰与峰之间的关系,本身就携带结构信息。</strong></p>
+<ul>
+<li>两个峰的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+相差 <strong>90°</strong> → 两条线<strong>垂直</strong> →
+可能是一个矩形的两条边,或一个墙角;</li>
+<li>两个峰的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+<strong>相同</strong>但
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+不同 → 两条线<strong>平行</strong> →
+可能是走廊的两面墙,或车道的两条线。</li>
+</ul>
+<p>对机器人来说这非常有用:检测到"两条相互垂直的长直线"基本就等于检测到了一个<strong>墙角</strong>,而墙角是极好的定位路标。</p>
+<p>Slide 37
+说的"同样的想法可以检测圆和其他参数化形状",落到实处就是这一节。</p>
+<h3 id="343-现成实现">34.3 现成实现</h3>
+<p>讲师提醒:"对大多数视觉软件包来说,Hough
+变换都已经实现好了,你直接调用就行。" OpenCV 里对应的是
+<code>cv2.HoughLines</code> / <code>cv2.HoughLinesP</code>(直线)和
+<code>cv2.HoughCircles</code>(圆)。</p>
+<hr />
+<h1 id="part-viii--sift尺度不变特征变换">Part VIII ·
+SIFT:尺度不变特征变换</h1>
+<h2 id="35-动机几何形状之外的世界">35. 动机:几何形状之外的世界</h2>
+<p>Part VI 和 VII
+处理的都是<strong>几何形状</strong>——直线、圆、多边形。但机器人要认的东西大多不是几何形状。讲师提出了这个转折:</p>
+<blockquote>
+<p>"如果是<strong>非几何形状的物体</strong>,我们怎么办?……这些东西不一定是几何形状,但可以用某种类型的<strong>图像特征</strong>来描述。"</p>
+</blockquote>
+<p>答案就是 <strong>SIFT (Scale-Invariant Feature
+Transform,尺度不变特征变换)</strong>。讲师说它是"视觉领域的一个重大里程碑之一"。</p>
+<h3 id="351-要解决的问题">35.1 要解决的问题</h3>
+<p>Slide 41 的副标题给出了目标:</p>
+<blockquote>
+<p><strong>在尺度、旋转和中等程度的光照变化下,检测到同一个局部图案。</strong></p>
+</blockquote>
+<p>为什么机器人特别需要这个?slide 41 的第一条说得很清楚:</p>
+<blockquote>
+<p><strong>机器人从不同的距离和朝向看同一个物体。</strong></p>
+</blockquote>
+<p>想象机器人在走廊里巡逻。它上周在 2 米外、正对着看过某扇门;这周它从 5
+米外、侧着 30°
+经过。<strong>图像层面这两次看到的东西完全不同</strong>——门在图上的大小差了
+2.5
+倍,形状因为透视而扭曲,光照也变了。但机器人必须判断"这是同一扇门",否则定位和建图就无从谈起。</p>
+<p>所以 slide 41 的第二条:</p>
+<blockquote>
+<p><strong>一个好的关键点,即使图像被缩放或旋转,也应该能被再次找到。</strong></p>
+</blockquote>
+<h3 id="352-基本策略">35.2 基本策略</h3>
+<p>Slide 41 第三条和落脚句给出了 SIFT 的两句话概括:</p>
+<blockquote>
+<p><strong>SIFT 这类方法在尺度空间 (scale space)
+中寻找有辨识度的局部极值 (distinctive local extrema)。</strong></p>
+<p><strong>SIFT 先检测出大量候选点,然后拒绝掉不稳定的那些 (SIFT first
+detects many candidates, then rejects unstable ones)。</strong></p>
+</blockquote>
+<p>第二句是一条重要的方法论:<strong>先宽后严</strong>。与其试图一步到位地找到"完美的点",不如先找一大堆候选,再用几个筛子把不可靠的滤掉。§39
+会看到这个筛选有多狠。</p>
+<p>讲师给了一个非常有力的数字来说明:</p>
+<blockquote>
+<p>"对这幅图像,如果我没记错,大概是 <strong>30,000
+个点</strong>。这张图被减到 <strong>2,000 多个</strong>,然后再减到
+<strong>1,000 多一点</strong>。所以这么大一幅图像,<strong>你只用 1,000
+个点就代表了整幅图像。</strong>"</p>
+</blockquote>
+<p>从 30,000 到 1,000——<strong>筛掉了 97%</strong>。而剩下的 1,000
+个点足以代表整幅图像。这就是 §24 说的"信息压缩"在 SIFT
+里的具体样子。</p>
+<h3 id="353-替代方案">35.3 替代方案</h3>
+<p>Slide 41 提到:</p>
+<blockquote>
+<p><strong>替代方案包括 SURF 和
+ORB,它们在常见的计算机视觉工具箱里都有。</strong></p>
+</blockquote>
+<p>讲师补充了背景,这个故事值得知道:</p>
+<blockquote>
+<p>"<strong>SIFT 其实是有专利的。</strong> 只要你把 SIFT
+用于商业用途,就必须向发明人支付版税。后来出现了很多 SIFT
+的变体,它们没有专利,你可以用。但<strong>通常最好的性能仍然是 SIFT
+拿到的</strong>,而不是那些变体。"</p>
+</blockquote>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — SIFT 由 David Lowe 于 1999
+年提出,专利于 <strong>2020 年 3
+月到期</strong>,现在可以自由使用了(OpenCV 4.4 之后
+<code>cv2.SIFT_create()</code> 已经回到主模块)。<strong>SURF</strong>
+(Speeded-Up Robust Features)
+用积分图加速,快但仍有专利;<strong>ORB</strong> (Oriented FAST and
+Rotated BRIEF)
+完全免专利、极快、描述子是二进制的(用汉明距离比较),是资源受限的机器人平台上最常见的选择。讲师说的"仍在
+contrib 模块里"对应的正是专利期内的历史状态——课程资源里那份
+"OpenCV-Contrib-Python 4.13 with Webots" 教程名字里的 contrib
+就是这个来源。</p>
+</blockquote>
+<h2 id="36-流水线总览">36. 流水线总览</h2>
+<p>Slide 42 把 SIFT 分成六个阶段:</p>
+<pre class="mermaid"><code>flowchart LR
+  S1[&quot;① 尺度空间&lt;br/&gt;Scale space&quot;] --&gt; S2[&quot;② DoG 极值&lt;br/&gt;DoG extrema&quot;]
+  S2 --&gt; S3[&quot;③ 关键点筛选&lt;br/&gt;Keypoint filtering&quot;]
+  S3 --&gt; S4[&quot;④ 主方向&lt;br/&gt;Orientation&quot;]
+  S4 --&gt; S5[&quot;⑤ 描述子&lt;br/&gt;Descriptor&quot;]
+  S5 --&gt; S6[&quot;⑥ 匹配&lt;br/&gt;Matching&quot;]</code></pre>
+<p>Slide 42 的落脚句点出了 SIFT
+最核心的设计思想,<strong>这句话请重点记</strong>:</p>
+<blockquote>
+<p><strong>SIFT
+把"特征在哪里?"和"局部外观长什么样?"分开处理。最终的描述子是一个由局部梯度直方图构建的
+128 维向量。</strong> (SIFT separates "where is the feature?" from "what
+does the local appearance look like?")</p>
+</blockquote>
+<p><strong>这个分离是 SIFT 优雅的根源。</strong> 阶段 ①②③
+只回答"哪里"——输出一批
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mtext mathvariant="normal">scale</mtext><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x, y, \text{scale})</annotation></semantics></math>;阶段
+④⑤ 只回答"长什么样"——输出每个位置的 128
+维向量。两个问题用完全不同的机制解决,互不干扰。这也呼应了 §25
+里"角点/斑点回答在哪里,描述子回答长什么样"的区分。</p>
+<p>下面按讲师和 slides 的组织,分成四步详讲(阶段 ②③ 合并为一步)。</p>
+<h2 id="37-step-1构建尺度空间">37. Step 1:构建尺度空间</h2>
+<h3 id="371-为什么需要尺度空间">37.1 为什么需要尺度空间</h3>
+<p>"尺度不变"是 SIFT
+名字里的第一个词,它的实现方式非常直白:<strong>既然不知道物体会以多大的尺寸出现,那就在所有尺寸上都找一遍。</strong></p>
+<p>讲师的解释:</p>
+<blockquote>
+<p>"首先我们必须构建<strong>尺度空间 (scale
+space)</strong>。我们必须在<strong>不同尺度</strong>上检测关键点。所谓尺度,简单地说就是不同的分辨率。……小尺度上你有更多细节,大尺度上细节更少。或者说,当远处的物体和近处的物体在同一尺度上时,它在图像里会变成更小的物体。"</p>
+</blockquote>
+<p>回忆 §9 的那张表——CNN
+靠网络深度自动获得多尺度表征,而<strong>经典方法必须手工把尺度金字塔造出来</strong>。这一节就是那个"手工造"的过程。</p>
+<h3 id="372-三个操作">37.2 三个操作</h3>
+<p>Slide 43 把构建过程分成三步:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>操作</th>
+<th>英文</th>
+<th>做什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>重采样</strong></td>
+<td><strong>Resample</strong></td>
+<td>通过每隔 2 个、4 个……像素取样,创建图像<strong>八度
+(octaves)</strong></td>
+</tr>
+<tr class="even">
+<td><strong>模糊</strong></td>
+<td><strong>Blur</strong></td>
+<td>在每个八度<strong>内部</strong>,用<strong>不同方差</strong>的高斯滤波器</td>
+</tr>
+<tr class="odd">
+<td><strong>相减</strong></td>
+<td><strong>Subtract</strong></td>
+<td>计算相邻模糊层之间的<strong>高斯差分 (DoG)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>"八度 (octave)" 是什么?</strong>
+借用音乐术语——升高一个八度频率翻倍。在图像里,<strong>一个 octave
+就是图像尺寸减半一次</strong>。原图是 octave 1,缩小到一半是 octave
+2,再一半是 octave 3……</p>
+<p>讲师描述了完整的结构:</p>
+<blockquote>
+<p>"我们拿到原图,应用低通滤波去掉一些细节,这是第一个尺度。这叫做第一个
+octave。在每个尺度上,你有一个略微不同的平滑版本——换句话说,<strong>高斯滤波的标准差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+略有不同</strong>。……当我们移到更高的 octave
+时,更多细节被去掉,所以<strong>图像不需要保持原始分辨率了,你可以把分辨率降到一半、四分之一</strong>。"</p>
+</blockquote>
+<p>所以尺度空间是一个<strong>二维的</strong>结构:</p>
+<pre class="mermaid"><code>flowchart TD
+  O1[&quot;Octave 1 · 原始尺寸&quot;] --&gt; O1a[&quot;σ&quot;] --&gt; O1b[&quot;kσ&quot;] --&gt; O1c[&quot;k²σ&quot;] --&gt; O1d[&quot;k³σ&quot;] --&gt; O1e[&quot;k⁴σ&quot;]
+  O1 --&gt;|&quot;降采样 ÷2&quot;| O2[&quot;Octave 2 · 半尺寸&quot;]
+  O2 --&gt; O2a[&quot;σ&quot;] --&gt; O2b[&quot;kσ&quot;] --&gt; O2c[&quot;k²σ&quot;] --&gt; O2d[&quot;k³σ&quot;] --&gt; O2e[&quot;k⁴σ&quot;]
+  O2 --&gt;|&quot;降采样 ÷2&quot;| O3[&quot;Octave 3 · 四分之一尺寸&quot;]</code></pre>
+<ul>
+<li><strong>横向</strong>(同一 octave
+内):<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+逐级增大,细节逐级减少。讲师说每个 octave 里"有 5
+张略有不同的高斯滤波图像"。</li>
+<li><strong>纵向</strong>(跨 octave):图像尺寸减半。</li>
+</ul>
+<p><strong>为什么要降采样而不是一直用大
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>?</strong>
+因为效率。一张已经被模糊得很厉害的图,高频信息本来就没了,<strong>保留全分辨率是纯粹的浪费</strong>。降采样一半,像素数降到四分之一,后续所有计算都便宜四倍。而且请回忆
+§12
+的那个提醒——<strong>降采样之前必须先低通滤波</strong>,而这里恰好已经模糊过了,天然满足条件。这不是巧合,是设计。</p>
+<h3 id="373-从模糊到-dog">37.3 从模糊到 DoG</h3>
+<p>有了每个 octave 里那几张不同
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+的模糊图,<strong>相邻两张相减</strong>就得到 DoG:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>σ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>G</mi><mrow><mi>k</mi><mi>σ</mi></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mi>G</mi><mi>σ</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">D(x, y, \sigma) = G_{k\sigma}(I) - G_{\sigma}(I)</annotation></semantics></math></p>
+<p>这正是 §14 的内容,而且用的是那里说的
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>≈</mo><mn>1.6</mn></mrow><annotation encoding="application/x-tex">k \approx 1.6</annotation></semantics></math></strong>
+的比例——这个比例下 DoG <strong>逼近
+LoG</strong>,是尺度空间特征检测的标准配置。</p>
+<p>Slide 43 的落脚句:</p>
+<blockquote>
+<p><strong>关键点的尺度选在它最有辨识度的地方 (A keypoint scale is
+selected where it is most distinctive)。</strong></p>
+</blockquote>
+<p>也就是说,SIFT
+不仅告诉你关键点<strong>在哪</strong>,还告诉你它<strong>在哪个尺度上最突出</strong>。这个尺度信息后面有大用——§39
+会用它决定描述子窗口的大小,§40 也需要它。</p>
+<h2 id="38-step-2检测极值并剔除不稳定关键点">38. Step
+2:检测极值并剔除不稳定关键点</h2>
+<p>Slide 44
+的标题一针见血:<strong>不是每个局部极大值都有用。</strong></p>
+<h3 id="381-找极值">38.1 找极值</h3>
+<p><strong>规则</strong>:把每个候选点与它在
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>
+和尺度</strong>三个维度上的邻居比较。</p>
+<p>请注意"<strong>和尺度</strong>"这三个字——这是 SIFT
+与普通角点检测器的根本区别。一个点必须<strong>不仅在本层图像里是局部极值,而且比上一层和下一层对应位置的值都更极端</strong>,才算数。这就是"尺度空间极值"的确切含义,也是尺度不变性的来源:<strong>一个真正的斑点结构,只会在与它自身大小匹配的那个尺度上给出最强响应。</strong></p>
+<p>具体地,每个候选点要和 26 个邻居比较:本层的 8 个 + 上层的 9 个 +
+下层的 9 个。极大或极小都算。</p>
+<p>讲师的描述:"在不同的 DoG 层里检测<strong>极值
+(extrema)</strong>,考虑相邻的像素值。如果它是极值——不管是最小值还是最大值——你就把那个点当作<strong>兴趣点
+(interest point) 的候选</strong>。"</p>
+<h3 id="382-两道筛子">38.2 两道筛子</h3>
+<p>极值检出来是一大堆(讲师说的 30,000 个),接下来要狠狠地筛。</p>
+<p><strong>筛子一:拒绝低对比度 (Reject low contrast)</strong></p>
+<p>Slide 44:<strong>弱响应在噪声和光照变化下不可靠。</strong></p>
+<p>一个 DoG
+响应很微弱的点,可能只是噪声制造的偶然极值。下一帧噪声一变,它就消失了——<strong>违反了"可重复"这条标准</strong>。讲师:"如果是低对比度,我们把它去掉,因为那是<strong>误检
+(false detection)</strong>。"</p>
+<p>30,000 → 2,000 就是这一刀砍掉的。</p>
+<p><strong>筛子二:拒绝边缘响应 (Reject edge responses)</strong></p>
+<p>Slide 44:<strong>沿着边缘的点在某一个方向上定位很差。</strong></p>
+<p>这一条更微妙,但很重要。想象一个点落在一条长长的直边上。沿着<strong>垂直于边</strong>的方向,它的位置很明确(一动就不在边上了);但沿着<strong>平行于边</strong>的方向,它可以滑动很远而
+DoG 响应几乎不变。</p>
+<p><strong>结果是:你下次再检测,这个点可能出现在边上的任何位置。</strong>
+它的位置是不可重复的——同样违反"可重复"标准。</p>
+<p>这就是为什么<strong>角点比边缘点更适合做特征</strong>:角点在<strong>两个</strong>方向上都被约束住了,位置唯一确定。这也是为什么
+§25 把 corner 列为一种特征而没有列 edge。</p>
+<p>2,000 → 1,000 就是这一刀。</p>
+<p>Slide 44 的落脚句:</p>
+<blockquote>
+<p><strong>稳定的关键点是可重复的、且定位良好的 (Stable keypoints are
+repeatable and well-localized)。</strong></p>
+</blockquote>
+<p>这两个词正好对应两道筛子:低对比度筛子保证<strong>可重复</strong>,边缘筛子保证<strong>定位良好</strong>。</p>
+<pre class="mermaid"><code>flowchart LR
+  A[&quot;尺度空间 DoG 极值&lt;br/&gt;≈ 30,000 候选点&quot;] --&gt;|&quot;拒绝低对比度&lt;br/&gt;→ 保证可重复&quot;| B[&quot;≈ 2,000 点&quot;]
+  B --&gt;|&quot;拒绝边缘响应&lt;br/&gt;→ 保证定位良好&quot;| C[&quot;≈ 1,000 稳定关键点&quot;]
+  C --&gt; D[&quot;每个点带有:&lt;br/&gt;x, y, scale&quot;]</code></pre>
+<h2 id="39-step-3主方向赋值">39. Step 3:主方向赋值</h2>
+<h3 id="391-目的">39.1 目的</h3>
+<p>到这里,每个关键点有了
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mtext mathvariant="normal">scale</mtext><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x, y, \text{scale})</annotation></semantics></math>。但还缺<strong>旋转不变性</strong>——如果机器人歪着头看,同一个图案的所有梯度方向都会整体旋转,描述子就对不上了。</p>
+<p>SIFT 的解法很巧妙,slide 45 的标题就是答案:</p>
+<blockquote>
+<p><strong>旋转不变性通过把描述子对齐到一个主方向来实现。</strong></p>
+</blockquote>
+<p>思路是:<strong>既然图案会旋转,那就先找出它"自己的"方向,然后一切都相对于这个方向来测量。</strong>
+这样图案怎么转,描述子都不变——因为参照系跟着一起转了。</p>
+<h3 id="392-三个步骤">39.2 三个步骤</h3>
+<p>Slide 45 对每个保留下来的关键点:</p>
+<ol type="1">
+<li><strong>在一个邻域内计算局部梯度幅值和方向</strong> (Compute local
+gradient magnitudes and orientations in a neighbourhood);</li>
+<li><strong>构建方向直方图,例如 36 个 bin,每个覆盖 10 度</strong> (Build
+an orientation histogram, e.g. 36 bins covering 10 degrees each);</li>
+<li><strong>用最强的那个峰作为该关键点的方向</strong> (Use the strongest
+peak as the keypoint orientation);</li>
+<li><strong>相对于这个方向而不是图像坐标轴来测量描述子</strong> (Measure
+the descriptor relative to this orientation, not the image axes)。</li>
+</ol>
+<p>第 4
+条是整件事的关键——前三步只是为了得到那个方向,<strong>真正买到不变性的是第
+4 条</strong>。</p>
+<p>讲师的描述,包括一个重要的补充:</p>
+<blockquote>
+<p>"对每个兴趣点,我们取一个邻域,计算局部梯度的幅值……每个像素我们都有一个方向。然后我们统计每个方向,简单地说,<strong>每
+10 度一档,所以有 36 档</strong>。每个方向值会被量化到 36
+档中的一档。然后画出直方图……<strong>哪一档占主导,我们就把它称为这个兴趣点的方向</strong>。"</p>
+</blockquote>
+<h3 id="393-邻域大小由尺度决定">39.3 邻域大小由尺度决定</h3>
+<p>讲师补充了一个很重要、slide 上没有明说的点:</p>
+<blockquote>
+<p>"这也取决于这个邻域的大小,而<strong>邻域的大小取决于尺度</strong>。记得前面我们有不同的尺度——这个点是从某个尺度上检测出来的。那个尺度给了我们
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+给了我们尺度。所以<strong>这块区域的大小取决于尺度</strong>。"</p>
+</blockquote>
+<p><strong>这一点必须理解,否则尺度不变性就是假的。</strong>
+如果所有关键点都用固定的 16×16 邻域,那么当物体变大 2
+倍时,同一个关键点周围的 16×16
+覆盖的<strong>物理区域</strong>就只有原来的一半——描述的东西完全不同了。只有让邻域大小<strong>随着关键点的尺度等比缩放</strong>,才能保证"描述的始终是物体上同一块地方"。</p>
+<p>所以 §37 那个"关键点的尺度"输出,在这里第一次派上用场。</p>
+<p>于是每个关键点现在携带<strong>四个量</strong>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo>,</mo><mspace width="0.278em"></mspace><mi>y</mi><mo>,</mo><mspace width="0.278em"></mspace><mrow><mtext mathvariant="normal">scale </mtext><mspace width="0.333em"></mspace></mrow><mi>σ</mi><mo>,</mo><mspace width="0.278em"></mspace><mrow><mtext mathvariant="normal">orientation </mtext><mspace width="0.333em"></mspace></mrow><mi>φ</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x,\; y,\; \text{scale } \sigma,\; \text{orientation } \varphi)</annotation></semantics></math></p>
+<p>讲师原话:"对每个兴趣点,我们有
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>,</mo><mi>y</mi></mrow><annotation encoding="application/x-tex">x, y</annotation></semantics></math>
+坐标,我们有尺度,……然后我们有方向。"</p>
+<h2 id="40-step-4构建-128-维描述子">40. Step 4:构建 128 维描述子</h2>
+<h3 id="401-结构">40.1 结构</h3>
+<p>Slide 46 给出了描述子的构造,这是 SIFT 里最需要记牢的一组数字:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>层级</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>邻域 (Neighbourhood)</strong></td>
+<td>关键点周围的 <strong>16×16 像素</strong>区域</td>
+</tr>
+<tr class="even">
+<td><strong>子区域 (Subregions)</strong></td>
+<td>划分成 <strong>4×4 个 cell</strong>(每个 cell 是 4×4 像素)</td>
+</tr>
+<tr class="odd">
+<td><strong>直方图 (Histogram)</strong></td>
+<td>每个 cell 有 <strong>8 个方向 bin</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>×</mo><mn>4</mn><mo>×</mo><mn>8</mn><mo>=</mo><mn>𝟏𝟐𝟖</mn><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 个描述子数值</mtext></mrow></mrow><annotation encoding="application/x-tex">4 \times 4 \times 8 = \mathbf{128} \text{ 个描述子数值}</annotation></semantics></math></p>
+<p><strong>这个 128 一定要能自己推出来</strong>,而不是死记。</p>
+<p>注意方向 bin 的数量变了:§39 主方向用的是 <strong>36 个
+bin</strong>(每 10°),这里描述子用的是 <strong>8 个 bin</strong>(每
+45°)。讲师专门点了这个区别:"我这里只用 <strong>8 个方向</strong>,不是 36
+个方向。"</p>
+<p><strong>为什么不同?</strong>
+因为两者的目的不同。主方向需要<strong>精确</strong>——它是整个描述子的参照系,差一点后面全歪,所以用细粒度的
+36
+档。描述子则需要<strong>容忍</strong>——如果分得太细,视角稍微一变梯度方向就跳到隔壁
+bin 去了,匹配就失败;粗一点(8
+档)反而更稳。<strong>这是"精确"和"稳健"的一次刻意权衡。</strong></p>
+<h3 id="402-关键在旋转后的坐标系里采样">40.2
+关键:在旋转后的坐标系里采样</h3>
+<p>讲师详细讲了一个 slide
+上没写清楚的实现细节,而它正是旋转不变性真正落地的地方:</p>
+<blockquote>
+<p>"现在我要一个对方向不变的特征向量。我找到了这个方向……<strong>现在我要取另一个
+patch,但这个 patch 是绕着这个旋转方向取的</strong>。……这 16×16
+的像素是<strong>沿着这个方向对齐的</strong>,而不是沿着
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>,</mo><mi>y</mi></mrow><annotation encoding="application/x-tex">x, y</annotation></semantics></math>
+对齐的。……你可能没有现成的像素值,我怎么得到?<strong>通过插值
+(interpolation)</strong>,从原图恢复出来。"</p>
+</blockquote>
+<p>用图说明这件事:</p>
+<pre class="mermaid"><code>flowchart LR
+  A[&quot;原图&lt;br/&gt;像素沿 x,y 网格排列&quot;] --&gt; B[&quot;关键点主方向 φ&quot;]
+  B --&gt; C[&quot;以 φ 为新的坐标轴&lt;br/&gt;取 16×16 窗口&quot;]
+  C --&gt; D[&quot;新网格点落在原像素之间&lt;br/&gt;→ 插值 interpolation&quot;]
+  D --&gt; E[&quot;旋转对齐后的 16×16 patch&quot;]
+  E --&gt; F[&quot;4×4 cells × 8 bins&lt;br/&gt;= 128 维&quot;]</code></pre>
+<p><strong>为什么需要插值?</strong>
+因为旋转后的采样网格不再和原图的像素网格对齐——你要的位置落在四个真实像素中间。插值就是从周围的真实像素算出那个位置"应该"是多少。</p>
+<p>这一步是旋转不变性的<strong>真正</strong>实现:不是事后把描述子转一转,而是<strong>从一开始就在旋转后的坐标系里采样</strong>。</p>
+<h3 id="403-梯度加权与归一化">40.3 梯度加权与归一化</h3>
+<p>讲师提到了两个细节:</p>
+<p><strong>加权。</strong>
+"我取梯度方向,<strong>用它的梯度值加权</strong>。"
+也就是说,直方图不是简单地数"有几个像素属于这个方向",而是<strong>按梯度幅值累加</strong>——梯度强的像素说话更有分量。这很合理:一个几乎没有梯度的像素,它的"方向"基本是噪声决定的,不该和一个强边缘上的像素等量齐观。</p>
+<p><strong>归一化 → 光照不变性。</strong> 这一步很重要,讲师专门强调:</p>
+<blockquote>
+<p>"事实上,得到这些值之后,我们还会<strong>归一化这个向量 (normalize this
+vector)</strong>,把它归一化以<strong>去除光照的影响</strong>。……经过进一步归一化之后,这个向量就是<strong>光照不变
+(illumination invariant)</strong>
+的。不管是室内还是室外,<strong>只要是同一个物体,这组值就是一样的</strong>,所以它成为了稳健的信息。"</p>
+</blockquote>
+<p>理解一下机制:如果整个场景的亮度乘以某个系数(比如太阳被云挡住了,一切都暗了
+30%),<strong>所有梯度也会等比例地乘以同一个系数</strong>。把 128
+维向量归一化成单位长度,这个公共系数就被除掉了。所以<strong>线性的光照变化被完全消除</strong>。</p>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — Lowe
+的原始论文里归一化其实做了两次:先归一化到单位长度,然后<strong>把所有大于
+0.2 的分量截断
+(clamp)</strong>,再归一化一次。为什么?因为<strong>非线性</strong>的光照变化(比如镜面高光)会让个别方向的梯度异常巨大,而截断限制了任何单个分量的支配力。考试不会考这个细节,但它说明了一件事:SIFT
+的每一个设计决定,背后都对应着一种具体的失效模式。</p>
+</blockquote>
+<h3 id="404-三种不变性的来源">40.4 三种不变性的来源</h3>
+<p>这是理解 SIFT 的关键总结表,<strong>强烈建议记住</strong>:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>不变性</th>
+<th>由哪一步买到</th>
+<th>机制</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>尺度不变 (scale invariance)</strong></td>
+<td><strong>Step 1 尺度空间 + Step 2 跨尺度极值</strong></td>
+<td>在所有尺度上找一遍,只保留在自身尺度上最突出的点;描述子窗口随尺度缩放</td>
+</tr>
+<tr class="even">
+<td><strong>旋转不变 (rotation invariance)</strong></td>
+<td><strong>Step 3 主方向 + Step 4 旋转采样</strong></td>
+<td>建立随图案一起转动的局部参照系</td>
+</tr>
+<tr class="odd">
+<td><strong>光照不变 (illumination invariance)</strong></td>
+<td><strong>Step 4 梯度 + 归一化</strong></td>
+<td>用梯度(对加性变化不敏感)+ 归一化(消除乘性变化)</td>
+</tr>
+</tbody>
+</table></div>
+<p>请注意最后一行里"梯度"这三个字本身也在做工作:描述子基于<strong>梯度</strong>而不是原始像素值,所以给整幅图<strong>加</strong>一个常数(相机曝光偏置)完全不影响它;再加上归一化,<strong>乘</strong>一个常数也不影响。加性和乘性都被处理掉了。</p>
+<h2 id="41-用-sift-做物体识别与定位">41. 用 SIFT 做物体识别与定位</h2>
+<h3 id="411-五步流水线">41.1 五步流水线</h3>
+<p>Slide 47 给出识别流程:</p>
+<pre class="mermaid"><code>flowchart LR
+  A[&quot;① 检测关键点&lt;br/&gt;Detect keypoints&quot;] --&gt; B[&quot;② 计算描述子&lt;br/&gt;Compute descriptors&quot;]
+  B --&gt; C[&quot;③ 最近邻匹配&lt;br/&gt;Nearest-neighbour match&quot;]
+  C --&gt; D[&quot;④ 在 Hough 空间投票&lt;br/&gt;Vote in Hough space&quot;]
+  D --&gt; E[&quot;⑤ 验证物体位姿&lt;br/&gt;Verify object pose&quot;]</code></pre>
+<p>Slide 47 的四条要点:</p>
+<ol type="1">
+<li><p><strong>描述子用欧氏距离 (Euclidean distance) 比较,常用 k-d 树
+(k-d tree) 加速。</strong></p>
+<p>两个 128
+维向量之间的欧氏距离越小,越可能是同一个点。但如果数据库里有几万个描述子,逐个比较太慢——<strong>k-d
+树</strong>是一种空间划分数据结构,能把最近邻搜索从
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>N</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(N)</annotation></semantics></math>
+降到大约
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>log</mo><mi>N</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(\log N)</annotation></semantics></math>。</p></li>
+<li><p><strong>通常至少需要 3
+个独立特征才能稳健地识别一个物体。</strong></p>
+<p>讲师也说了:"如果最少的话,你需要 <strong>3
+个</strong>兴趣点来代表这个物体,才能做物体检测。" 为什么是
+3?因为单个匹配很容易是巧合(128 维空间里两个不相关的点碰巧接近),而 3
+个匹配同时在几何上一致的概率就低得多。</p></li>
+<li><p><strong>每一个匹配上的特征都可以为物体的位置、尺度和朝向投票。</strong></p>
+<p><strong>注意这里 Hough 变换又出现了</strong>,但用法不同了——§32
+里投票的参数是直线的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>ρ</mi><mo>,</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\rho, \theta)</annotation></semantics></math>,这里投票的参数是<strong>物体的位姿</strong>。这是同一个思想的复用:<strong>让证据投票,看哪个假设得票最多。</strong></p>
+<p>而且这一次投票的信息更丰富:每个 SIFT
+关键点自带尺度和方向,所以<strong>单个匹配就能预测出整个物体的位置、大小和朝向</strong>。如果
+10 个匹配都指向同一个位姿,那这个位姿几乎可以确定。</p></li>
+<li><p><strong>词袋模型 (Bag-of-Words, BoW) 把局部描述子聚合成"视觉单词
+(visual words)",用于识别和检索。</strong></p></li>
+</ol>
+<blockquote>
+<p>📎 <strong>拓展(超出 slides)</strong> — BoW
+的想法借自文本检索。文本里,一篇文档可以用"每个词出现了几次"来表示(丢掉词序)。视觉里同理:先把大量
+SIFT 描述子聚类(比如
+k-means)成若干个"视觉单词",然后一幅图像就可以表示成"每个视觉单词出现了几次"的<strong>直方图</strong>。两幅图像相似
+= 它们的直方图相似。这样比较两幅图从"比较几千个 128
+维向量"变成了"比较两个直方图",快了几个数量级,是大规模场景识别和<strong>回环检测
+(loop closure)</strong> 的经典做法。讲师在开场提到 BoW
+时说的"用这些特征做匹配、投票和场景分类"就是指这一类方法。</p>
+</blockquote>
+<h3 id="412-机器人里的两大用途">41.2 机器人里的两大用途</h3>
+<p>讲师反复强调 SIFT 在机器人里最重要的两个用途:</p>
+<p><strong>用途一:物体识别。</strong> "用 SIFT
+做物体检测……识别场景中出现的这个物体实例。"</p>
+<p><strong>用途二:定位与建图 (SLAM)。</strong> 这是讲师说得更多的:</p>
+<blockquote>
+<p>"你也可以用这些关键点来匹配,判断<strong>机器人以前有没有见过这个特定的地方</strong>,用于定位和建图。……很多时候
+SLAM 就是基于这些点去匹配两幅图像。"</p>
+</blockquote>
+<p>以及在总结时:</p>
+<blockquote>
+<p>"SIFT 是机器人视觉里最广泛使用的特征之一,<strong>特别是用在
+SLAM,也就是定位与建图上</strong>。"</p>
+</blockquote>
+<p>把这条线索接回 §26:直线特征给出几何路标("墙在 1.2 m,法向 37°"),SIFT
+特征给出<strong>外观路标</strong>("我在这里见过这 1,000
+个点的这种排布")。两者在 SLAM 里是互补的。</p>
+<blockquote>
+<p><strong>🔑 讲师的随堂题</strong> — "一个机器人第一次从 <strong>2
+米</strong>外观察某个路标,后来从 <strong>5
+米</strong>外观察同一个路标。SIFT 的哪个特性在这里特别重要?"</p>
+<p>答案:<strong>尺度不变性 (scale
+invariance)</strong>。讲师的解释:"因为当你从不同距离看同一个东西时,<strong>同一个物体在图像里会以不同的大小出现</strong>,这和尺度有关。"</p>
+</blockquote>
+<hr />
+<h1 id="part-ix--经典方法与深度学习">Part IX · 经典方法与深度学习</h1>
+<h2 id="42-手工特征与学习特征">42. 手工特征与学习特征</h2>
+<p>Slide 48
+的标题:<strong>在深度学习时代,经典视觉在概念上依然重要。</strong></p>
+<h3 id="421-三栏对照">42.1 三栏对照</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>经典流水线 (Classical pipeline)</strong></th>
+<th><strong>神经网络流水线 (Neural pipeline)</strong></th>
+<th><strong>实践现实 (Practical reality)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>做法</td>
+<td>滤波 → 阈值化 → 特征提取 → 几何推理 → 识别</td>
+<td><strong>CNN 层从数据中自动学习滤波器和特征</strong></td>
+<td><strong>机器人常常把学到的感知与几何、标定、经典前后处理结合起来</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>讲师把 SIFT 归类得很清楚:</p>
+<blockquote>
+<p>"SIFT 是一种<strong>手工特征 (handcrafted
+feature)</strong>,就是说它是<strong>人定义的</strong>——研究者基于对尺度空间的研究定义出来的。……如今越来越流行的是基于机器学习的方法。"</p>
+</blockquote>
+<p><strong>"handcrafted" 这个词值得体会。</strong> SIFT
+的每一个数字——16×16、4×4、8 个 bin、36 个
+bin、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mn>1.6</mn></mrow><annotation encoding="application/x-tex">k=1.6</annotation></semantics></math>、0.2
+的截断阈值——都是 David Lowe
+通过分析和实验<strong>手工确定</strong>的。CNN
+则是把这些全部交给数据去定。</p>
+<h3 id="422-为什么学生仍然要学经典方法">42.2
+为什么学生仍然要学经典方法</h3>
+<p>Slide 48 的落脚句,四条理由:</p>
+<blockquote>
+<p><strong>它们是可解释的 (interpretable),在数据有限时也能工作 (work
+with limited data),对调试有用 (useful for
+debugging),并且揭示了学习网络内部往往会重现的那些操作 (reveal the
+operations that learned networks often reproduce
+internally)。</strong></p>
+</blockquote>
+<p>最后一条最有意思,值得展开:<strong>训练好的
+CNN,第一层卷积核看起来和高斯核、Sobel 核、DoG 核非常像。</strong>
+网络并不是发明了什么新东西——它在数据的驱动下,<strong>独立地重新发现了</strong>几十年前研究者手工设计出来的那些算子。</p>
+<p>这是一个很有说服力的验证:<strong>这些算子之所以被手工设计出来,是因为它们确实是从图像中提取信息的正确方式。</strong>
+你在 §12–§16 手写的每一个核,都是网络后来自己学到的东西。</p>
+<p>讲师给出的额外理由已经在 §2
+讲过——<strong>算力和功耗约束</strong>、<strong>解释深度模型</strong>。加上
+slide 的这四条,一共六条理由。</p>
+<h3 id="423-本课的边界">42.3 本课的边界</h3>
+<p>讲师明确划了范围,你应该知道考试考什么、不考什么:</p>
+<blockquote>
+<p>"我们<strong>不会在这门课里讲任何基于学习的特征</strong>。……我们不涉及任何深度学习模型,因为我们只有<strong>一周</strong>的时间来讲视觉感知。对那些想了解更多视觉算法感知细节的人,你需要去选<strong>计算机视觉</strong>那门课。"</p>
+</blockquote>
+<p>所以:<strong>深度学习在本章只作为"对照物"和"未来方向"出现,不是考点。</strong>
+但"为什么还要学经典方法"这个问题<strong>是</strong>考点,因为它是 slide
+48 的主体内容。</p>
+<h3 id="424-工具opencv">42.4 工具:OpenCV</h3>
+<p>讲师在结尾推荐了工具,和 homework 直接相关:</p>
+<blockquote>
+<p>"<strong>OpenCV</strong> 是一个……库,它有大约 <strong>2500
+个算法</strong>,视觉算法,都在 OpenCV
+这一个包里。……对于任何视觉任务,特别是传统的、经典的计算机视觉算法,<strong>OpenCV
+是最好用的库</strong>。如果你想用深度学习模型,那就是 <strong>OpenCV 加上
+PyTorch</strong>。而且 OpenCV
+在<strong>商业产品</strong>里也用得很多,不只是用于研究开发。"</p>
+</blockquote>
+<p>本章讲的几乎每一个算法在 OpenCV 里都有现成实现:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>本章内容</th>
+<th>OpenCV 函数</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>阈值化 / 自适应阈值 (§10)</td>
+<td><code>cv2.threshold</code>, <code>cv2.adaptiveThreshold</code></td>
+</tr>
+<tr class="even">
+<td>RGB → HSV (§10.3)</td>
+<td><code>cv2.cvtColor(img, cv2.COLOR_BGR2HSV)</code>,
+<code>cv2.inRange</code></td>
+</tr>
+<tr class="odd">
+<td>高斯平滑 (§12)</td>
+<td><code>cv2.GaussianBlur</code></td>
+</tr>
+<tr class="even">
+<td>Sobel / Canny (§13)</td>
+<td><code>cv2.Sobel</code>, <code>cv2.Canny</code></td>
+</tr>
+<tr class="odd">
+<td>形态学 (§15)</td>
+<td><code>cv2.erode</code>, <code>cv2.dilate</code>,
+<code>cv2.morphologyEx</code></td>
+</tr>
+<tr class="even">
+<td>Hough 直线 / 圆 (§32–34)</td>
+<td><code>cv2.HoughLines</code>, <code>cv2.HoughLinesP</code>,
+<code>cv2.HoughCircles</code></td>
+</tr>
+<tr class="odd">
+<td>SIFT (§35–41)</td>
+<td><code>cv2.SIFT_create()</code></td>
+</tr>
+<tr class="even">
+<td>立体匹配 (§21)</td>
+<td><code>cv2.StereoBM_create</code>,
+<code>cv2.StereoSGBM_create</code></td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h1 id="part-x--全景回顾与随堂题">Part X · 全景回顾与随堂题</h1>
+<h2 id="43-从像素到机器人决策完整流水线">43.
+从像素到机器人决策:完整流水线</h2>
+<p>Slide 50 用一张图把整章串了起来:</p>
+<pre class="mermaid"><code>flowchart LR
+  A[&quot;① 原始传感器数据&lt;br/&gt;Raw sensor data&lt;br/&gt;pixels / ranges&quot;] --&gt; B[&quot;② 预处理&lt;br/&gt;Pre-processing&lt;br/&gt;threshold, blur,&lt;br/&gt;morphology&quot;]
+  B --&gt; C[&quot;③ 特征提取&lt;br/&gt;Feature extraction&lt;br/&gt;lines, corners, SIFT&quot;]
+  C --&gt; D[&quot;④ 模型拟合&lt;br/&gt;Model fitting&lt;br/&gt;least squares,&lt;br/&gt;RANSAC, Hough&quot;]
+  D --&gt; E[&quot;⑤ 任务推理&lt;br/&gt;Task reasoning&lt;br/&gt;localization, mapping,&lt;br/&gt;recognition&quot;]</code></pre>
+<p>请注意 ① 那里写的是 "pixels /
+<strong>ranges</strong>"——<strong>这条流水线同时适用于相机和激光雷达</strong>。这是本章一个容易忽略的统一性:§27–§31
+的直线拟合方法,slides 上的例子几乎全是激光扫描点云;而 §32 的 Hough
+用的是图像边缘。<strong>方法论是共享的,输入是什么传感器并不重要。</strong></p>
+<p>Slide 50 的落脚句,是整章的价值声明:</p>
+<blockquote>
+<p><strong>经典计算机视觉不仅仅是"老技术";它为现代自主机器人感知提供了可解释的构件
+(interpretable building blocks)。</strong></p>
+</blockquote>
+<h3 id="431-第一部分的五条-take-homeslide-24">43.1 第一部分的五条
+take-home(slide 24)</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>要点</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><strong>图像是信号</strong> (Images are signals)</td>
+<td>像素构成二维信号。<strong>梯度、频率和卷积</strong>是分析图像的有用方式</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><strong>解释需要上下文</strong> (Interpretation requires
+context)</td>
+<td><strong>相似的低层模式可能由不同的物理现象引起</strong></td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><strong>滤波器降低复杂度</strong> (Filters reduce complexity)</td>
+<td><strong>阈值化、卷积和形态学</strong>暴露有用结构、抑制噪声</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><strong>几何给出度量信息</strong> (Geometry gives metric
+information)</td>
+<td><strong>立体视觉和对极几何</strong>可以恢复距离和三维结构</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td><strong>机器学习可以合并各个阶段</strong> (ML can combine
+stages)</td>
+<td>现代 CNN <strong>联合地</strong>学习滤波、特征提取和识别</td>
+</tr>
+</tbody>
+</table></div>
+<p>Slide 24 的副标题也要记:<strong>低层视觉让信息变得可处理,但会丢失信息
+(Low-level vision makes information tractable but can lose
+information)。</strong>
+这个"但"是关键——每一次滤波、每一次阈值都是不可逆的信息丢弃。</p>
+<h3 id="432-第二部分的五条-take-homeslide-49">43.2 第二部分的五条
+take-home(slide 49)</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>要点</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><strong>特征降低信息量</strong> (Features reduce information)</td>
+<td>把高维传感器数据转成<strong>紧凑的、任务相关的量</strong></td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><strong>好特征是稳健的</strong> (Good features are robust)</td>
+<td>在<strong>旋转、尺度、噪声和中等视角变化</strong>下可重复</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><strong>直线是核心</strong> (Lines are central)</td>
+<td>直线特征支撑<strong>定位、建图和几何推理</strong></td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><strong>稳健拟合很重要</strong> (Robust fitting matters)</td>
+<td><strong>RANSAC 和 Hough 投票</strong>能应对噪声和离群点</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td><strong>SIFT 是一个原型</strong> (SIFT is a prototype)</td>
+<td>尺度空间关键点和梯度描述子展示了<strong>局部不变性可以被工程化设计出来</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>第 5 条的措辞很值得品:<strong>"invariance can be
+engineered"</strong>——不变性不是天上掉下来的,是<strong>一步一步设计出来的</strong>。§40.4
+那张表(每种不变性由哪一步买到)就是这句话的具体展开。</p>
+<h2 id="44-讲师课堂随堂题汇总">44. 讲师课堂随堂题汇总</h2>
+<p>讲师课上现场提了 8 道题。<strong>这些题的风格和难度,极可能就是 quiz
+的风格和难度</strong>(讲师说 quiz 是 20 道 MCQ、45
+分钟、开卷、<strong>偏概念不考计算</strong>),所以建议把它们当作最高优先级的复习材料。先自己答一遍再看答案。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>问题</th>
+<th>答案</th>
+<th>考的是</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>1</strong></td>
+<td>哪种图像结构最与<strong>高空间频率</strong>相关?(平滑的光照变化 /
+均匀的墙面 / <strong>锐利的边缘</strong> / 缓慢变化的明暗)</td>
+<td><strong>锐利的边缘 (sharp edge)</strong></td>
+<td>§5 —— 频率 = 像素值变化的快慢</td>
+</tr>
+<tr class="even">
+<td><strong>2</strong></td>
+<td>机器人在图像中检测到一条强边缘,能否断定这是<strong>物体边界</strong>?</td>
+<td><strong>不能。</strong> edge
+可以由深度不连续、颜色突变、阴影、镜面高光、表面朝向变化等多种原因产生</td>
+<td>§6 —— 五种成因;perception is inference</td>
+</tr>
+<tr class="odd">
+<td><strong>3</strong></td>
+<td>如果<strong>加大</strong>高斯平滑核(3×3 → 5×5 →
+7×7),最可能的效果是?(更多噪声和锐利边缘 / 平滑变弱 /
+<strong>平滑更强但边缘定位变差</strong> / 没变化)</td>
+<td><strong>平滑更强,但边缘定位变差 (more smoothing, but poorer edge
+localization)</strong></td>
+<td>§12 —— 高斯平滑的核心权衡</td>
+</tr>
+<tr class="even">
+<td><strong>4</strong></td>
+<td>一个分割出来的物体内部有一个<strong>小洞</strong>,你会先试哪个操作?(opening
+/ <strong>closing</strong> / Sobel / erosion)</td>
+<td><strong>闭运算 (closing)</strong> —— 先膨胀填洞,再腐蚀恢复尺寸</td>
+<td>§15.3 —— 开 vs 闭</td>
+</tr>
+<tr class="odd">
+<td><strong>5</strong></td>
+<td>对机器人<strong>定位</strong>来说,哪一个是<strong>最不可取</strong>的视觉特征属性?(可重复性
+/ 对噪声稳健 / <strong>对小视角变化敏感</strong> / 可区分性)</td>
+<td><strong>对小视角变化敏感</strong> ——
+机器人每次经过角度都不同,需要<strong>视角不变性 (view
+invariance)</strong></td>
+<td>§25 —— 好特征的四条标准</td>
+</tr>
+<tr class="even">
+<td><strong>6</strong></td>
+<td>哪些元素定义了<strong>对极平面 (epipolar plane)</strong>?</td>
+<td><strong>两个相机的光心 + 被观察的那个三维点</strong></td>
+<td>§20.1 —— 必考定义</td>
+</tr>
+<tr class="odd">
+<td><strong>7</strong></td>
+<td>在 Hough 变换里,参数空间中的一个<strong>强峰</strong>代表什么?</td>
+<td>代表一条<strong>很可能存在的直线</strong>,其参数
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>ρ</mi><mo>,</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\rho, \theta)</annotation></semantics></math>
+收到了大量选票</td>
+<td>§33 —— 投票与参数空间</td>
+</tr>
+<tr class="even">
+<td><strong>8</strong></td>
+<td>机器人先从 <strong>2 米</strong>外、后从 <strong>5
+米</strong>外观察同一个路标。SIFT 的哪个特性在这里特别重要?</td>
+<td><strong>尺度不变性 (scale invariance)</strong></td>
+<td>§41.2 / §40.4</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>从这 8 道题能读出的出题规律</strong>,值得注意:</p>
+<ul>
+<li><strong>6 道是"概念判断"</strong>,只有 0
+道涉及计算——和讲师说的"mainly related to the concept, not calculation,
+not mathematical formulation"完全一致;</li>
+<li><strong>有陷阱选项</strong>:第 3 题有 "less smoothing"(方向反了),第
+5 题问的是 "least
+desirable"(三个好选项+一个坏选项)。<strong>读题时先确认问的是正面还是反面</strong>;</li>
+<li><strong>定义题占比高</strong>:第 6 题就是纯定义。所以 slides
+上那些黑体的定义句子(对极平面、特征、DoG
+的两个比例、开/闭的顺序)必须精确掌握。</li>
+</ul>
+<hr />
+<h1 id="本章小结-key-takeaways">本章小结 (Key takeaways)</h1>
+<ol type="1">
+<li><p><strong>视觉在机器人感知里之所以特殊,是因为它同时给出语义和度量。</strong>
+超声、LiDAR、radar 这些测距传感器"是测量而不是理解"——它们能告诉你 1.2
+米外有东西,但不知道那是人还是椅子。<strong>相机是唯一既能回答"这是什么"又能回答"在哪里、多远"的传感器</strong>,代价是处理量高得多。人类约
+80% 的信息来自视觉,而机器人工作在人类设计的环境里。</p></li>
+<li><p><strong>图像是二维信号,而"频率"指的是像素值在空间上变化的快慢。</strong>
+低频 = 平滑表面和渐变光照;高频 = <strong>边缘、纹理和噪声</strong>;带通
+=
+只保留中间一段。<strong>边缘和噪声都是高频的</strong>,这就是所有滤波取舍的根源:删高频既去噪也糊边。</p></li>
+<li><p><strong>视觉之所以难,是因为图像是三维世界的二维投影,而投影丢掉的信息无法从单张图恢复(病态问题)。</strong>
+同一条 edge
+有五种成因:<strong>表面属性变化、深度不连续、镜面高光、光照/阴影变化、表面朝向变化</strong>。所以<strong>低层信号处理必要但不充分,感知本质上是推断</strong>,必须靠上下文、几何、时间一致性和语义来消歧。Apollo
+15 的"陨石坑还是山丘"和斑点狗图,分别演示了先验假设改写解释、以及人类靠
+Gestalt 分组补全缺失边缘。</p></li>
+<li><p><strong>低层操作分三个家族,区别在于邻域规则:阈值化看单个像素、卷积做加权求和(线性)、形态学取极值(非线性)。</strong>
+"大多数图像滤波器都可以描述为选一个有用的核"——高斯核(低通,去噪但糊边)、Sobel
+核(梯度,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><mo>=</mo><msqrt><mrow><msubsup><mi>G</mi><mi>x</mi><mn>2</mn></msubsup><mo>+</mo><msubsup><mi>G</mi><mi>y</mi><mn>2</mn></msubsup></mrow></msqrt></mrow><annotation encoding="application/x-tex">G=\sqrt{G_x^2+G_y^2}</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>φ</mi><mo>=</mo><mo>atan2</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>G</mi><mi>y</mi></msub><mo>,</mo><msub><mi>G</mi><mi>x</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\varphi=\operatorname{atan2}(G_y,G_x)</annotation></semantics></math>)、DoG(带通)用的是同一个卷积操作,只是核里的数不同。</p></li>
+<li><p><strong>DoG
+的两个比例是考点:<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>σ</mi><mn>2</mn></msub><mi>/</mi><msub><mi>σ</mi><mn>1</mn></msub><mo>≈</mo><mn>4</mn><mtext mathvariant="normal">–</mtext><mn>5</mn></mrow><annotation encoding="application/x-tex">\sigma_2/\sigma_1 \approx 4\text{–}5</annotation></semantics></math>
+时是边缘检测器,<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≈</mo><mn>1.6</mn></mrow><annotation encoding="application/x-tex">\approx 1.6</annotation></semantics></math>
+时逼近 LoG,用于尺度空间特征检测(即 SIFT)。</strong> DoG 之所以被用在
+SIFT 里,是因为它是 LoG
+的<strong>廉价近似</strong>——两次模糊加一次减法。</p></li>
+<li><p><strong>形态学的顺序必须记准:开 =
+先腐蚀后膨胀,去掉小噪点、断开粘连;闭 =
+先膨胀后腐蚀,填小洞、接断口。</strong> 三个典型场景:球里有洞 →
+<strong>closing</strong>;两个球被噪声连起来 →
+<strong>opening</strong>;循线时线断了 →
+<strong>closing</strong>。</p></li>
+<li><p><strong>颜色分割要用 HSV 而不是 RGB,因为 RGB
+的每个通道都同时混合了色度和亮度。</strong> 同一个红球在阳光和阴影下 RGB
+值差好几倍,但 <strong>hue(对应主波长)基本不变</strong>。讲师明确建议把
+lab 里的 RGB 阈值改成 hue 阈值试试,"会可靠得多"。</p></li>
+<li><p><strong>单张图像无法恢复三维,因为投影不可逆——一个像素对应的是一整条射线,不是一个点。</strong>
+投影模型由<strong>内参</strong>(焦距、主点、缩放;相机自身属性)和<strong>外参</strong>(旋转
++
+平移;相机相对世界的位姿)两组参数决定。要测距就必须有<strong>两个视角</strong>:<strong>立体视觉</strong>(两台相机固连,变换已标定)、<strong>运动恢复结构
+SfM</strong>(一台相机移动)。两者数学上相同,难点都是<strong>对应问题</strong>。</p></li>
+<li><p><strong>对极平面 = 三维点 + 第一台相机光心 +
+第二台相机光心;它与成像平面的交线是对极线。</strong>
+它的价值是把<strong>二维搜索压成一维搜索</strong>(30 万像素 → 640
+像素)。匹配后得到<strong>视差
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><msub><mi>u</mi><mi>L</mi></msub><mo>−</mo><msub><mi>u</mi><mi>R</mi></msub></mrow><annotation encoding="application/x-tex">d = u_L - u_R</annotation></semantics></math></strong>,深度
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mi>f</mi><mi>B</mi><mi>/</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">Z = fB/d</annotation></semantics></math>——<strong>反比关系</strong>,所以<strong>远处视差不足
+1 像素就测不了</strong>(量程上限),<strong>近处测得更准</strong>。得到的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>Y</mi><mi>Z</mi></mrow><annotation encoding="application/x-tex">XYZ</annotation></semantics></math>
+在<strong>相机坐标系</strong>里,要用还得乘外参。</p></li>
+<li><p><strong>结构光是主动视觉:场景没有纹理就自己投一个上去。</strong>
+已知图案的<strong>形变程度编码了深度</strong>。红外<strong>散斑图案</strong>比规则网格好,因为每个点都有<strong>独特的局部排布</strong>,消除了周期性歧义;红外让图案对人不可见。作为主动传感器,它耗电、会互相干扰、在强阳光下失效。</p></li>
+<li><p><strong>特征提取是一次信息压缩:从 27.6 MB/s
+的原始视频流,压到"这是一扇门"这样几个字节的答案。</strong>
+好特征的四条标准:<strong>repeatable(不同视角都能检测到)、robust(抗噪声和光照)、invariant/tolerant(对旋转和尺度)、discriminative(能区分)</strong>。<strong>对小视角变化敏感</strong>是定位场景下最不可取的属性。</p></li>
+<li><p><strong>直线是移动机器人最重要的几何特征</strong>,因为墙在激光扫描里形成直线、门框和车道线在图像里形成直线、<strong>直线朝向能纠正转弯时的里程计漂移</strong>、直线的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(r, \alpha)</annotation></semantics></math>
+可以直接当作定位路标。直线用<strong>极坐标
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(r, \alpha)</annotation></semantics></math></strong>
+表示以避免竖直线的无穷斜率;点到线的有符号距离是
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mi>i</mi></msub><mo>=</mo><msub><mi>ρ</mi><mi>i</mi></msub><mo>cos</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>θ</mi><mi>i</mi></msub><mo>−</mo><mi>α</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>r</mi></mrow><annotation encoding="application/x-tex">d_i = \rho_i\cos(\theta_i - \alpha) - r</annotation></semantics></math>。</p></li>
+<li><p><strong>三种拟合策略各有分工:最小二乘在高斯噪声下精确但对离群点极其敏感;split-and-merge
+能把有序扫描切成多段(靠"一条线解释失败"来发现角点)但对阈值和离群点敏感;RANSAC
+靠"最大化支持者数量"而非"最小化总误差",对大量离群点稳健但是随机的。</strong>
+讲师说<strong>大多数时候用 RANSAC</strong>。标准流水线是:<strong>RANSAC
+找内点 → 最小二乘精修 → 时间滤波跨帧跟踪</strong>。</p></li>
+<li><p><strong>Hough
+变换把拟合反转成投票:每个边缘点为所有可能经过它的直线投票,真实的直线在参数空间里收到大量选票形成峰。</strong>
+图像空间的一个点 ↔︎ 参数空间的一条曲线;图像空间的一条线 ↔︎
+参数空间的一个点。<strong>必须先做边缘检测再投票</strong>(只让可能的线上像素投票)。它能<strong>一次找出多条线</strong>,峰之间的
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+差还能揭示垂直/平行关系;推广到圆就是三维参数空间
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>,</mo><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(a, b, r)</annotation></semantics></math>。</p></li>
+<li><p><strong>SIFT 把"特征在哪里"和"局部外观长什么样"分开处理,最终给出
+128
+维描述子(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>×</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">4\times4</annotation></semantics></math>
+cells
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>×</mo><annotation encoding="application/x-tex">\times</annotation></semantics></math>
+8 bins)。</strong> 四步:<strong>① 尺度空间</strong>(octave 降采样 + 不同
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+高斯 + DoG)→ <strong>② 跨
+x/y/尺度找极值,并拒绝低对比度(保证可重复)和边缘响应(保证定位良好)</strong>
+→ <strong>③ 主方向</strong>(36 bin 直方图取最强峰,邻域大小随尺度缩放)→
+<strong>④ 在旋转对齐的 16×16 patch
+上(需插值)建梯度直方图并归一化</strong>。讲师给的数字:<strong>30,000
+候选 → 2,000 → 1,000</strong>。</p></li>
+<li><p><strong>SIFT
+的三种不变性各自由不同步骤买到:尺度不变来自尺度空间与跨尺度极值;旋转不变来自主方向与旋转采样;光照不变来自"用梯度"加"向量归一化"。</strong>
+用它做识别时,描述子按<strong>欧氏距离</strong>匹配(k-d
+树加速),<strong>至少需要 3
+个特征</strong>,每个匹配为物体的位置/尺度/朝向<strong>投票</strong>(Hough
+思想的复用),BoW
+把描述子聚成视觉单词用于检索。机器人里两大用途:<strong>物体识别</strong>与
+<strong>SLAM / 地点重识别</strong>。</p></li>
+<li><p><strong>经典视觉在深度学习时代仍然必须学,理由有六条:算力和电池受限的平台负担不起
+GPU;经典方法可解释、可调试;不需要大量数据;它们解释了深度模型为什么有效;训练好的
+CNN 第一层学到的核和高斯/Sobel/DoG
+惊人地像;真实机器人系统几乎总是"学到的感知 + 几何 + 标定 +
+经典前后处理"的混合体。</strong> 本课不考任何深度学习模型。</p></li>
+<li><p><strong>贯穿全章的主线:每一步都是在"补信息"。</strong>
+投影丢掉了一维,于是 Part IV
+用<strong>第二个视角</strong>补几何;像素本身没有意义,于是 Part III
+用<strong>滤波</strong>压掉干扰、Part V–VIII
+用<strong>特征</strong>提供可跨视角比对的稳定锚点;而当低层线索根本不够时(斑点狗、陨石坑),就只能靠<strong>先验和上下文</strong>补。<strong>理解了"缺什么、补什么",本章所有算法的动机就都通了。</strong></p></li>
+</ol>
+<hr />
+<h1 id="作业与阅读-homework-and-readings">作业与阅读 (Homework and
+readings)</h1>
+<p><strong>阅读 (Readings)</strong></p>
+<ul>
+<li><em>Introduction to Autonomous Robotics</em> / Nikolaus Correll,
+University of Colorado at Boulder, v3, February 2026, ISBN 13:
+9780692700877 (Open Education) — <strong>第 8、9 章</strong></li>
+<li><em>Robotics, Vision and Control — Fundamental Algorithms in
+Python</em> / Peter Corke, 3rd Edition 2023, Springer, ISBN
+978-3-031-06468-5 — <strong>第 10–14 章</strong></li>
+</ul>
+<p><strong>作业 (Homework)</strong></p>
+<ul>
+<li><strong>Webots 在线教程 7 和 8</strong> —— 讲师说明:教程 7 讲的是
+<strong>PROTO</strong>("一种可复用的场景元素,你可以在 Webots 里定义
+proto"),教程 8 是 <strong>supervisor</strong>(监督者)版本。</li>
+<li><strong>《A short Tutorial on Built-in Object Recognition in Webots
+R2025a》</strong>(在 Resources 下)—— Webots
+的相机自带<strong>基于颜色的简单物体识别</strong>,讲师说"这就是做实验的方式"。</li>
+<li><strong>《A Short Tutorial on OpenCV-Contrib-Python 4.13 with Webots
+2025a》</strong>(在 Resources 下)—— 如果你想要更 elegant
+的识别方式(讲师明确点名 <strong>SIFT</strong>
+或其他前面讲过的方法),就得用 <strong>OpenCV</strong>。</li>
+</ul>
+<p><strong>讲师给的实操路线</strong>:先用 Webots
+内置的颜色识别把流程跑通,再换成 OpenCV 做真正的特征识别。<strong>本章
+§10.3 的 HSV 建议和 §42.4 的 OpenCV 函数表可以直接用在 assignment
+上。</strong></p>
+<p><strong>关于随堂测验 (quiz)</strong> —— 讲师在课上宣布的安排:</p>
+<ul>
+<li><strong>20 道 MCQ,45 分钟</strong>;</li>
+<li><strong>主要考概念,不考计算、不考数学推导</strong>;</li>
+<li><strong>开卷</strong>,但讲师提醒:"时间上你可能来不及为每道题去查参考资料,所以你<strong>还是得做一点准备</strong>。"</li>
+<li>第一次 assignment 已发布,提供了 controller
+的骨架代码(<strong>不要修改给的 world 文件</strong>,在 controller
+骨架上做)。</li>
+</ul>
+<blockquote>
+<p><strong>复习建议</strong> — 按性价比排序:<strong>① §44 的 8
+道随堂题</strong>(最接近考试风格)→ <strong>② 本章小结的 18
+条</strong>(覆盖全部考点)→ <strong>③ slides
+上加粗的定义</strong>(对极平面、DoG
+两个比例、开/闭顺序、四条特征标准、三种拟合方法对比表)→ <strong>④ §43
+的两组 take-home messages</strong>(slide 24 和
+49,这是讲师自己划的重点)。</p>
+</blockquote>
+
+<script type="module">
+  // pandoc emits ```mermaid as <pre class="mermaid"><code>…</code></pre>; mermaid wants
+  // the definition as the element's own text, so unwrap the inner <code> first.
+  document.querySelectorAll("pre.mermaid > code").forEach((c) => {
+    c.parentElement.textContent = c.textContent;
+  });
+  try {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs")).default;
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run({ querySelector: ".mermaid" });
+  } catch (e) {
+    // Offline: leave the diagram source visible as text rather than breaking the page.
+  }
+</script>
+</body>
+</html>
