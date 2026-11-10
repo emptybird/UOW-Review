@@ -1,0 +1,959 @@
+{
+ "title": "CSIT953 考试复习 · 全书卡片与模拟卷",
+ "flashcards": [
+  {
+   "front": "Which tool answers each question: has the data changed; did a holder of the shared key send it; did the holder of a private key send it; can outsiders read it?",
+   "back": "Hash: detects changes, if the reference value is trusted. MAC: integrity and authenticity between holders of a shared key. Digital signature: integrity and authenticity that anyone can verify with the public key (non-repudiation). Encryption: confidentiality.",
+   "tags": [
+    "ch01",
+    "hash-mac"
+   ]
+  },
+  {
+   "front": "Define collision resistance of a hash function.",
+   "back": "It is computationally infeasible to find two different inputs that produce the same digest.",
+   "tags": [
+    "ch01",
+    "hash-mac"
+   ]
+  },
+  {
+   "front": "Why must the expected SHA-256 value of a download come from a trusted channel?",
+   "back": "A hash uses no key, so an attacker who controls the download server can replace both the file and the published hash; only a trusted channel or a signature binds the value to the publisher.",
+   "tags": [
+    "ch01",
+    "hash-mac"
+   ]
+  },
+  {
+   "front": "What does a password salt prevent, and what does it not prevent?",
+   "back": "A random per-user salt makes precomputed dictionaries useless and gives identical passwords different stored values. It does not stop guessing a weak password for that salt, and it does not prevent replay.",
+   "tags": [
+    "ch01",
+    "hash-mac"
+   ]
+  },
+  {
+   "front": "Why can a MAC not provide non-repudiation?",
+   "back": "Both parties hold the same key, so either could have computed the tag; a third party cannot tell which of them created the message. Signatures provide non-repudiation.",
+   "tags": [
+    "ch01",
+    "hash-mac"
+   ]
+  },
+  {
+   "front": "Why was WEP's CRC-32 not a valid integrity check?",
+   "back": "CRC-32 is keyless and linear, so an attacker can flip bits in an encrypted packet and fix the checksum without knowing the key. Integrity needs a keyed MAC or authenticated encryption.",
+   "tags": [
+    "ch01",
+    "hash-mac"
+   ]
+  },
+  {
+   "front": "In ECDH with base point G, Alice has private key a and Bob has b. What do they exchange and what do they share?",
+   "back": "They exchange the public values aG and bG. Alice computes a(bG) and Bob computes b(aG); both equal abG, which is hashed or passed through a KDF to derive session keys.",
+   "tags": [
+    "ch02",
+    "diffie-hellman"
+   ]
+  },
+  {
+   "front": "Why can a passive eavesdropper not compute the Diffie-Hellman shared secret?",
+   "back": "It sees only G, aG and bG; computing abG requires a or b, and recovering a private key from a public value is computationally infeasible (the discrete logarithm problem).",
+   "tags": [
+    "ch02",
+    "diffie-hellman"
+   ]
+  },
+  {
+   "front": "How does a man in the middle defeat unauthenticated Diffie-Hellman?",
+   "back": "It replaces each public value with its own, runs one key exchange with Alice and another with Bob, and then decrypts, reads and re-encrypts every message between them.",
+   "tags": [
+    "ch02",
+    "diffie-hellman"
+   ]
+  },
+  {
+   "front": "How does TLS 1.3 authenticate the ECDH exchange?",
+   "back": "The server's certificate binds its domain to a public key, and the server signs the handshake transcript, including both key shares, with the matching private key in CertificateVerify.",
+   "tags": [
+    "ch02",
+    "diffie-hellman"
+   ]
+  },
+  {
+   "front": "What is forward secrecy, and what provides it?",
+   "back": "Recorded sessions stay secure even if a long-term private key is stolen later. Ephemeral DH key pairs, discarded after each session, provide it; TLS 1.3 removed static RSA and static DH for this reason.",
+   "tags": [
+    "ch02",
+    "diffie-hellman"
+   ]
+  },
+  {
+   "front": "What is an impersonation attack?",
+   "back": "An attack in which the adversary successfully assumes the identity of a legitimate party, for example logging in as Alice, even without learning her password.",
+   "tags": [
+    "ch03",
+    "auth-protocols"
+   ]
+  },
+  {
+   "front": "Why is Protocol 3 insecure? (Alice chooses r and sends (Alice, r, H(r, pw)).)",
+   "back": "Bob accepts any r as long as the hash matches, so an eavesdropper replays the recorded message unchanged and impersonates Alice. The r only acts as a salt against precomputed dictionaries.",
+   "tags": [
+    "ch03",
+    "auth-protocols"
+   ]
+  },
+  {
+   "front": "Which properties must a challenge have to prevent replay?",
+   "back": "It must be chosen by the verifier (Bob), fresh for every login and unpredictable, so that old responses are useless and responses to future challenges cannot be collected in advance.",
+   "tags": [
+    "ch03",
+    "auth-protocols"
+   ]
+  },
+  {
+   "front": "Why is Protocol 6 (Bob sends r, Alice returns H(r, K)) the standard secure identification protocol, and what are its limits?",
+   "back": "The fresh random challenge stops replay and the long random key K defeats dictionary attacks. Limits: Bob stores K, so a server compromise leaks it, and the username is sent in clear.",
+   "tags": [
+    "ch03",
+    "auth-protocols"
+   ]
+  },
+  {
+   "front": "Protocol 5 stores H(Alice, Bob, pw). Why include 'Alice', and why include 'Bob'?",
+   "back": "'Alice' forces a separate dictionary attack for each user. 'Bob' makes the stored value different on every server, so a value stolen from one server cannot answer challenges on another.",
+   "tags": [
+    "ch03",
+    "auth-protocols"
+   ]
+  },
+  {
+   "front": "What is the main advantage of Protocols 8 and 9 over Protocol 6?",
+   "back": "Bob stores only Alice's public key, so a server compromise does not let the attacker impersonate Alice; Alice proves possession of the private key by decrypting (Protocol 8) or signing (Protocol 9) Bob's fresh challenge.",
+   "tags": [
+    "ch03",
+    "auth-protocols"
+   ]
+  },
+  {
+   "front": "How does GSM avoid sending the IMSI in clear after the first contact?",
+   "back": "After authentication the network assigns a temporary identity, the TMSI, sent encrypted with the session key Kc; the phone then identifies itself with the TMSI.",
+   "tags": [
+    "ch03",
+    "auth-protocols"
+   ]
+  },
+  {
+   "front": "What does an X.509 certificate bind together, and who vouches for the binding?",
+   "back": "It binds an identity, such as the domain names in the Subject Alternative Name, to a public key; a certificate authority signs the binding.",
+   "tags": [
+    "ch04",
+    "tls-certificates"
+   ]
+  },
+  {
+   "front": "A root certificate is self-signed. Why does a client trust it?",
+   "back": "Because the OS, the browser vendor or an administrator pre-installed it in the client's trust store; the trust comes from that installation, not from the self-signature.",
+   "tags": [
+    "ch04",
+    "tls-certificates"
+   ]
+  },
+  {
+   "front": "Name the four checks a TLS client performs on the server's certificate.",
+   "back": "The chain leads to a trusted root (trust anchor); the hostname matches the SAN; the validity period and key usage are acceptable; the certificate is not revoked.",
+   "tags": [
+    "ch04",
+    "tls-certificates"
+   ]
+  },
+  {
+   "front": "Why can an attacker not reuse a bank's genuine certificate on a fake server?",
+   "back": "The certificate is public, but the TLS 1.3 handshake requires a CertificateVerify signature made with the matching private key, which the attacker does not have.",
+   "tags": [
+    "ch04",
+    "tls-certificates"
+   ]
+  },
+  {
+   "front": "Distinguish certificate expiry from revocation.",
+   "back": "Expiry ends the planned validity period; revocation withdraws a certificate early, for example after key compromise, and is signalled through CRLs or OCSP.",
+   "tags": [
+    "ch04",
+    "tls-certificates"
+   ]
+  },
+  {
+   "front": "When can a man in the middle still succeed against HTTPS?",
+   "back": "When the user ignores a certificate warning, a malicious root certificate is installed in the trust store, the server's private key is stolen, or the client disables verification. DNS poisoning alone does not defeat HTTPS.",
+   "tags": [
+    "ch04",
+    "tls-certificates"
+   ]
+  },
+  {
+   "front": "Name the three layers of SSH-2 and what each does.",
+   "back": "Transport layer: authenticates the server, exchanges keys and encrypts. User authentication layer: authenticates the client. Connection layer: multiplexes channels such as shells, file transfer and forwarding.",
+   "tags": [
+    "ch05",
+    "ssh"
+   ]
+  },
+  {
+   "front": "What is trust on first use (TOFU) in SSH, and what does it not prevent?",
+   "back": "The client accepts the server's host key on the first connection and warns if it later changes. It does not detect a man in the middle on that first connection unless the fingerprint is checked out of band.",
+   "tags": [
+    "ch05",
+    "ssh"
+   ]
+  },
+  {
+   "front": "What does ssh -L 9000:db.internal:5432 user@bastion do?",
+   "back": "Local forwarding: the client listens on localhost:9000, and connections are carried through the tunnel to the bastion, which connects onward to db.internal:5432.",
+   "tags": [
+    "ch05",
+    "ssh"
+   ]
+  },
+  {
+   "front": "What does ssh -R do?",
+   "back": "Remote forwarding: the SSH server listens on a port and forwards connections back through the tunnel to a destination reachable from the client side.",
+   "tags": [
+    "ch05",
+    "ssh"
+   ]
+  },
+  {
+   "front": "Why can SSH port forwarding bypass network segmentation?",
+   "back": "The SSH server can reach destinations the client cannot, and the encrypted tunnel hides the forwarded protocols, so a firewall rule that allows SSH indirectly allows other traffic.",
+   "tags": [
+    "ch05",
+    "ssh"
+   ]
+  },
+  {
+   "front": "Why is SSH agent forwarding risky, and what is preferred?",
+   "back": "A compromised intermediate host can use the forwarded agent to sign authentication requests as the user during the session. ProxyJump or a brokered access service is preferred.",
+   "tags": [
+    "ch05",
+    "ssh"
+   ]
+  },
+  {
+   "front": "What does seeing a familiar SSID prove?",
+   "back": "Nothing: an SSID is only a name that anyone can broadcast. Trust must come from authentication, such as SAE or 802.1X/EAP with a validated server certificate.",
+   "tags": [
+    "ch06",
+    "wireless"
+   ]
+  },
+  {
+   "front": "Why is a captured WPA2-PSK four-way handshake dangerous?",
+   "back": "It lets the attacker test passphrases offline with no rate limit, the SSID acting as a salt, so weak passphrases fall quickly. WPA3-SAE resists passive offline guessing.",
+   "tags": [
+    "ch06",
+    "wireless"
+   ]
+  },
+  {
+   "front": "What is an evil twin?",
+   "back": "A rogue access point that copies a trusted network's SSID to lure clients, so that it can intercept their traffic or capture their credentials.",
+   "tags": [
+    "ch06",
+    "wireless"
+   ]
+  },
+  {
+   "front": "What defeats an evil twin on an 802.1X/EAP enterprise network?",
+   "back": "Clients validate the authentication server's certificate against the expected CA and server name, ideally through a managed connection profile, and never accept an unknown certificate. Hidden SSIDs and PMF do not authenticate the network.",
+   "tags": [
+    "ch06",
+    "wireless"
+   ]
+  },
+  {
+   "front": "What do Protected Management Frames (PMF) protect against?",
+   "back": "Forged deauthentication and disassociation frames on an established connection. They do not prove that an access point is genuine.",
+   "tags": [
+    "ch06",
+    "wireless"
+   ]
+  },
+  {
+   "front": "Why do you still need TLS on a WPA2 or WPA3 network?",
+   "back": "Wi-Fi encryption protects only the radio link between the device and the access point; after the AP the traffic is decrypted and visible to the network operator and beyond.",
+   "tags": [
+    "ch06",
+    "wireless"
+   ]
+  },
+  {
+   "front": "State WEP's three design mistakes.",
+   "back": "One shared long-term key for all users and devices; CRC-32 as the integrity check; a 24-bit IV that repeats, causing RC4 keystream reuse.",
+   "tags": [
+    "ch06",
+    "wireless"
+   ]
+  },
+  {
+   "front": "Define a blockchain in one sentence.",
+   "back": "A shared, append-only ledger replicated across many nodes, in which blocks are linked by hashes and the order of transactions is agreed by a consensus mechanism.",
+   "tags": [
+    "ch07",
+    "blockchain"
+   ]
+  },
+  {
+   "front": "Why do digital signatures alone not prevent double-spending?",
+   "back": "A signature proves that the owner authorised a transaction, not that the coins have not already been spent; the network must agree on a single order of transactions.",
+   "tags": [
+    "ch07",
+    "blockchain"
+   ]
+  },
+  {
+   "front": "Why does rewriting proof-of-work history need a 51% attack?",
+   "back": "Changing a block changes every later block hash, so the attacker must redo the work for that block and all later blocks and outpace the honest network, which requires most of the hash power.",
+   "tags": [
+    "ch07",
+    "blockchain"
+   ]
+  },
+  {
+   "front": "What does the nonce field of an Ethereum transaction do?",
+   "back": "It is the account's transaction counter: it fixes the order of the account's transactions and prevents replay, because each nonce value can be used only once.",
+   "tags": [
+    "ch07",
+    "blockchain"
+   ]
+  },
+  {
+   "front": "What happens when an Ethereum transaction runs out of gas?",
+   "back": "Its state changes are reverted, but the fee for the gas used is still paid (fee = gas used x effective gas price).",
+   "tags": [
+    "ch07",
+    "blockchain"
+   ]
+  },
+  {
+   "front": "Why does a smart contract need an oracle, and what risk does the oracle add?",
+   "back": "A contract cannot read off-chain facts, so an oracle reports them. The contract can check only the report's format and the oracle's authorisation, not its truth (garbage in, garbage out), and the oracle becomes a concentrated point of trust.",
+   "tags": [
+    "ch07",
+    "blockchain"
+   ]
+  },
+  {
+   "front": "What does a cryptocurrency wallet actually manage?",
+   "back": "Signing authority, that is, private keys; the coins themselves are recorded on the blockchain.",
+   "tags": [
+    "ch08",
+    "wallets"
+   ]
+  },
+  {
+   "front": "How is an Ethereum address derived from a private key?",
+   "back": "Private key k (256-bit) -> public key K = k*G on secp256k1 -> Keccak-256 hash of K -> last 20 bytes, written with the 0x prefix.",
+   "tags": [
+    "ch08",
+    "wallets"
+   ]
+  },
+  {
+   "front": "Why must the ECDSA nonce k never repeat?",
+   "back": "Two signatures made with the same k let an attacker solve for k and then for the private key.",
+   "tags": [
+    "ch08",
+    "wallets"
+   ]
+  },
+  {
+   "front": "What is the main advantage of an HD (BIP32) wallet?",
+   "back": "All keys are derived from one seed as a tree, so one backup restores every key, and an extended public key (xpub) can generate receiving addresses without the ability to spend.",
+   "tags": [
+    "ch08",
+    "wallets"
+   ]
+  },
+  {
+   "front": "What does a 12-word BIP39 mnemonic encode, and how is the seed derived?",
+   "back": "128 bits of entropy plus a 4-bit checksum (11 bits per word). The seed is derived with PBKDF2-HMAC-SHA512 over 2048 iterations, giving 512 bits; an optional passphrase changes the seed.",
+   "tags": [
+    "ch08",
+    "wallets"
+   ]
+  },
+  {
+   "front": "Why is a hardware wallet safer than a key file on a laptop?",
+   "back": "The private key never leaves the device, so malware cannot copy it, and the user confirms the recipient, amount and network on the device's own screen.",
+   "tags": [
+    "ch08",
+    "wallets"
+   ]
+  },
+  {
+   "front": "Distinguish the data plane from the control plane of cloud storage.",
+   "back": "The data plane reads and writes content; the control plane changes permissions, encryption settings, retention and replication. Control-plane access can expose or destroy data without reading it.",
+   "tags": [
+    "ch09",
+    "cloud-storage"
+   ]
+  },
+  {
+   "front": "Under the shared responsibility model, what remains the customer's responsibility?",
+   "back": "Data, identities, configuration and permitted use; the provider secures the underlying infrastructure, and the boundary shifts across IaaS, PaaS and SaaS.",
+   "tags": [
+    "ch09",
+    "cloud-storage"
+   ]
+  },
+  {
+   "front": "In envelope encryption, what do the DEK and the KEK do?",
+   "back": "A data-encryption key (DEK) encrypts each object; a key-encryption key (KEK), usually held in a KMS, wraps the DEK. Changing access only requires re-wrapping the DEK, not re-encrypting the data.",
+   "tags": [
+    "ch09",
+    "cloud-storage"
+   ]
+  },
+  {
+   "front": "Distinguish authentication from authorisation.",
+   "back": "Authentication establishes who, or which workload, is making the request; authorisation decides whether that identity may perform a particular action on a particular resource.",
+   "tags": [
+    "ch09",
+    "cloud-storage"
+   ]
+  },
+  {
+   "front": "What can revoking a recipient's access to a shared encrypted file not achieve?",
+   "back": "It cannot recall plaintext the recipient has already decrypted or downloaded; it only protects future versions, which are re-encrypted with a new DEK.",
+   "tags": [
+    "ch09",
+    "cloud-storage"
+   ]
+  },
+  {
+   "front": "Why is a replica not a backup against ransomware?",
+   "back": "Replication copies encrypted or deleted data too. Recovery needs versioning or immutable backups managed by a separate identity and control plane.",
+   "tags": [
+    "ch09",
+    "cloud-storage"
+   ]
+  },
+  {
+   "front": "In Assignment 2 (Secure File Share), how is the file key shared with an approved requester?",
+   "back": "The owner wraps the per-file DEK with the requester's public key using ECIES and stores the wrapped key in the smart contract, which lets only the owner approve.",
+   "tags": [
+    "ch09",
+    "cloud-storage"
+   ]
+  },
+  {
+   "front": "Describe the ideal world used to define secure two-party computation.",
+   "back": "A trusted third party receives both inputs, computes F(x, y), returns only the authorised output to each party and forgets everything.",
+   "tags": [
+    "ch10",
+    "two-party-computation"
+   ]
+  },
+  {
+   "front": "What may each participant learn in a secure two-party computation?",
+   "back": "Its own input, its authorised output and whatever follows from them, nothing else, because a simulator given only these two can produce an indistinguishable view.",
+   "tags": [
+    "ch10",
+    "two-party-computation"
+   ]
+  },
+  {
+   "front": "Why can a secure MPC protocol still reveal a private input?",
+   "back": "The output itself can leak: if two parties compute x + y, each learns the other's input, and repeated comparisons can binary-search an input. Query limits, output controls and audit are needed.",
+   "tags": [
+    "ch10",
+    "two-party-computation"
+   ]
+  },
+  {
+   "front": "Distinguish a semi-honest participant from a malicious one.",
+   "back": "A semi-honest participant follows the protocol but analyses everything it sees; a malicious participant may send false messages, abort or bias the result.",
+   "tags": [
+    "ch10",
+    "two-party-computation"
+   ]
+  },
+  {
+   "front": "State the two secrecy properties of 1-out-of-2 oblivious transfer.",
+   "back": "The receiver learns only the value it chose, and the sender does not learn which value was chosen.",
+   "tags": [
+    "ch10",
+    "two-party-computation"
+   ]
+  },
+  {
+   "front": "When does secret sharing really distribute trust?",
+   "back": "Only when the shares are held in independent failure domains; two shares controlled by one administrator, or copied into one backup, behave like a single share.",
+   "tags": [
+    "ch10",
+    "two-party-computation"
+   ]
+  },
+  {
+   "front": "Define a software supply chain attack.",
+   "back": "An attack that compromises one or more components of the software supply chain, such as a dependency, a build system or an update channel, to indirectly compromise downstream software or its users (for example SolarWinds).",
+   "tags": [
+    "ch11",
+    "supply-chain"
+   ]
+  },
+  {
+   "front": "What is a transitive dependency?",
+   "back": "A dependency of a dependency, which the developer never chose directly; 64% of OSS components in audited applications are transitive.",
+   "tags": [
+    "ch11",
+    "supply-chain"
+   ]
+  },
+  {
+   "front": "Why is a CI/CD pipeline a security-critical trust boundary?",
+   "back": "It is complex, connects many parties and holds high privilege; tokens and secrets are injected into the runner at run time, so controlling what code runs in CI is controlling who can use the tokens.",
+   "tags": [
+    "ch11",
+    "supply-chain"
+   ]
+  },
+  {
+   "front": "Why is a pull_request_target workflow that checks out and runs the pull request's code dangerous?",
+   "back": "Anyone can open a pull request, so attacker-controlled build scripts run in a job with elevated repository trust and can send the injected secrets to the attacker.",
+   "tags": [
+    "ch11",
+    "supply-chain"
+   ]
+  },
+  {
+   "front": "Which controls address a compromised CI runner?",
+   "back": "Short-lived (ephemeral) runners, sandboxed builds and no shared workspace, so a malicious process cannot persist into later trusted jobs.",
+   "tags": [
+    "ch11",
+    "supply-chain"
+   ]
+  },
+  {
+   "front": "Why did code signing not protect SolarWinds customers?",
+   "back": "The attackers compromised the build environment and inserted the backdoor before signing, so the official update carried a valid signature.",
+   "tags": [
+    "ch11",
+    "supply-chain"
+   ]
+  },
+  {
+   "front": "Distinguish provenance attestation from a reproducible build.",
+   "back": "Provenance is a signed record of the source commit, build process and builder that produced an artifact; a reproducible build gives bit-for-bit identical output from the same source, so independent parties can rebuild and compare.",
+   "tags": [
+    "ch11",
+    "supply-chain"
+   ]
+  },
+  {
+   "front": "A developer committed an API key and removed it in the next commit. What must be done?",
+   "back": "Revoke and rotate the key: Git history still contains the earlier commit, and automated scanners find leaked secrets within minutes.",
+   "tags": [
+    "ch11",
+    "supply-chain"
+   ]
+  },
+  {
+   "front": "What is the core difference between VM and container isolation?",
+   "back": "A VM has its own guest kernel behind a hypervisor; containers are processes that share the host kernel and are isolated by namespaces, cgroups, capabilities and seccomp.",
+   "tags": [
+    "ch12",
+    "vm-containers"
+   ]
+  },
+  {
+   "front": "How does a VM escape happen?",
+   "back": "Guest code sends crafted input to an interface exposed by the hypervisor, such as a virtual device or a copy-and-paste feature; a vulnerability in the privileged host-side handler lets the attacker affect the host or execute code on it.",
+   "tags": [
+    "ch12",
+    "vm-containers"
+   ]
+  },
+  {
+   "front": "Why is access to the Docker daemon socket equivalent to root on the host?",
+   "back": "Whoever can talk to the daemon can start a privileged container or mount the host's root filesystem (docker run -v /:/hostOS), gaining host access without exploiting any vulnerability.",
+   "tags": [
+    "ch12",
+    "vm-containers"
+   ]
+  },
+  {
+   "front": "Name the four paths from a compromised Kubernetes Pod.",
+   "back": "Host (host mounts, privileged mode, the node kernel), network (databases and other tenants' Pods), the Kubernetes API (service-account rights such as reading Secrets) and the cloud (instance metadata credentials).",
+   "tags": [
+    "ch12",
+    "vm-containers"
+   ]
+  },
+  {
+   "front": "Which controls address the network path and the API path from a compromised Pod?",
+   "back": "Network: a NetworkPolicy with default deny and explicit allow rules, enforced by the network plugin. API: a dedicated service account with least-privilege RBAC, and no mounted token if the process never calls the API.",
+   "tags": [
+    "ch12",
+    "vm-containers"
+   ]
+  },
+  {
+   "front": "Distinguish gVisor from Kata Containers.",
+   "back": "gVisor puts a userspace application kernel between the workload and the host kernel; Kata Containers runs container workloads inside lightweight VMs with their own guest kernels.",
+   "tags": [
+    "ch12",
+    "vm-containers"
+   ]
+  },
+  {
+   "front": "What do confidential containers protect against?",
+   "back": "The infrastructure host, or someone with access to it, inspecting the workload while it runs; they rely on a confidential VM, attestation and policy-based release of secrets.",
+   "tags": [
+    "ch12",
+    "vm-containers"
+   ]
+  },
+  {
+   "front": "Is a VM snapshot a backup?",
+   "back": "No. A snapshot freezes the disk state and records later changes separately; it allows fast rollback but depends on the original virtual disk and cannot be taken elsewhere like a backup.",
+   "tags": [
+    "ch12",
+    "vm-containers"
+   ]
+  },
+  {
+   "front": "What is the main limitation of static analysis, and of dynamic analysis?",
+   "back": "Static analysis reasons about many possible paths without running the program but produces false positives; dynamic analysis gives concrete runtime evidence but misses paths the inputs do not trigger, producing false negatives.",
+   "tags": [
+    "appendix",
+    "off-syllabus"
+   ]
+  },
+  {
+   "front": "Name the three concepts of taint analysis.",
+   "back": "Source (where untrusted data enters), propagation (rules for how taint flows through the data flow) and sink (the sensitive operation that must not receive tainted data).",
+   "tags": [
+    "appendix",
+    "off-syllabus"
+   ]
+  },
+  {
+   "front": "In coverage-guided fuzzing, which inputs are kept?",
+   "back": "Interesting ones, typically inputs that reach new code; they are saved and mutated again, while inputs that add nothing are discarded.",
+   "tags": [
+    "appendix",
+    "off-syllabus"
+   ]
+  },
+  {
+   "front": "An API returns 200 OK for /orders/1003, which belongs to another user. What is the flaw?",
+   "back": "Broken access control: the server checks only that the user is logged in, not that the order's owner is the current user; it should return 403 Forbidden.",
+   "tags": [
+    "appendix",
+    "off-syllabus"
+   ]
+  },
+  {
+   "front": "Distinguish single extortion from double extortion in ransomware.",
+   "back": "Single extortion demands payment to restore access to encrypted systems; double extortion also threatens to publish stolen data, which restoring from backups cannot undo.",
+   "tags": [
+    "appendix",
+    "off-syllabus"
+   ]
+  },
+  {
+   "front": "Distinguish a VPN from ZTNA.",
+   "back": "A VPN encrypts traffic to a gateway and often grants broad network access; zero trust network access grants access only to selected applications, based on identity and device policy.",
+   "tags": [
+    "appendix",
+    "off-syllabus"
+   ]
+  },
+  {
+   "front": "Name the roles in ransomware as a service (RaaS).",
+   "back": "Operators develop the malware and run the service; affiliates conduct intrusions and deploy it against victims; access brokers sell existing access to other criminals.",
+   "tags": [
+    "appendix",
+    "off-syllabus"
+   ]
+  },
+  {
+   "front": "List the elements of a secure IoT firmware update design.",
+   "back": "Digitally sign releases, verify before installation, prevent rollback to vulnerable versions, recover safely after power loss, and publish a support and disclosure policy.",
+   "tags": [
+    "appendix",
+    "off-syllabus"
+   ]
+  }
+ ],
+ "quiz": [
+  {
+   "type": "mcq",
+   "question": "A1. Why is it hard to rewrite a block that is already deep in the Bitcoin blockchain?",
+   "options": [
+    "Every block is signed by the miner who created it, so a changed block fails that miner's signature check",
+    "A central authority signs every block and rejects changes",
+    "The attacker would have to redo the proof of work for that block and every later block, and outpace the honest network, which needs more than half of the total hash power",
+    "Nodes delete old blocks once they are confirmed"
+   ],
+   "answer": 2,
+   "explanation": "Each block contains the hash of the previous block, so changing an old block changes every later hash and invalidates their proof of work. The network follows the chain with the most accumulated work, which is why rewriting history is a 51% attack. Chapter reference: 第 7 章 §5.1（第 1 章 §3.2）."
+  },
+  {
+   "type": "mcq",
+   "question": "A2. A flight-delay insurance contract on Ethereum automatically pays travellers when an oracle reports a delay of more than three hours. Which statement is TRUE?",
+   "options": [
+    "If the oracle reports a false delay, the contract still pays, because it can check only the report's format and the oracle's authorisation",
+    "The contract can verify that the flight was really delayed",
+    "Deterministic execution guarantees that every payout is correct",
+    "Once the flight data is stored on-chain, it is guaranteed to be true"
+   ],
+   "answer": 0,
+   "explanation": "A contract cannot see the outside world. It can check who submitted the report and whether it is well formed, but not whether it is true: garbage in, garbage out. The oracle therefore becomes a concentrated point of trust. Chapter reference: 第 7 章 §9.1–§9.2."
+  },
+  {
+   "type": "mcq",
+   "question": "A3. Which practice gives the strongest protection for a wallet's private key against malware on the user's computer?",
+   "options": [
+    "Storing the private key in a JSON file in the user's home directory",
+    "Photographing the mnemonic and keeping the photo in a cloud drive",
+    "Using a hardware wallet that keeps the key inside the device and shows the transaction details on its own screen for confirmation",
+    "Encrypting the key with the same password the user uses for email"
+   ],
+   "answer": 2,
+   "explanation": "The private key never leaves the hardware device, so malware on the computer cannot copy it, and checking the recipient and amount on the device's screen defends against a compromised host that alters what is signed. The other options store the key or mnemonic where malware or a cloud compromise can reach it. Chapter reference: 第 8 章 §5."
+  },
+  {
+   "type": "mcq",
+   "question": "A4. Which property of a cryptographic hash function means that it is computationally infeasible to find two different inputs with the same digest?",
+   "options": [
+    "Preimage resistance (one-wayness)",
+    "Collision resistance",
+    "The avalanche effect",
+    "Determinism"
+   ],
+   "answer": 1,
+   "explanation": "Preimage resistance concerns finding an input for a given digest; the avalanche effect means a small change in the input produces a completely different digest; determinism means the same input always gives the same digest. Chapter reference: 第 1 章 §2."
+  },
+  {
+   "type": "mcq",
+   "question": "A5. A smart sensor and its gateway agree on a key with unauthenticated ECDH over Wi-Fi. An attacker controls the access point between them. What can the attacker do?",
+   "options": [
+    "Nothing, because the shared secret cannot be computed from the public values",
+    "Only read the public values, which reveal nothing useful",
+    "Recover the gateway's long-term private key from the recorded public values, and then decrypt all past sessions",
+    "Run one key exchange with the sensor and another with the gateway, then decrypt, read and re-encrypt every message"
+   ],
+   "answer": 3,
+   "explanation": "A passive eavesdropper cannot compute the secret, but an active man in the middle can replace both public values with its own and share one key with each side. Authentication of the public values, for example a signature with a certified key, is required. Chapter reference: 第 2 章 §4.2."
+  },
+  {
+   "type": "mcq",
+   "question": "A6. A browser receives a server certificate signed by an intermediate CA, together with the intermediate CA's certificate. How does the browser decide whether to trust the server certificate?",
+   "options": [
+    "It verifies each signature along the chain up to a root certificate already in its trust store, and checks the hostname, validity period and revocation status",
+    "It trusts any certificate signed by any CA",
+    "It asks the server whether the certificate is valid",
+    "It trusts the intermediate certificate because the server sent it in the same handshake, and checks only that the server certificate was signed by it"
+   ],
+   "answer": 0,
+   "explanation": "Trust comes from a root certificate pre-installed in the trust store (the trust anchor); the chain must lead to it, and the server certificate must match the hostname, be within its validity period and not be revoked. Chapter reference: 第 4 章 §4–§5."
+  },
+  {
+   "type": "mcq",
+   "question": "A7. While connected to an airport's free Wi-Fi, a traveller clicks through a browser warning saying that the bank's certificate is not trusted. What is the main risk?",
+   "options": [
+    "None, because the connection is still encrypted with TLS and the bank's server will detect any modification",
+    "The bank's private key is leaked",
+    "The certificate will be revoked automatically",
+    "A man in the middle who presented a forged certificate can now read and modify the traffic, including the traveller's login"
+   ],
+   "answer": 3,
+   "explanation": "Encryption to the wrong party protects nothing. The warning was the only sign of the attack, and accepting it lets the attacker terminate TLS on both sides. Chapter reference: 第 4 章 §10；第 2 章 §9."
+  },
+  {
+   "type": "mcq",
+   "question": "A8. On a company laptop, a contractor runs ssh -R 8443:intranet.local:443 contractor@vps.example. Why is this a security concern?",
+   "options": [
+    "It only encrypts traffic between the laptop and the VPS, so there is no concern",
+    "Connections to port 8443 on the external VPS are forwarded through the tunnel to the internal intranet site, bypassing the company's firewall and segmentation",
+    "It turns the laptop into a SOCKS proxy, so the VPS can browse the Internet through the company network",
+    "It disables host key verification"
+   ],
+   "answer": 1,
+   "explanation": "With remote forwarding, the listening port is on the SSH server (the VPS), and the client side (the laptop) connects onward to intranet.local:443. An internal service is thereby published on an outside machine, and the firewall sees only an SSH connection. Chapter reference: 第 5 章 §10.2、§11."
+  },
+  {
+   "type": "mcq",
+   "question": "A9. A hotel protects its guest Wi-Fi with WPA2. Why should guests still use HTTPS for online banking?",
+   "options": [
+    "WPA2 encrypts only the hotel's management traffic, not the guests' web traffic",
+    "HTTPS makes the Wi-Fi connection faster",
+    "WPA2 protects only the radio link between the device and the access point; beyond the access point the traffic is decrypted and visible to whoever runs the network",
+    "WPA2 works only when HTTPS is also used"
+   ],
+   "answer": 2,
+   "explanation": "Link encryption ends at the access point. End-to-end protection from the browser to the bank's server requires TLS. Chapter reference: 第 6 章 §4."
+  },
+  {
+   "type": "mcq",
+   "question": "A10. In an identification protocol, Bob sends a random value r and Alice replies with H(r, K). Why must r be chosen by Bob, fresh and unpredictable, for every login?",
+   "options": [
+    "So that a recorded response cannot be replayed, and an attacker cannot collect responses to future challenges in advance",
+    "So that r works as a salt, which is all a challenge needs to achieve in a challenge-response protocol",
+    "To hide Alice's identity from eavesdroppers",
+    "So that Bob needs to store only H(K)"
+   ],
+   "answer": 0,
+   "explanation": "If Alice chose r, or if r repeated, an old response could be replayed; if r were predictable (for example a counter), an attacker posing as Bob could obtain the answer to a future challenge from Alice beforehand. Chapter reference: 第 3 章 §6、§14."
+  },
+  {
+   "type": "mcq",
+   "question": "A11. An employee logs in to the company's cloud storage with a valid password and MFA, then downloads a folder belonging to another department because the folder's policy grants access to all employees. Which control failed?",
+   "options": [
+    "Authentication",
+    "Authorisation (the access policy did not follow least privilege)",
+    "Encryption at rest",
+    "Key rotation"
+   ],
+   "answer": 1,
+   "explanation": "Authentication correctly established who the user was; the policy that decides what that identity may access was too broad. Chapter reference: 第 9 章 §8.1–§8.2."
+  },
+  {
+   "type": "mcq",
+   "question": "A12. A hospital shares imaging files with external specialists through a cloud storage provider and wants the provider to be unable to read the files. Which design achieves this?",
+   "options": [
+    "Rely on the provider's default encryption at rest",
+    "Use HTTPS for every upload and download, so that the files are encrypted end to end between the hospital and the specialists",
+    "Protect the shared link with a strong password",
+    "Encrypt each file on the hospital's devices before upload and wrap the file key separately for each specialist's public key"
+   ],
+   "answer": 3,
+   "explanation": "With encryption at rest and HTTPS, the provider still handles plaintext or holds the keys. Client-side encryption with per-recipient key wrapping keeps both the plaintext and the file keys away from the provider. Chapter reference: 第 9 章 §5、§9.1、§10.2."
+  },
+  {
+   "type": "mcq",
+   "question": "A13. Two companies use secure two-party computation to learn only whether their average salaries differ by more than 10%. The result is \"yes\". What does company A learn?",
+   "options": [
+    "Company B's exact average salary, because a \"yes\" result can only be computed from both averages",
+    "Nothing at all, not even the result",
+    "Its own input, the one-bit result and whatever follows from them, but nothing else about company B's salaries",
+    "Company B's full salary list"
+   ],
+   "answer": 2,
+   "explanation": "A secure protocol leaks nothing beyond the authorised output, because company A's view can be simulated from its own input and the result. The one-bit output itself still says something: B's average lies more than 10% away from A's. Chapter reference: 第 10 章 §3–§4."
+  },
+  {
+   "type": "mcq",
+   "question": "A14. A mobile app's release-signing key is stored as a CI secret that every job can read, including builds of pull requests. What is the main risk?",
+   "options": [
+    "Code from a malicious pull request or a compromised dependency could read the key and sign malicious releases that users' devices will trust",
+    "The key will expire sooner",
+    "The app store will reject the app",
+    "Pull-request builds will fail, because jobs triggered by pull requests are never allowed to read secrets"
+   ],
+   "answer": 0,
+   "explanation": "Secrets are injected into the runner at run time, so any code that runs in the job can use them. Signing keys should be available only to a protected release job after approval, ideally kept in an HSM or managed signing service. Chapter reference: 第 11 章 §5–§6."
+  },
+  {
+   "type": "mcq",
+   "question": "A15. A university's automated marking system runs untrusted code submitted by students. Which choice gives the strongest isolation between student jobs and the host?",
+   "options": [
+    "Standard containers on one host, because each container has its own kernel",
+    "One shared container in which all jobs run as root, to simplify monitoring",
+    "Mounting the Docker socket into each job so that it can manage its own containers",
+    "A separate VM for each job, or a VM-based sandbox such as Kata Containers, so that each job has its own guest kernel behind a hypervisor"
+   ],
+   "answer": 3,
+   "explanation": "Standard containers share the host kernel, so one kernel exploit affects every job, and mounting the Docker socket would hand each job administrative control of the host. Chapter reference: 第 12 章 §5–§6、§11."
+  },
+  {
+   "type": "short",
+   "question": "B1. If an Ethereum transaction runs out of gas before it finishes, its state changes are ______, but the fee for the gas used is still paid.",
+   "answer": "Reverted (rolled back).",
+   "explanation": "Chapter reference: 第 7 章 §7.2."
+  },
+  {
+   "type": "short",
+   "question": "B2. A 12-word BIP39 mnemonic encodes ______ bits of entropy, plus a checksum.",
+   "answer": "128 (each word carries 11 bits; 12 × 11 = 132 = 128 bits of entropy + a 4-bit checksum).",
+   "explanation": "Chapter reference: 第 8 章 §9.1."
+  },
+  {
+   "type": "short",
+   "question": "B3. Using ephemeral Diffie–Hellman keys in TLS 1.3 provides ______ secrecy: sessions recorded today stay secure even if the server's long-term private key is stolen later.",
+   "answer": "Forward.",
+   "explanation": "Chapter reference: 第 2 章 §6."
+  },
+  {
+   "type": "short",
+   "question": "B4. Public, append-only logs that record the certificates issued by CAs, so that misissued certificates can be detected, are called Certificate ______.",
+   "answer": "Transparency (CT).",
+   "explanation": "Chapter reference: 第 4 章 §8.3."
+  },
+  {
+   "type": "short",
+   "question": "B5. A signed record stating which source commit, build process and build platform produced a software artifact is called ______.",
+   "answer": "Provenance (provenance attestation).",
+   "explanation": "Chapter reference: 第 11 章 §7."
+  },
+  {
+   "type": "short",
+   "question": "B6. Linux ______ limit how much CPU and memory a container may use, while namespaces limit what its processes can see.",
+   "answer": "Cgroups (control groups).",
+   "explanation": "Chapter reference: 第 12 章 §5."
+  },
+  {
+   "type": "short",
+   "question": "B7. A software company needs to (a) let users detect whether a downloaded installer has been corrupted or replaced, when the expected value is published through a separate trusted channel; (b) let its update server check that configuration commands come from the company's management console, which shares a secret key with the server; and (c) let any customer verify that a release was published by the company. For each requirement, name the most suitable primitive and give one reason.",
+   "answer": "(a) A cryptographic hash such as SHA-256: any change to the file gives a different digest, and because the expected value comes from a trusted channel, the attacker cannot replace it as well. (b) A MAC such as HMAC with the shared key: only holders of the key can compute a valid tag, so the server knows the command came from the console and was not modified; adding a counter or timestamp prevents replay. (c) A digital signature: the company signs with its private key and anyone can verify with the public key, which also gives non-repudiation; a MAC would not work because customers do not share the secret key, and a bare hash could be replaced together with the file.",
+   "explanation": "Chapter reference: 第 1 章 §1、§3、§7."
+  },
+  {
+   "type": "short",
+   "question": "B8. Give three measures to harden SSH access to a fleet of cloud servers, and explain what risk each one reduces.",
+   "answer": "Any three, each with its reason: disable password login and use public-key or short-lived certificate authentication, so there is no password to guess, phish or reuse, and the server stores only public keys; disable direct root login and use named accounts with controlled sudo, which gives accountability and limits damage; do not expose port 22 to the Internet, and reach servers through a bastion host, an identity-aware proxy or just-in-time access, which reduces exposure to scanning and centralises policy and logging; disable or restrict forwarding (DisableForwarding, PermitOpen), so tunnels cannot bypass network segmentation; verify host key fingerprints or use host certificates, which prevents a man in the middle on the first connection.",
+   "explanation": "Chapter reference: 第 5 章 §4–§7、§11."
+  },
+  {
+   "type": "short",
+   "question": "B9. A hospital's staff Wi-Fi uses WPA2-Enterprise (802.1X/EAP), and staff log in with their hospital username and password. An attacker sets up an access point with the same SSID near the entrance. Explain how this evil twin can capture staff credentials, and give two measures that prevent it.",
+   "answer": "The rogue access point broadcasts the trusted SSID, possibly with a stronger signal or after forging deauthentication frames to push clients off the real network, and devices that auto-join connect to it. The attacker also runs a fake authentication server; if a device does not validate the server's certificate, or the user accepts the unknown certificate when prompted, the device sends the user's credentials (or authentication material that can be cracked) to the attacker. Measures: install a managed connection profile so that devices validate the authentication server's certificate against the hospital's CA and expected server name and never ask users to trust an unknown certificate; switch to certificate-based EAP-TLS so that no password is sent; disable automatic joining of unknown networks and monitor for rogue access points. Hiding the SSID does not help, because it does not authenticate the network.",
+   "explanation": "Chapter reference: 第 6 章 §9."
+  },
+  {
+   "type": "short",
+   "question": "B10. Two advertisers use private set intersection (PSI) to learn which customers they have in common, without revealing the rest of their customer lists. What does each advertiser learn, and why? Give one risk that remains even if the protocol is secure.",
+   "answer": "Each advertiser learns its own list, the intersection, that is, which of its own customers also appear in the other list, and whatever follows from these two, but nothing about the other advertiser's remaining customers. This is because a simulator given only the advertiser's own list and the intersection can produce a view indistinguishable from the real protocol messages. A remaining risk is output leakage through repeated queries: by running PSI many times with chosen lists, for example a single candidate customer each time, an advertiser can test whether any person is the other's customer. Query limits, committed inputs and audit are needed; the protocol also cannot stop either party from entering false data.",
+   "explanation": "Chapter reference: 第 10 章 §3–§4、§9."
+  },
+  {
+   "type": "short",
+   "question": "B11. Describe one way in which the isolation of a virtual machine can fail and one way in which the isolation of a container can fail. Explain why container isolation is generally considered weaker.",
+   "answer": "A VM can fail through a VM escape: code in the guest sends crafted input to a vulnerable hypervisor interface, such as a virtual device or a copy-and-paste feature, corrupts memory in a privileged host-side component and executes code on the host. A container can fail through a kernel vulnerability exploited from inside the container, or through configuration with no bug at all: a privileged container, a mount of the host's root filesystem or access to the Docker socket gives control of the host. Container isolation is weaker because all containers share one host kernel, so one kernel flaw or unsafe privilege setting affects every container on the host, whereas a VM attacker must cross a separate guest kernel and the hypervisor.",
+   "explanation": "Chapter reference: 第 12 章 §5、§7–§8."
+  },
+  {
+   "type": "short",
+   "question": "C1. (5 marks) Bob stores (Alice, pw). To identify herself, Alice chooses a random number r, computes H = H(r, pw) and sends (Alice, r, H) to Bob. Bob accepts Alice if H = H(r, pw).\n(a) Is this protocol secure against an adversary who can eavesdrop on and replay messages? Explain why. [3 marks]\n(b) What does the random number r achieve? [1 mark]\n(c) Propose a modification that fixes the weakness identified in (a). [1 mark]",
+   "answer": "(a) No, it is not secure against impersonation. The random value r is chosen by Alice, not by Bob, and Bob accepts any r as long as the hash matches. An adversary who eavesdrops on one login records (Alice, r, H(r, pw)) and later sends exactly the same message to Bob; Bob recomputes H(r, pw) with the stored pw, finds that it matches, and accepts the adversary as Alice. The adversary never learns pw yet impersonates Alice, so for identification the protocol is as insecure as sending H(pw) (Protocol 2). Two further weaknesses remain: Bob stores pw in plaintext, so a database leak exposes every password, and an eavesdropper who sees r and H(r, pw) can still guess a weak password by trying candidates for that r.\n\n(b) r acts as a salt. Identical passwords give different hash values in different logins, and a precomputed dictionary of (pw, H(pw)) values becomes useless, so the adversary must recompute candidate hashes for each captured r. It does not provide freshness.\n\n(c) Let Bob choose a fresh, unpredictable random challenge r for every login and send it to Alice; Alice replies with (Alice, H(r, pw)), and Bob accepts only a response to the challenge he has just sent, so a recorded response is useless for a new challenge (Protocol 4). Better still, replace pw with a long random key K and reply with H(r, K) (Protocol 6), or let Alice sign r with her private key (Protocol 9) so that Bob stores only her public key.",
+   "explanation": "Marking points: not secure, impersonation by replay (1); because Alice chooses r and Bob checks only the hash, with the replay described step by step (1); a further weakness, such as plaintext storage or guessing a weak password for the captured r (1); r only works as a salt against precomputed dictionaries (1); the fix: a fresh random challenge chosen by Bob (1). Chapter reference: 第 3 章 §2、§5、§6."
+  },
+  {
+   "type": "short",
+   "question": "C2. (5 marks) A law firm wants to share case files with external experts through a commercial cloud storage service. The provider must not be able to read the files. Only lawyers assigned to a case may give an expert access to that case's files, files must not be modified undetected, and access must be withdrawn when an expert's engagement ends.\n(a) Design a solution, and explain how it provides confidentiality, integrity and access control. [4 marks]\n(b) State one limitation of your design. [1 mark]",
+   "answer": "(a) Confidentiality: every file is encrypted on the law firm's devices before upload (client-side encryption), using a fresh random data-encryption key (DEK) and authenticated encryption such as AES-256-GCM, so the provider stores only ciphertext. Sharing is key distribution: the DEK is wrapped separately for each authorised recipient with that recipient's public key, for example with ECIES, and the wrapped keys are stored alongside the file (envelope encryption with per-recipient wrapping). Recipients' public keys must be authenticated, for example through certificates or a key registry controlled by the firm, so that a substituted key cannot redirect the DEK to an attacker.\n\nIntegrity: the GCM authentication tag detects any modification of the ciphertext, and the uploading lawyer signs a manifest containing the file identifier, version and ciphertext hash, so experts can verify who published the file and detect a swapped or rolled-back version.\n\nAccess control: an authorisation service controlled by the firm, or a smart contract, records which lawyers are assigned to each case and accepts a grant only from them, using roles or attributes such as case number and role (RBAC or ABAC), and it logs every grant. Alternatively, ciphertext-policy ABE can encrypt each file under a policy such as \"case = 2041 AND (role = lawyer OR role = expert)\". When an engagement ends, the firm deletes the expert's wrapped keys, revokes the expert's account, and re-encrypts future versions under a new DEK wrapped only for the remaining members.\n\n(b) Revocation cannot recall plaintext that the expert has already downloaded or decrypted. In addition, metadata such as file sizes, access times and sharing relationships remains visible to the provider, and security depends on the endpoints and on each user protecting their private key.",
+   "explanation": "Marking points: client-side encryption with a per-file DEK and authenticated encryption (1); per-recipient key wrapping with authenticated public keys (1); integrity through the authentication tag and a signed manifest or hash (1); access control by case and role with logging, or ABE, plus revocation by re-keying (1); a valid limitation (1). Chapter reference: 第 9 章 §5–§12."
+  },
+  {
+   "type": "short",
+   "question": "C3. (4 marks) A smart home hub sends commands such as \"unlock front door\" to the manufacturer's cloud service over plain HTTP. Describe how you would secure this communication, and analyse whether your method resists a man-in-the-middle (MITM) attack.",
+   "answer": "Plain HTTP gives no confidentiality, integrity or server authentication, so anyone on the path, for example a malicious Wi-Fi access point, can read commands, change them or replay an earlier \"unlock\". I would use HTTPS, i.e. TLS 1.3, between the hub and the cloud service. The service presents a certificate for its domain issued by a trusted CA, or by a private CA whose root certificate is built into the hub's firmware. The hub verifies the chain to its trust anchor, the hostname, the validity period and the revocation status, and never disables verification. In the handshake both sides contribute ephemeral ECDH key shares, and the server signs the handshake transcript (CertificateVerify) with its private key, so the hub knows that it agreed the key with the genuine service; the derived session keys then protect every command with authenticated encryption such as AES-GCM. For the cloud service to authenticate the hub, I would use mutual TLS with a unique device certificate whose private key is kept in secure hardware, and each command would carry a sequence number or nonce so that an old command cannot be replayed at the application level.\n\nMITM analysis: an attacker who intercepts the connection can start its own key exchange with the hub, but it cannot present a valid certificate for the service's domain or produce the CertificateVerify signature without the server's private key, so the hub aborts the handshake; it cannot impersonate the hub either, because it lacks the device's private key. Unauthenticated Diffie–Hellman alone would not resist MITM, because the attacker could run one exchange with each side. The protection assumes that the hub validates certificates correctly, that no malicious root certificate is in its trust store, that the server's and the device's private keys stay secret, and that firmware updates are signed so the trust store cannot be replaced.",
+   "explanation": "Marking points: TLS 1.3 with certificate validation against a trust anchor (1); ephemeral ECDH, CertificateVerify and authenticated encryption explained (1); MITM analysis: no valid certificate or signature, so the handshake aborts, unlike unauthenticated DH (1); device authentication with mutual TLS or replay protection, and the stated assumptions (1). Chapter reference: 第 4 章 §5–§7、§13；第 2 章 §5."
+  }
+ ]
+}

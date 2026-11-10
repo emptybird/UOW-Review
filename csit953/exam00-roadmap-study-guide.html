@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CSIT953 考试复习 · 第 0 章 考试导航与答题方法</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc;
+    --warn:#c0714f; --warn-soft:#fdf0e6; --good:#3b6ea8; --good-soft:#e8f0fa; --muted-soft:#eef0ec; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.75; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 2.2em; }
+  h3 { font-size: 1.2rem; margin-top: 1.6em; }
+  p { margin: 0 0 1em; }
+  strong { color: #15181c; }
+  a { color: var(--accent); }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .9em; }
+  pre { background: #f7f6f1; padding: 16px; border-radius: 8px; overflow: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin: 1.2em 0; padding: 12px 20px; border-left: 4px solid var(--accent);
+    background: var(--soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: .3em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .96rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  /* A wide table scrolls inside its own box rather than forcing the whole page
+     wider than the phone screen. build_guide.py wraps each table element in this div. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.2em 0; }
+  .table-scroll table { margin: 0; }
+  math { font-size: 1.05em; }
+  math[display="block"] { display: block; margin: 1em auto; text-align: center; font-size: 1.15em; overflow-x: auto; }
+  /* Figures (```d2 / ```plot / ```svg, slide crops) are inline SVG or data-URI
+     images made at build time, so they need no runtime. max-width + height:auto
+     lets the viewBox scale a drawing down to the column on a narrow screen. */
+  .fig { background: #fff; text-align: center; margin: 1.4em 0; padding: 10px;
+    border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+  .fig > svg, .fig > img { max-width: 100%; height: auto; }
+  .fig figcaption { margin-top: 8px; color: var(--muted); font-size: .92rem; line-height: 1.5; }
+  /* A figure that wouldn't render falls back to its source — visible, not silent. */
+  .fig-failed { border-color: var(--warn); }
+  .fig-failed pre { background: #fdf3ee; margin: 0; text-align: left; }
+  /* Hand-written ```svg figures colour themselves with these classes, so every
+     guide uses the same palette: key/accent green, good blue, warn orange. */
+  .svg-figure svg { font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+  .svg-figure text { fill: var(--ink); stroke: none; font-size: 14px; }
+  .svg-figure .ink { stroke: var(--ink); }
+  .svg-figure .accent { stroke: var(--accent); }
+  .svg-figure .muted { stroke: var(--muted); }
+  .svg-figure .warn { stroke: var(--warn); }
+  .svg-figure .good { stroke: var(--good); }
+  .svg-figure text.accent { fill: var(--accent); stroke: none; }
+  .svg-figure text.muted { fill: var(--muted); stroke: none; }
+  .svg-figure text.warn { fill: var(--warn); stroke: none; }
+  .svg-figure text.good { fill: var(--good); stroke: none; }
+  .svg-figure .fill-soft { fill: var(--soft); }
+  .svg-figure .fill-warn { fill: var(--warn-soft); }
+  .svg-figure .fill-good { fill: var(--good-soft); }
+  .svg-figure .fill-muted { fill: var(--muted-soft); }
+  .svg-figure .solid-ink { fill: var(--ink); }
+  .svg-figure .solid-accent { fill: var(--accent); }
+  .svg-figure .solid-good { fill: var(--good); }
+  .svg-figure .solid-warn { fill: var(--warn); }
+  .svg-figure .solid-muted { fill: var(--muted); }
+  .svg-figure .dashed { stroke-dasharray: 5 4; }
+  details { margin: 1em 0; padding: 10px 16px; border: 1px dashed var(--rule); border-radius: 8px; }
+  details summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+  /* Phone layout: a textbook column is comfortable to read on a narrow screen as
+     long as the chrome is tighter and anything that can't shrink (wide tables) is
+     allowed to scroll rather than overflow the page. */
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; line-height: 1.7; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; margin-top: 1.9em; }
+    h3 { font-size: 1.12rem; }
+    blockquote { padding: 10px 14px; }
+    pre { padding: 12px; }
+    /* size to content + scroll, so columns stay readable instead of being crushed */
+    .table-scroll table { width: auto; min-width: 100%; }
+    .fig { padding: 6px; }
+  }
+</style>
+</head>
+<body>
+<h1 id="csit953-考试复习--第-0-章-考试导航与答题方法">CSIT953 考试复习 ·
+第 0 章 考试导航与答题方法</h1>
+<blockquote>
+<p>📚 <strong>来源</strong> — W13 slides（考试安排、Exam Scope / Key
+Topics、样题）；W1 slides 的考核规则；W13 录音的复习部分；W5
+录音里关于算法名的问答。</p>
+</blockquote>
+<p>这本手册按第 13
+周公布的考试范围组织，一个考点一章。本章先说明考试的形式和范围，再说明三类题各该怎样答，最后拆解老师给的唯一一道样题。</p>
+<h2 id="1-考试形式-w13-s4s8-w1-assessment">1. 考试形式 (W13 S4–S8; W1
+Assessment)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>时长</td>
+<td>3 小时</td>
+</tr>
+<tr class="even">
+<td>形式</td>
+<td>闭卷、纸笔，不许带任何资料，不许用计算器</td>
+</tr>
+<tr class="odd">
+<td>总分</td>
+<td>50 分，占课程总成绩的 50%；期末考试至少要拿到
+40%，否则课程按不及格处理</td>
+</tr>
+<tr class="even">
+<td>第一部分</td>
+<td>15 道单选题，15 分</td>
+</tr>
+<tr class="odd">
+<td>第二部分</td>
+<td>填空题和简答题，21 分</td>
+</tr>
+<tr class="even">
+<td>第三部分</td>
+<td>问答题（questions and answers），14 分</td>
+</tr>
+</tbody>
+</table></div>
+<p>几条规则：</p>
+<ul>
+<li>按题号顺序作答，不要跳着写在答题纸的不同位置。</li>
+<li>所有答案都写在答题纸上。写在试卷或其他地方的答案不给分。单选题也一样，在试卷上圈了选项，还要誊到答题纸上。</li>
+<li>题目要求解释时，只写关键词可能拿不到满分，要把理由写清楚。</li>
+<li>考试中不能和任何人交流，有问题举手找监考。身体不适的话申请 academic
+consideration，不接受邮件交卷。</li>
+</ul>
+<h2 id="2-考试范围与本手册章节-w13-s9s12">2. 考试范围与本手册章节 (W13
+S9–S12)</h2>
+<p>考纲分三组，每组四条。下表"考纲原文"一列照抄
+slides，答题时尽量用这些原词。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>组</th>
+<th>考纲原文</th>
+<th>考什么</th>
+<th>章</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Blockchain and Cryptography</td>
+<td>Blockchain and Smart Contracts</td>
+<td>ledgers, consensus mechanisms, Ethereum transactions and
+oracles</td>
+<td>第 7 章</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Cryptocurrency Wallets</td>
+<td>private keys, deterministic wallets and mnemonic phrases</td>
+<td>第 8 章</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Cryptographic Hashes and Message Authentication Codes</td>
+<td>security properties and their different uses</td>
+<td>第 1 章</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Diffie–Hellman Key Exchange</td>
+<td>how a shared secret is established and why authentication
+matters</td>
+<td>第 2 章</td>
+</tr>
+<tr class="odd">
+<td>Network Security</td>
+<td>HTTPS, TLS and Digital Certificates</td>
+<td>certificate trust, validity and secure connections</td>
+<td>第 4 章 ★样题</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>SSH Security</td>
+<td>protecting remote login and understanding port forwarding</td>
+<td>第 5 章</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Wireless Network Security</td>
+<td>secure configuration and protection against impersonated access
+points</td>
+<td>第 6 章</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Authentication Protocols</td>
+<td>recognising weaknesses in protocols used over an insecure
+channel</td>
+<td>第 3 章 ★必考问答</td>
+</tr>
+<tr class="odd">
+<td>Applied Security Topics</td>
+<td>Secure Cloud Storage and Data Sharing</td>
+<td>confidentiality, integrity, access control</td>
+<td>第 9 章 ★</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Secure Two-Party Computation</td>
+<td>what each participant may learn</td>
+<td>第 10 章</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Software Supply Chain Security</td>
+<td>risks from third-party components in CI/CD pipelines</td>
+<td>第 11 章</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Virtual Machines and Containers</td>
+<td>how their isolation models differ</td>
+<td>第 12 章</td>
+</tr>
+</tbody>
+</table></div>
+<p>考纲没有列出的内容，放在附录（第 13
+章）里做速览，用来应付可能出现的单选题：第 1 周导论、第 8 周后半的
+IoT、第 10 周的静态与动态分析、第 12
+周的远程办公与勒索软件。附录里还有一套按真题结构出的模拟卷。</p>
+<h2 id="3-老师透露的信息">3. 老师透露的信息</h2>
+<blockquote>
+<p>👨‍🏫 <strong>课堂强调</strong> — 以下几条来自第 13 周的复习课和第 5
+周的问答：</p>
+<ul>
+<li>单选题每题只有一个正确答案，老师说"很简单"。</li>
+<li>问答部分<strong>一定有一道认证协议题</strong>：给出第 6
+周的某个识别协议，问它是否安全，为什么。</li>
+<li>云存储那道题和 Assignment 2（Secure File
+Share）直接相关，认真做过小组作业就能答。</li>
+<li>题目大多直接出自 slides，少数内容只在录音里讲过。</li>
+<li>算法名字不用全记，但要认得出旧的、不安全的算法：DSS、RC4、3DES、只用
+CBC 的模式、SHA-1。</li>
+</ul>
+</blockquote>
+<p>据此，带 ★ 的三章（第 3、4、9 章）最值得多花时间。第 3
+章的问答几乎可以确定会出；第 4 章对应唯一的样题；第 9
+章可以用自己的作业设计来答。</p>
+<h2 id="4-三类题怎样答">4. 三类题怎样答</h2>
+<h3 id="41-单选题">4.1 单选题</h3>
+<ul>
+<li>先看题干里有没有 NOT、TRUE、BEST、MAINLY 这类词，再看选项。</li>
+<li>用排除法。带 always、completely、never
+这类绝对说法的选项，多半是错的。</li>
+<li>本课最常见的陷阱是把相近的工具混为一谈：哈希和加密、MAC
+和签名、认证加密和防重放、VM 和容器的隔离边界。每章的"⚠️
+易混易错"就是为这类题准备的。</li>
+</ul>
+<h3 id="42-填空与简答">4.2 填空与简答</h3>
+<ul>
+<li>填空用 slides 上的英文原词，例如 offline dictionary attack、chain
+code、evil twin、trust store，不要自己换说法。</li>
+<li>简答一般写 2–4
+句：第一句给定义或结论，第二句讲机制，第三句给后果或例子。</li>
+<li>题目问"why"，答案里要出现 because 引出的原因，不能只列名词。</li>
+</ul>
+<h3 id="43-问答题写出推理链">4.3 问答题：写出推理链</h3>
+<p>考试说明特意写了"只写关键词可能拿不到满分"。问答题要的是一条完整的推理链。课程里的问答题大致有四种问法，各有一个可以套用的结构：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>问法</th>
+<th>答题结构</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>这个协议 / 设计安全吗？为什么？</td>
+<td>① 说明攻击者能做什么（窃听、篡改、重放、拿到服务器数据库）②
+给出结论：对哪种攻击不安全 ③ 一步步写出攻击过程 ④ 指出根本原因 ⑤
+给出修补办法</td>
+</tr>
+<tr class="even">
+<td>你会怎样保护 X？能否抵抗某种攻击？</td>
+<td>① 分步骤写方法 ② 每一步说明它提供哪个安全目标 ③
+分析攻击者为什么得手不了 ④ 写出前提条件和局限</td>
+</tr>
+<tr class="odd">
+<td>比较 A 和 B</td>
+<td>① 逐个维度对比（可以先画个小表）② 写结论：什么情况下选哪个</td>
+</tr>
+<tr class="even">
+<td>每一方能知道什么？</td>
+<td>① 逐个参与方列出：自己的输入、协议的输出，以及从这两者能推出的东西 ②
+说明除此之外学不到任何东西，以及为什么</td>
+</tr>
+</tbody>
+</table></div>
+<p>问答题常用的英文句式：</p>
+<pre class="text"><code>This protocol is not secure against an eavesdropper / an active attacker, because ...
+An attacker who observes ... can replay ... to impersonate Alice.
+The root cause is that ... is not bound to ... / is not fresh.
+This provides integrity and authenticity, but not confidentiality, because ...
+To fix this, Bob should send a fresh random challenge r, and Alice should reply with ...
+This assumes that the attacker cannot obtain the private key / the root CA is trusted.
+Compared with A, B ... ; therefore B is preferred when ...</code></pre>
+<h2 id="5-样题拆解-w13-s13">5. 样题拆解 (W13 S13)</h2>
+<blockquote>
+<p><em>You want to send a message to your friend Alice via an
+application. However, you find that this application uses the HTTP
+protocol. How will you secure this communication? Describe your method
+and analyze whether it can resist a man-in-the-middle (MITM)
+attack.</em></p>
+</blockquote>
+<p>这道题考三件事：HTTP 的问题在哪里，HTTPS / TLS
+怎样解决，以及为什么证书能挡住中间人。它用到第 2 章（DH
+为什么需要认证）和第 4 章（证书和 TLS
+握手）。下面先给一份满分范答，作为问答题该写到什么程度的样板；第 4
+章会逐句解释它。</p>
+<blockquote>
+<p>✍️ <strong>English answer（model answer）</strong> — Plain HTTP sends
+messages in cleartext and does not authenticate the server, so anyone on
+the path can read, modify or inject messages. I would secure the
+communication by using HTTPS, i.e. HTTP over TLS 1.3.</p>
+<ol type="1">
+<li>The server obtains a certificate from a trusted certificate
+authority (CA). The certificate binds the server's domain name to its
+public key and is signed by the CA.</li>
+<li>In the TLS handshake, the client and the server perform an ephemeral
+(EC)DH key exchange to establish a fresh shared secret. The server signs
+the handshake with the private key that matches its certificate.</li>
+<li>The client verifies the certificate: the chain leads to a root CA in
+its trust store, the domain name matches, the certificate is within its
+validity period and not revoked. It then verifies the server's signature
+over the handshake, which proves that the server holds the private
+key.</li>
+<li>Both sides derive symmetric session keys from the shared secret and
+protect every message with authenticated encryption such as AES-GCM,
+which gives confidentiality and integrity.</li>
+</ol>
+<p>MITM analysis: an attacker in the middle can intercept the key
+exchange, but cannot present a valid certificate for the server's domain
+signed by a trusted CA, and cannot sign the handshake without the
+server's private key. The client detects this and aborts the connection,
+so the attack fails. Unauthenticated Diffie–Hellman alone would not
+resist MITM, because the attacker could run one key exchange with each
+side and relay the messages. The protection still depends on
+assumptions: the user must not ignore certificate warnings, no malicious
+root CA may be installed in the trust store, and the server's private
+key must stay secret. If I also do not trust the chat server, Alice and
+I can add end-to-end encryption so that only our two devices hold the
+message keys.</p>
+</blockquote>
+<p>这份答案的结构就是 §4.3
+表格的第二行：先指出问题，再分步骤给方法，每一步说清作用，然后分析攻击为什么失败，最后写前提和局限。</p>
+<h2 id="6-怎样用这本手册">6. 怎样用这本手册</h2>
+<p>每章的结构相同：</p>
+<ol type="1">
+<li>🎯 考纲和题型 → 📚 来源。</li>
+<li>中文正文。每节末尾有一段 ✍️ English
+answer，是可以直接写上考卷的英文。</li>
+<li>⚠️ 易混易错 → 📝 Practice（英文，三类题都有，答案折叠）→
+本章小结。</li>
+</ol>
+<p>建议的用法：先读中文正文弄懂原理；再把每节的 English answer
+读到能用自己的话写出来；最后不看答案，在纸上做
+Practice，写完再展开对照。时间紧的话，按 ★ 的顺序复习：第 3 章 → 第 4
+章（连同第 2 章）→ 第 9 章 → 其余各章。</p>
+<p>章节按知识依赖排列：先学工具（第 1、2
+章：哈希、MAC、DH），再学用这些工具的协议（第 3–6
+章：认证协议、TLS、SSH、Wi-Fi），最后学系统（第 7–12
+章：区块链、钱包、云存储、两方计算、供应链、虚拟化）。前面的章节讲过的内容，后面只写一句并注明出处，不再重讲。</p>
+
+</body>
+</html>
