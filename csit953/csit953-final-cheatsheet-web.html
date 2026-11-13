@@ -1,0 +1,2003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CSIT953 考试复习 · 期末 Cheat Sheet</title>
+<style>
+  :root { --ink:#22272e; --muted:#5b636b; --accent:#2f6f4f; --soft:#eaf3ee; --rule:#dfe2dc;
+    --key:#b3261e; --ask:#7b2fa0; --ask-soft:#f8f4fb; --step:#1f5fbf; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+                 "Songti SC", Georgia, serif;
+    line-height: 1.7; font-size: 1.04rem;
+    overflow-wrap: break-word; -webkit-text-size-adjust: 100%;
+  }
+  h1, h2, h3 { line-height: 1.3; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin: 0 0 .7em; }
+  h2 { font-size: 1.6rem; margin: 2.4em 0 .7em; padding-bottom: 6px; border-bottom: 1px solid var(--rule); }
+  h3 { font-size: 1.3rem; color: var(--accent); margin: 2.1em 0 .45em; }
+  h4 { font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+    margin: 1.5em 0 .5em; }
+  p { margin: 0 0 .9em; }
+  ul, ol { padding-left: 1.3em; margin: 0 0 1em; }
+  li { margin: .4em 0; }
+  a { color: var(--accent); }
+  strong { color: #15181c; }
+  code { background: #f0efe9; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, monospace; font-size: .88em; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  th, td { border: 1px solid var(--rule); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--accent); }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1em 0 1.3em; }
+  math { font-size: 1.05em; }
+  .k { color: var(--key); font-weight: 600; }
+  .q { color: var(--ask); font-weight: 600; }
+  .s { color: var(--step); }
+  .legend { background: #fff; border: 1px solid var(--rule); border-radius: 10px;
+    padding: 12px 16px; margin: 0 0 1.6em; font-size: .95rem; color: var(--muted); }
+  .legend p { margin: 0; }
+  .chap { margin: 0 0 1em; }
+  .chap p { margin: 0; }
+  .chap a { display: inline-block; padding: 5px 12px; border-radius: 8px; background: var(--soft);
+    font-size: .95rem; text-decoration: none; }
+  .chap a:hover { text-decoration: underline; }
+  .more a { display: inline-block; margin-left: 4px; padding: 0 8px; border-radius: 999px;
+    background: var(--soft); color: var(--accent); font-size: .74rem; line-height: 1.75;
+    font-weight: 400; text-decoration: none; white-space: nowrap; vertical-align: 1px; }
+  .more a:hover { background: var(--accent); color: #fff; }
+  .qa ul { list-style: none; padding-left: 0; }
+  .qa li { margin: 0 0 .9em; padding: 10px 14px; background: var(--ask-soft);
+    border-left: 3px solid var(--ask); border-radius: 0 8px 8px 0; }
+  .qa li > .q:first-child { display: block; margin-bottom: .3em; }
+  @media (max-width: 600px) {
+    body { padding: 28px 16px 64px; font-size: 1rem; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.35rem; }
+    h3 { font-size: 1.15rem; }
+    .qa li { padding: 9px 11px; }
+    .table-scroll table { width: auto; min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1 id="csit953-final-exam-cheat-sheet">CSIT953 Final Exam Cheat
+Sheet</h1>
+<div class="legend">
+<p>Colour key: <span class="k">red = key term, use it in your
+answer</span> · <span class="q">purple = likely question or trap</span>
+· <span class="s">blue = steps in order</span>. ★ = hinted by the
+lecturer. Part 1 covers MCQ, fill-in-the-blank and short answers; Part 2
+covers the final design question. The Week 6 protocol analysis is in <a
+href="exam03-auth-protocols-study-guide.html"
+title="第 3 章 认证协议的弱点">the exam notes, chapter 3</a>; D3 is its
+design version. 📖 tags open the matching section of the exam notes (in
+Chinese).</p>
+</div>
+<h2 id="part-1-key-concepts">Part 1 · Key Concepts</h2>
+<h3 id="hashes-and-macs">1 · Hashes and MACs</h3>
+<div class="chap">
+<p><a href="exam01-hash-mac-study-guide.html"
+title="第 1 章 哈希与 MAC">📖 Full notes: Chapter 1 · 哈希与 MAC</a></p>
+</div>
+<div class="table-scroll"><table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>Question it answers</th>
+<th>Secret</th>
+<th>Who can verify</th>
+<th>Gives</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Hash</td>
+<td>Did the bytes change?</td>
+<td>none</td>
+<td>anyone</td>
+<td>integrity (expected value must be trusted)</td>
+</tr>
+<tr class="even">
+<td>MAC</td>
+<td>Did a holder of the shared key send this?</td>
+<td>shared key K</td>
+<td>key holders</td>
+<td>integrity + authenticity</td>
+</tr>
+<tr class="odd">
+<td>Signature</td>
+<td>Did the private-key holder sign this?</td>
+<td>private key</td>
+<td>anyone with the public key</td>
+<td>integrity + authenticity + non-repudiation</td>
+</tr>
+<tr class="even">
+<td>Encryption</td>
+<td>Can outsiders read it?</td>
+<td>key</td>
+<td>—</td>
+<td>confidentiality</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="terms">Terms</h4>
+<ul>
+<li><span class="k">Hash function</span>: maps any input to a
+fixed-length <span class="k">digest</span>. <span
+class="k">Deterministic</span>: same input → same digest. <span
+class="k">Avalanche effect</span>: one changed bit → a completely
+different digest. <span class="k">One-way</span> (<span
+class="k">preimage resistant</span>): easy to compute, infeasible to
+reverse. <span class="k">Collision resistant</span>: infeasible to find
+two inputs with the same digest (collisions exist, but nobody can find
+them). <span class="k">Puzzle-friendly</span>: a proof-of-work puzzle
+has no shortcut. <span class="more"><a
+href="exam01-hash-mac-study-guide.html#2-哈希函数数据的指纹-w2-s11"
+title="第 1 章 §2 哈希函数：数据的指纹">📖 Ch1 §2</a></span></li>
+<li><span class="k">MAC</span>: a keyed checksum, tag = MAC(K, m), with
+K shared by sender and receiver; <span class="k">HMAC</span> builds a
+MAC from a hash. <span class="k">Authenticated encryption</span>
+(AES-GCM, ChaCha20-Poly1305): confidentiality and integrity in one step.
+<span class="more"><a
+href="exam01-hash-mac-study-guide.html#72-mac-是什么"
+title="第 1 章 §7.2 MAC 是什么">📖 Ch1 §7.2</a></span> <span
+class="more"><a
+href="exam01-hash-mac-study-guide.html#8-crc-不是-macwep-的教训-w8-s18s24-s44"
+title="第 1 章 §8 CRC 不是 MAC：WEP 的教训">📖 Ch1 §8</a></span></li>
+</ul>
+<h4 id="facts">Facts</h4>
+<ul>
+<li>SHA-256: Bitcoin, BIP39 checksum, hash before signing (Lab 3).
+Keccak-256: Ethereum addresses. HMAC-SHA512: BIP32 and the BIP39 seed.
+MD5 and SHA-1: broken. <span class="more"><a
+href="exam01-hash-mac-study-guide.html#2-哈希函数数据的指纹-w2-s11"
+title="第 1 章 §2 哈希函数：数据的指纹">📖 Ch1 §2</a></span></li>
+<li>Uses of a hash: file checksum; block linking (change one block and
+every later link breaks); proof of work, find a nonce with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mtext mathvariant="normal">nonce</mtext><mo stretchy="false" form="postfix">∥</mo><mtext mathvariant="normal">prev</mtext><mo stretchy="false" form="postfix">∥</mo><mtext mathvariant="normal">tx</mtext><mo stretchy="true" form="postfix">)</mo></mrow><mo>&lt;</mo><mtext mathvariant="normal">target</mtext></mrow><annotation encoding="application/x-tex">H(\text{nonce} \| \text{prev} \| \text{tx}) &lt; \text{target}</annotation></semantics></math>
+(smaller target = harder); address derivation; hash-then-sign; password
+storage with a per-user salt, H(r, pw), so one precomputed dictionary
+cannot attack every user. <span class="more"><a
+href="exam01-hash-mac-study-guide.html#3-用途一发现数据被改动"
+title="第 1 章 §3 用途一：发现数据被改动">📖 Ch1 §3</a></span> <span
+class="more"><a
+href="exam01-hash-mac-study-guide.html#4-用途二工作量证明的谜题-w2-s33s34"
+title="第 1 章 §4 用途二：工作量证明的谜题">📖 Ch1 §4</a></span> <span
+class="more"><a href="exam01-hash-mac-study-guide.html#63-加盐"
+title="第 1 章 §6.3 加盐">📖 Ch1 §6.3</a></span></li>
+<li>A MAC gives no confidentiality, no non-repudiation (both sides hold
+K) and no replay protection on its own. <span class="q">CRC-32 is not a
+MAC</span> (WEP): it has no key, so an attacker can flip bits and fix
+the checksum. Use authenticated encryption, check the tag before using
+the plaintext, and add counters against replay. <span class="more"><a
+href="exam01-hash-mac-study-guide.html#72-mac-是什么"
+title="第 1 章 §7.2 MAC 是什么">📖 Ch1 §7.2</a></span> <span
+class="more"><a
+href="exam01-hash-mac-study-guide.html#8-crc-不是-macwep-的教训-w8-s18s24-s44"
+title="第 1 章 §8 CRC 不是 MAC：WEP 的教训">📖 Ch1 §8</a></span></li>
+</ul>
+<p><strong>Traps</strong>: a hash is not encryption · a hash proves the
+data did not change since it was recorded, not that it is true · a
+published hash helps only if it comes from a trusted channel, otherwise
+sign · authenticated encryption does not give freshness · a salt is not
+secret. <span class="more"><a
+href="exam01-hash-mac-study-guide.html#️-易混易错"
+title="第 1 章 易混易错">📖 Ch1 ⚠️</a></span></p>
+<h4 id="short-answers">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: What is the difference between a hash and a
+MAC?</span> A hash uses no key, so anyone can compute it; it detects
+changes only if the expected value is trusted. A MAC uses a secret key
+shared by two parties, so an attacker who changes the message cannot
+compute a valid tag. So a MAC gives integrity and authenticity against
+an active attacker; a hash alone does not. <span class="more"><a
+href="exam01-hash-mac-study-guide.html#71-为什么哈希不够"
+title="第 1 章 §7.1 为什么哈希不够">📖 Ch1 §7.1</a></span></li>
+<li><span class="q">Q: Why is an offline dictionary attack faster and
+harder to stop than online guessing?</span> The attacker already has the
+hash and tests guesses on their own machine, thousands per second with a
+GPU. The server never sees the guesses, so rate limits and account
+lock-out cannot stop it. Online guessing must send each guess to the
+server, which is slow and can be limited. <span class="more"><a
+href="exam01-hash-mac-study-guide.html#62-字典攻击"
+title="第 1 章 §6.2 字典攻击">📖 Ch1 §6.2</a></span></li>
+<li><span class="q">Q: Which tool fits which job?</span> Checking a
+download: a hash from a trusted channel, or a signature. Two servers
+that share a key: a MAC or authenticated encryption. Blockchain
+transactions and public software: a signature, because anyone can verify
+it but only the signer can make it. Passwords: a per-user salt and a
+hash. Secret data: authenticated encryption. Replay: a counter or
+challenge, plus a MAC or signature. <span class="more"><a
+href="exam01-hash-mac-study-guide.html#1-先问要保护什么-w4-s23-s27"
+title="第 1 章 §1 先问要保护什么">📖 Ch1 §1</a></span> <span
+class="more"><a href="exam01-hash-mac-study-guide.html#9-按场景选工具"
+title="第 1 章 §9 按场景选工具">📖 Ch1 §9</a></span></li>
+</ul>
+</div>
+<h3 id="diffiehellman-key-exchange">2 · Diffie–Hellman Key Exchange</h3>
+<div class="chap">
+<p><a href="exam02-dh-study-guide.html"
+title="第 2 章 Diffie–Hellman 密钥交换">📖 Full notes: Chapter 2 ·
+Diffie–Hellman 密钥交换</a></p>
+</div>
+<h4 id="terms-1">Terms</h4>
+<ul>
+<li><span class="k">Diffie–Hellman (DH)</span>: two parties with no
+shared secret agree on one over a public channel. DH does not encrypt; a
+<span class="k">KDF</span> (e.g. HKDF) turns the secret into symmetric
+keys. <span class="more"><a
+href="exam02-dh-study-guide.html#1-为什么需要密钥交换-w6-s2"
+title="第 2 章 §1 为什么需要密钥交换">📖 Ch2 §1</a></span> <span
+class="more"><a
+href="exam02-dh-study-guide.html#3-从共享秘密到会话密钥-w5-s8-lab-4-quiz-3"
+title="第 2 章 §3 从共享秘密到会话密钥">📖 Ch2 §3</a></span></li>
+<li><span class="k">ECDH</span>: everyone knows the curve and the <span
+class="k">base point</span> G. Alice sends
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Y</mi><mi>A</mi></msub><mo>=</mo><msub><mi>x</mi><mi>A</mi></msub><mi>G</mi></mrow><annotation encoding="application/x-tex">Y_A = x_A G</annotation></semantics></math>
+and Bob sends
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Y</mi><mi>B</mi></msub><mo>=</mo><msub><mi>x</mi><mi>B</mi></msub><mi>G</mi></mrow><annotation encoding="application/x-tex">Y_B = x_B G</annotation></semantics></math>;
+both compute
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><msub><mi>x</mi><mi>A</mi></msub><msub><mi>Y</mi><mi>B</mi></msub><mo>=</mo><msub><mi>x</mi><mi>B</mi></msub><msub><mi>Y</mi><mi>A</mi></msub><mo>=</mo><msub><mi>x</mi><mi>A</mi></msub><msub><mi>x</mi><mi>B</mi></msub><mi>G</mi></mrow><annotation encoding="application/x-tex">K = x_A Y_B = x_B Y_A = x_A x_B G</annotation></semantics></math>.
+Getting
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mi>A</mi></msub><annotation encoding="application/x-tex">x_A</annotation></semantics></math>
+from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>A</mi></msub><annotation encoding="application/x-tex">Y_A</annotation></semantics></math>
+is infeasible, so a passive eavesdropper cannot compute K. <span
+class="more"><a
+href="exam02-dh-study-guide.html#2-椭圆曲线上的-dh-w6-s3s4"
+title="第 2 章 §2 椭圆曲线上的 DH">📖 Ch2 §2</a></span> <span
+class="more"><a href="exam02-dh-study-guide.html#41-只会听的攻击者"
+title="第 2 章 §4.1 只会听的攻击者">📖 Ch2 §4.1</a></span></li>
+<li><span class="k">Ephemeral</span> key: new for each session and
+deleted after use (not “short”). <span class="k">Static</span> key: the
+same every time. <span class="k">Forward secrecy</span>: a long-term key
+stolen later does not reveal sessions recorded earlier. <span
+class="more"><a
+href="exam02-dh-study-guide.html#6-临时密钥与前向安全-w7-s16s18"
+title="第 2 章 §6 临时密钥与前向安全">📖 Ch2 §6</a></span></li>
+</ul>
+<h4 id="facts-1">Facts</h4>
+<ul>
+<li><span class="k">MITM</span>: <span class="s">Eve sends her
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>E</mi></msub><annotation encoding="application/x-tex">Y_E</annotation></semantics></math>
+to Bob instead of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>A</mi></msub><annotation encoding="application/x-tex">Y_A</annotation></semantics></math>,
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>E</mi></msub><annotation encoding="application/x-tex">Y_E</annotation></semantics></math>
+to Alice instead of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>B</mi></msub><annotation encoding="application/x-tex">Y_B</annotation></semantics></math>
+→ she shares
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>A</mi></msub><msub><mi>Y</mi><mi>E</mi></msub></mrow><annotation encoding="application/x-tex">x_A Y_E</annotation></semantics></math>
+with Alice and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>B</mi></msub><msub><mi>Y</mi><mi>E</mi></msub></mrow><annotation encoding="application/x-tex">x_B Y_E</annotation></semantics></math>
+with Bob → she decrypts, reads, changes and re-encrypts every
+message</span>. <span class="k">Root cause: the public values are not
+authenticated.</span> <span class="more"><a
+href="exam02-dh-study-guide.html#42-能改消息的攻击者"
+title="第 2 章 §4.2 能改消息的攻击者">📖 Ch2 §4.2</a></span> <span
+class="more"><a href="exam02-dh-study-guide.html#9-哪些做法挡得住中间人"
+title="第 2 章 §9 哪些做法挡得住中间人">📖 Ch2 §9</a></span></li>
+</ul>
+<div class="table-scroll"><table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Countermeasure</th>
+<th>Stops MITM?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Send
+H(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>A</mi></msub><annotation encoding="application/x-tex">Y_A</annotation></semantics></math>)
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>A</mi></msub><annotation encoding="application/x-tex">Y_A</annotation></semantics></math></td>
+<td>No: Eve sends
+H(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>E</mi></msub><annotation encoding="application/x-tex">Y_E</annotation></semantics></math>)</td>
+</tr>
+<tr class="even">
+<td>Encrypt
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>A</mi></msub><annotation encoding="application/x-tex">Y_A</annotation></semantics></math>
+with AES first</td>
+<td>Impossible: no shared key yet</td>
+</tr>
+<tr class="odd">
+<td>Server signs the handshake; client checks the certificate</td>
+<td>Yes: Eve lacks the private key</td>
+</tr>
+<tr class="even">
+<td>Authenticate only the server</td>
+<td>Yes: the client proves itself later, inside the channel</td>
+</tr>
+<tr class="odd">
+<td>Compare fingerprints by phone or in person</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td>Trust on first use (SSH)</td>
+<td>Not on the first connection; yes later</td>
+</tr>
+<tr class="odd">
+<td>User clicks through a certificate warning</td>
+<td>No</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Key derivation: Lab 4 uses SHA-256(str(k)) of the shared point’s
+x-coordinate as the AES key; SSH derives encryption keys, MAC keys and
+IVs; TLS 1.3 derives handshake and traffic keys. <span class="more"><a
+href="exam02-dh-study-guide.html#3-从共享秘密到会话密钥-w5-s8-lab-4-quiz-3"
+title="第 2 章 §3 从共享秘密到会话密钥">📖 Ch2 §3</a></span></li>
+<li>TLS key roles: the certificate’s <span class="k">long-term signing
+key</span> authenticates the server · <span class="k">ephemeral key
+agreement</span> gives a fresh secret · <span class="k">symmetric
+traffic keys</span> protect the data. TLS 1.3 removed static RSA key
+transport and static DH (RSA signatures stay), so every connection has
+forward secrecy. <span class="q">Forward secrecy protects past sessions
+only: a stolen long-term key still allows impersonation in
+future.</span> <span class="more"><a
+href="exam02-dh-study-guide.html#6-临时密钥与前向安全-w7-s16s18"
+title="第 2 章 §6 临时密钥与前向安全">📖 Ch2 §6</a></span></li>
+<li>Lab 4 / Quiz 3 chat problems: public keys not authenticated (MITM);
+key pairs reused from files, so every session gets the same AES key and
+there is no forward secrecy; the AES-CTR counter restarts; no integrity
+check; random.randint for keys. <span class="more"><a
+href="exam02-dh-study-guide.html#8-用本章知识检查-lab-4-lab-4-quiz-3"
+title="第 2 章 §8 用本章知识检查 Lab 4">📖 Ch2 §8</a></span></li>
+<li><span class="k">ECIES</span> (Assignment 2): the sender’s ephemeral
+key and the recipient’s long-term public key do ECDH, then HKDF and
+AES-GCM. The recipient need not be online. <span class="more"><a
+href="exam02-dh-study-guide.html#7-dh-在课程里的位置-w5-s8-s11-w7-s17"
+title="第 2 章 §7 DH 在课程里的位置">📖 Ch2 §7</a></span></li>
+</ul>
+<h4 id="short-answers-1">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: Why does unauthenticated DH fail against an
+active attacker?</span> The public values carry no proof of who sent
+them. An attacker in the middle replaces
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>A</mi></msub><annotation encoding="application/x-tex">Y_A</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>B</mi></msub><annotation encoding="application/x-tex">Y_B</annotation></semantics></math>
+with their own
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Y</mi><mi>E</mi></msub><annotation encoding="application/x-tex">Y_E</annotation></semantics></math>,
+so each victim shares a key with the attacker instead of with each
+other. The attacker decrypts, reads and re-encrypts all traffic, and
+nobody notices, because each side completes a normal DH exchange. The
+fix is to authenticate the public values, e.g. with a signature over the
+handshake checked with a certificate. <span class="more"><a
+href="exam02-dh-study-guide.html#42-能改消息的攻击者"
+title="第 2 章 §4.2 能改消息的攻击者">📖 Ch2 §4.2</a></span> <span
+class="more"><a
+href="exam02-dh-study-guide.html#5-修补认证公开值-w6-s5-w7-s4s5-s14"
+title="第 2 章 §5 修补：认证公开值">📖 Ch2 §5</a></span></li>
+<li><span class="q">Q: Explain forward secrecy and how ephemeral DH
+provides it.</span> Forward secrecy means that if a long-term key is
+stolen later, sessions recorded earlier stay secret. With ephemeral DH,
+each session uses fresh private values that are deleted after the
+handshake, and the long-term key is used only to sign. So a later key
+theft cannot recompute the old shared secrets. <span class="more"><a
+href="exam02-dh-study-guide.html#6-临时密钥与前向安全-w7-s16s18"
+title="第 2 章 §6 临时密钥与前向安全">📖 Ch2 §6</a></span></li>
+</ul>
+</div>
+<h3 id="https-tls-and-digital-certificates-sample-question">3 · HTTPS,
+TLS and Digital Certificates ★★★ (sample question)</h3>
+<div class="chap">
+<p><a href="exam04-tls-certificates-study-guide.html"
+title="第 4 章 HTTPS、TLS 与证书">📖 Full notes: Chapter 4 · HTTPS、TLS
+与证书</a></p>
+</div>
+<h4 id="terms-2">Terms</h4>
+<ul>
+<li><span class="k">Public key substitution problem</span>: a signature
+shows which private key signed, not who owns the key, so an attacker can
+swap Alice’s published key for their own. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#1-公钥属于谁-w7-s2s4"
+title="第 4 章 §1 公钥属于谁">📖 Ch4 §1</a></span></li>
+<li><span class="k">Certificate</span>: a CA-signed statement that binds
+an identity (the domain names in the <span class="k">SAN</span>, Subject
+Alternative Name) to a public key. It also has the issuer, a serial
+number, the <span class="k">validity period</span> (not-before,
+not-after), Basic Constraints (CA or not) and Key Usage / EKU.
+Certificates are public; anyone can copy one. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#2-证书是什么-w7-s5-s8s9"
+title="第 4 章 §2 证书是什么">📖 Ch4 §2</a></span></li>
+<li><span class="k">CSR</span>: signed with the applicant’s private key
+to prove possession; the <span class="k">RA</span> checks identity or
+domain control; the CA never sees the private key. <span
+class="k">DV</span>: only domain control is checked; <span
+class="k">OV</span> / <span class="k">EV</span>: the organisation is
+checked too. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#3-证书证明了什么-w7-s6s7"
+title="第 4 章 §3 证书证明了什么">📖 Ch4 §3</a></span></li>
+<li><span class="k">Trust anchor</span>: the root where path checking
+stops. <span class="k">Trust store</span>: the roots a client accepts.
+<span class="k">CertificateVerify</span>: the server signs the TLS 1.3
+handshake with its private key. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#4-证书链与信任锚-w7-s10s12-s36s37"
+title="第 4 章 §4 证书链与信任锚">📖 Ch4 §4</a></span> <span
+class="more"><a
+href="exam04-tls-certificates-study-guide.html#6-复制证书为什么没用-w7-s14"
+title="第 4 章 §6 复制证书为什么没用">📖 Ch4 §6</a></span></li>
+</ul>
+<h4 id="facts-2">Facts</h4>
+<ul>
+<li>Chain: <span class="s">root CA (self-signed, installed by the vendor
+or administrator) → intermediate CA → server certificate</span>. The
+server sends its own certificate and the intermediates. Intermediates
+keep the root key away from daily use and limit damage. <span
+class="more"><a
+href="exam04-tls-certificates-study-guide.html#4-证书链与信任锚-w7-s10s12-s36s37"
+title="第 4 章 §4 证书链与信任锚">📖 Ch4 §4</a></span></li>
+<li>Client checks: <span class="s">a path to a trusted anchor → the
+hostname matches the SAN → validity time, signatures, CA constraints,
+allowed use → revocation</span>. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#5-客户端检查什么-w7-s13-s15"
+title="第 4 章 §5 客户端检查什么">📖 Ch4 §5</a></span></li>
+</ul>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>Failure</th>
+<th>What the client cannot confirm</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Expired certificate</td>
+<td>that it is valid now</td>
+</tr>
+<tr class="even">
+<td>Wrong hostname</td>
+<td>that this is the service you wanted</td>
+</tr>
+<tr class="odd">
+<td>Missing intermediate</td>
+<td>that a complete path exists</td>
+</tr>
+<tr class="even">
+<td>Unknown root</td>
+<td>an approved starting point of trust</td>
+</tr>
+<tr class="odd">
+<td>Revoked certificate</td>
+<td>that it is still acceptable</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>TLS 1.3: <span class="s">ClientHello + key share → ServerHello + key
+share → (EC)DHE secret, handshake keys → encrypted EncryptedExtensions,
+Certificate, CertificateVerify, Finished → client sends Finished →
+traffic keys</span>. Only in TLS 1.2: ServerKeyExchange, the old
+ChangeCipherSpec role, static RSA. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#7-tls-13-握手-w7-s16s18"
+title="第 4 章 §7 TLS 1.3 握手">📖 Ch4 §7</a></span></li>
+<li><span class="k">Expiry</span> is the planned end; <span
+class="k">revocation</span> is an early withdrawal (key compromise,
+misissuance, loss of authorisation), and the key must be replaced too.
+<span class="k">Certificate Transparency (CT)</span>: public logs make
+issuance auditable but revoke nothing. Public TLS certificates issued
+from 15 March 2026 last at most 200 days, so renewal is automated with
+<span class="k">ACME</span>. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#8-证书的一生签发续期到期与吊销-w7-s19s23-s38"
+title="第 4 章 §8 证书的一生：签发、续期、到期与吊销">📖 Ch4
+§8</a></span></li>
+<li>Self-signed certificate: strong crypto but no trust. Use it only
+when it is trusted through an independent channel (e.g. built into the
+app), with hostname checks still on. Public CA → public sites; private
+CA → internal managed devices; self-signed → small or development
+setups. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#9-自签名证书与私有-ca-w7-s24s26"
+title="第 4 章 §9 自签名证书与私有 CA">📖 Ch4 §9</a></span></li>
+<li>DNS poisoning beats HTTP but not HTTPS, because the certificate is
+checked for the original hostname. HTTPS fails only with another
+failure: a clicked-through warning, a stolen server key, a misissued
+certificate or a malicious root on the device. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#101-dns-投毒"
+title="第 4 章 §10.1 DNS 投毒">📖 Ch4 §10.1</a></span></li>
+<li><span class="k">mTLS</span>: the client also shows a certificate
+(machine identity); authorisation is still separate. Keep private keys
+in an <span class="k">HSM</span>. Many outages are operational: a
+renewed certificate not reloaded, a forgotten endpoint, an incomplete
+chain. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#11-双向-tls私钥保护与运维故障-w7-s32s34"
+title="第 4 章 §11 双向 TLS、私钥保护与运维故障">📖 Ch4
+§11</a></span></li>
+</ul>
+<p><strong>Traps</strong>: the padlock means encryption and a checked
+domain, not an honest site · a root is trusted because it was installed,
+not because it is signed · revocation does not make a stolen key safe ·
+CT does not revoke · a self-signed certificate lacks trust, not strong
+crypto. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#️-易混易错"
+title="第 4 章 易混易错">📖 Ch4 ⚠️</a></span></p>
+<h4 id="short-answers-2">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: Why does copying a bank’s certificate not let an
+attacker impersonate the bank?</span> The certificate is public. In TLS
+1.3 the server must sign the handshake (CertificateVerify) with the
+private key that matches the certificate, and the client checks the
+signature with the public key in the certificate. The signature covers
+the fresh handshake, so an old one cannot be replayed. Without the
+private key, the attacker fails. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#6-复制证书为什么没用-w7-s14"
+title="第 4 章 §6 复制证书为什么没用">📖 Ch4 §6</a></span></li>
+<li><span class="q">Q: Why does a client trust a self-signed root
+certificate?</span> A self-signature proves nothing, because anyone can
+make one. The root is trusted because the OS or browser vendor (root
+programme) or an administrator put it in the trust store. Adding a root
+is a security decision, because it widens which identities the client
+accepts. <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#4-证书链与信任锚-w7-s10s12-s36s37"
+title="第 4 章 §4 证书链与信任锚">📖 Ch4 §4</a></span></li>
+<li><span class="q">Q: Compare CRL and OCSP.</span> A CRL is a signed
+list of revoked certificates published by the CA; the client needs a
+fresh list. With OCSP the client asks a responder about one certificate
+and gets a signed status, which raises privacy and availability
+concerns. With OCSP stapling the server supplies the signed status, and
+the client still checks that it is valid and fresh. <span
+class="more"><a
+href="exam04-tls-certificates-study-guide.html#82-到期与吊销"
+title="第 4 章 §8.2 到期与吊销">📖 Ch4 §8.2</a></span></li>
+<li><span class="q">Q: Why can a company proxy read HTTPS traffic
+without warnings?</span> The administrator installed the company root CA
+in the laptops’ trust store. The proxy uses it to issue a certificate
+for each requested hostname, and this certificate passes every check. So
+the browser’s TLS connection ends at the proxy, which decrypts the
+traffic and opens a second TLS connection to the real website. <span
+class="more"><a
+href="exam04-tls-certificates-study-guide.html#102-管理员控制信任的设备"
+title="第 4 章 §10.2 管理员控制信任的设备">📖 Ch4 §10.2</a></span></li>
+</ul>
+</div>
+<h3 id="ssh-security">4 · SSH Security</h3>
+<div class="chap">
+<p><a href="exam05-ssh-study-guide.html" title="第 5 章 SSH">📖 Full
+notes: Chapter 5 · SSH</a></p>
+</div>
+<h4 id="terms-3">Terms</h4>
+<ul>
+<li><span class="k">SSH</span> replaces telnet and rsh, which send
+passwords and commands in cleartext. It gives an encrypted,
+authenticated channel for remote admin, commands, SFTP/SCP and port
+forwarding. It does not protect the endpoints and is not a full VPN.
+<span class="more"><a
+href="exam05-ssh-study-guide.html#1-ssh-用来做什么-w5-s2s5-s30"
+title="第 5 章 §1 SSH 用来做什么">📖 Ch5 §1</a></span></li>
+<li>SSH-2 layers: <span class="k">Transport Layer Protocol</span>
+(server authentication, key exchange, encryption) → <span class="k">User
+Authentication Protocol</span> (authenticates the client inside the
+channel) → <span class="k">Connection Protocol</span> (multiplexes
+channels: session, x11, direct-tcpip = local forwarding, forwarded-tcpip
+= remote forwarding). <span class="more"><a
+href="exam05-ssh-study-guide.html#2-连接的四步与三层结构-w5-s6s8"
+title="第 5 章 §2 连接的四步与三层结构">📖 Ch5 §2</a></span> <span
+class="more"><a
+href="exam05-ssh-study-guide.html#8-连接协议一条连接里的多条通道-w5-s21s22"
+title="第 5 章 §8 连接协议：一条连接里的多条通道">📖 Ch5
+§8</a></span></li>
+<li><span class="k">Host key fingerprint</span>: a hash of the server’s
+public host key. <span class="k">Trust on first use (TOFU)</span>:
+accept the key the first time, store it in known_hosts, warn if it
+changes. <span class="k">Passphrase</span>: encrypts the private-key
+file on the client; it is never sent. <span class="more"><a
+href="exam05-ssh-study-guide.html#4-认证服务器指纹与首次信任-w5-s9s10"
+title="第 5 章 §4 认证服务器：指纹与首次信任">📖 Ch5 §4</a></span> <span
+class="more"><a
+href="exam05-ssh-study-guide.html#5-认证用户公钥优于口令-w5-s13s14"
+title="第 5 章 §5 认证用户：公钥优于口令">📖 Ch5 §5</a></span></li>
+</ul>
+<h4 id="facts-3">Facts</h4>
+<ul>
+<li>Steps: <span class="s">the client connects → the server sends its
+host key → they negotiate and open a secure channel → the user logs
+in</span>. Transport: ephemeral DH (Curve25519) signed with the host key
+→ encryption keys, MAC keys, IVs. Legacy, do not re-enable: DSS, RC4,
+3DES, CBC-only, SHA-1. <span class="more"><a
+href="exam05-ssh-study-guide.html#2-连接的四步与三层结构-w5-s6s8"
+title="第 5 章 §2 连接的四步与三层结构">📖 Ch5 §2</a></span> <span
+class="more"><a
+href="exam05-ssh-study-guide.html#3-传输层密钥交换与算法-w5-s8-s11s12"
+title="第 5 章 §3 传输层：密钥交换与算法">📖 Ch5 §3</a></span></li>
+<li>TLS trusts a CA-signed certificate checked automatically; SSH trusts
+a host key checked by the user’s fingerprint check (or host certificates
+at scale). <span class="more"><a
+href="exam05-ssh-study-guide.html#4-认证服务器指纹与首次信任-w5-s9s10"
+title="第 5 章 §4 认证服务器：指纹与首次信任">📖 Ch5 §4</a></span></li>
+<li>Hardening: no public management ports (use a <span class="k">bastion
+host</span>, an identity-aware broker or a VPN); no direct root login;
+disable password login; use keys or short-lived certificates; least
+privilege (AllowUsers, restricted commands, limited forwarding). <span
+class="q">Changing port 22 only reduces scanning noise.</span> <span
+class="k">Agent forwarding</span> lets a compromised middle host use
+your agent, so prefer <span class="k">ProxyJump</span>. <span
+class="more"><a href="exam05-ssh-study-guide.html#6-加固-ssh-w5-s15s18"
+title="第 5 章 §6 加固 SSH">📖 Ch5 §6</a></span></li>
+<li>Cloud access: direct public SSH (simple; every machine exposed) /
+VPN (broad network access) / bastion (central policy and logs, but a
+high-value target) / identity-aware broker (checks cloud IAM, then opens
+a temporary path). <span class="more"><a
+href="exam05-ssh-study-guide.html#7-云上的接入方式-w5-s19s20"
+title="第 5 章 §7 云上的接入方式">📖 Ch5 §7</a></span></li>
+</ul>
+<div class="table-scroll"><table>
+<colgroup>
+<col style="width: 48%" />
+<col style="width: 18%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Command</th>
+<th>Listener on</th>
+<th>Who connects to the target</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ssh -L 8080:127.0.0.1:80 user@web</code></td>
+<td>client</td>
+<td>the server side; 127.0.0.1 = the server itself</td>
+</tr>
+<tr class="even">
+<td><code>ssh -R 10123:127.0.0.1:123 user@web</code></td>
+<td>server</td>
+<td>the client side; the client’s own port 123</td>
+</tr>
+<tr class="odd">
+<td><code>ssh -D 1080 user@bastion</code></td>
+<td>client (SOCKS proxy)</td>
+<td>the server side; any destination</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="short-answers-3">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: Why is public-key authentication better than
+passwords?</span> The private key never leaves the client; the client
+sends only a signature over session data, which cannot be replayed (Week
+6 Protocol 9). The server stores only public keys, so a server breach
+does not allow impersonation. Keys cannot be guessed, phished or reused
+like passwords, so password login can be turned off. <span
+class="more"><a
+href="exam05-ssh-study-guide.html#5-认证用户公钥优于口令-w5-s13s14"
+title="第 5 章 §5 认证用户：公钥优于口令">📖 Ch5 §5</a></span></li>
+<li><span class="q">Q: What does TOFU fail to prevent?</span> A
+man-in-the-middle on the very first connection: the attacker’s key is
+stored as the real one. TOFU only detects a changed key later. Fix:
+compare the fingerprint with a trusted source, or use host certificates.
+<span class="more"><a
+href="exam05-ssh-study-guide.html#4-认证服务器指纹与首次信任-w5-s9s10"
+title="第 5 章 §4 认证服务器：指纹与首次信任">📖 Ch5 §4</a></span></li>
+<li><span class="q">Q: Only the bastion can reach db.internal:8080. Open
+it at localhost:9000.</span>
+<code>ssh -L 9000:db.internal:8080 user@bastion</code>. The listener is
+on your laptop; the bastion connects to db.internal:8080 for you. <span
+class="more"><a href="exam05-ssh-study-guide.html#101-本地转发--l"
+title="第 5 章 §10.1 本地转发 -L">📖 Ch5 §10.1</a></span></li>
+<li><span class="q">Q: Why can port forwarding bypass network
+segmentation, and how do you control it?</span> The SSH server can often
+reach internal hosts that the client cannot. Local or dynamic forwarding
+lets a user reach them through it, and remote forwarding can publish a
+laptop service into another network. The firewall sees only encrypted
+SSH. So disable forwarding for restricted accounts, and grant it as a
+separate permission with limited destinations. <span class="more"><a
+href="exam05-ssh-study-guide.html#9-端口转发的思路-w5-s23s26"
+title="第 5 章 §9 端口转发的思路">📖 Ch5 §9</a></span> <span
+class="more"><a
+href="exam05-ssh-study-guide.html#11-转发会绕过网络隔离-w5-s30s31-s45"
+title="第 5 章 §11 转发会绕过网络隔离">📖 Ch5 §11</a></span></li>
+</ul>
+</div>
+<h3 id="wireless-network-security">5 · Wireless Network Security</h3>
+<div class="chap">
+<p><a href="exam06-wireless-study-guide.html"
+title="第 6 章 无线网络安全">📖 Full notes: Chapter 6 ·
+无线网络安全</a></p>
+</div>
+<h4 id="terms-4">Terms</h4>
+<ul>
+<li><span class="k">Access point (AP)</span>: connects wireless clients
+to the wired LAN (<span class="k">infrastructure mode</span>; <span
+class="k">ad hoc mode</span> = client to client). <span class="k">Beacon
+frame</span>: the AP advertises; <span class="k">probe request</span>:
+the client asks. <span class="k">SSID</span>: a network name that anyone
+can broadcast, so it proves nothing. <span class="more"><a
+href="exam06-wireless-study-guide.html#1-无线局域网怎样组成-w8-s3s8"
+title="第 6 章 §1 无线局域网怎样组成">📖 Ch6 §1</a></span> <span
+class="more"><a
+href="exam06-wireless-study-guide.html#21-发现ssid-只是一个名字"
+title="第 6 章 §2.1 发现：SSID 只是一个名字">📖 Ch6 §2.1</a></span></li>
+<li><span class="k">Four-way handshake</span>: confirms knowledge of the
+shared secret and installs fresh session keys; it is not a user login.
+<span class="k">SAE</span> (WPA3-Personal); <span
+class="k">802.1X/EAP</span> (enterprise, one identity per user or
+device); <span class="k">PMF</span> (Protected Management Frames); <span
+class="k">AES-CCMP</span>; <span class="k">rogue AP</span>; <span
+class="k">evil twin</span> (a rogue AP that copies a trusted SSID);
+<span class="k">jamming</span>; <span class="k">WPS</span>. <span
+class="more"><a
+href="exam06-wireless-study-guide.html#22-认证关联与四次握手"
+title="第 6 章 §2.2 认证、关联与四次握手">📖 Ch6 §2.2</a></span> <span
+class="more"><a
+href="exam06-wireless-study-guide.html#7-wpa2wpa3-与企业认证-w8-s28"
+title="第 6 章 §7 WPA2、WPA3 与企业认证">📖 Ch6 §7</a></span></li>
+</ul>
+<h4 id="facts-4">Facts</h4>
+<ul>
+<li>Joining: WPA2-Personal <span class="s">open-system authentication →
+association → four-way handshake with the PSK</span>; WPA3-Personal uses
+SAE instead of open-system authentication; enterprise adds EAP before
+the four-way handshake. <span class="more"><a
+href="exam06-wireless-study-guide.html#22-认证关联与四次握手"
+title="第 6 章 §2.2 认证、关联与四次握手">📖 Ch6 §2.2</a></span></li>
+<li>Wi-Fi 4 / 5 / 6 / 6E / 7 = 802.11n / ac / ax / ax at 6 GHz / be.
+<span class="q">A new generation improves performance, not
+security.</span> <span class="more"><a
+href="exam06-wireless-study-guide.html#1-无线局域网怎样组成-w8-s3s8"
+title="第 6 章 §1 无线局域网怎样组成">📖 Ch6 §1</a></span></li>
+<li>Threats: confidentiality (eavesdropping, traffic analysis);
+integrity and identity (evil twin, spoofing, downgrade, frame
+injection); availability (jamming, deauthentication abuse); operations
+(insecure defaults, shared credentials, unpatched APs). <span
+class="more"><a
+href="exam06-wireless-study-guide.html#3-无线改变了威胁模型-w8-s11s12-w1-s27"
+title="第 6 章 §3 无线改变了威胁模型">📖 Ch6 §3</a></span></li>
+<li>PMF (required by WPA3) reduces forged disconnects on established
+links. It does not stop jamming and does not verify an SSID. Jamming
+attacks availability; near the AP, many clients lose service. <span
+class="more"><a
+href="exam06-wireless-study-guide.html#5-干扰与强制断线攻击可用性-w8-s14s15"
+title="第 6 章 §5 干扰与强制断线：攻击可用性">📖 Ch6 §5</a></span></li>
+<li>WEP = RC4 + 24-bit IV + one shared key + CRC-32. A reused IV means a
+reused keystream:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mn>1</mn></msub><mo>⊕</mo><msub><mi>C</mi><mn>2</mn></msub><mo>=</mo><msub><mi>P</mi><mn>1</mn></msub><mo>⊕</mo><msub><mi>P</mi><mn>2</mn></msub></mrow><annotation encoding="application/x-tex">C_1 \oplus C_2 = P_1 \oplus P_2</annotation></semantics></math>.
+<span class="more"><a
+href="exam06-wireless-study-guide.html#6-wep-的教训-w8-s18s26"
+title="第 6 章 §6 WEP 的教训">📖 Ch6 §6</a></span></li>
+<li>Evil twin: <span class="s">forge deauthentication frames → broadcast
+the same SSID as an open network → show a fake router page that asks for
+the Wi-Fi password</span>. <span class="q">Do not help: a hidden SSID,
+PMF, new Wi-Fi hardware.</span> <span class="more"><a
+href="exam06-wireless-study-guide.html#91-攻击过程"
+title="第 6 章 §9.1 攻击过程">📖 Ch6 §9.1</a></span> <span
+class="more"><a href="exam06-wireless-study-guide.html#93-哪些措施有用"
+title="第 6 章 §9.3 哪些措施有用">📖 Ch6 §9.3</a></span></li>
+<li>WPS: the 8-digit PIN is checked in two halves, so each half can be
+guessed online; disable WPS. <span class="more"><a
+href="exam06-wireless-study-guide.html#10-wps便利的代价-w8-s32"
+title="第 6 章 §10 WPS：便利的代价">📖 Ch6 §10</a></span></li>
+<li>Secure configuration: WPA3-SAE or 802.1X, never WEP; transition mode
+only if needed; require PMF; a long random passphrase; change the
+default SSID and admin password; patch the firmware; separate guest and
+IoT networks; disable WPS; monitor for rogue APs. <span class="more"><a
+href="exam06-wireless-study-guide.html#11-一份安全配置清单"
+title="第 6 章 §11 一份安全配置清单">📖 Ch6 §11</a></span></li>
+</ul>
+<h4 id="short-answers-4">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: State WEP’s three design mistakes and the lesson
+from each.</span> Shared credentials: one key for all users and devices,
+so a leak exposed the whole WLAN and the key was hard to change; lesson:
+distinct identities (enterprise authentication or per-device
+credentials). Weak integrity: CRC-32 allowed controlled bit changes;
+lesson: authenticated encryption. Nonce reuse: the 24-bit IV space made
+keystream reuse certain; lesson: large nonces, unique under a key, also
+after a reboot. <span class="more"><a
+href="exam06-wireless-study-guide.html#6-wep-的教训-w8-s18s26"
+title="第 6 章 §6 WEP 的教训">📖 Ch6 §6</a></span></li>
+<li><span class="q">Q: Why can a weak WPA2-PSK passphrase be guessed
+offline? What does SAE change?</span> The four-way handshake contains
+values derived from the passphrase, with the SSID as a salt. An attacker
+who captures it (often after forging deauthentication frames) tests
+guesses on their own GPUs, and the AP cannot limit the guesses. SAE
+resists passive offline guessing: a recorded exchange gives nothing to
+test against, so every guess needs a live exchange with the AP. Weak
+passwords and transition mode still matter; use a long random passphrase
+and separate guest and IoT networks. <span class="more"><a
+href="exam06-wireless-study-guide.html#81-为什么能离线猜"
+title="第 6 章 §8.1 为什么能离线猜">📖 Ch6 §8.1</a></span> <span
+class="more"><a
+href="exam06-wireless-study-guide.html#85-wpa3-sae-改变了什么"
+title="第 6 章 §8.5 WPA3-SAE 改变了什么">📖 Ch6 §8.5</a></span></li>
+<li><span class="q">Q: Your laptop uses a café’s WPA2 Wi-Fi. Why should
+banking still use HTTPS?</span> WPA2 protects only the link from the
+laptop to the AP. After the AP the traffic is decrypted and visible to
+the AP owner and the networks beyond; with a shared passphrase, other
+customers may decrypt it too. HTTPS protects the connection end to end,
+from the browser to the bank, even on an open or hostile network. <span
+class="more"><a
+href="exam06-wireless-study-guide.html#4-窃听链路加密只保护到-ap-w8-s13"
+title="第 6 章 §4 窃听：链路加密只保护到 AP">📖 Ch6 §4</a></span></li>
+<li><span class="q">Q: How does a client avoid an evil twin on an 802.1X
+network?</span> It must validate the authentication server’s certificate
+against the expected CA and server name, ideally through a managed
+connection profile, so users are never asked to trust an unknown
+certificate. The attacker cannot present a valid certificate for the
+real server. EAP-TLS avoids sending passwords at all. Do not auto-join
+unknown networks, and monitor for rogue APs. <span class="more"><a
+href="exam06-wireless-study-guide.html#92-企业网络证书验证是关键"
+title="第 6 章 §9.2 企业网络：证书验证是关键">📖 Ch6
+§9.2</a></span></li>
+</ul>
+</div>
+<h3 id="blockchain-and-smart-contracts">6 · Blockchain and Smart
+Contracts</h3>
+<div class="chap">
+<p><a href="exam07-blockchain-study-guide.html"
+title="第 7 章 区块链与智能合约">📖 Full notes: Chapter 7 ·
+区块链与智能合约</a></p>
+</div>
+<h4 id="terms-5">Terms</h4>
+<ul>
+<li><span class="k">Blockchain</span>: a shared, <span
+class="k">append-only ledger</span> kept by many nodes under common
+validation rules: replicated, linked (each block stores the previous
+block’s hash) and agreed (consensus picks the history). No single
+administrator. <span class="more"><a
+href="exam07-blockchain-study-guide.html#1-一份没有管理员的共享账本-w2-s6s10-s14-s23"
+title="第 7 章 §1 一份没有管理员的共享账本">📖 Ch7 §1</a></span></li>
+<li><span class="k">Double-spending</span>: spending the same asset
+twice. <span class="k">Consensus</span>: <span
+class="k">agreement</span>, <span class="k">validity</span>, <span
+class="k">termination</span>. <span class="k">Finality</span>: accepted
+blocks will not change. <span class="more"><a
+href="exam07-blockchain-study-guide.html#2-bitcoin没有银行怎样防止双花-w2-s17s22"
+title="第 7 章 §2 Bitcoin：没有银行，怎样防止双花">📖 Ch7 §2</a></span>
+<span class="more"><a
+href="exam07-blockchain-study-guide.html#41-要商定什么"
+title="第 7 章 §4.1 要商定什么">📖 Ch7 §4.1</a></span></li>
+<li><span class="k">EVM</span>: makes every node compute the same new
+state. <span class="k">Externally owned account (EOA)</span>: controlled
+by a private key; can start transactions. <span class="k">Contract
+account</span>: controlled by its code; acts only when called. Both use
+20-byte addresses. <span class="more"><a
+href="exam07-blockchain-study-guide.html#6-ethereum可编程的共享状态-w2-s36s38-s46"
+title="第 7 章 §6 Ethereum：可编程的共享状态">📖 Ch7 §6</a></span></li>
+<li><span class="k">Nonce</span>: a per-account sequence number. <span
+class="k">Gas</span>: a unit of work. <span class="k">Smart
+contract</span>: code and state at an address. <span
+class="k">Oracle</span>: brings outside facts on-chain. <span
+class="k">Bridge</span>: links two chains. <span class="more"><a
+href="exam07-blockchain-study-guide.html#7-ethereum-交易的六个字段-w3-s40s45-lab-1"
+title="第 7 章 §7 Ethereum 交易的六个字段">📖 Ch7 §7</a></span> <span
+class="more"><a
+href="exam07-blockchain-study-guide.html#8-智能合约-w3-s46s50-w2-s38-lab-2"
+title="第 7 章 §8 智能合约">📖 Ch7 §8</a></span> <span class="more"><a
+href="exam07-blockchain-study-guide.html#9-预言机合约看不到链外的世界-w3-s49-s51s52-s56-w2-s16-s42s43"
+title="第 7 章 §9 预言机：合约看不到链外的世界">📖 Ch7
+§9</a></span></li>
+</ul>
+<h4 id="facts-5">Facts</h4>
+<ul>
+<li>Bitcoin white paper: Satoshi Nakamoto, 2008: a P2P network plus a
+proof-of-work hash chain; the longest chain wins. Confirmed payments are
+hard to reverse, and a lost key cannot be recovered. <span
+class="more"><a
+href="exam07-blockchain-study-guide.html#2-bitcoin没有银行怎样防止双花-w2-s17s22"
+title="第 7 章 §2 Bitcoin：没有银行，怎样防止双花">📖 Ch7
+§2</a></span></li>
+<li>Transaction path: <span class="s">the wallet signs → broadcast →
+nodes check the signature and the funds → a block → consensus</span>.
+More confirmations mean more confidence. <span class="more"><a
+href="exam07-blockchain-study-guide.html#3-一笔交易怎样上链-w2-s12s13-s24"
+title="第 7 章 §3 一笔交易怎样上链">📖 Ch7 §3</a></span></li>
+<li>Byzantine generals: no consensus if 1/3 or more are traitors. FLP:
+no protocol guarantees every property. So blockchains assume an honest
+majority, and security is probabilistic. <span class="more"><a
+href="exam07-blockchain-study-guide.html#42-难在哪里"
+title="第 7 章 §4.2 难在哪里">📖 Ch7 §4.2</a></span> <span
+class="more"><a
+href="exam07-blockchain-study-guide.html#43-bitcoin理论遇上实践"
+title="第 7 章 §4.3 Bitcoin：理论遇上实践">📖 Ch7 §4.3</a></span></li>
+</ul>
+<div class="table-scroll"><table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>PoW</th>
+<th>PoS</th>
+<th>BFT-style voting</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Used by</td>
+<td>Bitcoin</td>
+<td>Ethereum</td>
+<td>permissioned networks</td>
+</tr>
+<tr class="even">
+<td>Who adds the block</td>
+<td>the miner who solves the hash puzzle first</td>
+<td>validators lock ETH as stake; a proposer suggests, others
+attest</td>
+<td>known validators vote</td>
+</tr>
+<tr class="odd">
+<td>Notes</td>
+<td>open; costly to make, cheap to verify; energy</td>
+<td>rewards and penalties; finality</td>
+<td>fast finality</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><span class="k">51% attack</span>: redo the proof of work of a block
+and all later blocks, and overtake the honest chain (more than half the
+hash power). It can reverse the attacker’s own payments and censor
+transactions; it cannot steal other people’s coins. <span
+class="more"><a
+href="exam07-blockchain-study-guide.html#5-三类共识机制-w2-s32s35-s39"
+title="第 7 章 §5 三类共识机制">📖 Ch7 §5</a></span></li>
+<li>Transaction fields: nonce, fee settings, to, value, data, signature.
+The nonce orders transactions and stops replay. <span class="q">Two
+pending transactions with the same nonce: at most one is confirmed,
+probably the one with the higher fee.</span> A simple transfer uses
+21,000 gas; fee = gas used × effective gas price; the priority fee is a
+tip. <span class="q">Out of gas: state is reverted, but the fee is still
+paid.</span> An empty “to” creates a contract; data holds the function
+and its arguments. <span class="more"><a
+href="exam07-blockchain-study-guide.html#71-nonce账户自己的序号"
+title="第 7 章 §7.1 nonce：账户自己的序号">📖 Ch7 §7.1</a></span> <span
+class="more"><a
+href="exam07-blockchain-study-guide.html#72-gas为计算付费"
+title="第 7 章 §7.2 gas：为计算付费">📖 Ch7 §7.2</a></span></li>
+<li>A contract runs deterministic if–then rules and can emit events.
+Deterministic does not mean correct, and whoever controls upgrades can
+change the rules. Lab 2 ERC-20 <code>transfer</code>:
+<code>require</code> checks → update balances → emit a Transfer event.
+<span class="more"><a
+href="exam07-blockchain-study-guide.html#8-智能合约-w3-s46s50-w2-s38-lab-2"
+title="第 7 章 §8 智能合约">📖 Ch7 §8</a></span></li>
+<li><span class="q">Garbage in, garbage out</span>: a contract can check
+the oracle’s format and signature, not the truth. A single price source
+(one exchange pool) can be manipulated, and bridges concentrate trust.
+Defences: several independent sources, sanity checks, limits on possible
+loss. <span class="more"><a
+href="exam07-blockchain-study-guide.html#92-合约能核对什么"
+title="第 7 章 §9.2 合约能核对什么">📖 Ch7 §9.2</a></span> <span
+class="more"><a
+href="exam07-blockchain-study-guide.html#93-价格预言机被操纵"
+title="第 7 章 §9.3 价格预言机被操纵">📖 Ch7 §9.3</a></span></li>
+<li>Use a blockchain only when several parties need a common state and
+no single party should control it; otherwise use a database. Five threat
+layers: user and keys, application, protocol, infrastructure,
+dependencies. <span class="q">A valid transaction can still be
+harmful</span>, e.g. a phished signature. Keys authorise; transactions
+request; contracts execute. <span class="more"><a
+href="exam07-blockchain-study-guide.html#10-什么时候值得用区块链-w3-s53-w2-s14s16"
+title="第 7 章 §10 什么时候值得用区块链">📖 Ch7 §10</a></span> <span
+class="more"><a href="exam07-blockchain-study-guide.html#112-五层"
+title="第 7 章 §11.2 五层">📖 Ch7 §11.2</a></span></li>
+</ul>
+<h4 id="short-answers-5">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: Why can digital signatures alone not prevent
+double-spending?</span> A signature proves that the key holder
+authorised a payment, but not that the money is still unspent. Two
+conflicting payments can both carry valid signatures. Nodes must agree
+on one order of transactions, and that is the job of consensus. <span
+class="more"><a
+href="exam07-blockchain-study-guide.html#2-bitcoin没有银行怎样防止双花-w2-s17s22"
+title="第 7 章 §2 Bitcoin：没有银行，怎样防止双花">📖 Ch7
+§2</a></span></li>
+<li><span class="q">Q: Give two reasons why distributed consensus is
+hard.</span> Any two: nodes may crash or act maliciously; the P2P
+network has faults and delays; there is no global clock, so a slow node
+cannot be told apart from a failed one. <span class="more"><a
+href="exam07-blockchain-study-guide.html#42-难在哪里"
+title="第 7 章 §4.2 难在哪里">📖 Ch7 §4.2</a></span></li>
+<li><span class="q">Q: Gas limit vs max fee per gas?</span> The gas
+limit is the most work the transaction may use. The max fee per gas is
+the highest price the sender will pay per unit of gas. The real fee is
+gas used × effective gas price; unused gas is not charged. <span
+class="more"><a
+href="exam07-blockchain-study-guide.html#72-gas为计算付费"
+title="第 7 章 §7.2 gas：为计算付费">📖 Ch7 §7.2</a></span></li>
+<li><span class="q">Q: Why does a smart contract need an oracle, and
+what new risk does it bring?</span> Every node must reproduce the same
+result, so a contract cannot call websites or sensors itself. An oracle
+submits outside facts as transactions. The contract can check the format
+and the oracle’s authority, not whether the fact is true, so a hacked or
+manipulated oracle can make correct code pay out wrongly. <span
+class="more"><a
+href="exam07-blockchain-study-guide.html#91-为什么需要预言机"
+title="第 7 章 §9.1 为什么需要预言机">📖 Ch7 §9.1</a></span></li>
+</ul>
+</div>
+<h3 id="cryptocurrency-wallets">7 · Cryptocurrency Wallets</h3>
+<div class="chap">
+<p><a href="exam08-wallets-study-guide.html"
+title="第 8 章 加密货币钱包">📖 Full notes: Chapter 8 ·
+加密货币钱包</a></p>
+</div>
+<h4 id="terms-6">Terms</h4>
+<ul>
+<li><span class="k">Wallet</span>: manages keys (authority), not coins;
+the coins stay on the blockchain. <span class="k">Hardware
+wallet</span>: the key stays in a secure chip and signs there. <span
+class="more"><a
+href="exam08-wallets-study-guide.html#1-钱包管的是权限不是币-w3-s9s10"
+title="第 8 章 §1 钱包管的是权限，不是币">📖 Ch8 §1</a></span></li>
+<li><span class="k">Private key</span>: a random 256-bit number on <span
+class="k">secp256k1</span> → <span class="k">public key</span>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mi>k</mi><mo>⋅</mo><mi>G</mi></mrow><annotation encoding="application/x-tex">K = k \cdot G</annotation></semantics></math>
+(64 bytes, x‖y) → <span class="k">address</span>: the last 20 bytes of
+the <span class="k">Keccak-256</span> hash of the public key, written
+with 0x. <span class="k">EIP-55</span>: mixed upper and lower case that
+catches typing errors. <span class="more"><a
+href="exam08-wallets-study-guide.html#2-私钥--公钥--地址-w3-s2s3-s11-lab-1"
+title="第 8 章 §2 私钥 → 公钥 → 地址">📖 Ch8 §2</a></span></li>
+<li><span class="k">Non-deterministic wallet</span> (“just a bunch of
+keys”), <span class="k">deterministic (seeded) wallet</span>, <span
+class="k">HD wallet</span>; <span class="k">BIP32</span>, <span
+class="k">chain code</span>, <span class="k">extended key</span> (xprv,
+xpub), <span class="k">hardened derivation</span>, <span
+class="k">BIP44</span>, <span class="k">BIP39</span> <span
+class="k">mnemonic</span>, <span class="k">passphrase</span>, <span
+class="k">RFC 6979</span>. <span class="more"><a
+href="exam08-wallets-study-guide.html#6-三种钱包结构-w3-s12s17"
+title="第 8 章 §6 三种钱包结构">📖 Ch8 §6</a></span> <span
+class="more"><a href="exam08-wallets-study-guide.html#71-几个-bip"
+title="第 8 章 §7.1 几个 BIP">📖 Ch8 §7.1</a></span></li>
+</ul>
+<h4 id="facts-6">Facts</h4>
+<ul>
+<li>Each step from private key to address is one-way, so sharing the
+address is safe. A signature is a tamper-evident seal, not encryption.
+ECDSA:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo>=</mo><mi>H</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">z = H(m)</annotation></semantics></math>,
+random
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mi>G</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>x</mi></msub><mrow><mspace width="0.222em"></mspace><mo>mod</mo><mspace width="0.222em"></mspace><mi>N</mi></mrow></mrow><annotation encoding="application/x-tex">r = (kG)_x \bmod N</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>=</mo><msup><mi>k</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo>+</mo><mi>r</mi><mi>d</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mspace width="0.222em"></mspace><mo>mod</mo><mspace width="0.222em"></mspace><mi>N</mi></mrow></mrow><annotation encoding="application/x-tex">s = k^{-1}(z + rd) \bmod N</annotation></semantics></math>.
+<span class="more"><a
+href="exam08-wallets-study-guide.html#3-签名不交出私钥也能证明控制权-w3-s4s6-lab-3-quiz-2"
+title="第 8 章 §3 签名：不交出私钥也能证明控制权">📖 Ch8
+§3</a></span></li>
+<li><span class="q">Reused k</span>: both signatures share r, so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>z</mi><mn>1</mn></msub><mo>−</mo><msub><mi>z</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>−</mo><msub><mi>s</mi><mn>2</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">k = (z_1 - z_2)/(s_1 - s_2)</annotation></semantics></math>
+and then the private key
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>s</mi><mn>1</mn></msub><mi>k</mi><mo>−</mo><msub><mi>z</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>r</mi><mrow><mspace width="0.222em"></mspace><mo>mod</mo><mspace width="0.222em"></mspace><mi>N</mi></mrow></mrow><annotation encoding="application/x-tex">d = (s_1 k - z_1)/r \bmod N</annotation></semantics></math>
+(the PS3 used a fixed k; Lab 3 used Python’s random). Use RFC 6979.
+<span class="more"><a
+href="exam08-wallets-study-guide.html#4-签名用的随机数-k-不能重复-w3-s7-lab-3"
+title="第 8 章 §4 签名用的随机数 k 不能重复">📖 Ch8 §4</a></span></li>
+<li><span class="q">Cryptography signs bytes, not intentions</span>:
+malware can show one action and submit another, so check the address and
+amount on the hardware wallet’s own screen. Defences: hardware
+isolation, multisig, verified backups. <span class="more"><a
+href="exam08-wallets-study-guide.html#5-签名界面与私钥的运营风险-w3-s8-w2-s41"
+title="第 8 章 §5 签名界面与私钥的运营风险">📖 Ch8 §5</a></span></li>
+</ul>
+<div class="table-scroll"><table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Non-deterministic</th>
+<th>Sequential deterministic</th>
+<th>HD (BIP32)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Keys</td>
+<td>unrelated, random</td>
+<td>one seed → a chain</td>
+<td>one seed → a tree</td>
+</tr>
+<tr class="even">
+<td>Backup</td>
+<td>every key separately</td>
+<td>the seed once</td>
+<td>the seed once</td>
+</tr>
+<tr class="odd">
+<td>Compromise</td>
+<td>one key = one address</td>
+<td>seed leak = all keys</td>
+<td>seed leak = all keys</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>BIP32: <span class="s">seed → HMAC-SHA512 → left 256 bits = master
+private key, right 256 bits = master chain code</span>. Child keys:
+parent key + chain code + 32-bit index → HMAC-SHA512 → left half = child
+key, right half = child chain code. xpub derives only public keys
+(watch-only wallets). Hardened derivation needs the parent private key:
+xpub plus one leaked normal child key reveals the parent key; a hardened
+branch does not. <span class="more"><a
+href="exam08-wallets-study-guide.html#72-主扩展密钥-w3-s26"
+title="第 8 章 §7.2 主扩展密钥">📖 Ch8 §7.2</a></span> <span
+class="more"><a
+href="exam08-wallets-study-guide.html#73-派生子密钥-w3-s22s24"
+title="第 8 章 §7.3 派生子密钥">📖 Ch8 §7.3</a></span> <span
+class="more"><a
+href="exam08-wallets-study-guide.html#75-硬化派生-w3-s17-s22"
+title="第 8 章 §7.5 硬化派生">📖 Ch8 §7.5</a></span></li>
+<li>BIP44: <code>m/44'/60'/0'/0/0</code> = purpose / coin type (60 =
+Ethereum, 0 = Bitcoin) / account / change / address index;
+<code>'</code> = hardened; m = private derivation, M = public. <span
+class="more"><a
+href="exam08-wallets-study-guide.html#8-bip44统一的路径-w3-s28s30"
+title="第 8 章 §8 BIP44：统一的路径">📖 Ch8 §8</a></span></li>
+<li>BIP39: <span class="s">entropy + checksum (first ENT/32 bits of its
+SHA-256) → 11-bit groups → words from a 2,048-word list</span>: 128 + 4
+bits = 12 words; 256 + 8 bits = 24 words. <span class="s">Words +
+passphrase → PBKDF2-HMAC-SHA512, 2,048 rounds, salt “mnemonic” +
+passphrase → 512-bit seed</span>. The checksum only catches typing
+errors; a different passphrase gives a different wallet. <span
+class="more"><a
+href="exam08-wallets-study-guide.html#9-bip39用单词备份种子-w3-s31s35-s38"
+title="第 8 章 §9 BIP39：用单词备份种子">📖 Ch8 §9</a></span></li>
+</ul>
+<h4 id="short-answers-6">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: Why does BIP32 use a chain code?</span> The chain
+code adds extra random data to each derivation. Without it, anyone who
+saw a parent public key could derive all its child public keys and link
+every address in the wallet. With it, deriving child keys also needs the
+chain code, which protects privacy. So an extended public key is more
+sensitive than a normal public key. <span class="more"><a
+href="exam08-wallets-study-guide.html#74-为什么需要-chain-code-w3-s25"
+title="第 8 章 §7.4 为什么需要 chain code">📖 Ch8 §7.4</a></span></li>
+<li><span class="q">Q: Why is mnemonic exposure more likely than brute
+force?</span> A correctly generated 12-word mnemonic has 128 bits of
+entropy, about
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>2</mn><mn>128</mn></msup><annotation encoding="application/x-tex">2^{128}</annotation></semantics></math>
+choices, so guessing is infeasible. Attackers target the recovery
+channel instead: phishing sites and fake support staff, malware reading
+the screen or clipboard, screenshots, cloud-synced notes and photos,
+stolen paper backups, and weak self-made phrases. Keep it offline, test
+recovery, and never type it into a website. <span class="more"><a
+href="exam08-wallets-study-guide.html#11-保护助记词-w3-s36s37"
+title="第 8 章 §11 保护助记词">📖 Ch8 §11</a></span></li>
+</ul>
+</div>
+<h3 id="secure-cloud-storage-and-data-sharing-assignment-2">8 · Secure
+Cloud Storage and Data Sharing ★★★ (Assignment 2)</h3>
+<div class="chap">
+<p><a href="exam09-cloud-storage-study-guide.html"
+title="第 9 章 安全云存储与共享">📖 Full notes: Chapter 9 ·
+安全云存储与共享</a></p>
+</div>
+<h4 id="terms-7">Terms</h4>
+<ul>
+<li><span class="k">Data plane</span>: reads and writes content. <span
+class="k">Control plane</span>: changes permissions, keys, retention and
+replication; changing a policy or deleting keys also does damage. <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#11-逻辑资源数据面与控制面-w4-s7s8"
+title="第 9 章 §1.1 逻辑资源、数据面与控制面">📖 Ch9
+§1.1</a></span></li>
+<li><span class="k">Shared responsibility model</span>: the provider
+secures the infrastructure; the customer secures data, identities,
+configuration and use. The customer does the most in <span
+class="k">IaaS</span>, less in <span class="k">PaaS</span>, least in
+<span class="k">SaaS</span>, but always stays accountable. <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#13-责任共担一张边界图-w4-s4"
+title="第 9 章 §1.3 责任共担：一张边界图">📖 Ch9 §1.3</a></span></li>
+<li><span class="k">Envelope encryption</span>: a <span
+class="k">DEK</span> encrypts each object; a <span class="k">KEK</span>
+held in the <span class="k">KMS</span> wraps the DEK; root keys protect
+KEKs. <span class="k">BYOK</span>: the customer supplies the key
+material; <span class="k">HYOK</span>: the key stays outside the cloud.
+<span class="more"><a
+href="exam09-cloud-storage-study-guide.html#6-信封加密与密钥层级-w4-s29-s33"
+title="第 9 章 §6 信封加密与密钥层级">📖 Ch9 §6</a></span> <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#76-谁持有密钥-w4-s37"
+title="第 9 章 §7.6 谁持有密钥">📖 Ch9 §7.6</a></span></li>
+<li><span class="k">Authentication</span>: who is asking. <span
+class="k">Authorisation</span>: what they may do. <span class="k">Least
+privilege</span>: only what the task needs. <span class="k">RBAC</span>:
+by role; <span class="k">ABAC</span>: by attributes; <span
+class="k">CP-ABE</span>: the policy is inside the ciphertext. <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#8-访问控制-w4-s39s43"
+title="第 9 章 §8 访问控制">📖 Ch9 §8</a></span></li>
+</ul>
+<h4 id="facts-7">Facts</h4>
+<ul>
+<li>Data lifecycle: <span class="s">create (classify, assign an owner) →
+store (encrypt, replicate, log) → use (decrypt only where authorised) →
+share (keep accountability) → archive or delete (verify
+deletion)</span>. <span class="more"><a
+href="exam09-cloud-storage-study-guide.html#2-先画出数据的一生和信任边界-w4-s10s11"
+title="第 9 章 §2 先画出数据的一生和信任边界">📖 Ch9 §2</a></span></li>
+<li>Threats are mostly configuration and identity: one bad policy
+exposes a whole bucket (public links, inherited permissions); a leaked
+API key works from anywhere; ransomware uses stolen sessions and deletes
+snapshots, versions or keys. <span class="q">Replicas are not
+backups</span>: use immutable backups under a separate identity and
+control plane, and test restores. <span class="more"><a
+href="exam09-cloud-storage-study-guide.html#3-主要威胁配置身份与恢复-w4-s12s21-w12-s8"
+title="第 9 章 §3 主要威胁：配置、身份与恢复">📖 Ch9 §3</a></span></li>
+</ul>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>Scope</th>
+<th>Who can still see plaintext</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>At rest</td>
+<td>the service (it decrypts for any authorised request)</td>
+</tr>
+<tr class="even">
+<td>In transit (TLS)</td>
+<td>both endpoints, including the cloud server</td>
+</tr>
+<tr class="odd">
+<td>In use</td>
+<td>the application and machine processing it</td>
+</tr>
+<tr class="even">
+<td>Client-side</td>
+<td>only clients holding the key</td>
+</tr>
+<tr class="odd">
+<td>End-to-end</td>
+<td>only the communicating endpoints</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Symmetric encryption (AES) is fast, but every reader needs the key,
+and one key for too much data makes a large blast radius. Public-key
+cryptography solves key distribution but is slow. <span class="k">Hybrid
+encryption</span>: a random data key encrypts the file; the data key is
+protected per recipient or by a KMS. <span class="more"><a
+href="exam09-cloud-storage-study-guide.html#4-选对密码学工具-w4-s23s27"
+title="第 9 章 §4 选对密码学工具">📖 Ch9 §4</a></span></li>
+<li><span class="q">KMS decrypt permission = permission to read the
+data.</span> Recovery needs separation of duties (quorum approval).
+<span class="more"><a
+href="exam09-cloud-storage-study-guide.html#72-云上的-kms-w4-s32"
+title="第 9 章 §7.2 云上的 KMS">📖 Ch9 §7.2</a></span> <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#75-恢复要分权-w4-s36"
+title="第 9 章 §7.5 恢复要分权">📖 Ch9 §7.5</a></span></li>
+<li>RBAC (reader, editor, backup operator) suits stable jobs but risks
+role explosion; ABAC decides by subject, resource, action and context.
+Both are enforced by a server that sees the plaintext. <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#83-rbac-与-abac-w4-s41s42"
+title="第 9 章 §8.3 RBAC 与 ABAC">📖 Ch9 §8.3</a></span></li>
+<li>E2EE protects content, not endpoints or metadata (identities,
+timing, size, who talks to whom). <span class="more"><a
+href="exam09-cloud-storage-study-guide.html#9-客户端加密与端到端加密-w4-s45s47"
+title="第 9 章 §9 客户端加密与端到端加密">📖 Ch9 §9</a></span></li>
+<li><span class="q">Sharing = key distribution.</span> Server policy
+(the server stays trusted) · shared secret (no accountability) ·
+per-recipient wrapping (clear identities, remove one person) · group key
+(rekey when members change) · public link (a bearer credential). <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#102-五种分享方式-w4-s49"
+title="第 9 章 §10.2 五种分享方式">📖 Ch9 §10.2</a></span></li>
+<li><span class="q">Revocation cannot recall plaintext already
+obtained</span>; only new versions under a new DEK are protected. <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#103-撤销收不回已拿到的明文-w4-s50"
+title="第 9 章 §10.3 撤销收不回已拿到的明文">📖 Ch9
+§10.3</a></span></li>
+<li>CP-ABE: policy “IT dept. OR (manager AND marketing)”: Sarah
+(manager, IT dept.) can decrypt; Kevin (manager, sales) cannot. The
+storage can be untrusted, but revocation is hard and the attribute
+authority must be trusted. <span class="more"><a
+href="exam09-cloud-storage-study-guide.html#11-基于属性的加密-w4-s51s54"
+title="第 9 章 §11 基于属性的加密">📖 Ch9 §11</a></span></li>
+</ul>
+<h4 id="short-answers-7">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: “Our cloud data is encrypted, so it is secure.”
+Why is this incomplete?</span> It does not say which scope. With
+encryption at rest the service still decrypts for any authorised
+request, so a misconfigured policy or a stolen credential exposes
+plaintext, and the provider can read it. Encryption in transit protects
+only the network path; the server sees plaintext. Data in use is
+plaintext in memory. Only client-side or end-to-end encryption keeps
+plaintext from the provider, and even then endpoints and metadata are
+exposed. The claim also ignores integrity, key management and
+availability. <span class="more"><a
+href="exam09-cloud-storage-study-guide.html#5-已加密要说清保护到哪一段-w4-s28"
+title="第 9 章 §5 “已加密”要说清保护到哪一段">📖 Ch9 §5</a></span></li>
+<li><span class="q">Q: How can a leaked API credential become a data
+breach in seconds? Give three defences.</span> The key appears in a
+repository, log, build artifact or endpoint, where scanners find it
+fast. The attacker calls the provider API from anywhere, and the
+provider sees a valid credential, so the attacker can list, read, share
+or delete data. Defences (any three): workload identity and short-lived
+tokens; a managed secrets service; least-privilege policies; a tested
+rotation and revocation process; monitoring of unusual API use. <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#32-泄露的-api-凭据-w4-s14s16"
+title="第 9 章 §3.2 泄露的 API 凭据">📖 Ch9 §3.2</a></span></li>
+<li><span class="q">Q: Rotation vs re-wrapping vs full re-encryption.
+When is full re-encryption needed?</span> Rotation makes a new key
+version active for future use, while old ciphertext still depends on old
+versions. Re-wrapping protects an existing DEK under a new KEK without
+changing the file. Full re-encryption encrypts the data again under a
+new DEK. It is needed when the DEK itself is exposed, or when a removed
+user who knows the old DEK must be kept out of future versions. <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#74-轮换不等于重新加密一切-w4-s35"
+title="第 9 章 §7.4 轮换不等于重新加密一切">📖 Ch9 §7.4</a></span></li>
+</ul>
+</div>
+<h3 id="secure-two-party-computation">9 · Secure Two-Party
+Computation</h3>
+<div class="chap">
+<p><a href="exam10-two-party-computation-study-guide.html"
+title="第 10 章 安全两方计算">📖 Full notes: Chapter 10 ·
+安全两方计算</a></p>
+</div>
+<h4 id="terms-8">Terms</h4>
+<ul>
+<li><span class="k">Secure multi-party computation (MPC)</span>: parties
+compute an agreed result without giving anyone all the raw inputs; <span
+class="k">2PC</span> is the two-party case. Benefit: data minimisation.
+Costs: complexity and speed. <span class="more"><a
+href="exam10-two-party-computation-study-guide.html#1-不把数据集中也能计算-w5-s2-s32"
+title="第 10 章 §1 不把数据集中也能计算">📖 Ch10 §1</a></span></li>
+<li><span class="k">Ideal world</span>: a <span class="k">trusted third
+party</span> takes x and y, returns only the authorised output F(x, y)
+and forgets everything. <span class="k">Real world</span>: only protocol
+messages. <span class="more"><a
+href="exam10-two-party-computation-study-guide.html#2-理想世界与真实世界-w5-s34s35"
+title="第 10 章 §2 理想世界与真实世界">📖 Ch10 §2</a></span></li>
+<li><span class="k">View</span>: a party’s input, random values,
+received messages and output. <span class="k">Simulator</span>: a
+thought experiment that rebuilds the view from the party’s own input and
+output. <span class="more"><a
+href="exam10-two-party-computation-study-guide.html#3-每一方能学到什么模拟器-w5-s36s37"
+title="第 10 章 §3 每一方能学到什么：模拟器">📖 Ch10 §3</a></span></li>
+<li><span class="k">Semi-honest</span>: follows the protocol but
+analyses everything. <span class="k">Malicious</span>: sends false
+messages, stops early, biases the result. <span class="more"><a
+href="exam10-two-party-computation-study-guide.html#5-攻击者模型半诚实与恶意-w5-s34-s43"
+title="第 10 章 §5 攻击者模型：半诚实与恶意">📖 Ch10 §5</a></span></li>
+<li><span class="k">Oblivious transfer (OT)</span>, <span
+class="k">secret sharing</span> with a t-of-n <span
+class="k">threshold</span>, <span class="k">private set intersection
+(PSI)</span>, <span class="k">homomorphic encryption</span>, <span
+class="k">trusted execution environment (TEE)</span>. <span
+class="more"><a
+href="exam10-two-party-computation-study-guide.html#6-积木一不经意传输-w5-s38s39"
+title="第 10 章 §6 积木一：不经意传输">📖 Ch10 §6</a></span> <span
+class="more"><a
+href="exam10-two-party-computation-study-guide.html#7-积木二秘密分享-w5-s40"
+title="第 10 章 §7 积木二：秘密分享">📖 Ch10 §7</a></span> <span
+class="more"><a
+href="exam10-two-party-computation-study-guide.html#11-mpc同态加密与可信执行环境-w5-s44"
+title="第 10 章 §11 MPC、同态加密与可信执行环境">📖 Ch10
+§11</a></span></li>
+</ul>
+<h4 id="facts-8">Facts</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>What the output also reveals</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Comparison (millionaires)</td>
+<td>is the other value above or below mine</td>
+</tr>
+<tr class="even">
+<td>Sum of two inputs, x + y</td>
+<td>the other input exactly</td>
+</tr>
+<tr class="odd">
+<td>Sum of three or more</td>
+<td>the total of the others only</td>
+</tr>
+<tr class="even">
+<td>PSI</td>
+<td>which of my items the other also has</td>
+</tr>
+<tr class="odd">
+<td>Size of the intersection</td>
+<td>how many overlap, not which</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Repeated queries can binary-search an input (about 7 queries for a
+value from 0 to 100), so limit and audit queries. MPC does not make
+inputs true. With more than two parties, privacy holds only while the
+corrupted or colluding parties stay below the threshold. <span
+class="more"><a
+href="exam10-two-party-computation-study-guide.html#4-输出本身也会泄露-w5-s34-s41-s43"
+title="第 10 章 §4 输出本身也会泄露">📖 Ch10 §4</a></span> <span
+class="more"><a
+href="exam10-two-party-computation-study-guide.html#5-攻击者模型半诚实与恶意-w5-s34-s43"
+title="第 10 章 §5 攻击者模型：半诚实与恶意">📖 Ch10 §5</a></span></li>
+<li>OT: the receiver picks one of two values and learns only that one;
+the sender does not learn the choice. GMW (1987): OT can solve any
+two-party computation problem. <span class="more"><a
+href="exam10-two-party-computation-study-guide.html#6-积木一不经意传输-w5-s38s39"
+title="第 10 章 §6 积木一：不经意传输">📖 Ch10 §6</a></span></li>
+<li>Secret sharing: one share reveals nothing useful; with 3-of-4, any 3
+holders rebuild the secret, and bribing 2 is not enough. <span
+class="more"><a
+href="exam10-two-party-computation-study-guide.html#7-积木二秘密分享-w5-s40"
+title="第 10 章 §7 积木二：秘密分享">📖 Ch10 §7</a></span></li>
+<li>MPC distributes trust (communication cost) · homomorphic encryption
+computes on ciphertext (key ownership, compute cost) · a TEE isolates
+plaintext in hardware (side channels, trust in the vendor). <span
+class="q">MPC moves trust assumptions; it does not remove them.</span>
+<span class="more"><a
+href="exam10-two-party-computation-study-guide.html#10-mpc-转移了安全假设-w5-s43-s45"
+title="第 10 章 §10 MPC 转移了安全假设">📖 Ch10 §10</a></span> <span
+class="more"><a
+href="exam10-two-party-computation-study-guide.html#11-mpc同态加密与可信执行环境-w5-s44"
+title="第 10 章 §11 MPC、同态加密与可信执行环境">📖 Ch10
+§11</a></span></li>
+<li>Uses: joint fraud detection, PSI for shared customers,
+cross-organisation statistics, threshold signing for high-value keys.
+<span class="more"><a
+href="exam10-two-party-computation-study-guide.html#9-云上的用途-w5-s42"
+title="第 10 章 §9 云上的用途">📖 Ch10 §9</a></span></li>
+</ul>
+<h4 id="short-answers-8">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: What may each participant learn in a secure
+two-party computation? Why?</span> Each participant learns its own
+input, its authorised output and whatever follows from these two, and
+nothing else. The reason is the simulation definition: a simulator given
+only that party’s input and output can produce a view (random values,
+received messages, output) that looks the same as the real one. So the
+real messages carry no extra information about the other party’s input.
+This holds under the assumed threat model, semi-honest or malicious.
+<span class="more"><a
+href="exam10-two-party-computation-study-guide.html#3-每一方能学到什么模拟器-w5-s36s37"
+title="第 10 章 §3 每一方能学到什么：模拟器">📖 Ch10 §3</a></span> <span
+class="more"><a
+href="exam10-two-party-computation-study-guide.html#12-答题分析每一方能学到什么"
+title="第 10 章 §12 答题：分析每一方能学到什么">📖 Ch10
+§12</a></span></li>
+<li><span class="q">Q: Why can a perfectly secure MPC protocol still
+reveal a private input?</span> The protocol only promises to leak
+nothing beyond the output, and the output may reveal a lot. If two
+parties compute x + y, Alice learns y by subtracting x. Even a one-bit
+comparison leaks the input if it can be repeated, because the other
+party can binary-search it. So output controls and query limits are
+needed. <span class="more"><a
+href="exam10-two-party-computation-study-guide.html#4-输出本身也会泄露-w5-s34-s41-s43"
+title="第 10 章 §4 输出本身也会泄露">📖 Ch10 §4</a></span></li>
+<li><span class="q">Q: Why does secret sharing spread trust only if the
+shares are really separated?</span> The threshold assumes the holders
+fail or are corrupted independently. If two shares sit in accounts run
+by the same administrator, one compromise or one dishonest person gets
+both. Copying shares into one backup weakens confidentiality the same
+way, and losing too many destroys availability. <span class="more"><a
+href="exam10-two-party-computation-study-guide.html#7-积木二秘密分享-w5-s40"
+title="第 10 章 §7 积木二：秘密分享">📖 Ch10 §7</a></span></li>
+</ul>
+</div>
+<h3 id="software-supply-chain-security">10 · Software Supply Chain
+Security</h3>
+<div class="chap">
+<p><a href="exam11-supply-chain-study-guide.html"
+title="第 11 章 软件供应链安全">📖 Full notes: Chapter 11 ·
+软件供应链安全</a></p>
+</div>
+<h4 id="terms-9">Terms</h4>
+<ul>
+<li><span class="k">Transitive dependency</span>: a dependency of a
+dependency, never chosen directly. <span class="k">Software supply
+chain</span>: the people, components, tools, infrastructure and
+processes of the development lifecycle (OSS libraries, GitHub, CI/CD,
+compilers, registries such as npm, PyPI, Docker Hub). <span
+class="k">Supply chain attack</span>: compromise one component to attack
+downstream software or users. <span class="more"><a
+href="exam11-supply-chain-study-guide.html#2-复用代码也复用了风险-w9-s61s62-s66s68"
+title="第 11 章 §2 复用代码，也复用了风险">📖 Ch11 §2</a></span> <span
+class="more"><a
+href="exam11-supply-chain-study-guide.html#3-软件供应链与供应链攻击-w9-s63s65-s69s70"
+title="第 11 章 §3 软件供应链与供应链攻击">📖 Ch11 §3</a></span></li>
+<li><span class="k">Continuous integration (CI)</span>: each change is
+built and tested automatically on a <span class="k">runner</span>. <span
+class="k">Continuous deployment (CD)</span>: the tested artifact is
+deployed to <span class="k">staging</span> and production automatically.
+<span class="k">Rolling deployment</span>: replace instances one by one;
+<span class="k">blue-green</span>: switch traffic between two
+environments; <span class="k">canary release</span>: 5% → 20% → 50% →
+100% of traffic. <span class="more"><a
+href="exam11-supply-chain-study-guide.html#41-ci-与-cd"
+title="第 11 章 §4.1 CI 与 CD">📖 Ch11 §4.1</a></span> <span
+class="more"><a href="exam11-supply-chain-study-guide.html#43-发布策略"
+title="第 11 章 §4.3 发布策略">📖 Ch11 §4.3</a></span></li>
+<li><span class="k">Provenance</span>: a record of which commit,
+pipeline and builder made an artifact. <span class="k">Reproducible
+build</span>: others rebuild it and compare hashes. <span
+class="k">Typosquatting</span>: a malicious package with a look-alike
+name. <span class="k">Patch gap</span>: transitive or forked copies stay
+unpatched. <span class="more"><a
+href="exam11-supply-chain-study-guide.html#7-发布的产物就是审查过的代码吗-w9-s30s31"
+title="第 11 章 §7 发布的产物就是审查过的代码吗">📖 Ch11 §7</a></span>
+<span class="more"><a
+href="exam11-supply-chain-study-guide.html#81-抢注相似的包名"
+title="第 11 章 §8.1 抢注相似的包名">📖 Ch11 §8.1</a></span> <span
+class="more"><a
+href="exam11-supply-chain-study-guide.html#9-发现和修补依赖里的漏洞-w10-s2-s34-s50s53"
+title="第 11 章 §9 发现和修补依赖里的漏洞">📖 Ch11 §9</a></span></li>
+</ul>
+<h4 id="facts-9">Facts</h4>
+<ul>
+<li>98% of audited commercial codebases contain OSS; 87% contain known
+OSS vulnerabilities; 64% of OSS components are transitive dependencies.
+Log4Shell (CVE-2021-44228, December 2021): one library flaw hit millions
+of apps. SolarWinds (2020): a compromised build environment put a
+backdoor into a signed official update. <span class="more"><a
+href="exam11-supply-chain-study-guide.html#1-开源软件是现代软件的基础-w9-s5s8"
+title="第 11 章 §1 开源软件是现代软件的基础">📖 Ch11 §1</a></span> <span
+class="more"><a
+href="exam11-supply-chain-study-guide.html#2-复用代码也复用了风险-w9-s61s62-s66s68"
+title="第 11 章 §2 复用代码，也复用了风险">📖 Ch11 §2</a></span> <span
+class="more"><a
+href="exam11-supply-chain-study-guide.html#3-软件供应链与供应链攻击-w9-s63s65-s69s70"
+title="第 11 章 §3 软件供应链与供应链攻击">📖 Ch11 §3</a></span></li>
+<li>Secrets (GITHUB_TOKEN, cloud credentials, signing keys) are injected
+into the runner when a job runs. <span class="q">Whoever controls the
+code that runs in CI controls the tokens.</span> A CI job must never get
+CD or production secrets. <span class="more"><a
+href="exam11-supply-chain-study-guide.html#52-权限从哪里来"
+title="第 11 章 §5.2 权限从哪里来">📖 Ch11 §5.2</a></span> <span
+class="more"><a
+href="exam11-supply-chain-study-guide.html#6-流水线的四种攻击与缓解-w9-s27s30-s32"
+title="第 11 章 §6 流水线的四种攻击与缓解">📖 Ch11 §6</a></span></li>
+</ul>
+<div class="table-scroll"><table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Pipeline risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Untrusted pull-request code runs with secrets
+(<code>pull_request_target</code> + checkout + build script)</td>
+<td>build PRs with <code>pull_request</code> (no secrets); protected
+branches, required review, signed commits</td>
+</tr>
+<tr class="even">
+<td>Compromised or reused self-hosted runner</td>
+<td>short-lived, sandboxed runners; no shared workspace</td>
+</tr>
+<tr class="odd">
+<td>Compromised third-party action or image (mutable tag like v1)</td>
+<td>pin to a full commit SHA; lockfiles; review every update</td>
+</tr>
+<tr class="even">
+<td>Long-lived, broad credentials</td>
+<td>least-privilege tokens, OIDC short-lived credentials, secret
+scanning</td>
+</tr>
+<tr class="odd">
+<td>Artifact replaced after the build</td>
+<td>checksums, signatures, provenance, reproducible builds</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Dependency attacks: typosquatting (<code>pip install sklearn</code>
+instead of <code>scikit-learn</code>; AI tools can invent package
+names); a compromised maintainer (event-stream added flatmap-stream to
+steal Copay wallet keys); XZ Utils (2024: a trusted contributor hid a
+backdoor in release tarballs); build systems (SolarWinds, Codecov).
+Review a library when you add it and at every upgrade. A fix comes as a
+new version: registries do not allow changing a published version,
+because other software still uses it. <span class="more"><a
+href="exam11-supply-chain-study-guide.html#8-依赖与构建系统的攻击途径-w9-s71s80"
+title="第 11 章 §8 依赖与构建系统的攻击途径">📖 Ch11 §8</a></span></li>
+<li>Unsafe deployment: default credentials, <code>debug=True</code> in
+production, exposed Redis, running as root, privileged containers,
+<code>verify=False</code>. <span class="q">A secret deleted in a new
+commit stays in Git history, so revoke and rotate it.</span> Use a vault
+and secret scanning (Gitleaks, TruffleHog). <span class="more"><a
+href="exam11-supply-chain-study-guide.html#10-部署配置与秘密补充-w9-s34s51-s58s59"
+title="第 11 章 §10 部署配置与秘密：补充">📖 Ch11 §10</a></span></li>
+</ul>
+<h4 id="short-answers-9">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: Why is a CI/CD pipeline a security-critical trust
+boundary?</span> High complexity: many tools, dependencies, scripts and
+runners create attack surface. Many interactions: it connects
+developers, OSS, repositories, registries and environments. High
+privilege: it can read code, publish packages, run commands, deploy
+services and use secrets. Secrets are injected into the runner at run
+time, so any code running in a job can use them, and one compromise can
+reach production and every downstream user. <span class="more"><a
+href="exam11-supply-chain-study-guide.html#51-为什么"
+title="第 11 章 §5.1 为什么">📖 Ch11 §5.1</a></span></li>
+<li><span class="q">Q: A vendor posts the SHA-256 of each release on its
+download page. What is the limit, and what else helps?</span> A hash
+helps only if the expected value comes from a trusted channel; an
+attacker who controls the download server can replace both the file and
+the hash. A signature cannot be forged without the vendor’s private key.
+Provenance shows which commit and pipeline built the file, and a
+reproducible build lets others rebuild and compare. A signature alone
+fails if the build itself is compromised, as in SolarWinds. <span
+class="more"><a
+href="exam11-supply-chain-study-guide.html#7-发布的产物就是审查过的代码吗-w9-s30s31"
+title="第 11 章 §7 发布的产物就是审查过的代码吗">📖 Ch11
+§7</a></span></li>
+<li><span class="q">Q: Compare static and dynamic analysis.</span>
+Static analysis checks code without running it and covers many paths,
+but it reports possible issues and has false positives (CodeQL,
+Semgrep). Dynamic analysis runs the program with inputs and shows real
+behaviour, but covers only the paths the inputs reach, so it has false
+negatives (ASan, fuzzing). <span class="more"><a
+href="exam11-supply-chain-study-guide.html#9-发现和修补依赖里的漏洞-w10-s2-s34-s50s53"
+title="第 11 章 §9 发现和修补依赖里的漏洞">📖 Ch11 §9</a></span></li>
+</ul>
+</div>
+<h3 id="virtual-machines-and-containers">11 · Virtual Machines and
+Containers</h3>
+<div class="chap">
+<p><a href="exam12-vm-containers-study-guide.html"
+title="第 12 章 虚拟机与容器的隔离">📖 Full notes: Chapter 12 ·
+虚拟机与容器的隔离</a></p>
+</div>
+<h4 id="terms-10">Terms</h4>
+<ul>
+<li><span class="k">Hypervisor</span> (VMM): sits between the guests and
+the hardware, controls their access and keeps them apart. <span
+class="k">Guest OS</span>: each VM’s own OS and kernel. <span
+class="k">VM escape</span>: guest code affects the host. <span
+class="more"><a
+href="exam12-vm-containers-study-guide.html#2-虚拟机隔离什么-w11-s5-s9-s19s21"
+title="第 12 章 §2 虚拟机隔离什么">📖 Ch12 §2</a></span> <span
+class="more"><a
+href="exam12-vm-containers-study-guide.html#7-虚拟机逃逸-w11-s23s29"
+title="第 12 章 §7 虚拟机逃逸">📖 Ch12 §7</a></span></li>
+<li><span class="k">Container</span>: an app with its libraries, with
+its own process and file-system view but a <span class="k">shared host
+kernel</span>. <span class="k">Namespaces</span>: limit what a process
+can see; <span class="k">cgroups</span>: limit resources; <span
+class="k">capabilities</span>: limit privileged actions; <span
+class="k">seccomp</span>: limits system calls. Images carry library bugs
+too, so scan them. <span class="more"><a
+href="exam12-vm-containers-study-guide.html#4-容器隔离什么-w11-s14s16"
+title="第 12 章 §4 容器隔离什么">📖 Ch12 §4</a></span> <span
+class="more"><a
+href="exam12-vm-containers-study-guide.html#5-两种隔离模型的区别-w11-s17s18-s21-"
+title="第 12 章 §5 两种隔离模型的区别">📖 Ch12 §5</a></span></li>
+<li><span class="k">Cluster</span> (control plane + workers) / <span
+class="k">node</span> (one worker machine) / <span class="k">Pod</span>
+(smallest deployable unit). <span class="k">gVisor</span>: a userspace
+application kernel; <span class="k">Kata Containers</span>: containers
+inside lightweight VMs; <span class="k">confidential containers</span>:
+protect the workload from the host, with <span
+class="k">attestation</span>. <span class="more"><a
+href="exam12-vm-containers-study-guide.html#9-kubernetes从一台主机到一个集群-w11-s33s35"
+title="第 12 章 §9 Kubernetes：从一台主机到一个集群">📖 Ch12
+§9</a></span> <span class="more"><a
+href="exam12-vm-containers-study-guide.html#11-更强的隔离沙箱与机密容器-w11-s41s42"
+title="第 12 章 §11 更强的隔离：沙箱与机密容器">📖 Ch12
+§11</a></span></li>
+</ul>
+<h4 id="facts-10">Facts</h4>
+<div class="table-scroll"><table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 37%" />
+<col style="width: 44%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Virtual machine</th>
+<th>Container</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Isolation layer</td>
+<td>hypervisor (hardware virtualisation)</td>
+<td>OS: processes on one kernel</td>
+</tr>
+<tr class="even">
+<td>Kernel</td>
+<td>one per guest</td>
+<td>shared host kernel</td>
+</tr>
+<tr class="odd">
+<td>How it fails</td>
+<td>VM escape through a hypervisor interface</td>
+<td>a kernel bug; or privileged settings, host mounts, Docker daemon
+access (no bug needed)</td>
+</tr>
+<tr class="even">
+<td>Weakening settings</td>
+<td>shared folders, clipboard, drag and drop</td>
+<td><code>--privileged</code>, mounting <code>/</code> or docker.sock,
+running as root</td>
+</tr>
+<tr class="odd">
+<td>Cost</td>
+<td>heavy, boots a full OS</td>
+<td>light, starts in seconds</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><span class="k">The VM boundary is usually stronger</span>, but
+configuration matters on both sides. Choose by threat model, then
+isolation, performance, operations and portability: untrusted customer
+code → VM or sandbox; a controlled internal service → container. They
+are often combined: containers inside VMs. <span class="more"><a
+href="exam12-vm-containers-study-guide.html#5-两种隔离模型的区别-w11-s17s18-s21-"
+title="第 12 章 §5 两种隔离模型的区别">📖 Ch12 §5</a></span> <span
+class="more"><a
+href="exam12-vm-containers-study-guide.html#6-怎样选隔离技术-w11-s22"
+title="第 12 章 §6 怎样选隔离技术">📖 Ch12 §6</a></span></li>
+<li>Virtualisation supports isolation, testing, resource allocation and
+recovery; VMs serve safe browsing, malware analysis, intrusion detection
+and honeypots. NAT is safer than bridged for lab VMs. <span
+class="more"><a
+href="exam12-vm-containers-study-guide.html#1-为什么用虚拟化-w11-s4-s6s8"
+title="第 12 章 §1 为什么用虚拟化">📖 Ch12 §1</a></span> <span
+class="more"><a
+href="exam12-vm-containers-study-guide.html#3-虚拟机在安全上的用途-w11-s10s13"
+title="第 12 章 §3 虚拟机在安全上的用途">📖 Ch12 §3</a></span></li>
+<li><span class="q">Access to the Docker daemon = administrator access
+to the host</span>: <code>docker run -v /:/hostOS</code> reads host
+files with no bug at all. Do not expose the daemon; limit and audit
+access. <span class="more"><a
+href="exam12-vm-containers-study-guide.html#8-docker-守护进程与宿主机挂载-w11-s30s32-w9-s39s41"
+title="第 12 章 §8 Docker 守护进程与宿主机挂载">📖 Ch12
+§8</a></span></li>
+<li>A compromised Pod has four independent paths, and <span
+class="q">blocking one does not block the others</span>: host → Pod
+Security Admission (Privileged / Baseline / Restricted; Restricted for
+normal apps) plus non-root, dropped capabilities and seccomp; network →
+NetworkPolicy with default deny; API → a dedicated service account with
+least-privilege RBAC, no token if not needed; cloud → instance metadata
+and credentials. <span class="more"><a
+href="exam12-vm-containers-study-guide.html#10-被攻破的-pod四条路径和对应的控制-w11-s36s40"
+title="第 12 章 §10 被攻破的 Pod：四条路径和对应的控制">📖 Ch12
+§10</a></span></li>
+</ul>
+<h4 id="short-answers-10">Short answers</h4>
+<div class="qa">
+<ul>
+<li><span class="q">Q: Compare the isolation models of VMs and
+containers.</span> A VM runs its own guest OS and kernel, and the
+hypervisor controls every access to the hardware, so a compromised
+guest, even with admin rights, should stay inside its VM. It fails only
+through a VM escape and is weakened by features like shared folders.
+Containers are processes that share the host kernel, isolated by
+namespaces, cgroups, capabilities and seccomp. They are lighter and
+faster, but one kernel bug affects all containers on the host, and
+settings such as a privileged container, a host root mount or Docker
+socket access break isolation without any bug. <span class="more"><a
+href="exam12-vm-containers-study-guide.html#5-两种隔离模型的区别-w11-s17s18-s21-"
+title="第 12 章 §5 两种隔离模型的区别">📖 Ch12 §5</a></span> <span
+class="more"><a
+href="exam12-vm-containers-study-guide.html#13-答题比较虚拟机和容器的隔离"
+title="第 12 章 §13 答题：比较虚拟机和容器的隔离">📖 Ch12
+§13</a></span></li>
+<li><span class="q">Q: How can a VM escape happen, and how do you reduce
+the risk?</span> Guest code sends crafted input to an interface the
+hypervisor exposes, such as a virtual device, copy/paste or a shared
+folder. A privileged host-side component reads that input; if it has a
+bug, the input can corrupt memory or skip a check and run code on the
+host. Reduce the risk: disable unneeded integration features (they
+enlarge the attack surface), patch the hypervisor, limit management
+privileges and monitor. <span class="more"><a
+href="exam12-vm-containers-study-guide.html#7-虚拟机逃逸-w11-s23s29"
+title="第 12 章 §7 虚拟机逃逸">📖 Ch12 §7</a></span></li>
+<li><span class="q">Q: Why is a snapshot not a backup?</span> A snapshot
+freezes the disk state and writes later changes to a separate file, so
+rollback is fast. But it depends on the original virtual disk and cannot
+be moved elsewhere on its own. A backup is a complete, independent copy.
+<span class="more"><a
+href="exam12-vm-containers-study-guide.html#1-为什么用虚拟化-w11-s4-s6s8"
+title="第 12 章 §1 为什么用虚拟化">📖 Ch12 §1</a></span></li>
+</ul>
+</div>
+<h2 id="part-2-the-final-question-design">Part 2 · The Final Question:
+Design</h2>
+<p>How to answer: <span class="s">state the threats → give the design
+step by step → say which goal each step gives (confidentiality,
+integrity, authentication, access control) → explain why each attack
+fails → state assumptions and limits</span>. Keywords alone may not earn
+full marks: write full sentences.</p>
+<h3 id="d1-secure-an-http-chat-app-the-lecturers-sample">D1 ★★★ Secure
+an HTTP chat app (the lecturer’s sample)</h3>
+<p><span class="q">You want to send a message to your friend Alice via
+an application. However, you find that this application uses the HTTP
+protocol. How will you secure this communication? Describe your method
+and analyze whether it can resist a man-in-the-middle (MITM)
+attack.</span> <span class="more"><a
+href="exam04-tls-certificates-study-guide.html#13-样题保护一个用-http-的聊天应用-w13-s13"
+title="第 4 章 §13 样题：保护一个用 HTTP 的聊天应用">📖 Ch4
+§13</a></span> <span class="more"><a
+href="exam00-roadmap-study-guide.html#5-样题拆解-w13-s13"
+title="第 0 章 §5 样题拆解">📖 Ch0 §5</a></span></p>
+<p><em>Problem.</em> HTTP sends messages in plaintext and does not
+authenticate the server. Anyone on the path, such as a café Wi-Fi owner,
+can read, change or inject messages.</p>
+<p><em>Method: use HTTPS, i.e. HTTP over TLS 1.3.</em></p>
+<ol type="1">
+<li>Certificate: the server gets a certificate from a trusted CA. It
+binds the server’s domain name to its public key and is signed by the
+CA.</li>
+<li>Key exchange: in the handshake, the client and the server send
+ephemeral (EC)DH key shares and compute a fresh shared secret. The
+server signs the handshake with the private key of its certificate
+(CertificateVerify).</li>
+<li>Verification: the client checks that the certificate chain leads to
+a root CA in its trust store, the hostname matches the SAN, and the
+certificate is in its validity period and not revoked. Then it checks
+the signature, which proves that the server holds the private key.</li>
+<li>Protection: both sides derive symmetric session keys and protect
+every message with authenticated encryption such as AES-GCM. This gives
+confidentiality and integrity, and ephemeral keys give forward
+secrecy.</li>
+</ol>
+<p><em>MITM analysis.</em> An attacker can intercept the handshake, but
+cannot show a valid certificate for the server’s domain and cannot sign
+the handshake without the server’s private key. The client detects this
+and stops the connection, so the attack fails. Plain DH without
+certificates would not resist MITM, because the attacker could run one
+DH exchange with each side and relay the messages.</p>
+<p><em>Assumptions and limits.</em> The user does not ignore certificate
+warnings; no malicious root CA is installed on the device; the server’s
+private key stays secret. TLS protects only the link from the client to
+the server. If I do not trust the chat server, Alice and I should add
+end-to-end encryption, so that only our two devices hold the message
+keys.</p>
+<p><em>Marking points:</em> HTTP has no confidentiality, integrity or
+server authentication · TLS with a CA-issued certificate · ephemeral DH
++ server signature · client checks chain, hostname, validity, revocation
+· authenticated encryption · MITM fails: no valid certificate or private
+key · contrast with unauthenticated DH · assumptions · E2EE if the
+server is untrusted.</p>
+<h3 id="d2-secure-cloud-storage-and-sharing-assignment-2">D2 ★★★ Secure
+cloud storage and sharing (Assignment 2)</h3>
+<p><span class="q">A team stores confidential files on a cloud storage
+service that it does not trust. Only the owner of a file may decide who
+can read it. Any change to a file must be detected, and access must be
+removable. Design a solution, explain how it gives confidentiality,
+integrity and access control, and state its limits.</span> <span
+class="more"><a
+href="exam09-cloud-storage-study-guide.html#12-用-assignment-2-把全章串起来-w4-s55-assignment-2"
+title="第 9 章 §12 用 Assignment 2 把全章串起来">📖 Ch9
+§12</a></span></p>
+<p><em>Threats.</em> The provider is curious or hacked: it can read,
+change, delete or roll back files. An unauthorised user tries to read
+files. An attacker swaps a user’s public key. A removed user keeps old
+data.</p>
+<p><em>Confidentiality: client-side encryption.</em> Each file is
+encrypted on the owner’s device before upload, with a fresh random
+data-encryption key (DEK) and AES-256-GCM. The provider stores only
+ciphertext.</p>
+<p><em>Sharing: key distribution.</em> When the owner approves a
+request, the owner wraps the DEK with the requester’s public key using
+ECIES (per-recipient wrapping). Only that requester can unwrap it. Each
+user registers their own public key from their own account (or a
+certificate binds it to the user), so the owner cannot be tricked into
+wrapping the DEK for an attacker’s key.</p>
+<p><em>Integrity.</em> The GCM tag detects any change to the ciphertext.
+The owner also signs a manifest (file ID, version, ciphertext hash) with
+ECDSA, and the hash is recorded on-chain. A reader checks the hash and
+the signature, so a replaced, rolled-back or forged file is
+detected.</p>
+<p><em>Access control.</em> A smart contract records the owner of each
+file. Only the owner can approve, reject or revoke a request; the
+contract checks the caller (msg.sender). Every action emits an event,
+which gives a tamper-evident audit trail. On-chain data is public, so
+the contract gives authorisation, not confidentiality: only wrapped keys
+are stored on-chain. (Without a blockchain: an owner-controlled
+authorisation service with RBAC or ABAC and logging.)</p>
+<p><em>Revocation.</em> The owner deletes the wrapped DEK, and the
+contract blocks new access. For full revocation, the owner re-encrypts
+the file with a new DEK and wraps it only for the remaining users.</p>
+<p><em>Limits.</em> Revocation cannot recall a DEK or plaintext that was
+already downloaded. Metadata (who shares with whom, when, file sizes) is
+public. Endpoints must be trusted: malware on a reader’s computer sees
+the plaintext. The provider can still delete files; we detect it, but we
+need backups. Wrapped DEKs have no forward secrecy if a user’s private
+key leaks later.</p>
+<p><em>Marking points:</em> client-side encryption with a per-file DEK
+and authenticated encryption · per-recipient key wrapping with
+authenticated public keys · integrity via the tag and a signed hash ·
+owner-only access control with an audit trail · revocation by re-keying
+· at least one limitation.</p>
+<h3 id="d3-design-an-identification-protocol-week-6">D3 ★★ Design an
+identification protocol (Week 6)</h3>
+<p><span class="q">Design a protocol that lets Alice log in to Bob over
+an insecure channel. It must resist eavesdropping and replay, and a
+stolen server database must not let the attacker log in as Alice.
+Explain why it is secure and how to make it anonymous.</span> <span
+class="more"><a
+href="exam03-auth-protocols-study-guide.html#2-分析一个协议的五个步骤"
+title="第 3 章 §2 分析一个协议的五个步骤">📖 Ch3 §2</a></span> <span
+class="more"><a
+href="exam03-auth-protocols-study-guide.html#10-协议-89用公钥代替共享密钥-w6-s25s27"
+title="第 3 章 §10 协议 8、9：用公钥代替共享密钥">📖 Ch3 §10</a></span>
+<span class="more"><a
+href="exam03-auth-protocols-study-guide.html#11-九个协议一览"
+title="第 3 章 §11 九个协议一览">📖 Ch3 §11</a></span></p>
+<p><em>Design: public-key challenge–response (Protocol 9).</em> Alice
+creates a key pair (pk, sk) on her device; Bob stores only (Alice, pk).
+Steps: (1) Alice → Bob: “Alice”; (2) Bob → Alice: a fresh, long,
+unpredictable random challenge r; (3) Alice → Bob: Sig_sk(r, Bob); (4)
+Bob checks the signature with pk and checks that r is the challenge he
+just sent.</p>
+<p><em>Why it is secure.</em> Eavesdropping: only r and a signature
+travel; no password is sent, and sk cannot be computed from them.
+Replay: r is new for every login, so an old signature fails; r must be
+unpredictable, not a counter (the lesson of Protocols 3–4). Dictionary
+attack: there is no low-entropy password to guess (Protocols 2–5).
+Server compromise: Bob stores only the public key, so a stolen database
+cannot answer a challenge, unlike Protocol 6, where Bob stores K. 📎
+Signing Bob’s name stops a fake server from relaying Bob’s challenge, as
+passkeys bind the website.</p>
+<p><em>Anonymity and session.</em> “Alice” is sent in clear. To hide it,
+encrypt the identity with Bob’s public key, send it inside an encrypted
+channel, or use a temporary pseudonym (like GSM’s TMSI); Protocol 7’s
+way is anonymous but costs up to n hashes. Identification gives no
+session key, so combine it with signed ephemeral DH, as TLS does.</p>
+<p><em>Marking points:</em> fresh random challenge from the verifier ·
+signature (or a MAC with a long random key) instead of a password ·
+server stores only the public key · each attack explained · anonymity
+fix · session key.</p>
+<!-- links:start -->
+<!-- links:end -->
+
+</body>
+</html>
